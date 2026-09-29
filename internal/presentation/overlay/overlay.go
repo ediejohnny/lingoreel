@@ -19,13 +19,21 @@ import (
 	"lingoreel/internal/infrastructure/windows/win32"
 )
 
-// ErrNoPlayerWindow reports a player process that never showed a window.
-var ErrNoPlayerWindow = errors.New("player window not found")
+var (
+	// ErrNoPlayerWindow reports a player process that never showed a window.
+	ErrNoPlayerWindow = errors.New("player window not found")
+	// ErrPlayerNotResponding reports a UI thread stuck on a hung player.
+	ErrPlayerNotResponding = errors.New("player window not responding")
+)
 
 const (
 	className      = "LingoReelOverlay"
 	findInterval   = 100 * time.Millisecond
 	defaultFindFor = 10 * time.Second
+	// uiTimeout bounds every wait on the UI thread. Owning a window of the
+	// player ties the overlay's thread to the player's: a hung player can
+	// block it, and the session must not hang with it.
+	uiTimeout = 3 * time.Second
 )
 
 // Options configures an overlay.
@@ -67,6 +75,12 @@ type Overlay struct {
 
 	done     chan struct{}
 	doneOnce sync.Once
+
+	// Content waiting to be drawn; only the latest counts.
+	pendingMu sync.Mutex
+	pending   Content
+	scheduled bool
+	drawErr   error
 }
 
 var (
@@ -94,15 +108,33 @@ func Open(ctx context.Context, options Options) (*Overlay, error) {
 		return nil, err
 	}
 	o := &Overlay{thread: thread, options: options, target: target, done: make(chan struct{})}
-	var setupErr error
-	if err := thread.Do(func() { setupErr = o.setup() }); err != nil {
-		setupErr = err
-	}
-	if setupErr != nil {
+	if err := o.onUIThread(o.setup); err != nil {
+		if errors.Is(err, ErrPlayerNotResponding) {
+			// The UI thread is stuck on the player; the cleanup finishes when
+			// the player recovers or exits, without holding the caller.
+			go o.Close()
+			return nil, err
+		}
 		o.Close()
-		return nil, setupErr
+		return nil, err
 	}
 	return o, nil
+}
+
+// onUIThread runs fn on the UI thread and waits at most uiTimeout for it.
+func (o *Overlay) onUIThread(fn func() error) error {
+	result := make(chan error, 1)
+	go func() {
+		var fnErr error
+		err := o.thread.Do(func() { fnErr = fn() })
+		result <- errors.Join(err, fnErr)
+	}()
+	select {
+	case err := <-result:
+		return err
+	case <-time.After(uiTimeout):
+		return ErrPlayerNotResponding
+	}
 }
 
 func cmpOr(value, fallback time.Duration) time.Duration {
@@ -205,17 +237,38 @@ func (o *Overlay) setup() error {
 	return o.follow()
 }
 
-// Show replaces the content and redraws.
+// Show replaces the content. It never waits for the drawing, so a hung
+// player cannot stall the session: the latest content is drawn as soon as
+// the UI thread is free, and a drawing error is returned by the next call.
 func (o *Overlay) Show(content Content) error {
-	var drawErr error
-	err := o.thread.Do(func() {
-		if o.window == 0 {
-			return
-		}
-		o.content = content
-		drawErr = o.redraw()
-	})
-	return errors.Join(err, drawErr)
+	o.pendingMu.Lock()
+	o.pending = content
+	already := o.scheduled
+	o.scheduled = true
+	lastErr := o.drawErr
+	o.drawErr = nil
+	o.pendingMu.Unlock()
+	if already {
+		return lastErr
+	}
+	return errors.Join(lastErr, o.thread.Post(o.drawPending))
+}
+
+// drawPending runs on the UI thread and draws the latest content.
+func (o *Overlay) drawPending() {
+	o.pendingMu.Lock()
+	content := o.pending
+	o.scheduled = false
+	o.pendingMu.Unlock()
+	if o.window == 0 {
+		return
+	}
+	o.content = content
+	if err := o.redraw(); err != nil {
+		o.pendingMu.Lock()
+		o.drawErr = err
+		o.pendingMu.Unlock()
+	}
 }
 
 // Done is closed when the player window goes away.
@@ -223,13 +276,24 @@ func (o *Overlay) Done() <-chan struct{} {
 	return o.done
 }
 
-// Close removes the overlay and stops its thread.
+// Close removes the overlay and stops its thread. If a hung player holds
+// the UI thread, Close gives up after uiTimeout and reports it.
 func (o *Overlay) Close() error {
-	err := o.thread.Do(o.teardown)
-	if errors.Is(err, uithread.ErrClosed) {
+	err := o.onUIThread(func() error { o.teardown(); return nil })
+	switch {
+	case errors.Is(err, ErrPlayerNotResponding):
+		return err
+	case errors.Is(err, uithread.ErrClosed):
 		err = nil
 	}
-	return errors.Join(err, o.thread.Close())
+	closed := make(chan error, 1)
+	go func() { closed <- o.thread.Close() }()
+	select {
+	case closeErr := <-closed:
+		return errors.Join(err, closeErr)
+	case <-time.After(uiTimeout):
+		return ErrPlayerNotResponding
+	}
 }
 
 // teardown runs on the UI thread and is safe to call more than once.
@@ -275,6 +339,11 @@ func (o *Overlay) follow() error {
 	resized := bounds.Right-bounds.Left != o.bounds.Right-o.bounds.Left || bounds.Bottom-bounds.Top != o.bounds.Bottom-o.bounds.Top
 	moved := bounds != o.bounds
 	o.bounds = bounds
+	if bounds.Right <= bounds.Left || bounds.Bottom <= bounds.Top {
+		// No client area (a window shrunk to its title bar): nothing to cover.
+		o.hide()
+		return nil
+	}
 	switch {
 	case resized || o.dib == nil:
 		return o.redraw()

@@ -112,6 +112,23 @@ func (t *Thread) Do(fn func()) error {
 	return nil
 }
 
+// Post queues fn to run on the UI thread and returns at once. It is for work
+// whose caller must never wait on the UI thread, which a hung window owned by
+// another process can block.
+func (t *Thread) Post(fn func()) error {
+	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
+		return ErrClosed
+	}
+	t.jobs = append(t.jobs, fn)
+	t.mu.Unlock()
+	// As in Do, a failed wake-up means the loop is stopping and finish runs
+	// the job.
+	_ = win32.PostThreadMessage(t.id, wakeMessage)
+	return nil
+}
+
 // Done is closed when the loop has ended.
 func (t *Thread) Done() <-chan struct{} {
 	return t.done
