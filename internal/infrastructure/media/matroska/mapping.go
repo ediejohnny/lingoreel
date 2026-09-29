@@ -42,12 +42,14 @@ func subtitleFormatOf(entry TrackEntry) (subtitle.Format, bool) {
 func (container Container) MediaInfo() media.Info {
 	info := media.Info{Duration: container.Duration, Tracks: make([]media.Track, 0, len(container.Tracks))}
 	for _, entry := range container.Tracks {
+		language, guessed := trackLanguage(entry)
 		track := media.Track{
 			Number:          entry.Number,
 			UID:             entry.UID,
 			Type:            trackTypeOf(entry.Type),
 			Codec:           entry.CodecID,
-			Language:        media.NormalizeLanguage(entry.LanguageBCP47, entry.Language, entry.Name),
+			Language:        language,
+			LanguageGuessed: guessed,
 			Name:            entry.Name,
 			Default:         entry.FlagDefault,
 			Forced:          entry.FlagForced,
@@ -67,6 +69,19 @@ func (container Container) MediaInfo() media.Info {
 		info.Tracks = append(info.Tracks, track)
 	}
 	return info
+}
+
+// trackLanguage normalizes a track's language. The spec default "eng" of a
+// track without a Language element is only a fallback: the track name comes
+// first, and a language taken from the default is reported as guessed.
+func trackLanguage(entry TrackEntry) (media.LanguageTag, bool) {
+	if entry.LanguageDeclared || entry.LanguageBCP47 != "" {
+		return media.NormalizeLanguage(entry.LanguageBCP47, entry.Language, entry.Name), false
+	}
+	if language := media.NormalizeLanguage("", "", entry.Name); language != "" {
+		return language, false
+	}
+	return media.NormalizeLanguage("", entry.Language, ""), true
 }
 
 func trackTypeOf(value uint64) media.TrackType {

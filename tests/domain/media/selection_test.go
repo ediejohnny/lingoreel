@@ -54,6 +54,37 @@ func TestForcedTracksLoseAgainstFullTracksOfTheSameLanguage(t *testing.T) {
 	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 2, Translation: 4})
 }
 
+// A forced track only carries the foreign-language lines, so a full track in
+// a less exact region still serves better: pt-BR forced scored 307 against
+// 257 for a full "pt" track when the region outweighed "not forced".
+func TestForcedTracksLoseEvenAgainstALessExactRegion(t *testing.T) {
+	file := info(
+		forced(subtitleTrack(1, "pt-BR")),
+		subtitleTrack(2, "pt"),
+		subtitleTrack(3, "pt-PT"),
+		forced(subtitleTrack(4, "en-US")),
+		subtitleTrack(5, "en-GB"),
+	)
+	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 5, Translation: 2})
+
+	onlyForced := info(forced(subtitleTrack(1, "pt-BR")), subtitleTrack(2, "en"))
+	assertSelection(t, media.SelectTracks(onlyForced, studyPreferences), media.Selection{Primary: 2, Translation: 1})
+}
+
+// A language nobody declared (the Matroska default "eng") loses against a
+// declared one, and still serves when it is the only candidate.
+func TestGuessedLanguagesLoseAgainstDeclaredOnes(t *testing.T) {
+	guessed := func(track media.Track) media.Track { track.LanguageGuessed = true; return track }
+	file := info(asDefault(guessed(subtitleTrack(1, "en"))), subtitleTrack(2, "en-US"))
+	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 2})
+
+	alone := info(guessed(subtitleTrack(1, "en")))
+	assertSelection(t, media.SelectTracks(alone, studyPreferences), media.Selection{Primary: 1})
+
+	audio := info(asDefault(guessed(audioTrack(1, "en", true))), audioTrack(2, "en", false))
+	assertSelection(t, media.SelectTracks(audio, studyPreferences), media.Selection{Audio: 2})
+}
+
 func TestTranslationRegionPreference(t *testing.T) {
 	cases := []struct {
 		name   string

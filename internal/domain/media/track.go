@@ -31,7 +31,10 @@ type Track struct {
 	Type   TrackType
 	Codec  string
 	// Language is the normalized BCP 47 tag, empty when unknown.
-	Language        LanguageTag
+	Language LanguageTag
+	// LanguageGuessed marks a language nobody stated: the container's
+	// default ("eng" when Matroska omits the element). It is trusted less.
+	LanguageGuessed bool
 	Name            string
 	Default         bool
 	Forced          bool

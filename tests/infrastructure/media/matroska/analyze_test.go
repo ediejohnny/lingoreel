@@ -94,14 +94,48 @@ func TestAnalyzeAppliesSpecDefaults(t *testing.T) {
 	info := analyze(t, data).MediaInfo()
 
 	first, _ := info.Track(1)
-	if first.Language != "en" || !first.Default {
-		t.Fatalf("track without flags = %+v, want English and default", first)
+	if first.Language != "en" || !first.Default || !first.LanguageGuessed {
+		t.Fatalf("track without flags = %+v, want English (guessed) and default", first)
+	}
+	if second, _ := info.Track(2); second.LanguageGuessed {
+		t.Fatal("a declared language was marked as guessed")
 	}
 	if second, _ := info.Track(2); second.Language != "pt-BR" {
 		t.Fatalf("BCP 47 track language = %q, want pt-BR", second.Language)
 	}
 	if third, _ := info.Track(3); third.Language != "" {
 		t.Fatalf("undetermined language = %q, want empty", third.Language)
+	}
+}
+
+// Without a Language element the specification says "eng", but that is a
+// default, not a statement: the track name decides when it names a language
+// (PRD §36), so a track called "Português" is never taken for English.
+func TestTrackNameDecidesWhenTheLanguageIsOnlyTheDefault(t *testing.T) {
+	data := matroskaFile(
+		segmentInfo(1_000_000, 1000),
+		tracksEl(
+			trackEntry(1, typeSubtitle, "S_TEXT/UTF8", stringEl(idName, "Português (Brasil)")),
+			trackEntry(2, typeSubtitle, "S_TEXT/UTF8", stringEl(idLanguage, "und"), stringEl(idName, "Spanish")),
+			trackEntry(3, typeSubtitle, "S_TEXT/UTF8", stringEl(idLanguage, "eng"), stringEl(idName, "Português")), // declared wins
+			trackEntry(4, typeSubtitle, "S_TEXT/UTF8", stringEl(idName, "Commentary")),
+		),
+	)
+	info := analyze(t, data).MediaInfo()
+	want := map[uint64]struct {
+		language media.LanguageTag
+		guessed  bool
+	}{
+		1: {"pt-BR", false},
+		2: {"es", false},
+		3: {"en", false},
+		4: {"en", true},
+	}
+	for number, expected := range want {
+		track, _ := info.Track(number)
+		if track.Language != expected.language || track.LanguageGuessed != expected.guessed {
+			t.Errorf("track %d = %q guessed=%v, want %q guessed=%v", number, track.Language, track.LanguageGuessed, expected.language, expected.guessed)
+		}
 	}
 }
 
