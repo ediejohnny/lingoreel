@@ -30,13 +30,18 @@ import (
 var sampleVideo = filepath.Join("..", "..", "testdata", "video", "study-sample.mkv")
 
 var (
-	user32           = windows.NewLazySystemDLL("user32.dll")
-	procGetWindow    = user32.NewProc("GetWindow")
-	procShowWindow   = user32.NewProc("ShowWindow")
-	procSetWindowPos = user32.NewProc("SetWindowPos")
-	procPostMessage  = user32.NewProc("PostMessageW")
-	procGetDC        = user32.NewProc("GetDC")
-	procReleaseDC    = user32.NewProc("ReleaseDC")
+	user32            = windows.NewLazySystemDLL("user32.dll")
+	procGetWindow     = user32.NewProc("GetWindow")
+	procGetWindowLong = user32.NewProc("GetWindowLongPtrW")
+	// WindowFromPoint and GetAncestor find which top-level window is shown at
+	// a screen point.
+	procWindowFromPoint = user32.NewProc("WindowFromPoint")
+	procGetAncestor     = user32.NewProc("GetAncestor")
+	procShowWindow      = user32.NewProc("ShowWindow")
+	procSetWindowPos    = user32.NewProc("SetWindowPos")
+	procPostMessage     = user32.NewProc("PostMessageW")
+	procGetDC           = user32.NewProc("GetDC")
+	procReleaseDC       = user32.NewProc("ReleaseDC")
 
 	gdi32              = windows.NewLazySystemDLL("gdi32.dll")
 	procGetStockObject = gdi32.NewProc("GetStockObject")
@@ -130,8 +135,10 @@ func TestFakePlayerWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 	if os.Getenv(visibleVariable) == "1" {
-		// On screen, in the corner and above everything, so its pixels can
-		// be captured; never activated.
+		// On screen, in the corner, so its pixels can be captured; never
+		// activated. It asks to stay on top, but Windows refused that on the
+		// development machine, so the capture test checks that no other
+		// window covers the area before trusting the pixels.
 		procSetWindowPos.Call(uintptr(hwnd), hwndTopmost, 0, 0, 420, 280, swpNoActivate)
 	} else {
 		x := int32(offscreenX) // negative: passed as a sign-extended int
@@ -419,6 +426,61 @@ func captureClient(t *testing.T, target windows.HWND) []byte {
 	return append([]byte(nil), dib.Pixels...)
 }
 
+// skipIfCovered skips a pixel test when another window (someone using the
+// computer) covers part of the player: the screen would show that window, not
+// the overlay. The overlay itself is transparent to WindowFromPoint.
+func skipIfCovered(t *testing.T, player windows.HWND) {
+	t.Helper()
+	const gaRoot = 2
+	r, err := win32.ClientRectOnScreen(player)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fx := range []int32{1, 2, 3} {
+		for _, fy := range []int32{1, 2, 3} {
+			x := r.Left + (r.Right-r.Left)*fx/4
+			y := r.Top + (r.Bottom-r.Top)*fy/4
+			// POINT goes by value: x in the low 32 bits, y in the high ones.
+			point := uintptr(uint32(x)) | uintptr(uint32(y))<<32
+			hit, _, _ := procWindowFromPoint.Call(point)
+			root, _, _ := procGetAncestor.Call(hit, gaRoot)
+			if windows.HWND(root) != player {
+				t.Skipf("another window covers the player at (%d, %d); the pixel check needs that corner of the screen free", x, y)
+			}
+		}
+	}
+}
+
+// windowFacts describes the overlay and the player for a failure message:
+// visibility, placement, topmost flag and which one is higher on screen.
+func windowFacts(overlayWindow, player windows.HWND) string {
+	const gwlExStyle = -20
+	const wsExTopmost = 0x00000008
+	style := func(hwnd windows.HWND) uintptr {
+		index := int32(gwlExStyle)
+		value, _, _ := procGetWindowLong.Call(uintptr(hwnd), uintptr(index))
+		return value
+	}
+	a, _ := win32.ClientRectOnScreen(overlayWindow)
+	b, _ := win32.ClientRectOnScreen(player)
+	return fmt.Sprintf("overlay visible=%v rect=%+v topmost=%v; player visible=%v rect=%+v topmost=%v; overlay above player=%v",
+		windows.IsWindowVisible(overlayWindow), a, style(overlayWindow)&wsExTopmost != 0,
+		windows.IsWindowVisible(player), b, style(player)&wsExTopmost != 0, isAbove(overlayWindow, player))
+}
+
+// isAbove walks the z-order down from a window looking for another one.
+func isAbove(upper, lower windows.HWND) bool {
+	const gwHwndNext = 2
+	for hwnd := upper; hwnd != 0; {
+		next, _, _ := procGetWindow.Call(uintptr(hwnd), gwHwndNext)
+		hwnd = windows.HWND(next)
+		if hwnd == lower {
+			return true
+		}
+	}
+	return false
+}
+
 // changedPixels counts pixels whose color differs between two captures.
 func changedPixels(a, b []byte) int {
 	changed := 0
@@ -450,9 +512,28 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 	owner, _, _ := procGetWindow.Call(uintptr(found[0]), gwOwner)
 	target := windows.HWND(owner)
 
-	settle := func() { time.Sleep(300 * time.Millisecond) }
-	settle()
-	blank := captureClient(t, target)
+	// A fixed pause was not enough under load: the "blank" picture was taken
+	// before the player's first paint and the whole window differed later.
+	// Wait until two captures in a row agree instead.
+	settle := func() []byte {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		time.Sleep(300 * time.Millisecond) // let the posted drawing start
+		skipIfCovered(t, target)
+		previous := captureClient(t, target)
+		for {
+			time.Sleep(150 * time.Millisecond)
+			shot := captureClient(t, target)
+			if changedPixels(previous, shot) == 0 {
+				return shot
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("the screen over the player never settled")
+			}
+			previous = shot
+		}
+	}
+	blank := settle()
 
 	steps := []struct {
 		content overlay.Content
@@ -468,14 +549,13 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 		if err := screen.Show(step.content); err != nil {
 			t.Fatalf("step %d: Show: %v", i, err)
 		}
-		settle()
-		shot := captureClient(t, target)
+		shot := settle()
 		changed := changedPixels(blank, shot)
 		switch {
 		case step.visible && changed < 100:
-			t.Fatalf("step %d: only %d pixels differ from the blank player; the text did not reach the screen", i, changed)
+			t.Fatalf("step %d: only %d pixels differ from the blank player; the text did not reach the screen (%s)", i, changed, windowFacts(found[0], target))
 		case !step.visible && changed > 0:
-			t.Fatalf("step %d: %d pixels still differ after clearing the overlay", i, changed)
+			t.Fatalf("step %d: %d pixels still differ after clearing the overlay (%s)", i, changed, windowFacts(found[0], target))
 		}
 		if i == 3 && changedPixels(previous, shot) != 0 {
 			t.Fatalf("step %d: a hidden translation changed the picture", i)
@@ -514,6 +594,74 @@ func TestHungPlayerNeverBlocksShowOrClose(t *testing.T) {
 	if err != nil && !errors.Is(err, overlay.ErrPlayerNotResponding) {
 		t.Fatalf("Close: %v", err)
 	}
+
+	// The session ends a hung player; the overlay must then finish its
+	// removal by itself: no window, no thread left, and Close succeeds.
+	if err := player.cmd.Process.Kill(); err != nil {
+		t.Fatalf("ending the hung player: %v", err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := s.screen.Close()
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, overlay.ErrPlayerNotResponding) || time.Now().After(deadline) {
+			t.Fatalf("Close after the hung player ended = %v", err)
+		}
+	}
+	if left := overlayWindows(); len(left) != 0 {
+		t.Fatalf("%d overlay windows left after the hung player ended", len(left))
+	}
+}
+
+// Two overlays in one process each follow their own player: the callbacks
+// they share must reach the right one.
+func TestTwoOverlaysFollowTheirOwnPlayers(t *testing.T) {
+	first := openOver(t, startFakePlayer(t).pid())
+	second := openOverAnother(t, startFakePlayer(t).pid(), first.window)
+
+	first.place(offscreenX+300, 200, 700, 420)
+	first.waitUntil("the first overlay to follow its player", first.covering)
+	if !second.covering() {
+		t.Fatalf("the second overlay moved with the first player: %s", second.state())
+	}
+	second.place(offscreenX+900, 120, 500, 300)
+	second.waitUntil("the second overlay to follow its player", second.covering)
+
+	if err := first.screen.Close(); err != nil {
+		t.Fatalf("closing the first overlay: %v", err)
+	}
+	second.place(offscreenX+950, 160, 520, 320)
+	second.waitUntil("the second overlay to keep following after the first closed", second.covering)
+}
+
+// openOverAnother opens an overlay while another one exists and returns the
+// new scene, told apart from the existing window.
+func openOverAnother(t *testing.T, processID int, existing windows.HWND) *scene {
+	t.Helper()
+	screen, err := overlay.Open(t.Context(), overlay.Options{
+		ProcessID: processID, VideoWidth: 320, VideoHeight: 180,
+		Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { screen.Close() })
+	if err := screen.Show(overlay.Content{Primary: "Second."}); err != nil {
+		t.Fatalf("Show: %v", err)
+	}
+	for _, window := range overlayWindows() {
+		if window == existing {
+			continue
+		}
+		owner, _, _ := procGetWindow.Call(uintptr(window), gwOwner)
+		s := &scene{t: t, screen: screen, window: window, target: windows.HWND(owner)}
+		s.waitUntil("the second overlay to cover its player", s.covering)
+		return s
+	}
+	t.Fatal("the second overlay window was not found")
+	return nil
 }
 
 // TestOverlayFollowsTheRealVLC checks the same ownership and geometry over

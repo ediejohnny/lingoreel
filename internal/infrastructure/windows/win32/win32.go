@@ -10,6 +10,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"lingoreel/internal/domain/layout"
 )
 
 var (
@@ -17,33 +19,35 @@ var (
 	gdi32    = windows.NewLazySystemDLL("gdi32.dll")
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
-	procRegisterClassExW             = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW              = user32.NewProc("CreateWindowExW")
-	procDefWindowProcW               = user32.NewProc("DefWindowProcW")
-	procDestroyWindow                = user32.NewProc("DestroyWindow")
-	procGetMessageW                  = user32.NewProc("GetMessageW")
-	procTranslateMessage             = user32.NewProc("TranslateMessage")
-	procDispatchMessageW             = user32.NewProc("DispatchMessageW")
-	procPostThreadMessageW           = user32.NewProc("PostThreadMessageW")
-	procPostQuitMessage              = user32.NewProc("PostQuitMessage")
-	procUpdateLayeredWindow          = user32.NewProc("UpdateLayeredWindow")
-	procShowWindow                   = user32.NewProc("ShowWindow")
-	procSetWindowPos                 = user32.NewProc("SetWindowPos")
-	procSystemParametersInfoW        = user32.NewProc("SystemParametersInfoW")
-	procGetClientRect                = user32.NewProc("GetClientRect")
-	procClientToScreen               = user32.NewProc("ClientToScreen")
-	procIsIconic                     = user32.NewProc("IsIconic")
-	procSetWinEventHook              = user32.NewProc("SetWinEventHook")
-	procUnhookWinEvent               = user32.NewProc("UnhookWinEvent")
-	procGetDpiForWindow              = user32.NewProc("GetDpiForWindow")
-	procSetThreadDpiAwarenessContext = user32.NewProc("SetThreadDpiAwarenessContext")
-	procPeekMessageW                 = user32.NewProc("PeekMessageW")
-
-	procCreateCompatibleDC = gdi32.NewProc("CreateCompatibleDC")
-	procCreateDIBSection   = gdi32.NewProc("CreateDIBSection")
-	procSelectObject       = gdi32.NewProc("SelectObject")
-	procDeleteObject       = gdi32.NewProc("DeleteObject")
-	procDeleteDC           = gdi32.NewProc("DeleteDC")
+	procRegisterClassExW              = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW               = user32.NewProc("CreateWindowExW")
+	procDefWindowProcW                = user32.NewProc("DefWindowProcW")
+	procDestroyWindow                 = user32.NewProc("DestroyWindow")
+	procGetMessageW                   = user32.NewProc("GetMessageW")
+	procTranslateMessage              = user32.NewProc("TranslateMessage")
+	procDispatchMessageW              = user32.NewProc("DispatchMessageW")
+	procPostThreadMessageW            = user32.NewProc("PostThreadMessageW")
+	procPostQuitMessage               = user32.NewProc("PostQuitMessage")
+	procUpdateLayeredWindow           = user32.NewProc("UpdateLayeredWindow")
+	procShowWindow                    = user32.NewProc("ShowWindow")
+	procSetWindowPos                  = user32.NewProc("SetWindowPos")
+	procSystemParametersInfoW         = user32.NewProc("SystemParametersInfoW")
+	procGetClientRect                 = user32.NewProc("GetClientRect")
+	procClientToScreen                = user32.NewProc("ClientToScreen")
+	procIsIconic                      = user32.NewProc("IsIconic")
+	procSetWinEventHook               = user32.NewProc("SetWinEventHook")
+	procUnhookWinEvent                = user32.NewProc("UnhookWinEvent")
+	procGetDpiForWindow               = user32.NewProc("GetDpiForWindow")
+	procSetThreadDpiAwarenessContext  = user32.NewProc("SetThreadDpiAwarenessContext")
+	procSetProcessDpiAwarenessContext = user32.NewProc("SetProcessDpiAwarenessContext")
+	procGetThreadDpiAwarenessContext  = user32.NewProc("GetThreadDpiAwarenessContext")
+	procAreDpiAwarenessContextsEqual  = user32.NewProc("AreDpiAwarenessContextsEqual")
+	procPeekMessageW                  = user32.NewProc("PeekMessageW")
+	procCreateCompatibleDC            = gdi32.NewProc("CreateCompatibleDC")
+	procCreateDIBSection              = gdi32.NewProc("CreateDIBSection")
+	procSelectObject                  = gdi32.NewProc("SelectObject")
+	procDeleteObject                  = gdi32.NewProc("DeleteObject")
+	procDeleteDC                      = gdi32.NewProc("DeleteDC")
 
 	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
 )
@@ -275,14 +279,15 @@ func IsIconic(hwnd windows.HWND) bool {
 	return r != 0
 }
 
-// DpiForWindow returns the DPI of the monitor showing a window, or 96.
+// DpiForWindow returns the DPI of the monitor showing a window, or the base
+// DPI (100% scaling) when it cannot tell.
 func DpiForWindow(hwnd windows.HWND) int {
 	if procGetDpiForWindow.Find() != nil {
-		return 96
+		return layout.BaseDPI
 	}
 	r, _, _ := procGetDpiForWindow.Call(uintptr(hwnd))
 	if r == 0 {
-		return 96
+		return layout.BaseDPI
 	}
 	return int(r)
 }
@@ -293,6 +298,28 @@ func UsePerMonitorDPI() {
 	if procSetThreadDpiAwarenessContext.Find() == nil {
 		procSetThreadDpiAwarenessContext.Call(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 	}
+}
+
+// UsePerMonitorDPIForProcess makes every thread of the process per-monitor
+// DPI aware (v2) unless it chose otherwise, so screen sizes such as the work
+// area come in physical pixels, the unit the players use. Call it before any
+// window exists; a process whose awareness was already set (by a manifest)
+// keeps it. It is a no-op before Windows 10 1703.
+func UsePerMonitorDPIForProcess() {
+	if procSetProcessDpiAwarenessContext.Find() == nil {
+		procSetProcessDpiAwarenessContext.Call(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
+	}
+}
+
+// ThreadUsesPerMonitorDPI reports whether the calling thread is per-monitor
+// DPI aware (v2).
+func ThreadUsesPerMonitorDPI() bool {
+	if procGetThreadDpiAwarenessContext.Find() != nil || procAreDpiAwarenessContextsEqual.Find() != nil {
+		return false
+	}
+	current, _, _ := procGetThreadDpiAwarenessContext.Call()
+	equal, _, _ := procAreDpiAwarenessContextsEqual.Call(current, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
+	return equal != 0
 }
 
 // SetWinEventHook installs an out-of-context hook for one process; the

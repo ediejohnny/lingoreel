@@ -3,9 +3,11 @@
 package overlay
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"syscall"
 	"time"
@@ -49,6 +51,9 @@ type Options struct {
 	Translation             appearance.SubtitleStyle
 	// FindTimeout bounds the wait for the player window; zero means 10 s.
 	FindTimeout time.Duration
+	// Logger receives the errors that have no caller, such as a failure to
+	// follow the player window; nil discards them.
+	Logger *slog.Logger
 }
 
 // Content is what the overlay shows.
@@ -63,6 +68,7 @@ type Overlay struct {
 	thread   *uithread.Thread
 	renderer *gdiplus.Renderer
 	options  Options
+	logger   *slog.Logger
 
 	// Owned by the UI thread.
 	target  windows.HWND
@@ -70,11 +76,18 @@ type Overlay struct {
 	hooks   []windows.Handle
 	dib     *win32.DIB
 	bounds  win32.Rect
+	dpi     int
 	shown   bool
 	content Content
 
 	done     chan struct{}
 	doneOnce sync.Once
+
+	// released is closed once the teardown ran and the UI thread ended;
+	// releaseErr is set before that.
+	releaseOnce sync.Once
+	released    chan struct{}
+	releaseErr  error
 
 	// Content waiting to be drawn; only the latest counts.
 	pendingMu sync.Mutex
@@ -83,14 +96,59 @@ type Overlay struct {
 	drawErr   error
 }
 
+// callbackTable routes Win32 callbacks to their overlay. Window procedures
+// and WinEvent hooks receive only a handle, and a Go pointer may not be kept
+// in Win32 memory (GWLP_USERDATA) without breaking Go's pointer rules, so the
+// process keeps this one table, shared by every overlay.
+type callbackTable struct {
+	mu      sync.Mutex
+	windows map[windows.HWND]*Overlay
+	hooks   map[windows.Handle]*Overlay
+}
+
+func (t *callbackTable) addWindow(window windows.HWND, o *Overlay) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.windows[window] = o
+}
+
+func (t *callbackTable) addHook(hook windows.Handle, o *Overlay) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.hooks[hook] = o
+}
+
+// takeWindow returns the overlay of a window and forgets the window.
+func (t *callbackTable) takeWindow(window windows.HWND) *Overlay {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	o := t.windows[window]
+	delete(t.windows, window)
+	return o
+}
+
+func (t *callbackTable) hook(hook windows.Handle) *Overlay {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.hooks[hook]
+}
+
+// forget removes every entry of an overlay.
+func (t *callbackTable) forget(o *Overlay) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, hook := range o.hooks {
+		delete(t.hooks, hook)
+	}
+	delete(t.windows, o.window)
+}
+
 var (
 	registerOnce      sync.Once
 	registerErr       error
 	windowProc        = syscall.NewCallback(dispatchWindow)
 	winEventProc      = syscall.NewCallback(dispatchWinEvent)
-	registryMu        sync.Mutex
-	byWindow          = map[windows.HWND]*Overlay{}
-	byHook            = map[windows.Handle]*Overlay{}
+	callbacks         = &callbackTable{windows: map[windows.HWND]*Overlay{}, hooks: map[windows.Handle]*Overlay{}}
 	classNameUTF16, _ = windows.UTF16PtrFromString(className)
 )
 
@@ -99,23 +157,26 @@ func Open(ctx context.Context, options Options) (*Overlay, error) {
 	if options.ProcessID <= 0 {
 		return nil, fmt.Errorf("invalid player process id %d", options.ProcessID)
 	}
-	target, err := waitForTarget(ctx, uint32(options.ProcessID), cmpOr(options.FindTimeout, defaultFindFor))
+	target, err := waitForTarget(ctx, uint32(options.ProcessID), cmp.Or(options.FindTimeout, defaultFindFor))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("finding the player window: %w", err)
 	}
 	thread, err := uithread.Start()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("starting the overlay thread: %w", err)
 	}
-	o := &Overlay{thread: thread, options: options, target: target, done: make(chan struct{})}
+	logger := options.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	o := &Overlay{
+		thread: thread, options: options, logger: logger, target: target,
+		done: make(chan struct{}), released: make(chan struct{}),
+	}
 	if err := o.onUIThread(o.setup); err != nil {
-		if errors.Is(err, ErrPlayerNotResponding) {
-			// The UI thread is stuck on the player; the cleanup finishes when
-			// the player recovers or exits, without holding the caller.
-			go o.Close()
-			return nil, err
-		}
-		o.Close()
+		// Without waiting: when the player hangs, the teardown runs as soon as
+		// the player recovers or is ended, and the thread ends with it.
+		o.release()
 		return nil, err
 	}
 	return o, nil
@@ -135,13 +196,6 @@ func (o *Overlay) onUIThread(fn func() error) error {
 	case <-time.After(uiTimeout):
 		return ErrPlayerNotResponding
 	}
-}
-
-func cmpOr(value, fallback time.Duration) time.Duration {
-	if value > 0 {
-		return value
-	}
-	return fallback
 }
 
 func waitForTarget(ctx context.Context, processID uint32, timeout time.Duration) (windows.HWND, error) {
@@ -205,7 +259,7 @@ func (o *Overlay) setup() error {
 	}
 	renderer, err := gdiplus.NewRenderer()
 	if err != nil {
-		return err
+		return fmt.Errorf("starting GDI+: %w", err)
 	}
 	o.renderer = renderer
 
@@ -217,9 +271,7 @@ func (o *Overlay) setup() error {
 		return fmt.Errorf("creating the overlay window: %w", err)
 	}
 	o.window = window
-	registryMu.Lock()
-	byWindow[window] = o
-	registryMu.Unlock()
+	callbacks.addWindow(window, o)
 
 	for _, span := range [][2]uint32{
 		{win32.EVENT_SYSTEM_MINIMIZESTART, win32.EVENT_SYSTEM_MINIMIZEEND},
@@ -229,9 +281,7 @@ func (o *Overlay) setup() error {
 		if err != nil {
 			return fmt.Errorf("following the player window: %w", err)
 		}
-		registryMu.Lock()
-		byHook[hook] = o
-		registryMu.Unlock()
+		callbacks.addHook(hook, o)
 		o.hooks = append(o.hooks, hook)
 	}
 	return o.follow()
@@ -277,33 +327,40 @@ func (o *Overlay) Done() <-chan struct{} {
 }
 
 // Close removes the overlay and stops its thread. If a hung player holds
-// the UI thread, Close gives up after uiTimeout and reports it.
+// the UI thread, Close gives up after uiTimeout and reports it; the removal
+// still happens as soon as the player recovers or is ended, and a later
+// Close then returns without error.
 func (o *Overlay) Close() error {
-	err := o.onUIThread(func() error { o.teardown(); return nil })
-	switch {
-	case errors.Is(err, ErrPlayerNotResponding):
-		return err
-	case errors.Is(err, uithread.ErrClosed):
-		err = nil
-	}
-	closed := make(chan error, 1)
-	go func() { closed <- o.thread.Close() }()
+	o.release()
+	timer := time.NewTimer(uiTimeout)
+	defer timer.Stop()
 	select {
-	case closeErr := <-closed:
-		return errors.Join(err, closeErr)
-	case <-time.After(uiTimeout):
+	case <-o.released:
+		return o.releaseErr
+	case <-timer.C:
 		return ErrPlayerNotResponding
 	}
 }
 
+// release queues the teardown and ends the UI thread after it, once. Its
+// goroutine belongs to the overlay and ends when released is closed; it may
+// wait for a hung player, whose window the overlay's thread depends on.
+func (o *Overlay) release() {
+	o.releaseOnce.Do(func() {
+		go func() {
+			defer close(o.released)
+			err := o.thread.Do(o.teardown)
+			if errors.Is(err, uithread.ErrClosed) {
+				err = nil
+			}
+			o.releaseErr = errors.Join(err, o.thread.Close())
+		}()
+	})
+}
+
 // teardown runs on the UI thread and is safe to call more than once.
 func (o *Overlay) teardown() {
-	registryMu.Lock()
-	for _, hook := range o.hooks {
-		delete(byHook, hook)
-	}
-	delete(byWindow, o.window)
-	registryMu.Unlock()
+	callbacks.forget(o)
 	for _, hook := range o.hooks {
 		win32.UnhookWinEvent(hook)
 	}
@@ -334,7 +391,7 @@ func (o *Overlay) follow() error {
 	}
 	bounds, err := win32.ClientRectOnScreen(o.target)
 	if err != nil {
-		return err
+		return fmt.Errorf("reading the player window: %w", err)
 	}
 	resized := bounds.Right-bounds.Left != o.bounds.Right-o.bounds.Left || bounds.Bottom-bounds.Top != o.bounds.Bottom-o.bounds.Top
 	moved := bounds != o.bounds
@@ -345,11 +402,13 @@ func (o *Overlay) follow() error {
 		return nil
 	}
 	switch {
-	case resized || o.dib == nil:
+	// A move to a monitor with another scaling keeps the size in pixels but
+	// changes fixed-size text and the minimum font: lay out again.
+	case resized || o.dib == nil || win32.DpiForWindow(o.window) != o.dpi:
 		return o.redraw()
 	case moved:
 		if err := win32.MoveWindow(o.window, bounds.Left, bounds.Top); err != nil {
-			return err
+			return fmt.Errorf("moving the overlay: %w", err)
 		}
 	}
 	o.show()
@@ -382,23 +441,26 @@ func (o *Overlay) redraw() error {
 		dib, err := win32.NewDIB(width, height)
 		if err != nil {
 			o.dib = nil
-			return err
+			return fmt.Errorf("creating the overlay bitmap: %w", err)
 		}
 		o.dib = dib
 	} else {
 		o.dib.Clear()
 	}
+	// The overlay's own window: its thread is per-monitor aware, so this is
+	// the DPI of the monitor it is on, whatever the player's awareness.
+	o.dpi = win32.DpiForWindow(o.window)
 	area := layout.Rect{W: float64(width), H: float64(height)}
 	frame := layout.Compute(layout.Input{
 		Video:       layout.VideoRect(area, o.options.VideoWidth, o.options.VideoHeight),
-		DPI:         win32.DpiForWindow(o.target),
+		DPI:         o.dpi,
 		Layout:      o.options.Layout,
 		Primary:     layout.Text{Style: o.options.Primary, Content: o.content.Primary},
 		Translation: layout.Text{Style: o.options.Translation, Content: o.content.Translation},
 	}, o.renderer)
 	look := gdiplus.Look{Primary: o.options.Primary, Translation: o.options.Translation, TranslationVisible: o.content.TranslationVisible}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
-		return err
+		return fmt.Errorf("drawing the subtitles: %w", err)
 	}
 	position := win32.Point{X: o.bounds.Left, Y: o.bounds.Top}
 	if err := win32.UpdateLayered(o.window, position, win32.Size{CX: int32(width), CY: int32(height)}, o.dib.DC); err != nil {
@@ -418,11 +480,7 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 	case win32.WM_MOUSEACTIVATE:
 		return win32.MA_NOACTIVATE
 	case win32.WM_DESTROY:
-		registryMu.Lock()
-		o := byWindow[hwnd]
-		delete(byWindow, hwnd)
-		registryMu.Unlock()
-		if o != nil {
+		if o := callbacks.takeWindow(hwnd); o != nil {
 			// The system destroys owned windows with their owner: the player
 			// window is gone, so the overlay ends too.
 			o.window = 0
@@ -435,9 +493,7 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 
 // dispatchWinEvent receives the player window's changes on the UI thread.
 func dispatchWinEvent(hook windows.Handle, event uint32, hwnd windows.HWND, object, child int32, _ uint32, _ uint32) uintptr {
-	registryMu.Lock()
-	o := byHook[hook]
-	registryMu.Unlock()
+	o := callbacks.hook(hook)
 	if o == nil || hwnd != o.target || object != win32.OBJID_WINDOW || child != win32.CHILDID_SELF {
 		return 0
 	}
@@ -445,7 +501,9 @@ func dispatchWinEvent(hook windows.Handle, event uint32, hwnd windows.HWND, obje
 		o.teardown()
 		return 0
 	}
-	// Errors here have no caller to report to; the next event retries.
-	_ = o.follow()
+	// No caller to report to: log it; the next event retries.
+	if err := o.follow(); err != nil {
+		o.logger.Warn("overlay could not follow the player window", "error", err)
+	}
 	return 0
 }

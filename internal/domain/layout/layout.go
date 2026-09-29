@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// baseDPI is the display density at 100% scaling.
-	baseDPI = 96
+	// BaseDPI is the display density at 100% scaling.
+	BaseDPI = 96
 	// minFontPixels keeps text readable on tiny windows (at 100% scaling).
 	minFontPixels = 10
 	// minShrink is how far a block may shrink to fit its maximum lines before
@@ -177,7 +177,7 @@ func scaleFor(style appearance.SubtitleStyle, in Input) float64 {
 	if in.DPI <= 0 {
 		return 1
 	}
-	return float64(in.DPI) / baseDPI
+	return float64(in.DPI) / BaseDPI
 }
 
 func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
@@ -187,7 +187,7 @@ func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
 	}
 	style := text.Style
 	scale := scaleFor(style, in)
-	minPixels := minFontPixels * max(float64(in.DPI), baseDPI) / baseDPI
+	minPixels := minFontPixels * max(float64(in.DPI), BaseDPI) / BaseDPI
 	size := max(style.FontSize*scale, minPixels)
 	if !isFinitePositive(size) || !isFinitePositive(scale) {
 		return nil
