@@ -1,0 +1,13 @@
+# Build output
+/build/bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Frontend dependencies and bundles
+/frontend/node_modules/
+/frontend/dist/
+
+# Logs
+*.log
