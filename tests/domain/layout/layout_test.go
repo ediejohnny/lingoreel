@@ -284,6 +284,24 @@ func TestTextThatCannotFitTakesExtraLinesInsteadOfBeingCut(t *testing.T) {
 	}
 }
 
+// With margins of 5% the default maximum width (90%) changes nothing, so this
+// uses 50%: at 1920 px the text must stay inside the centered 960 px.
+func TestMaxWidthNarrowsTheLinesAroundTheCenter(t *testing.T) {
+	in := defaults(video(1920, 1080), strings.Repeat("palavra ", 40), "")
+	in.Layout.MaxWidth = 0.5
+	in.Primary.Style.MaxLines = appearance.MaxLines
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	for _, line := range frame.Primary.Lines {
+		if line.X < 480-eps || line.X+line.Width > 1440+eps {
+			t.Fatalf("line %q at %v..%v leaves the centered 480..1440", line.Text, line.X, line.X+line.Width)
+		}
+	}
+	if len(frame.Primary.Lines) < 2 {
+		t.Fatalf("got %d line(s): the narrower width must wrap", len(frame.Primary.Lines))
+	}
+}
+
 func TestAlignmentUsesTheSafeAreaEdges(t *testing.T) {
 	for _, alignment := range []appearance.Alignment{appearance.AlignLeft, appearance.AlignRight, appearance.AlignCenter} {
 		in := defaults(video(1920, 1080), "Aligned text.", "")
