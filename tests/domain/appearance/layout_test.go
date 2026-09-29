@@ -16,7 +16,10 @@ func TestLayoutValidateRanges(t *testing.T) {
 		valid  bool
 	}{
 		{"default", func(*appearance.Layout) {}, true},
-		{"no margins", func(l *appearance.Layout) { l.MarginLeft, l.MarginRight, l.MarginBottom = 0, 0, 0 }, true},
+		{"no margins", func(l *appearance.Layout) { l.MarginLeft, l.MarginRight, l.MarginTop, l.MarginBottom = 0, 0, 0, 0 }, true},
+		{"top margin beyond the limit", func(l *appearance.Layout) { l.MarginTop = appearance.MaxMarginFraction + 0.0001 }, false},
+		{"negative top margin", func(l *appearance.Layout) { l.MarginTop = -0.01 }, false},
+		{"top margin NaN", func(l *appearance.Layout) { l.MarginTop = nan }, false},
 		{"margin at the limit", func(l *appearance.Layout) { l.MarginLeft = appearance.MaxMarginFraction }, true},
 		{"margin beyond the limit", func(l *appearance.Layout) { l.MarginRight = appearance.MaxMarginFraction + 0.0001 }, false},
 		{"negative margin", func(l *appearance.Layout) { l.MarginBottom = -0.01 }, false},
