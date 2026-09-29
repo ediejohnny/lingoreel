@@ -426,8 +426,13 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 	defer session.Close()
 	s := openOver(t, session.ProcessID())
 
-	s.place(40, 40, 900, 560)
+	// VLC fits its window to the video when the first frame arrives, which
+	// can undo an early resize: repeat it until VLC keeps it.
 	s.waitUntil("the overlay to follow VLC's resize", func() bool {
+		player, err := win32.ClientRectOnScreen(s.target)
+		if err == nil && player.Right-player.Left <= 320 {
+			s.place(40, 40, 900, 560)
+		}
 		r, err := win32.ClientRectOnScreen(s.window)
 		return err == nil && s.covering() && r.Right-r.Left > 320
 	})
