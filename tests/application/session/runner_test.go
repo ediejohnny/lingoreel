@@ -45,6 +45,14 @@ func launchRunner(t *testing.T, subtitles *session.Subtitles, prepare func(*sess
 	h := &runnerHarness{t: t, time: newFakeTime(), samples: make(chan playback.Sample), changes: make(chan change, 64), done: make(chan error, 1)}
 	h.clock = session.NewClock(playback.PrecisionExact, h.time.Now)
 	prepare(h.clock, h.time.Now())
+	// prepare's change signal predates the runner, which reads the state on
+	// its first pass anyway. Left pending, it woke the runner once more and
+	// created a timer the harness did not expect, so under load time was
+	// advanced before the runner armed its real timer (a flaky failure).
+	select {
+	case <-h.clock.Changes():
+	default:
+	}
 	h.runner = session.NewRunner(h.clock, subtitles, func(position time.Duration, visible session.Visible) {
 		h.changes <- change{position, ids(visible.Primary), ids(visible.Translation)}
 	}, h.time.NewTimer)
