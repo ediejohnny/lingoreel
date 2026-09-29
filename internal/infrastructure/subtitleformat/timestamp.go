@@ -19,9 +19,9 @@ const (
 	secondsPerMinute  = 60
 )
 
-// parseTimestamp reads "[h:]mm:ss[.,]fff" as used by SRT, WebVTT and ASS. The
+// ParseTimestamp reads "[h:]mm:ss[.,]fff" as used by SRT, WebVTT and ASS. The
 // fraction is decimal, so ",5", ".50" and ".500" all mean half a second.
-func parseTimestamp(value string) (time.Duration, error) {
+func ParseTimestamp(value string) (time.Duration, error) {
 	value = strings.TrimSpace(value)
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 && len(parts) != 3 {

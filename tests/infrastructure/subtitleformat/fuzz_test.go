@@ -1,15 +1,16 @@
-package subtitleformat
+package subtitleformat_test
 
 import (
 	"testing"
 	"unicode/utf8"
 
 	"lingoreel/internal/domain/subtitle"
+	"lingoreel/internal/infrastructure/subtitleformat"
 )
 
 // checkInvariants holds for any input: no panic, only valid events with valid
 // UTF-8 text and unique IDs, and a timeline that accepts them.
-func checkInvariants(t *testing.T, parser Parser, data []byte) {
+func checkInvariants(t *testing.T, parser subtitleformat.Parser, data []byte) {
 	result, err := parser.Parse(data)
 	if err != nil {
 		return
@@ -31,7 +32,7 @@ func FuzzSRT(f *testing.F) {
 	f.Add([]byte("00:00:01.5 --> 00:00:02.0\n{\\an8}x\n3\n00:00:04,000 --> 00:00:05,000\ny"))
 	f.Add([]byte{0xFF, 0xFE, '1', 0, '\n', 0})
 	f.Fuzz(func(t *testing.T, data []byte) {
-		checkInvariants(t, SRTParser{}, data)
+		checkInvariants(t, subtitleformat.SRTParser{}, data)
 	})
 }
 
@@ -39,7 +40,7 @@ func FuzzASS(f *testing.F) {
 	f.Add([]byte(assDocument))
 	f.Add([]byte("[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,{\\p1}m 0 0{\\p0}x{"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		checkInvariants(t, ASSParser{}, data)
+		checkInvariants(t, subtitleformat.ASSParser{}, data)
 	})
 }
 
@@ -47,6 +48,19 @@ func FuzzWebVTT(f *testing.F) {
 	f.Add([]byte("WEBVTT\n\n00:01.000 --> 00:02.000 line:0\n<v A>hi &amp; <00:01.500>bye\n"))
 	f.Add([]byte("WEBVTT\n\nNOTE x\n\nid\n00:00:01.000 --> 00:00:02.000\n"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		checkInvariants(t, WebVTTParser{}, data)
+		checkInvariants(t, subtitleformat.WebVTTParser{}, data)
+	})
+}
+
+func FuzzBlockText(f *testing.F) {
+	f.Add([]byte(`1,0,Default,,0,0,0,,{\i1}x\Ny`))
+	f.Add([]byte("<b>bold</b>"))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		for _, format := range []subtitle.Format{subtitle.FormatSRT, subtitle.FormatASS, subtitle.FormatWebVTT} {
+			text, err := subtitleformat.BlockText(format, data)
+			if err == nil && (!utf8.ValidString(text) || text != subtitle.NormalizeText(text)) {
+				t.Fatalf("BlockText(%s) returned unnormalized text %q", format, text)
+			}
+		}
 	})
 }

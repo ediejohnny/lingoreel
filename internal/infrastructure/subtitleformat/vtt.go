@@ -33,7 +33,7 @@ func (WebVTTParser) Parse(data []byte) (Result, error) {
 	if err := checkInputSize(data); err != nil {
 		return Result{}, err
 	}
-	lines := splitLines(decodeText(data))
+	lines := splitLines(DecodeText(data))
 	if len(lines) == 0 || !isWebVTTSignature(strings.TrimSpace(lines[0])) {
 		return Result{}, fmt.Errorf("%w: missing %s header", ErrMalformed, webVTTSignature)
 	}

@@ -18,7 +18,7 @@ func BlockText(format subtitle.Format, payload []byte) (string, error) {
 	if err := checkInputSize(payload); err != nil {
 		return "", err
 	}
-	text := decodeText(payload)
+	text := DecodeText(payload)
 
 	switch format {
 	case subtitle.FormatSRT:

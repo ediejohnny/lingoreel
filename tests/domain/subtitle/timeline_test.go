@@ -1,4 +1,4 @@
-package subtitle
+package subtitle_test
 
 import (
 	"errors"
@@ -7,32 +7,9 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"lingoreel/internal/domain/subtitle"
 )
-
-func ms(value int) time.Duration {
-	return time.Duration(value) * time.Millisecond
-}
-
-func event(id string, start, end int) Event {
-	return Event{ID: id, Start: ms(start), End: ms(end), OriginalText: "text " + id}
-}
-
-func activeIDs(events []Event) []string {
-	ids := make([]string, 0, len(events))
-	for _, e := range events {
-		ids = append(ids, e.ID)
-	}
-	return ids
-}
-
-func mustTimeline(t testing.TB, events ...Event) *Timeline {
-	t.Helper()
-	timeline, err := NewTimeline(events)
-	if err != nil {
-		t.Fatalf("NewTimeline: %v", err)
-	}
-	return timeline
-}
 
 func TestActiveAtBoundaries(t *testing.T) {
 	timeline := mustTimeline(t, event("a", 10_000, 12_000), event("b", 12_000, 15_000))
@@ -77,8 +54,7 @@ func TestActiveAtOverlappingEvents(t *testing.T) {
 	)
 
 	got := activeIDs(timeline.ActiveAt(ms(11_500)))
-	want := []string{"sign", "line1", "line2"}
-	if !slices.Equal(got, want) {
+	if want := []string{"sign", "line1", "line2"}; !slices.Equal(got, want) {
 		t.Fatalf("ActiveAt with overlaps = %v, want %v", got, want)
 	}
 }
@@ -90,10 +66,21 @@ func TestNewTimelineSortsUnorderedInput(t *testing.T) {
 	if want := []string{"a", "b", "c"}; !slices.Equal(got, want) {
 		t.Fatalf("Events() order = %v, want %v", got, want)
 	}
+	if timeline.Len() != 3 {
+		t.Fatalf("Len() = %d, want 3", timeline.Len())
+	}
+}
+
+func TestNewTimelineOrdersEqualStartsByEnd(t *testing.T) {
+	timeline := mustTimeline(t, event("long", 1_000, 9_000), event("short", 1_000, 2_000))
+
+	if got := activeIDs(timeline.Events()); !slices.Equal(got, []string{"short", "long"}) {
+		t.Fatalf("Events() order = %v, want short before long", got)
+	}
 }
 
 func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
-	cases := map[string]Event{
+	cases := map[string]subtitle.Event{
 		"zero duration":    event("z", 1_000, 1_000),
 		"end before start": event("r", 2_000, 1_000),
 		"negative start":   event("n", -1, 1_000),
@@ -101,21 +88,22 @@ func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
 	}
 	for name, invalid := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewTimeline([]Event{event("ok", 0, 500), invalid})
-			if !errors.Is(err, ErrInvalidEvent) {
+			_, err := subtitle.NewTimeline([]subtitle.Event{event("ok", 0, 500), invalid})
+			if !errors.Is(err, subtitle.ErrInvalidEvent) {
 				t.Fatalf("NewTimeline error = %v, want ErrInvalidEvent", err)
 			}
 		})
 	}
 }
 
-func TestNewTimelineDoesNotAliasInput(t *testing.T) {
-	input := []Event{event("a", 0, 1_000)}
+func TestTimelineDoesNotAliasInputOrOutput(t *testing.T) {
+	input := []subtitle.Event{event("a", 0, 1_000)}
 	timeline := mustTimeline(t, input...)
 
-	input[0].OriginalText = "changed"
+	input[0].OriginalText = "changed input"
+	timeline.Events()[0].OriginalText = "changed output"
 	if got := timeline.ActiveAt(ms(500))[0].OriginalText; got != "text a" {
-		t.Fatalf("timeline changed with its input: %q", got)
+		t.Fatalf("timeline changed through a shared slice: %q", got)
 	}
 }
 
@@ -142,13 +130,14 @@ func TestNextChangeAfter(t *testing.T) {
 		want   int
 		wantOK bool
 	}{
-		{0, 1_000, true},     // next start
-		{1_000, 2_000, true}, // b starts before a ends
-		{2_500, 3_000, true}, // a ends first
-		{3_000, 5_000, true}, // b ends
-		{5_000, 8_000, true}, // gap until c
-		{8_500, 9_000, true}, // c ends
-		{9_000, 0, false},    // nothing left
+		{-5_000, 1_000, true}, // before everything
+		{0, 1_000, true},      // next start
+		{1_000, 2_000, true},  // b starts before a ends
+		{2_500, 3_000, true},  // a ends first
+		{3_000, 5_000, true},  // b ends
+		{5_000, 8_000, true},  // gap until c
+		{8_500, 9_000, true},  // c ends
+		{9_000, 0, false},     // nothing left
 	}
 	for _, tc := range cases {
 		got, ok := timeline.NextChangeAfter(ms(tc.at))
@@ -162,7 +151,7 @@ func TestNextChangeAfter(t *testing.T) {
 // including very long events that span most of the timeline.
 func TestActiveAtMatchesLinearScan(t *testing.T) {
 	random := rand.New(rand.NewSource(42))
-	events := make([]Event, 0, 2_000)
+	events := make([]subtitle.Event, 0, 2_000)
 	for i := range 2_000 {
 		start := random.Intn(600_000)
 		length := 1 + random.Intn(4_000)
@@ -176,24 +165,49 @@ func TestActiveAtMatchesLinearScan(t *testing.T) {
 
 	for range 5_000 {
 		at := ms(random.Intn(700_000) - 10_000)
-		var want []string
+		want := []string{}
 		for _, e := range sorted {
 			if e.ActiveAt(at) {
 				want = append(want, e.ID)
 			}
 		}
-		got := activeIDs(timeline.ActiveAt(at))
-		if len(want) == 0 {
-			want = []string{}
-		}
-		if !slices.Equal(got, want) {
+		if got := activeIDs(timeline.ActiveAt(at)); !slices.Equal(got, want) {
 			t.Fatalf("ActiveAt(%v) = %v, linear scan = %v", at, got, want)
 		}
 	}
 }
 
+// Checks NextChangeAfter against a brute-force oracle: the earliest start or
+// end strictly after the instant.
+func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
+	random := rand.New(rand.NewSource(99))
+	events := make([]subtitle.Event, 0, 500)
+	for i := range 500 {
+		start := random.Intn(100_000)
+		events = append(events, event(fmt.Sprint(i), start, start+1+random.Intn(3_000)))
+	}
+	timeline := mustTimeline(t, events...)
+
+	for range 2_000 {
+		at := ms(random.Intn(110_000) - 5_000)
+		var want time.Duration
+		found := false
+		for _, e := range events {
+			for _, edge := range []time.Duration{e.Start, e.End} {
+				if edge > at && (!found || edge < want) {
+					want, found = edge, true
+				}
+			}
+		}
+		got, ok := timeline.NextChangeAfter(at)
+		if ok != found || (ok && got != want) {
+			t.Fatalf("NextChangeAfter(%v) = %v,%v; oracle %v,%v", at, got, ok, want, found)
+		}
+	}
+}
+
 func BenchmarkActiveAt50kEvents(b *testing.B) {
-	events := make([]Event, 0, 50_000)
+	events := make([]subtitle.Event, 0, 50_000)
 	for i := range 50_000 {
 		start := i * 2_500
 		events = append(events, event(fmt.Sprint(i), start, start+2_000))

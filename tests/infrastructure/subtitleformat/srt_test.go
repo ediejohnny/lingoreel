@@ -1,12 +1,16 @@
-package subtitleformat
+package subtitleformat_test
 
-import "testing"
+import (
+	"testing"
+
+	"lingoreel/internal/infrastructure/subtitleformat"
+)
 
 func TestSRTParsesWellFormedDocument(t *testing.T) {
 	document := "1\r\n00:10:41,120 --> 00:10:43,800\r\nI'm not going there.\r\n\r\n" +
 		"2\r\n00:10:44,000 --> 00:10:46,500\r\n<i>Why not?</i>\r\nTell me.\r\n"
 
-	result := mustParse(t, SRTParser{}, document)
+	result := mustParse(t, subtitleformat.SRTParser{}, document)
 
 	assertEvents(t, result.Events, []wantEvent{
 		{641_120, 643_800, "I'm not going there."},
@@ -32,7 +36,7 @@ func TestSRTToleratesCommonDefects(t *testing.T) {
 		"00:00:05,000 --> 00:00:06,000\n" +
 		"<font color=\"#ffff00\">yellow</font>\n"
 
-	result := mustParse(t, SRTParser{}, document)
+	result := mustParse(t, subtitleformat.SRTParser{}, document)
 
 	assertEvents(t, result.Events, []wantEvent{
 		{1_000, 2_000, "no index"},
@@ -49,7 +53,7 @@ func TestSRTSkipsBrokenCuesAndKeepsGoing(t *testing.T) {
 		"4\n00:00:61,000 --> 00:00:62,000\nbad seconds\n\n" +
 		"5\n00:00:07,000 --> 00:00:08,000\nlast\n"
 
-	result := mustParse(t, SRTParser{}, document)
+	result := mustParse(t, subtitleformat.SRTParser{}, document)
 
 	assertEvents(t, result.Events, []wantEvent{
 		{1_000, 2_000, "first"},
@@ -60,31 +64,58 @@ func TestSRTSkipsBrokenCuesAndKeepsGoing(t *testing.T) {
 	}
 }
 
-func TestSRTDropsExactDuplicates(t *testing.T) {
-	document := "1\n00:00:01,000 --> 00:00:02,000\nsame\n\n2\n00:00:01,000 --> 00:00:02,000\nsame\n"
-
-	result := mustParse(t, SRTParser{}, document)
-
-	if len(result.Events) != 1 || result.Skipped != 1 {
-		t.Fatalf("got %d events and %d skipped, want 1 and 1", len(result.Events), result.Skipped)
+func TestSRTEmptyAndBlankDocumentsHaveNoEvents(t *testing.T) {
+	for _, document := range []string{"", "\n\n\n", "   \r\n  "} {
+		result := mustParse(t, subtitleformat.SRTParser{}, document)
+		if len(result.Events) != 0 || result.Skipped != 0 {
+			t.Fatalf("Parse(%q) = %d events, %d skipped; want nothing", document, len(result.Events), result.Skipped)
+		}
 	}
 }
 
-func TestSRTKeepsLiteralBracesThatAreNotOverrides(t *testing.T) {
-	document := "1\n00:00:01,000 --> 00:00:02,000\n{laughs} a < b\n"
+func TestSRTDropsExactDuplicatesButKeepsNearDuplicates(t *testing.T) {
+	document := "1\n00:00:01,000 --> 00:00:02,000\nsame\n\n" +
+		"2\n00:00:01,000 --> 00:00:02,000\nsame\n\n" +
+		"3\n00:00:01,000 --> 00:00:02,001\nsame\n\n" +
+		"4\n00:00:01,000 --> 00:00:02,000\nSame\n"
 
-	result := mustParse(t, SRTParser{}, document)
+	result := mustParse(t, subtitleformat.SRTParser{}, document)
 
-	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "{laughs} a < b"}})
+	if len(result.Events) != 3 || result.Skipped != 1 {
+		t.Fatalf("got %d events and %d skipped, want 3 and 1", len(result.Events), result.Skipped)
+	}
+}
+
+func TestSRTKeepsLiteralBracesAndComparisonSigns(t *testing.T) {
+	document := "1\n00:00:01,000 --> 00:00:02,000\n{laughs} a < b > c\n"
+
+	result := mustParse(t, subtitleformat.SRTParser{}, document)
+
+	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "{laughs} a < b > c"}})
 }
 
 func TestSRTReadsWindows1252Portuguese(t *testing.T) {
 	document := []byte("1\r\n00:00:01,000 --> 00:00:02,000\r\nVoc\xea n\xe3o vai\x85\r\n")
 
-	result, err := SRTParser{}.Parse(document)
+	result, err := subtitleformat.SRTParser{}.Parse(document)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
 
 	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "Você não vai…"}})
+}
+
+func TestSRTReadsUTF16LittleEndian(t *testing.T) {
+	text := "1\n00:00:01,000 --> 00:00:02,000\nOlá\n"
+	document := []byte{0xFF, 0xFE}
+	for _, r := range text {
+		document = append(document, byte(r), byte(r>>8))
+	}
+
+	result, err := subtitleformat.SRTParser{}.Parse(document)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "Olá"}})
 }

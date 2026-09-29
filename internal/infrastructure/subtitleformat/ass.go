@@ -26,7 +26,7 @@ func (ASSParser) Parse(data []byte) (Result, error) {
 	section := ""
 	sawEvents := false
 	format := defaultASSEventFormat
-	for _, line := range splitLines(decodeText(data)) {
+	for _, line := range splitLines(DecodeText(data)) {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, ";") {
 			continue
@@ -82,10 +82,10 @@ func parseASSDialogue(value string, format []string) (cue, bool) {
 	for i, name := range format {
 		switch name {
 		case "start":
-			start, err := parseTimestamp(fields[i])
+			start, err := ParseTimestamp(fields[i])
 			parsed.start, hasStart = start, err == nil
 		case "end":
-			end, err := parseTimestamp(fields[i])
+			end, err := ParseTimestamp(fields[i])
 			parsed.end, hasEnd = end, err == nil
 		case "text":
 			parsed.text, hasText = assToPlainText(fields[i]), true

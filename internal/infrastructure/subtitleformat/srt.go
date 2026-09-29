@@ -20,7 +20,7 @@ func (SRTParser) Parse(data []byte) (Result, error) {
 	if err := checkInputSize(data); err != nil {
 		return Result{}, err
 	}
-	lines := splitLines(decodeText(data))
+	lines := splitLines(DecodeText(data))
 
 	var cues []cue
 	skipped := 0

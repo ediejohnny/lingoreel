@@ -1,8 +1,10 @@
-package subtitleformat
+package subtitleformat_test
 
 import (
 	"errors"
 	"testing"
+
+	"lingoreel/internal/infrastructure/subtitleformat"
 )
 
 const assDocument = `[Script Info]
@@ -25,7 +27,7 @@ Dialogue: 0,broken,0:00:12.00,Default,,0,0,0,,bad start
 `
 
 func TestASSParsesDialogueAndStripsOverrides(t *testing.T) {
-	result := mustParse(t, ASSParser{}, assDocument)
+	result := mustParse(t, subtitleformat.ASSParser{}, assDocument)
 
 	assertEvents(t, result.Events, []wantEvent{
 		{1_000, 3_500, "Well, I'm gonna go."},
@@ -41,7 +43,7 @@ func TestASSParsesDialogueAndStripsOverrides(t *testing.T) {
 func TestASSHonorsCustomFormatOrder(t *testing.T) {
 	document := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.5,0:00:02.25,text, with, commas\n"
 
-	result := mustParse(t, ASSParser{}, document)
+	result := mustParse(t, subtitleformat.ASSParser{}, document)
 
 	assertEvents(t, result.Events, []wantEvent{{1_500, 2_250, "text, with, commas"}})
 }
@@ -50,14 +52,33 @@ func TestASSReadsLegacySSAMarkedField(t *testing.T) {
 	document := "[Events]\nFormat: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
 		"Dialogue: Marked=0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,old style\n"
 
-	result := mustParse(t, ASSParser{}, document)
+	result := mustParse(t, subtitleformat.ASSParser{}, document)
 
 	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "old style"}})
 }
 
+func TestASSSkipsDialogueWithTooFewFields(t *testing.T) {
+	document := "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
+		"Dialogue: 0,0:00:01.00,0:00:02.00,Default\n"
+
+	result := mustParse(t, subtitleformat.ASSParser{}, document)
+
+	if len(result.Events) != 0 || result.Skipped != 1 {
+		t.Fatalf("got %d events, %d skipped; want 0 and 1", len(result.Events), result.Skipped)
+	}
+}
+
+func TestASSKeepsUnterminatedOverrideAsText(t *testing.T) {
+	document := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,Hello {world\n"
+
+	result := mustParse(t, subtitleformat.ASSParser{}, document)
+
+	assertEvents(t, result.Events, []wantEvent{{1_000, 2_000, "Hello {world"}})
+}
+
 func TestASSWithoutEventsSectionIsMalformed(t *testing.T) {
-	_, err := ASSParser{}.Parse([]byte("[Script Info]\nTitle: nothing here\n"))
-	if !errors.Is(err, ErrMalformed) {
+	_, err := subtitleformat.ASSParser{}.Parse([]byte("[Script Info]\nTitle: nothing here\n"))
+	if !errors.Is(err, subtitleformat.ErrMalformed) {
 		t.Fatalf("error = %v, want ErrMalformed", err)
 	}
 }

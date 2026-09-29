@@ -1,4 +1,4 @@
-package subtitleformat
+package subtitleformat_test
 
 import (
 	"slices"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"lingoreel/internal/domain/subtitle"
+	"lingoreel/internal/infrastructure/subtitleformat"
 )
 
 func ms(value int) time.Duration {
@@ -39,7 +40,7 @@ func assertEvents(t *testing.T, got []subtitle.Event, want []wantEvent) {
 	}
 }
 
-func mustParse(t *testing.T, parser Parser, document string) Result {
+func mustParse(t *testing.T, parser subtitleformat.Parser, document string) subtitleformat.Result {
 	t.Helper()
 	result, err := parser.Parse([]byte(document))
 	if err != nil {

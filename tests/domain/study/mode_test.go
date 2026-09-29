@@ -1,11 +1,15 @@
-package study
+package study_test
 
-import "testing"
+import (
+	"testing"
+
+	"lingoreel/internal/domain/study"
+)
 
 func TestModeValid(t *testing.T) {
-	cases := map[Mode]bool{
-		ModeDual: true, ModeOnDemand: true, ModeAlwaysTranslated: true,
-		"": false, "DUAL": false, "on_demand": false,
+	cases := map[study.Mode]bool{
+		study.ModeDual: true, study.ModeOnDemand: true, study.ModeAlwaysTranslated: true,
+		"": false, "DUAL": false, "on_demand": false, " dual": false,
 	}
 	for mode, want := range cases {
 		if got := mode.Valid(); got != want {
@@ -15,8 +19,8 @@ func TestModeValid(t *testing.T) {
 }
 
 func TestRevealBehaviorValid(t *testing.T) {
-	cases := map[RevealBehavior]bool{
-		RevealToggle: true, RevealHold: true,
+	cases := map[study.RevealBehavior]bool{
+		study.RevealToggle: true, study.RevealHold: true,
 		"": false, "Hold": false, "press": false,
 	}
 	for behavior, want := range cases {

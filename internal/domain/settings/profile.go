@@ -15,19 +15,20 @@ import (
 // DefaultProfileName is the profile created on the first run.
 const DefaultProfileName = "Inglês"
 
-const maxProfileNameRunes = 60
+// MaxProfileNameRunes bounds the length of a profile name.
+const MaxProfileNameRunes = 60
 
 // languageTagPattern accepts BCP 47 style tags such as "en", "pt-BR" or "zh-Hant".
 var languageTagPattern = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 
 // Allowed ranges for the synchronization steps.
 const (
-	minPrecisionSeekStep = 10 * time.Millisecond
-	maxPrecisionSeekStep = 10 * time.Second
-	minOffsetStep        = 10 * time.Millisecond
-	maxOffsetStep        = 5 * time.Second
-	minOffsetLargeStep   = 100 * time.Millisecond
-	maxOffsetLargeStep   = time.Minute
+	MinPrecisionSeekStep = 10 * time.Millisecond
+	MaxPrecisionSeekStep = 10 * time.Second
+	MinOffsetStep        = 10 * time.Millisecond
+	MaxOffsetStep        = 5 * time.Second
+	MinOffsetLargeStep   = 100 * time.Millisecond
+	MaxOffsetLargeStep   = time.Minute
 )
 
 // LanguagePreferences lists the preferred languages as BCP 47 tags. An empty
@@ -117,11 +118,11 @@ func (p Profile) Validate() error {
 
 func (s SyncPreferences) validate() error {
 	switch {
-	case !s.PrecisionSeekStep.within(minPrecisionSeekStep, maxPrecisionSeekStep):
+	case !s.PrecisionSeekStep.within(MinPrecisionSeekStep, MaxPrecisionSeekStep):
 		return fmt.Errorf("%w: precisionSeekStep", ErrInvalidSettings)
-	case !s.OffsetStep.within(minOffsetStep, maxOffsetStep):
+	case !s.OffsetStep.within(MinOffsetStep, MaxOffsetStep):
 		return fmt.Errorf("%w: offsetStep", ErrInvalidSettings)
-	case !s.OffsetLargeStep.within(minOffsetLargeStep, maxOffsetLargeStep):
+	case !s.OffsetLargeStep.within(MinOffsetLargeStep, MaxOffsetLargeStep):
 		return fmt.Errorf("%w: offsetLargeStep", ErrInvalidSettings)
 	}
 	return nil
@@ -129,7 +130,7 @@ func (s SyncPreferences) validate() error {
 
 func validateProfileName(name string) error {
 	trimmed := strings.TrimSpace(name)
-	if trimmed == "" || trimmed != name || utf8.RuneCountInString(name) > maxProfileNameRunes {
+	if trimmed == "" || trimmed != name || utf8.RuneCountInString(name) > MaxProfileNameRunes {
 		return fmt.Errorf("%w: profile name %q", ErrInvalidSettings, name)
 	}
 	return nil

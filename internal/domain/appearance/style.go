@@ -41,7 +41,7 @@ const (
 	MaxPadding       = 40.0
 	MinLines         = 1
 	MaxLines         = 5
-	maxFontNameRunes = 100
+	MaxFontNameRunes = 100
 )
 
 // Outline draws a stroke around each glyph.
@@ -94,7 +94,7 @@ func (s SubtitleStyle) Validate() error {
 		ok    bool
 		field string
 	}{
-		{family != "" && len([]rune(family)) <= maxFontNameRunes, "fontFamily"},
+		{family != "" && len([]rune(family)) <= MaxFontNameRunes, "fontFamily"},
 		{s.FontSize >= MinFontSize && s.FontSize <= MaxFontSize, "fontSize"},
 		{s.SizeMode == SizeFixed || s.SizeMode == SizeResponsive, "sizeMode"},
 		{s.Opacity >= 0 && s.Opacity <= 1, "opacity"},

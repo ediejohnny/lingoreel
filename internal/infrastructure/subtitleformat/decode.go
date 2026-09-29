@@ -14,10 +14,10 @@ var (
 	utf16BEBOM = []byte{0xFE, 0xFF}
 )
 
-// decodeText converts subtitle bytes to a string. UTF-8 (with or without BOM)
+// DecodeText converts subtitle bytes to a string. UTF-8 (with or without BOM)
 // and UTF-16 with BOM are honored; any other input that is not valid UTF-8 is
 // read as Windows-1252, the usual encoding of legacy Portuguese subtitle files.
-func decodeText(data []byte) string {
+func DecodeText(data []byte) string {
 	switch {
 	case bytes.HasPrefix(data, utf8BOM):
 		data = data[len(utf8BOM):]

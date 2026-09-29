@@ -8,8 +8,8 @@ import (
 // ErrInvalidLayout reports layout margins outside their allowed ranges.
 var ErrInvalidLayout = errors.New("invalid subtitle layout")
 
-// maxMarginFraction keeps at least half of the video usable for text.
-const maxMarginFraction = 0.25
+// MaxMarginFraction keeps at least half of the video usable for text.
+const MaxMarginFraction = 0.25
 
 // Layout holds the safe area shared by both subtitle lines. Every value is a
 // fraction of the video size, so the layout survives resizing and DPI changes.
@@ -29,11 +29,11 @@ func DefaultLayout() Layout {
 // Validate checks the margins and the maximum width.
 func (l Layout) Validate() error {
 	switch {
-	case !inRange(l.MarginLeft, 0, maxMarginFraction):
+	case !inRange(l.MarginLeft, 0, MaxMarginFraction):
 		return fmt.Errorf("%w: marginLeft", ErrInvalidLayout)
-	case !inRange(l.MarginRight, 0, maxMarginFraction):
+	case !inRange(l.MarginRight, 0, MaxMarginFraction):
 		return fmt.Errorf("%w: marginRight", ErrInvalidLayout)
-	case !inRange(l.MarginBottom, 0, maxMarginFraction):
+	case !inRange(l.MarginBottom, 0, MaxMarginFraction):
 		return fmt.Errorf("%w: marginBottom", ErrInvalidLayout)
 	// Written as "not inside" so NaN, which fails every comparison, is rejected.
 	case !(l.MaxWidth > 0 && l.MaxWidth <= 1):

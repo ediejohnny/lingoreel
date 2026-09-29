@@ -67,7 +67,7 @@ func DetectFormat(fileName string, data []byte) (subtitle.Format, bool) {
 		return subtitle.FormatWebVTT, true
 	}
 
-	head := decodeText(data[:min(len(data), sniffBytes)])
+	head := DecodeText(data[:min(len(data), sniffBytes)])
 	switch {
 	case isWebVTTSignature(strings.TrimSpace(firstLine(head))):
 		return subtitle.FormatWebVTT, true
@@ -126,11 +126,11 @@ func parseTimingLine(line string) (time.Duration, time.Duration, error) {
 	if len(fields) == 0 {
 		return 0, 0, fmt.Errorf("%w: missing end time in %q", ErrMalformed, line)
 	}
-	start, err := parseTimestamp(left)
+	start, err := ParseTimestamp(left)
 	if err != nil {
 		return 0, 0, err
 	}
-	end, err := parseTimestamp(fields[0])
+	end, err := ParseTimestamp(fields[0])
 	if err != nil {
 		return 0, 0, err
 	}
