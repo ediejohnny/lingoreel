@@ -24,6 +24,8 @@ func Run(args []string, stdout io.Writer) error {
 	case "version":
 		_, err := fmt.Fprintln(stdout, buildinfo.Version)
 		return err
+	case "inspect":
+		return inspect(args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -37,6 +39,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Uso: spdev <comando>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Comandos:")
-	fmt.Fprintln(w, "  version   mostra a versão desta compilação")
-	fmt.Fprintln(w, "  help      mostra esta ajuda")
+	fmt.Fprintln(w, "  version                        mostra a versão desta compilação")
+	fmt.Fprintln(w, "  inspect <vídeo> [--legendas]   mostra as faixas e a sugestão de estudo")
+	fmt.Fprintln(w, "  help                           mostra esta ajuda")
 }
