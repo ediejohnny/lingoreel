@@ -3,14 +3,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 
 	"lingoreel/internal/spdev"
 )
 
 func main() {
-	if err := spdev.Run(os.Args[1:], os.Stdout); err != nil {
+	// Ctrl+C ends long-running commands cleanly, closing the player they opened.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	err := spdev.Run(ctx, os.Args[1:], os.Stdout)
+	stop()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "spdev:", err)
 		os.Exit(1)
 	}
