@@ -162,6 +162,41 @@ func TestVLCFirstSampleIsAtTheRequestedStart(t *testing.T) {
 	}
 }
 
+// Past 2^31 microseconds (35 min 47 s) a 32-bit format overflows: a real
+// 90-minute movie reported a length of -2147483648 µs. The 40-minute sample
+// must report positions and length beyond that limit.
+func TestVLCReportsPositionsBeyond36Minutes(t *testing.T) {
+	executable, _ := realVLC(t)
+	video, err := filepath.Abs(filepath.Join(filepath.Dir(sampleVideo), "long-sample.mkv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := 38 * time.Minute
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true, Start: start})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	select {
+	case first := <-session.Samples():
+		if first.Duration < 39*time.Minute || first.Duration > 41*time.Minute {
+			t.Fatalf("duration = %v, want about 40 min", first.Duration)
+		}
+		// Frames are 2.4 s apart in this file: the position lands on one.
+		if diff := (first.Position - start).Abs(); diff > 3*time.Second {
+			t.Fatalf("position = %v, want about %v", first.Position, start)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no sample after Launch")
+	}
+	if err := session.SeekTo(39 * time.Minute); err != nil {
+		t.Fatalf("SeekTo: %v", err)
+	}
+	waitFor(t, session.Samples(), "a seek past 36 minutes", func(s playback.Sample) bool {
+		return (s.Position - 39*time.Minute).Abs() <= 3*time.Second
+	})
+}
+
 // TestVLCIntegration drives the real VLC through its commands.
 func TestVLCIntegration(t *testing.T) {
 	executable, video := realVLC(t)

@@ -47,7 +47,9 @@ if command == "quit" then
 end
 
 if input then
-  print(string.format('{"status":"%s","time":%d,"length":%d,"rate":%.4f}',
+  -- %.0f, not %d: VLC's Lua formats %d as a 32-bit int, which overflows
+  -- at 2^31 microseconds (35 min 47 s).
+  print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f}',
     vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
     math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate")))
 else
