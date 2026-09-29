@@ -9,14 +9,19 @@ import (
 	"lingoreel/internal/buildinfo"
 )
 
-func TestRunVersionPrintsBuildVersion(t *testing.T) {
+// The version is swapped for a distinctive value so the test fails if run
+// prints a constant instead of the value injected at build time.
+func TestRunVersionPrintsInjectedBuildVersion(t *testing.T) {
+	original := buildinfo.Version
+	buildinfo.Version = "7.8.9-injected"
+	t.Cleanup(func() { buildinfo.Version = original })
 	var out bytes.Buffer
 
 	if err := run([]string{"version"}, &out); err != nil {
 		t.Fatalf("run(version) returned error: %v", err)
 	}
-	if got := strings.TrimSpace(out.String()); got != buildinfo.Version {
-		t.Fatalf("run(version) printed %q, want %q", got, buildinfo.Version)
+	if got := out.String(); got != "7.8.9-injected\n" {
+		t.Fatalf("run(version) printed %q, want %q", got, "7.8.9-injected\n")
 	}
 }
 
