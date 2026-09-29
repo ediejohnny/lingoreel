@@ -21,6 +21,9 @@ func TestHintsFromFileName(t *testing.T) {
 		{"Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.en.hi.srt", media.FileHints{Language: "en", HearingImpaired: true}},
 		{"Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.por.srt", media.FileHints{Language: "pt"}},
 		{"Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.es-419.srt", media.FileHints{Language: "es-419"}},
+		// Regions only the next token gives (no name hint knows them).
+		{"Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.fr-CA.srt", media.FileHints{Language: "fr-CA"}},
+		{"Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.de_at.srt", media.FileHints{Language: "de-AT"}},
 		// YTS style, inside Subs/.
 		{"2_English.srt", media.FileHints{Language: "en"}},
 		{"3_Portuguese (Brazil).srt", media.FileHints{Language: "pt-BR"}},

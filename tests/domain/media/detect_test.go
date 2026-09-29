@@ -45,6 +45,10 @@ func TestDetectLanguageRefusesToGuess(t *testing.T) {
 		"poucas palavras": "What? Não. Okay.",
 		"metade e metade": englishDialogue + " " + portugueseDialogue,
 		"outra língua":    strings.Repeat("Ich weiß nicht, was du meinst. ", 40),
+		// Words that exist in two languages prove neither: "está", "vamos"
+		// and "para" are Portuguese and Spanish, "bien" Spanish and French.
+		"palavras comuns":   strings.Repeat("está vamos para bien ", 40),
+		"uma palavra comum": strings.Repeat("para ", 60),
 	}
 	for name, text := range cases {
 		if got := media.DetectLanguage(text); got != "" {
