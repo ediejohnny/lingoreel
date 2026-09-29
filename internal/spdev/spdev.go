@@ -3,6 +3,7 @@
 package spdev
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,8 @@ import (
 var ErrUnknownCommand = errors.New("comando desconhecido")
 
 // Run executes the command named by args[0], writing its output to stdout.
-func Run(args []string, stdout io.Writer) error {
+// Long-running commands stop when ctx ends.
+func Run(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		printUsage(stdout)
 		return nil
@@ -26,6 +28,8 @@ func Run(args []string, stdout io.Writer) error {
 		return err
 	case "inspect":
 		return inspect(args[1:], stdout)
+	case "play":
+		return play(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -41,5 +45,9 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Comandos:")
 	fmt.Fprintln(w, "  version                        mostra a versão desta compilação")
 	fmt.Fprintln(w, "  inspect <vídeo> [--legendas]   mostra as faixas e a sugestão de estudo")
+	fmt.Fprintln(w, "  play <vídeo> [opções]          abre o vídeo no player e mostra as legendas no tempo certo")
+	fmt.Fprintln(w, "      --player <mpv|vlc|potplayer>   player preferido (padrão: o melhor instalado)")
+	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
+	fmt.Fprintln(w, "      --pausado                      abre pausado")
 	fmt.Fprintln(w, "  help                           mostra esta ajuda")
 }

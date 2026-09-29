@@ -16,7 +16,7 @@ var fixture = filepath.Join("..", "testdata", "matroska", "subtitles.mkv")
 
 func TestInspectDescribesTracksAndSuggestion(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run([]string{"inspect", fixture}, &out); err != nil {
+	if err := spdev.Run(t.Context(), []string{"inspect", fixture}, &out); err != nil {
 		t.Fatalf("inspect: %v", err)
 	}
 	text := out.String()
@@ -40,7 +40,7 @@ func TestInspectDescribesTracksAndSuggestion(t *testing.T) {
 
 func TestInspectWithSubtitlesPrintsFirstLines(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run([]string{"inspect", fixture, "--legendas"}, &out); err != nil {
+	if err := spdev.Run(t.Context(), []string{"inspect", fixture, "--legendas"}, &out); err != nil {
 		t.Fatalf("inspect --legendas: %v", err)
 	}
 	text := out.String()
@@ -57,14 +57,14 @@ func TestInspectWithSubtitlesPrintsFirstLines(t *testing.T) {
 }
 
 func TestInspectReportsBadInput(t *testing.T) {
-	if err := spdev.Run([]string{"inspect"}, &bytes.Buffer{}); !errors.Is(err, spdev.ErrMissingArgument) {
+	if err := spdev.Run(t.Context(), []string{"inspect"}, &bytes.Buffer{}); !errors.Is(err, spdev.ErrMissingArgument) {
 		t.Fatalf("missing path error = %v, want ErrMissingArgument", err)
 	}
-	if err := spdev.Run([]string{"inspect", "filme.mp4"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
+	if err := spdev.Run(t.Context(), []string{"inspect", "filme.mp4"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
 		t.Fatalf("mp4 error = %v, want ErrUnsupportedFile", err)
 	}
 	missing := filepath.Join(t.TempDir(), "nao-existe.mkv")
-	if err := spdev.Run([]string{"inspect", missing}, &bytes.Buffer{}); !errors.Is(err, os.ErrNotExist) {
+	if err := spdev.Run(t.Context(), []string{"inspect", missing}, &bytes.Buffer{}); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing file error = %v, want os.ErrNotExist", err)
 	}
 }
