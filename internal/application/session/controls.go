@@ -54,6 +54,11 @@ func (c *Controls) Capabilities() playback.Capabilities {
 	if capabilities.Precision != playback.PrecisionExact && !c.hasFrame {
 		capabilities.FrameStepForward, capabilities.FrameStepBackward = false, false
 	}
+	// A player without a backward step but with exact seeks gets one: an
+	// exact seek one frame back.
+	if !capabilities.FrameStepBackward && capabilities.Seek && capabilities.ExactSeek && c.hasFrame {
+		capabilities.FrameStepBackward, capabilities.FrameStepBackwardEmulated = true, true
+	}
 	return capabilities
 }
 
@@ -155,6 +160,9 @@ func (c *Controls) StepFrame(forward bool) error {
 		if err := c.Pause(); err != nil {
 			return err
 		}
+	}
+	if !forward && capabilities.FrameStepBackwardEmulated {
+		return c.SeekTo(c.clock.Position() - c.frame)
 	}
 	if err := c.player.StepFrame(forward); err != nil {
 		return fmt.Errorf("stepping one frame: %w", err)
