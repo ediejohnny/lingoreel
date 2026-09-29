@@ -18,6 +18,7 @@ import (
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
+	"lingoreel/internal/infrastructure/subtitlefile"
 	"lingoreel/internal/presentation/overlay"
 )
 
@@ -73,7 +74,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		return err
 	}
 
-	service := analysis.NewService(matroska.FileReader{})
+	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	result, err := service.Analyze(options.path, defaultPreferences())
 	if err != nil {
 		return err
@@ -83,7 +84,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 			formatClock(options.start), formatClock(result.Info.Duration))
 	}
 	chosen := []uint64{result.Suggested.Primary, result.Suggested.Translation}
-	loaded, err := service.LoadSubtitles(ctx, options.path, chosen, nil)
+	loaded, err := service.LoadSubtitles(ctx, result, chosen, nil)
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,9 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		AudioIndex:  audioIndex(result.Info, result.Suggested.Audio),
 		StartPaused: options.paused,
 		Start:       options.start,
+		Window:      initialWindow(result.Info),
 	}
+	request.VideoWidth, _ = videoSize(result.Info)
 	running, err := launchers[choice.Installation.ID](ctx, choice.Installation.Path, request)
 	if err != nil {
 		return err

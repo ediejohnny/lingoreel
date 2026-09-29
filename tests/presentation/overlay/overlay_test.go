@@ -35,6 +35,20 @@ var (
 	procShowWindow   = user32.NewProc("ShowWindow")
 	procSetWindowPos = user32.NewProc("SetWindowPos")
 	procPostMessage  = user32.NewProc("PostMessageW")
+	procGetDC        = user32.NewProc("GetDC")
+	procReleaseDC    = user32.NewProc("ReleaseDC")
+
+	gdi32              = windows.NewLazySystemDLL("gdi32.dll")
+	procGetStockObject = gdi32.NewProc("GetStockObject")
+	procBitBlt         = gdi32.NewProc("BitBlt")
+)
+
+const (
+	visibleVariable = "LINGOREEL_FAKE_PLAYER_VISIBLE"
+	blackBrush      = 4
+	hwndTopmost     = ^uintptr(0) // (HWND)-1
+	srcCopy         = 0x00CC0020
+	captureBlt      = 0x40000000
 )
 
 const (
@@ -106,15 +120,23 @@ func TestFakePlayerWindow(t *testing.T) {
 		}
 		return win32.DefWindowProc(hwnd, message, wparam, lparam)
 	})
-	if _, err := win32.RegisterClass(&win32.WndClassEx{WndProc: proc, Instance: win32.ModuleHandle(), ClassName: name}); err != nil {
+	black, _, _ := procGetStockObject.Call(blackBrush)
+	class := win32.WndClassEx{WndProc: proc, Instance: win32.ModuleHandle(), ClassName: name, Background: windows.Handle(black)}
+	if _, err := win32.RegisterClass(&class); err != nil {
 		t.Fatal(err)
 	}
 	hwnd, err := win32.CreateWindow(0, wsOverlapped, name, 0, win32.ModuleHandle())
 	if err != nil {
 		t.Fatal(err)
 	}
-	x := int32(offscreenX) // negative: passed as a sign-extended int
-	procSetWindowPos.Call(uintptr(hwnd), 0, uintptr(x), 60, 656, 399, swpNoZOrder|swpNoActivate)
+	if os.Getenv(visibleVariable) == "1" {
+		// On screen, in the corner and above everything, so its pixels can
+		// be captured; never activated.
+		procSetWindowPos.Call(uintptr(hwnd), hwndTopmost, 0, 0, 420, 280, swpNoActivate)
+	} else {
+		x := int32(offscreenX) // negative: passed as a sign-extended int
+		procSetWindowPos.Call(uintptr(hwnd), 0, uintptr(x), 60, 656, 399, swpNoZOrder|swpNoActivate)
+	}
 	procShowWindow.Call(uintptr(hwnd), swShowNA)
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
@@ -142,8 +164,16 @@ type fakePlayer struct {
 
 func startFakePlayer(t *testing.T) *fakePlayer {
 	t.Helper()
+	return launchFakePlayer(t, false)
+}
+
+func launchFakePlayer(t *testing.T, visible bool) *fakePlayer {
+	t.Helper()
 	cmd := exec.Command(os.Args[0], "-test.run=^TestFakePlayerWindow$")
 	cmd.Env = append(os.Environ(), helperVariable+"=1")
+	if visible {
+		cmd.Env = append(cmd.Env, visibleVariable+"=1")
+	}
 	input, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -365,6 +395,92 @@ func TestOpenOverAHungPlayerGivesUpInTime(t *testing.T) {
 		}
 	} else if !errors.Is(err, overlay.ErrPlayerNotResponding) {
 		t.Fatalf("Open over a hung player = %v, want ErrPlayerNotResponding", err)
+	}
+}
+
+// captureClient copies what the screen shows over the player's client area.
+func captureClient(t *testing.T, target windows.HWND) []byte {
+	t.Helper()
+	r, err := win32.ClientRectOnScreen(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, h := int(r.Right-r.Left), int(r.Bottom-r.Top)
+	dib, err := win32.NewDIB(w, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dib.Close()
+	screen, _, _ := procGetDC.Call(0)
+	defer procReleaseDC.Call(0, screen)
+	if ok, _, err := procBitBlt.Call(uintptr(dib.DC), 0, 0, uintptr(w), uintptr(h), screen, uintptr(r.Left), uintptr(r.Top), srcCopy|captureBlt); ok == 0 {
+		t.Fatalf("BitBlt: %v", err)
+	}
+	return append([]byte(nil), dib.Pixels...)
+}
+
+// changedPixels counts pixels whose color differs between two captures.
+func changedPixels(a, b []byte) int {
+	changed := 0
+	for i := 0; i+3 < len(a) && i+3 < len(b); i += 4 {
+		if a[i] != b[i] || a[i+1] != b[i+1] || a[i+2] != b[i+2] {
+			changed++
+		}
+	}
+	return changed
+}
+
+// What the overlay shows must change with every Show, even when the size
+// stays the same and the bitmap is reused. A real paused session showed a
+// subtitle only after the window was resized; this reads the screen itself.
+func TestEveryShowReachesTheScreen(t *testing.T) {
+	player := launchFakePlayer(t, true)
+	screen, err := overlay.Open(t.Context(), overlay.Options{
+		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
+		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer screen.Close()
+	found := overlayWindows()
+	if len(found) != 1 {
+		t.Fatalf("found %d overlay windows, want 1", len(found))
+	}
+	owner, _, _ := procGetWindow.Call(uintptr(found[0]), gwOwner)
+	target := windows.HWND(owner)
+
+	settle := func() { time.Sleep(300 * time.Millisecond) }
+	settle()
+	blank := captureClient(t, target)
+
+	steps := []struct {
+		content overlay.Content
+		visible bool
+	}{
+		{overlay.Content{Primary: "That's sick!", Translation: "Que loucura!", TranslationVisible: true}, true},
+		{overlay.Content{}, false},
+		{overlay.Content{Primary: "I'm not going there."}, true},
+		{overlay.Content{Primary: "I'm not going there.", Translation: "Eu não vou para lá.", TranslationVisible: false}, true},
+	}
+	var previous []byte
+	for i, step := range steps {
+		if err := screen.Show(step.content); err != nil {
+			t.Fatalf("step %d: Show: %v", i, err)
+		}
+		settle()
+		shot := captureClient(t, target)
+		changed := changedPixels(blank, shot)
+		switch {
+		case step.visible && changed < 100:
+			t.Fatalf("step %d: only %d pixels differ from the blank player; the text did not reach the screen", i, changed)
+		case !step.visible && changed > 0:
+			t.Fatalf("step %d: %d pixels still differ after clearing the overlay", i, changed)
+		}
+		if i == 3 && changedPixels(previous, shot) != 0 {
+			t.Fatalf("step %d: a hidden translation changed the picture", i)
+		}
+		previous = shot
 	}
 }
 

@@ -29,6 +29,7 @@ var (
 	procUpdateLayeredWindow          = user32.NewProc("UpdateLayeredWindow")
 	procShowWindow                   = user32.NewProc("ShowWindow")
 	procSetWindowPos                 = user32.NewProc("SetWindowPos")
+	procSystemParametersInfoW        = user32.NewProc("SystemParametersInfoW")
 	procGetClientRect                = user32.NewProc("GetClientRect")
 	procClientToScreen               = user32.NewProc("ClientToScreen")
 	procIsIconic                     = user32.NewProc("IsIconic")
@@ -256,6 +257,16 @@ func MoveWindow(hwnd windows.HWND, x, y int32) error {
 		return callErr(err)
 	}
 	return nil
+}
+
+// WorkArea returns the primary monitor's area not covered by the taskbar.
+func WorkArea() (Rect, error) {
+	const spiGetWorkArea = 0x0030
+	var r Rect
+	if ok, _, err := procSystemParametersInfoW.Call(spiGetWorkArea, 0, uintptr(unsafe.Pointer(&r)), 0); ok == 0 {
+		return Rect{}, callErr(err)
+	}
+	return r, nil
 }
 
 // IsIconic reports whether a window is minimized.

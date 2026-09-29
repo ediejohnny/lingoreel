@@ -49,9 +49,16 @@ func studyInfo() media.Info {
 	}}
 }
 
+// studyAnalysis is an analyzed video with a fourth, Spanish subtitle track.
+func studyAnalysis() analysis.Analysis {
+	info := studyInfo()
+	info.Tracks = append(info.Tracks, media.Track{Number: 4, Type: media.TrackSubtitle, Language: "es", Readable: true})
+	return analysis.Analysis{Path: `C:\x.mkv`, Info: info}
+}
+
 func TestAnalyzeRejectsUnsupportedFilesWithoutReadingThem(t *testing.T) {
 	reader := &fakeReader{info: studyInfo()}
-	service := analysis.NewService(reader)
+	service := analysis.NewService(reader, nil)
 
 	for _, path := range []string{`C:\Filmes\Filme.mp4`, `C:\Filmes\Filme`, `C:\Filmes\Filme.mkv.txt`, ``} {
 		if _, err := service.Analyze(path, preferences); !errors.Is(err, analysis.ErrUnsupportedFile) {
@@ -65,7 +72,7 @@ func TestAnalyzeRejectsUnsupportedFilesWithoutReadingThem(t *testing.T) {
 
 func TestAnalyzeSuggestsTracks(t *testing.T) {
 	reader := &fakeReader{info: studyInfo()}
-	service := analysis.NewService(reader)
+	service := analysis.NewService(reader, nil)
 
 	for _, path := range []string{`D:\Filmes\Matrix.MKV`, `D:\Séries\Episódio 1.webm`} {
 		result, err := service.Analyze(path, preferences)
@@ -83,7 +90,7 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 
 func TestAnalyzePropagatesReaderErrors(t *testing.T) {
 	failure := errors.New("disk on fire")
-	service := analysis.NewService(&fakeReader{err: failure})
+	service := analysis.NewService(&fakeReader{err: failure}, nil)
 
 	if _, err := service.Analyze(`C:\x.mkv`, preferences); !errors.Is(err, failure) {
 		t.Fatalf("error = %v, want the reader's error", err)
@@ -99,10 +106,10 @@ func TestLoadSubtitlesBuildsTimelinesForUniqueTracks(t *testing.T) {
 		2: {Events: []subtitle.Event{event("2", 5_000, 6_000, "second"), event("1", 1_000, 2_000, "first")}, Skipped: 1},
 		3: {Events: []subtitle.Event{event("1", 1_000, 2_000, "primeira")}},
 	}}
-	service := analysis.NewService(reader)
+	service := analysis.NewService(reader, nil)
 	var reports []int64
 
-	loaded, err := service.LoadSubtitles(context.Background(), `C:\x.mkv`, []uint64{2, 0, 3, 2}, func(done, total int64) {
+	loaded, err := service.LoadSubtitles(context.Background(), studyAnalysis(), []uint64{2, 0, 3, 2}, func(done, total int64) {
 		reports = append(reports, done)
 	})
 	if err != nil {
@@ -128,7 +135,7 @@ func TestLoadSubtitlesBuildsTimelinesForUniqueTracks(t *testing.T) {
 
 func TestLoadSubtitlesWithoutTracksDoesNotReadTheFile(t *testing.T) {
 	reader := &fakeReader{}
-	loaded, err := analysis.NewService(reader).LoadSubtitles(context.Background(), `C:\x.mkv`, []uint64{0, 0}, nil)
+	loaded, err := analysis.NewService(reader, nil).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{0, 0}, nil)
 	if err != nil || len(loaded) != 0 || reader.requested != nil {
 		t.Fatalf("LoadSubtitles(no tracks) = %v, %v; reader asked for %v", loaded, err, reader.requested)
 	}
@@ -136,12 +143,12 @@ func TestLoadSubtitlesWithoutTracksDoesNotReadTheFile(t *testing.T) {
 
 func TestLoadSubtitlesReportsMissingTracksAndInvalidEvents(t *testing.T) {
 	missing := &fakeReader{content: map[uint64]media.SubtitleContent{}}
-	if _, err := analysis.NewService(missing).LoadSubtitles(context.Background(), `C:\x.mkv`, []uint64{4}, nil); err == nil {
+	if _, err := analysis.NewService(missing, nil).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{4}, nil); err == nil {
 		t.Fatal("a track missing from the reader result was accepted")
 	}
 
 	invalid := &fakeReader{content: map[uint64]media.SubtitleContent{4: {Events: []subtitle.Event{event("1", 2_000, 1_000, "backwards")}}}}
-	if _, err := analysis.NewService(invalid).LoadSubtitles(context.Background(), `C:\x.mkv`, []uint64{4}, nil); !errors.Is(err, subtitle.ErrInvalidEvent) {
+	if _, err := analysis.NewService(invalid, nil).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{4}, nil); !errors.Is(err, subtitle.ErrInvalidEvent) {
 		t.Fatalf("invalid events error = %v, want ErrInvalidEvent", err)
 	}
 }
@@ -149,7 +156,7 @@ func TestLoadSubtitlesReportsMissingTracksAndInvalidEvents(t *testing.T) {
 func TestLoadSubtitlesHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := analysis.NewService(&fakeReader{}).LoadSubtitles(ctx, `C:\x.mkv`, []uint64{2}, nil)
+	_, err := analysis.NewService(&fakeReader{}, nil).LoadSubtitles(ctx, studyAnalysis(), []uint64{2}, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", err)
 	}
