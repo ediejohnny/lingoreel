@@ -96,8 +96,48 @@ func TestUnreadableTracksAreNeverSelected(t *testing.T) {
 		unreadable(subtitleTrack(1, "en")), // e.g. PGS, needs OCR
 		subtitleTrack(2, "pt-BR"),
 	)
-	// The only readable track becomes the primary line, so no translation remains.
-	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 2})
+	// The only readable track is in the translation's language: it is the
+	// translation, and the primary line stays empty rather than repeat it.
+	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Translation: 2})
+}
+
+func named(track media.Track, name string) media.Track {
+	track.Name = name
+	return track
+}
+
+// A typical release: two Portuguese text tracks, the
+// default one named "Forced SRT" without the forced flag, and no English.
+func TestMovieWithOnlyPortugueseKeepsThePrimaryEmpty(t *testing.T) {
+	file := info(
+		asDefault(named(subtitleTrack(4, "pt"), "Forced SRT")),
+		named(subtitleTrack(5, "pt"), "Complet SRT"),
+	)
+	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Translation: 5})
+}
+
+func TestForcedByNameLosesToTheFullTrack(t *testing.T) {
+	for _, name := range []string{"English (Forced)", "FORCED", "Legendas Forçadas", "forcadas"} {
+		file := info(asDefault(named(subtitleTrack(1, "en"), name)), subtitleTrack(2, "en"))
+		if got := media.SelectTracks(file, studyPreferences).Primary; got != 2 {
+			t.Errorf("name %q: primary = %d, want the full track 2", name, got)
+		}
+	}
+	// A name that merely contains "for" is not forced.
+	file := info(named(subtitleTrack(1, "en"), "For the hearing"), subtitleTrack(2, "en"))
+	if got := media.SelectTracks(file, studyPreferences).Primary; got != 1 {
+		t.Errorf("primary = %d, want 1 (first of two equal tracks)", got)
+	}
+}
+
+// Without English, the primary still falls back to another language, as long
+// as it is not the translation's.
+func TestPrimaryFallsBackToAnotherLanguageButNotTheTranslations(t *testing.T) {
+	file := info(subtitleTrack(1, "pt-BR"), named(subtitleTrack(2, "es"), "Forced"), subtitleTrack(3, "fr"))
+	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 3, Translation: 1})
+
+	onlyForced := info(subtitleTrack(1, "pt-BR"), forced(subtitleTrack(2, "es")))
+	assertSelection(t, media.SelectTracks(onlyForced, studyPreferences), media.Selection{Primary: 2, Translation: 1})
 }
 
 func TestRegularTrackBeatsHearingImpairedAndDefaultBreaksTies(t *testing.T) {
