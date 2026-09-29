@@ -5,6 +5,7 @@ package vlc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -25,6 +26,8 @@ const (
 	unreachableLimit = 3 * time.Second
 	quitTimeout      = time.Second
 	exitWait         = 2 * time.Second
+	// startTolerance absorbs the estimate error of VLC's first position.
+	startTolerance = 500 * time.Millisecond
 )
 
 // Session is a running VLC playing one video.
@@ -114,27 +117,51 @@ func (s *Session) send(values map[string][]string) error {
 	return err
 }
 
-// waitUntilReady polls the endpoint until VLC answers, exits or time runs out.
-func (s *Session) waitUntilReady(ctx context.Context) error {
+// waitUntilReady polls the endpoint until the video is open at the requested
+// start, VLC exits or time runs out. VLC answers before it opens the file and
+// reports 0 s before applying --start-time; publishing those states would show
+// the subtitles of the wrong moment.
+func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error {
 	deadline := time.NewTimer(startTimeout)
 	defer deadline.Stop()
+	var last status
+	answered := false
 	for {
 		attempt, cancel := context.WithTimeout(ctx, requestTimeout)
-		_, err := s.client.call(attempt, nil)
+		current, err := s.client.call(attempt, nil)
 		cancel()
 		if err == nil {
-			return nil
+			if positioned(current, start) {
+				return nil
+			}
+			last, answered = current, true
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-s.exited:
-			return errors.New("VLC closed before its control interface started")
+			return errors.New("VLC closed before opening the video")
 		case <-deadline.C:
+			if answered {
+				return fmt.Errorf("%w (last state: %s at %d of %d µs)", ErrStartTimeout, last.Status, last.Time, last.Length)
+			}
 			return ErrStartTimeout
 		case <-time.After(startRetry):
 		}
 	}
+}
+
+// positioned reports whether VLC has opened the video and reached the start
+// position. VLC ignores a start at or beyond the end and stays at 0 s.
+func positioned(current status, start time.Duration) bool {
+	if current.Status == "stopped" || current.Length <= 0 {
+		return false
+	}
+	if start >= time.Duration(current.Length)*time.Microsecond {
+		start = 0
+	}
+	position := time.Duration(current.Time) * time.Microsecond
+	return position >= start-startTolerance
 }
 
 func (s *Session) startPolling() {

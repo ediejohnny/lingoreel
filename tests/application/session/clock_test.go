@@ -18,14 +18,28 @@ func signalled(clock *session.Clock) bool {
 	}
 }
 
-func TestClockBeforeAnySampleIsPausedAtZero(t *testing.T) {
+func TestClockBeforeAnySampleIsUnknownAtZero(t *testing.T) {
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionExact, now.Now)
 	now.Advance(time.Hour)
 
 	state := clock.State()
-	if state.Position != 0 || state.Status != playback.StatusPaused || state.Speed != playback.NormalSpeed {
+	if state.Position != 0 || state.Status != playback.StatusUnknown || state.Speed != playback.NormalSpeed {
 		t.Fatalf("initial state = %+v", state)
+	}
+}
+
+// A seek issued by the session before any sample makes the state known: the
+// clock sits paused where the session put it.
+func TestClockSessionCommandBeforeAnySampleMakesTheStateKnown(t *testing.T) {
+	now := newFakeTime()
+	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
+	clock.SetPosition(ms(3_000))
+	now.Advance(time.Second)
+
+	state := clock.State()
+	if state.Position != ms(3_000) || state.Status != playback.StatusPaused || state.Speed != playback.NormalSpeed {
+		t.Fatalf("state after SetPosition = %+v", state)
 	}
 }
 

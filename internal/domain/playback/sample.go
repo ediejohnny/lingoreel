@@ -6,6 +6,8 @@ import "time"
 type Status string
 
 const (
+	// StatusUnknown is the state before the player has reported anything.
+	StatusUnknown Status = ""
 	StatusPlaying Status = "playing"
 	StatusPaused  Status = "paused"
 	StatusStopped Status = "stopped"

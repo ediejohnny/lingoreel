@@ -37,7 +37,8 @@ type Runner struct {
 	refresh   chan struct{}
 }
 
-// NewRunner creates a runner; onChange receives every new set of visible
+// NewRunner creates a runner; once the clock knows the playback status (a
+// player sample, or a command issued by the session), onChange receives every new set of visible
 // subtitles, including the first one.
 func NewRunner(clock *Clock, subtitles *Subtitles, onChange func(time.Duration, Visible), newTimer func(time.Duration) Timer) *Runner {
 	return &Runner{clock: clock, subtitles: subtitles, onChange: onChange, newTimer: newTimer, refresh: make(chan struct{}, 1)}
@@ -59,7 +60,10 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 	for {
 		state := r.clock.State()
 		visible := r.subtitles.At(state.Position)
-		if first || !visible.Equal(last) {
+		// Until the player reports, the position is a guess (zero), and showing
+		// its subtitles would flash the wrong line on a session that starts later.
+		known := state.Status != playback.StatusUnknown
+		if known && (first || !visible.Equal(last)) {
 			r.onChange(state.Position, visible)
 			last, first = visible, false
 		}

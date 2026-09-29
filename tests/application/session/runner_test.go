@@ -32,10 +32,18 @@ type runnerHarness struct {
 
 func startRunner(t *testing.T, subtitles *session.Subtitles, first playback.Sample) *runnerHarness {
 	t.Helper()
+	return launchRunner(t, subtitles, func(clock *session.Clock, now time.Time) {
+		first.ObservedAt = now
+		clock.Observe(first)
+	})
+}
+
+// launchRunner starts a runner after prepare has set up its clock.
+func launchRunner(t *testing.T, subtitles *session.Subtitles, prepare func(*session.Clock, time.Time)) *runnerHarness {
+	t.Helper()
 	h := &runnerHarness{t: t, time: newFakeTime(), samples: make(chan playback.Sample), changes: make(chan change, 64), done: make(chan error, 1)}
 	h.clock = session.NewClock(playback.PrecisionExact, h.time.Now)
-	first.ObservedAt = h.time.Now()
-	h.clock.Observe(first)
+	prepare(h.clock, h.time.Now())
 	h.runner = session.NewRunner(h.clock, subtitles, func(position time.Duration, visible session.Visible) {
 		h.changes <- change{position, ids(visible.Primary), ids(visible.Translation)}
 	}, h.time.NewTimer)
@@ -159,6 +167,31 @@ func TestRunnerAdoptsSamplesAndStopsWhenThePlayerEnds(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not stop when the samples channel closed")
 	}
+}
+
+// A session opened at 3.5 s must never flash the line at 0 s while the player
+// has not reported its position yet.
+func TestRunnerWaitsForThePlayerBeforeTheFirstReport(t *testing.T) {
+	subtitles := session.NewSubtitles(
+		&session.Track{Timeline: timeline(t, cue("opening", 0, 1_000), cue("late", 3_000, 4_000))},
+		&session.Track{Timeline: timeline(t, cue("abertura", 0, 1_000))},
+	)
+	h := launchRunner(t, subtitles, func(*session.Clock, time.Time) {})
+	h.expectQuiet()
+
+	h.samples <- sample(ms(3_500), playback.StatusPaused, 1, h.time.Now())
+	h.expect(ms(3_500), []string{"late"}, []string{})
+	h.expectQuiet()
+}
+
+// Play or pause issued by the session is enough: the clock then knows the
+// state without waiting for the player.
+func TestRunnerReportsOnceTheSessionSetsTheStatus(t *testing.T) {
+	subtitles := session.NewSubtitles(&session.Track{Timeline: timeline(t, cue("opening", 0, 1_000))}, nil)
+	h := launchRunner(t, subtitles, func(clock *session.Clock, _ time.Time) {
+		clock.SetStatus(playback.StatusPaused)
+	})
+	h.expect(0, []string{"opening"}, []string{})
 }
 
 func TestRunnerStopsOnCancellation(t *testing.T) {

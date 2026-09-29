@@ -100,13 +100,13 @@ func waitFor(t *testing.T, samples <-chan playback.Sample, what string, conditio
 	}
 }
 
-// TestVLCIntegration drives the real VLC. It opens a VLC window, so it only
-// runs when LINGOREEL_VLC_TEST=1.
-func TestVLCIntegration(t *testing.T) {
+// realVLC returns the installed VLC and the sample video, skipping unless
+// LINGOREEL_VLC_TEST=1 (the tests open a VLC window).
+func realVLC(t *testing.T) (executable, video string) {
+	t.Helper()
 	if os.Getenv("LINGOREEL_VLC_TEST") != "1" {
 		t.Skip("set LINGOREEL_VLC_TEST=1 to run against the installed VLC")
 	}
-	var executable string
 	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, nil) {
 		if installation.ID == player.VLC {
 			executable = installation.Path
@@ -119,6 +119,52 @@ func TestVLCIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return executable, video
+}
+
+// The very first sample must already describe the open video at the requested
+// start: VLC reports 0 s (or no video at all) until it applies --start-time.
+func TestVLCFirstSampleIsAtTheRequestedStart(t *testing.T) {
+	executable, video := realVLC(t)
+	cases := []struct {
+		name  string
+		start time.Duration
+		want  time.Duration
+	}{
+		{"do começo", 0, 0},
+		{"no meio", 6 * time.Second, 6 * time.Second},
+		// VLC ignores a start beyond the end; callers should not ask for one,
+		// but Launch must still return an open video instead of timing out.
+		{"além do fim", time.Hour, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true, Start: c.start})
+			if err != nil {
+				t.Fatalf("Launch: %v", err)
+			}
+			defer session.Close()
+			select {
+			case first, open := <-session.Samples():
+				if !open {
+					t.Fatal("samples closed before the first one")
+				}
+				if first.Status == playback.StatusStopped || first.Duration < 19*time.Second || first.Duration > 21*time.Second {
+					t.Fatalf("first sample = %+v, want the open 20 s video", first)
+				}
+				if diff := (first.Position - c.want).Abs(); diff > 500*time.Millisecond {
+					t.Fatalf("first position = %v, want %v ± 500ms", first.Position, c.want)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("no sample after Launch")
+			}
+		})
+	}
+}
+
+// TestVLCIntegration drives the real VLC through its commands.
+func TestVLCIntegration(t *testing.T) {
+	executable, video := realVLC(t)
 
 	session, err := vlc.Launch(context.Background(), executable, player.LaunchRequest{File: video, AudioIndex: 0, StartPaused: true})
 	if err != nil {

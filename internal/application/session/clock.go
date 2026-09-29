@@ -75,6 +75,8 @@ func (c *Clock) Position() time.Duration {
 }
 
 // State returns the current sample: position, speed, status and duration.
+// The status stays unknown until a sample arrives or the session moves the
+// clock.
 func (c *Clock) State() playback.Sample {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -84,7 +86,7 @@ func (c *Clock) State() playback.Sample {
 	state.ObservedAt = now
 	if !c.anchored {
 		state.Speed = playback.NormalSpeed
-		state.Status = playback.StatusPaused
+		state.Status = playback.StatusUnknown
 	}
 	return state
 }

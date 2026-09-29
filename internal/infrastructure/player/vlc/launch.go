@@ -27,8 +27,9 @@ import (
 //go:embed http
 var endpointFiles embed.FS
 
-// ErrStartTimeout reports a VLC that never answered on its control port.
-var ErrStartTimeout = errors.New("VLC did not start its control interface in time")
+// ErrStartTimeout reports a VLC that did not answer on its control port, or
+// did not open the video at the requested position, in time.
+var ErrStartTimeout = errors.New("VLC did not open the video in time")
 
 const (
 	startTimeout  = 15 * time.Second
@@ -105,7 +106,7 @@ func Launch(ctx context.Context, executable string, request player.LaunchRequest
 	}
 
 	session := newSession(cmd, killer, newClient(port, password), endpointDir)
-	if err := session.waitUntilReady(ctx); err != nil {
+	if err := session.waitUntilReady(ctx, request.Start); err != nil {
 		session.Close()
 		return nil, err
 	}
