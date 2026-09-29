@@ -29,7 +29,9 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 	case "inspect":
 		return inspect(args[1:], stdout)
 	case "play":
-		return play(ctx, args[1:], stdout)
+		return play(ctx, args[1:], stdout, false)
+	case "overlay":
+		return play(ctx, args[1:], stdout, true)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -49,5 +51,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --player <mpv|vlc|potplayer>   player preferido (padrão: o melhor instalado)")
 	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
 	fmt.Fprintln(w, "      --pausado                      abre pausado")
+	fmt.Fprintln(w, "  overlay <vídeo> [opções]       como play, desenhando as legendas sobre o vídeo")
 	fmt.Fprintln(w, "  help                           mostra esta ajuda")
 }

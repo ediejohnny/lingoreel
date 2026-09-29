@@ -20,6 +20,10 @@ func FuzzMatroska(f *testing.F) {
 	f.Add(subtitleFile(cluster(0, lacedBlockGroup(2, 0, 30, 0x06, join([]byte{2}, encodeVint(1), []byte{0xC0}, []byte("abcdef"))))))
 	f.Add(join(ebmlHeader("matroska"), unknownSizeEl(idSegment, tracksEl(trackEntry(2, typeSubtitle, "S_TEXT/ASS")),
 		unknownSizeEl(idCluster, uintEl(idClusterTimestamp, 1), simpleBlock(2, 0, "1,0,a,,0,0,0,,x")))))
+	// Files with a cue index, so the fuzzer mutates positions the reader
+	// follows.
+	f.Add(indexedFile(sampleClusters, completeIndex))
+	f.Add(indexedFile(sampleClusters, []cueEntry{{track: 2, cluster: 0, block: 1, noRelative: true}, {track: 3, cluster: 1, block: 2}}))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		container, err := matroska.Analyze(bytes.NewReader(data), int64(len(data)))

@@ -18,6 +18,15 @@ const (
 	seekTolerance   = time.Second
 )
 
+// An estimated sample slightly behind the clock while playing is not applied
+// by jumping back, which would flash the previous subtitle for a moment: the
+// clock runs slower for slewDuration until it meets the player. Corrections
+// that would need more than maxSlowdown of the speed are applied at once.
+const (
+	slewDuration = 600 * time.Millisecond
+	maxSlowdown  = 0.5
+)
+
 // Clock turns player samples into a continuous playback position.
 // It is safe for concurrent use.
 type Clock struct {
@@ -30,7 +39,10 @@ type Clock struct {
 	// players repeat stale values, which must not move the anchor.
 	lastReported time.Duration
 	graceUntil   time.Time
-	changes      chan struct{}
+	// slewFactor scales the speed from the anchor until slewUntil.
+	slewFactor float64
+	slewUntil  time.Time
+	changes    chan struct{}
 }
 
 // NewClock creates a clock for a player of the given precision.
@@ -60,11 +72,38 @@ func (c *Clock) Observe(sample playback.Sample) {
 	}
 	valueChanged := sample.Position != c.lastReported
 	c.lastReported = sample.Position
-	if stateChanged || valueChanged || c.precision == playback.PrecisionExact {
-		c.anchor = sample
-		c.anchored = true
-		c.signal()
+	if !stateChanged && !valueChanged && c.precision != playback.PrecisionExact {
+		return
 	}
+	// Only estimated positions are smoothed: an exact player behind the clock
+	// really is behind (it stalled), and must be followed at once. Right after
+	// a session command the clock holds a guess, so the player's first answer
+	// is adopted as is.
+	smooth := c.precision == playback.PrecisionEstimated && !sample.ObservedAt.Before(c.graceUntil)
+	if smooth && !stateChanged && sample.Status == playback.StatusPlaying && c.startSlew(sample) {
+		c.signal()
+		return
+	}
+	c.anchor = sample
+	c.anchored = true
+	c.slewUntil = time.Time{}
+	c.signal()
+}
+
+// startSlew absorbs a small backward correction by slowing down instead of
+// jumping back; it reports false when the correction must be applied at once.
+func (c *Clock) startSlew(sample playback.Sample) bool {
+	current := c.extrapolate(sample.ObservedAt)
+	ahead := current - sample.Position
+	budget := time.Duration(float64(slewDuration) * float64(sample.Speed) * maxSlowdown)
+	if ahead <= 0 || ahead > budget {
+		return false
+	}
+	c.anchor = sample
+	c.anchor.Position = current
+	c.slewFactor = 1 - float64(ahead)/(float64(slewDuration)*float64(sample.Speed))
+	c.slewUntil = sample.ObservedAt.Add(slewDuration)
+	return true
 }
 
 // Position returns the current playback position.
@@ -119,6 +158,7 @@ func (c *Clock) reanchor(change func(*playback.Sample)) {
 	change(&sample)
 	c.anchor = sample
 	c.anchored = true
+	c.slewUntil = time.Time{}
 	c.graceUntil = now.Add(seekGracePeriod)
 	c.signal()
 }
@@ -131,7 +171,9 @@ func (c *Clock) extrapolate(at time.Time) time.Duration {
 	position := c.anchor.Position
 	if c.anchor.Status == playback.StatusPlaying {
 		if elapsed := at.Sub(c.anchor.ObservedAt); elapsed > 0 {
-			position += time.Duration(float64(elapsed) * float64(c.anchor.Speed))
+			speed := float64(c.anchor.Speed)
+			slowed := min(elapsed, max(c.slewUntil.Sub(c.anchor.ObservedAt), 0))
+			position += time.Duration(float64(slowed)*speed*c.slewFactor + float64(elapsed-slowed)*speed)
 		}
 	}
 	position = max(position, 0)

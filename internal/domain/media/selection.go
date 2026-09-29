@@ -1,5 +1,7 @@
 package media
 
+import "strings"
+
 // Preferences are the languages the user wants, as BCP 47 tags. An empty
 // Translation means no translation line.
 type Preferences struct {
@@ -36,7 +38,9 @@ const (
 
 // SelectTracks picks the audio, primary subtitle and translation tracks
 // following the fallbacks of the product rules:
-//   - primary: best language match, else the first readable subtitle;
+//   - primary: best language match, else the first readable subtitle in a
+//     language other than the translation's (both lines in the same language
+//     would repeat each other, so the primary stays empty instead);
 //   - translation: best language match only, never another language;
 //   - audio: best language match, else the default track, else the first.
 func SelectTracks(info Info, preferences Preferences) Selection {
@@ -44,11 +48,28 @@ func SelectTracks(info Info, preferences Preferences) Selection {
 	selection.Audio = selectAudio(info.TracksOf(TrackAudio), preferences.Audio)
 
 	subtitles := readableSubtitles(info.TracksOf(TrackSubtitle))
-	selection.Primary = selectSubtitle(subtitles, preferences.Primary, 0, true)
+	selection.Primary = selectSubtitle(subtitles, preferences.Primary, 0)
+	if selection.Primary == 0 {
+		selection.Primary = fallbackSubtitle(subtitles, preferences.Translation)
+	}
 	if preferences.Translation != "" {
-		selection.Translation = selectSubtitle(subtitles, preferences.Translation, selection.Primary, false)
+		selection.Translation = selectSubtitle(subtitles, preferences.Translation, selection.Primary)
 	}
 	return selection
+}
+
+// fallbackSubtitle is the primary line when no track speaks its language:
+// the first readable track, non-forced first, that is not in the
+// translation's language.
+func fallbackSubtitle(tracks []Track, translation LanguageTag) uint64 {
+	for _, wantForced := range []bool{false, true} {
+		for _, track := range tracks {
+			if isForced(track) == wantForced && languageMatch(track.Language, translation) == noLanguageMatch {
+				return track.Number
+			}
+		}
+	}
+	return 0
 }
 
 func readableSubtitles(tracks []Track) []Track {
@@ -61,10 +82,9 @@ func readableSubtitles(tracks []Track) []Track {
 	return readable
 }
 
-// selectSubtitle returns the best scoring track other than excluded. When no
-// track speaks the wanted language, it falls back to the first non-forced track
-// only if fallbackToAny is set.
-func selectSubtitle(tracks []Track, want LanguageTag, excluded uint64, fallbackToAny bool) uint64 {
+// selectSubtitle returns the best scoring track in the wanted language other
+// than excluded, or zero.
+func selectSubtitle(tracks []Track, want LanguageTag, excluded uint64) uint64 {
 	best, bestScore := uint64(0), -1
 	for _, track := range tracks {
 		if track.Number == excluded {
@@ -79,26 +99,31 @@ func selectSubtitle(tracks []Track, want LanguageTag, excluded uint64, fallbackT
 			best, bestScore = track.Number, score
 		}
 	}
-	if best != 0 || !fallbackToAny {
-		return best
-	}
+	return best
+}
 
-	for _, track := range tracks {
-		if track.Number != excluded && !track.Forced {
-			return track.Number
+// forcedNames mark forced tracks in their names; many releases name them so
+// without setting the container flag.
+var forcedNames = []string{"forced", "forçad", "forcad"}
+
+// isForced reports a track that only carries the lines spoken in a foreign
+// language, by its flag or by its name.
+func isForced(track Track) bool {
+	if track.Forced {
+		return true
+	}
+	name := strings.ToLower(track.Name)
+	for _, marker := range forcedNames {
+		if strings.Contains(name, marker) {
+			return true
 		}
 	}
-	for _, track := range tracks {
-		if track.Number != excluded {
-			return track.Number
-		}
-	}
-	return 0
+	return false
 }
 
 func subtitleQuality(track Track) int {
 	score := 0
-	if !track.Forced {
+	if !isForced(track) {
 		score += notForcedWeight
 	}
 	if track.Default {

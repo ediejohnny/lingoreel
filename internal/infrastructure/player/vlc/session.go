@@ -125,7 +125,7 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 	deadline := time.NewTimer(startTimeout)
 	defer deadline.Stop()
 	var last status
-	answered := false
+	answered, seeked := false, false
 	for {
 		attempt, cancel := context.WithTimeout(ctx, requestTimeout)
 		current, err := s.client.call(attempt, nil)
@@ -135,6 +135,12 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 				return nil
 			}
 			last, answered = current, true
+			// With --start-paused VLC sometimes pauses before applying
+			// --start-time and stays at 0 s; an exact seek finishes the job.
+			length := time.Duration(current.Length) * time.Microsecond
+			if !seeked && current.Status != "stopped" && start > 0 && start < length {
+				seeked = s.SeekTo(start) == nil
+			}
 		}
 		select {
 		case <-ctx.Done():

@@ -22,7 +22,8 @@ const (
 type SizeMode string
 
 const (
-	// SizeFixed keeps FontSize in typographic points regardless of the video size.
+	// SizeFixed keeps FontSize in pixels at 100% display scaling, regardless of
+	// the video size; it grows with the display DPI.
 	SizeFixed SizeMode = "fixed"
 	// SizeResponsive scales FontSize from ReferenceVideoHeight to the actual video height.
 	SizeResponsive SizeMode = "responsive"

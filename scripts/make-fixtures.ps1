@@ -140,24 +140,33 @@ function New-StudySample([string]$Vlc, [string]$Mkvmerge, [string]$Destination) 
 $mkvmerge = Find-Mkvmerge
 Write-Host "Usando $mkvmerge"
 
-Write-Host "[1/3] subtitles.mkv (sem compressão)..."
+Write-Host "[1/4] subtitles.mkv (sem compressão)..."
 $plain = Join-Path $fixtures "subtitles.mkv"
 Invoke-Native -FilePath $mkvmerge -Arguments (@("--quiet", "--no-date", "--output", $plain, "--compression", "-1:none") + (Get-SubtitleArguments)) `
     -FailureMessage "O mkvmerge falhou ao gerar subtitles.mkv"
 
-Write-Host "[2/3] subtitles-zlib.mkv (compressão zlib)..."
+Write-Host "[2/4] subtitles-zlib.mkv (compressão zlib)..."
 $compressed = Join-Path $fixtures "subtitles-zlib.mkv"
 Invoke-Native -FilePath $mkvmerge -Arguments (@("--quiet", "--no-date", "--output", $compressed, "--compression", "-1:zlib") + (Get-SubtitleArguments)) `
     -FailureMessage "O mkvmerge falhou ao gerar subtitles-zlib.mkv"
 
-Write-Host "[3/3] study-sample.mkv (vídeo sintético com áudio e legendas)..."
+Write-Host "[3/4] study-sample.mkv (vídeo sintético com áudio e legendas)..."
+$studySample = Join-Path $root "tests\testdata\video\study-sample.mkv"
 $vlc = Find-Vlc
 if (-not $vlc) {
     Write-Host "Aviso: VLC não encontrado; study-sample.mkv não foi regerado." -ForegroundColor Yellow
 }
 else {
-    New-StudySample -Vlc $vlc -Mkvmerge $mkvmerge -Destination (Join-Path $root "tests\testdata\video\study-sample.mkv")
+    New-StudySample -Vlc $vlc -Mkvmerge $mkvmerge -Destination $studySample
 }
+
+# Positions past 2^31 microseconds (35 min 47 s) overflow 32-bit integers;
+# stretching the sample's timestamps 120 times gives a 40-minute file of a
+# few kilobytes to test them.
+Write-Host "[4/4] long-sample.mkv (40 minutos, só vídeo)..."
+Invoke-Native -FilePath $mkvmerge -Arguments @("--quiet", "--no-date", "--output", (Join-Path $root "tests\testdata\video\long-sample.mkv"),
+    "--no-audio", "--no-subtitles", "--sync", "-1:0,120", $studySample) `
+    -FailureMessage "O mkvmerge falhou ao gerar long-sample.mkv"
 
 Write-Host ""
 Write-Host "Fixtures gerados em $fixtures" -ForegroundColor Green
