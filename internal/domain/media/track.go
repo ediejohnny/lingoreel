@@ -43,6 +43,13 @@ type Track struct {
 	Readable       bool
 }
 
+// SubtitleContent holds the events read from one subtitle track and how many
+// frames were dropped for being unreadable, empty or malformed.
+type SubtitleContent struct {
+	Events  []subtitle.Event
+	Skipped int
+}
+
 // Info describes a media file.
 type Info struct {
 	Duration time.Duration
