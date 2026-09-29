@@ -13,6 +13,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/infrastructure/media/matroska"
+	"lingoreel/internal/infrastructure/subtitlefile"
 )
 
 // ErrMissingArgument reports a command called without a required argument.
@@ -42,7 +43,7 @@ func inspect(args []string, stdout io.Writer) error {
 	path := args[0]
 	withSubtitles := len(args) > 1 && args[1] == subtitlesFlag
 
-	service := analysis.NewService(matroska.FileReader{})
+	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	result, err := service.Analyze(path, defaultPreferences())
 	if err != nil {
 		return err
@@ -65,7 +66,7 @@ func inspect(args []string, stdout io.Writer) error {
 		return out.err
 	}
 
-	loaded, err := service.LoadSubtitles(context.Background(), path, []uint64{result.Suggested.Primary, result.Suggested.Translation}, nil)
+	loaded, err := service.LoadSubtitles(context.Background(), result, []uint64{result.Suggested.Primary, result.Suggested.Translation}, nil)
 	if err != nil {
 		return err
 	}
@@ -76,7 +77,7 @@ func inspect(args []string, stdout io.Writer) error {
 		}
 		events := track.Timeline.Events()
 		out.line("")
-		out.line("Legenda #%d: %d falas (%d descartadas)", number, len(events), track.Skipped)
+		out.line("Legenda %s: %d falas (%d descartadas)", trackLabel(number), len(events), track.Skipped)
 		for _, event := range events[:min(previewEventCount, len(events))] {
 			out.line("  %s → %s  %s", formatClock(event.Start), formatClock(event.End), strings.ReplaceAll(event.Text(), "\n", " / "))
 		}
@@ -98,7 +99,7 @@ func describeTrack(track media.Track) string {
 	if language == "" {
 		language = "?"
 	}
-	parts := []string{fmt.Sprintf("#%-3d %-8s %-6s %s", track.Number, trackTypeNames[track.Type], language, track.Codec)}
+	parts := []string{fmt.Sprintf("%-4s %-8s %-6s %s", trackLabel(track.Number), trackTypeNames[track.Type], language, track.Codec)}
 	switch track.Type {
 	case media.TrackVideo:
 		if track.Width > 0 {
@@ -124,7 +125,19 @@ func describeTrack(track media.Track) string {
 	if track.HearingImpaired {
 		parts = append(parts, "[SDH]")
 	}
+	if track.External() {
+		parts = append(parts, "[arquivo]")
+	}
 	return strings.Join(parts, "  ")
+}
+
+// trackLabel shows container tracks as "#3" and subtitle files as "#A1",
+// "#A2"… in the order they were found.
+func trackLabel(number uint64) string {
+	if number >= media.ExternalTrackBase {
+		return fmt.Sprintf("#A%d", number-media.ExternalTrackBase+1)
+	}
+	return fmt.Sprintf("#%d", number)
 }
 
 func unreadableReason(codec string) string {
@@ -143,7 +156,7 @@ func describeChoice(info media.Info, number uint64) string {
 	if language == "" {
 		language = "idioma desconhecido"
 	}
-	return fmt.Sprintf("#%d (%s)", number, language)
+	return fmt.Sprintf("%s (%s)", trackLabel(number), language)
 }
 
 // formatClock shows a duration as h:mm:ss.mmm, or h:mm:ss for whole seconds.

@@ -18,8 +18,13 @@ const (
 	TrackOther    TrackType = "other"
 )
 
-// Track describes one track of a media file. Number is the container's track
-// number and is never zero; UID stays stable when the file is remuxed.
+// ExternalTrackBase numbers the subtitle files found next to a video, in
+// discovery order, far above any container track number in real files.
+const ExternalTrackBase uint64 = 1 << 32
+
+// Track describes one track of a media file, or a subtitle file next to it.
+// Number is the container's track number (ExternalTrackBase and up for
+// files) and is never zero; UID stays stable when the file is remuxed.
 type Track struct {
 	Number uint64
 	UID    uint64
@@ -41,6 +46,14 @@ type Track struct {
 	// VobSub), which would need OCR, and for encodings that cannot be read.
 	SubtitleFormat subtitle.Format
 	Readable       bool
+	// Path is the subtitle file of an external track; empty for tracks
+	// inside the video.
+	Path string
+}
+
+// External reports a subtitle file found next to the video.
+func (t Track) External() bool {
+	return t.Path != ""
 }
 
 // SubtitleContent holds the events read from one subtitle track and how many
