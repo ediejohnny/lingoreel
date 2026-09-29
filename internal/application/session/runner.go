@@ -81,6 +81,8 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 			r.clock.Observe(sample)
 		case <-r.clock.Changes():
 			timer.Stop()
+		case <-r.subtitles.Changes():
+			timer.Stop()
 		case <-r.refresh:
 			timer.Stop()
 		case <-timer.C():
