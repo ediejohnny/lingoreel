@@ -63,6 +63,16 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 	if request.Start > 0 {
 		args = append(args, "--start-time", strconv.FormatFloat(request.Start.Seconds(), 'f', 3, 64))
 	}
+	if window := request.Window; window.Set() {
+		// VLC opens its window at the video's size times --zoom, which may
+		// not fit the monitor (a 1080p movie on a 900-pixel screen); its
+		// --width/--height do not size the window.
+		args = append(args, "--video-x", strconv.Itoa(window.X), "--video-y", strconv.Itoa(window.Y))
+		if request.VideoWidth > 0 && window.Width < request.VideoWidth {
+			zoom := float64(window.Width) / float64(request.VideoWidth)
+			args = append(args, "--zoom", strconv.FormatFloat(zoom, 'f', 4, 64))
+		}
+	}
 	return append(args, request.File)
 }
 

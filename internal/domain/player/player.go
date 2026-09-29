@@ -36,6 +36,17 @@ func (id ID) DisplayName() string {
 	return string(id)
 }
 
+// Placement is a window position and size in screen pixels.
+type Placement struct {
+	X, Y          int
+	Width, Height int
+}
+
+// Set reports whether the placement has a usable size.
+func (p Placement) Set() bool {
+	return p.Width > 0 && p.Height > 0
+}
+
 // LaunchRequest describes how a player should open a video.
 type LaunchRequest struct {
 	File string
@@ -43,7 +54,13 @@ type LaunchRequest struct {
 	// tracks, starting at zero; negative keeps the player's choice.
 	AudioIndex  int
 	StartPaused bool
-	Start       time.Duration
+	// Window is where the video window opens; a zero size leaves it to
+	// the player. It only sets the start: the user resizes it at will.
+	Window Placement
+	// VideoWidth is the picture's width, for players that size their
+	// window as a zoom of it; zero when unknown.
+	VideoWidth int
+	Start      time.Duration
 }
 
 // Installation is a player found on this computer.

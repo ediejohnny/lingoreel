@@ -110,7 +110,9 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		AudioIndex:  audioIndex(result.Info, result.Suggested.Audio),
 		StartPaused: options.paused,
 		Start:       options.start,
+		Window:      initialWindow(result.Info),
 	}
+	request.VideoWidth, _ = videoSize(result.Info)
 	running, err := launchers[choice.Installation.ID](ctx, choice.Installation.Path, request)
 	if err != nil {
 		return err

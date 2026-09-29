@@ -58,6 +58,34 @@ func TestArgumentsForOptionalRequests(t *testing.T) {
 	}
 }
 
+func TestArgumentsPlaceTheWindowOnlyWhenAsked(t *testing.T) {
+	// 1152 of a 1920-pixel video: VLC sizes its window with a 0.6 zoom.
+	placed := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920,
+		Window: player.Placement{X: 144, Y: -118, Width: 1152, Height: 624}}
+	args := vlc.Arguments(placed, 1, "p", `C:\e`)
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"--zoom 0.6000", "--video-x 144", "--video-y -118"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("arguments %q lack %q", joined, want)
+		}
+	}
+	if args[len(args)-1] != `C:\v.mkv` {
+		t.Fatalf("the file must stay last: %q", args)
+	}
+	// A video that already fits keeps its size: no zoom, never enlarged.
+	small := placed
+	small.VideoWidth = 320
+	if joined := strings.Join(vlc.Arguments(small, 1, "p", `C:\e`), " "); strings.Contains(joined, "--zoom") {
+		t.Fatalf("a small video was zoomed: %q", joined)
+	}
+	for _, window := range []player.Placement{{}, {Width: 1152}, {Height: 624}, {Width: -1, Height: 624}} {
+		unplaced := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920, Window: window}
+		if joined := strings.Join(vlc.Arguments(unplaced, 1, "p", `C:\e`), " "); strings.Contains(joined, "--zoom") || strings.Contains(joined, "--video-x") {
+			t.Fatalf("window %+v: arguments %q place the window", window, joined)
+		}
+	}
+}
+
 func TestLaunchRejectsMissingOrRelativePaths(t *testing.T) {
 	existing, err := filepath.Abs(sampleVideo)
 	if err != nil {
