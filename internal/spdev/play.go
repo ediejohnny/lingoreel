@@ -18,6 +18,7 @@ import (
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
+	"lingoreel/internal/presentation/overlay"
 )
 
 var (
@@ -42,6 +43,7 @@ const (
 type runningPlayer interface {
 	session.Player
 	Samples() <-chan playback.Sample
+	ProcessID() int
 	Close() error
 }
 
@@ -63,8 +65,9 @@ type playOptions struct {
 }
 
 // play opens a video in the chosen player and prints the subtitles as they
-// change, until the player exits or the context ends.
-func play(ctx context.Context, args []string, stdout io.Writer) error {
+// change, until the player exits or the context ends; withOverlay also draws
+// them over the video.
+func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool) error {
 	options, err := parsePlayOptions(args)
 	if err != nil {
 		return err
@@ -114,6 +117,13 @@ func play(ctx context.Context, args []string, stdout io.Writer) error {
 
 	precision := running.Capabilities().Precision
 	out.line("Precisão:  %s", describePrecision(precision))
+	var screen *overlay.Overlay
+	if withOverlay {
+		if screen, err = openOverlay(ctx, running, result.Info); err != nil {
+			return errors.Join(fmt.Errorf("abrindo o overlay: %w", err), running.Close())
+		}
+		out.line("Overlay:   legendas desenhadas sobre o vídeo")
+	}
 	out.line("Feche o player ou pressione Ctrl+C para encerrar.")
 	out.line("")
 
@@ -126,11 +136,22 @@ func play(ctx context.Context, args []string, stdout io.Writer) error {
 	// The runner calls back from its own loop, so the printer needs no lock.
 	runner := session.NewRunner(clock, subtitles, func(position time.Duration, visible session.Visible) {
 		out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, labels))
+		if screen != nil {
+			if err := screen.Show(overlayContent(visible)); err != nil {
+				out.line("Aviso: o overlay não foi atualizado: %v", err)
+			}
+		}
 	}, session.NewRealTimer)
 
 	err = runner.Run(ctx, running.Samples())
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		err = nil
+	}
+	var overlayErr error
+	if screen != nil {
+		if overlayErr = screen.Close(); overlayErr != nil {
+			overlayErr = fmt.Errorf("ao fechar o overlay: %w", overlayErr)
+		}
 	}
 	closeErr := running.Close()
 	if closeErr != nil {
@@ -139,7 +160,7 @@ func play(ctx context.Context, args []string, stdout io.Writer) error {
 	if err == nil {
 		out.line("Sessão encerrada.")
 	}
-	return errors.Join(err, closeErr, out.err)
+	return errors.Join(err, overlayErr, closeErr, out.err)
 }
 
 func parsePlayOptions(args []string) (playOptions, error) {

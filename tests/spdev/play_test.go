@@ -52,6 +52,11 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 		// after the analysis and before any player is looked for.
 		{"início no fim do vídeo", []string{"play", studySample, "--inicio", "20.052"}, spdev.ErrInvalidOption},
 		{"início além do fim do vídeo", []string{"play", studySample, "--inicio", "25"}, spdev.ErrInvalidOption},
+		// overlay shares play's validation.
+		{"overlay sem vídeo", []string{"overlay"}, spdev.ErrMissingArgument},
+		{"overlay com opção desconhecida", []string{"overlay", missing, "--rapido"}, spdev.ErrInvalidOption},
+		{"overlay com início NaN", []string{"overlay", missing, "--inicio", "NaN"}, spdev.ErrInvalidOption},
+		{"overlay aceita opções válidas", []string{"overlay", missing, "--pausado", "--inicio", "2"}, os.ErrNotExist},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -74,7 +79,7 @@ func TestHelpListsPlay(t *testing.T) {
 	if err := spdev.Run(t.Context(), []string{"help"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"play <vídeo>", "--player", "--inicio", "--pausado"} {
+	for _, want := range []string{"play <vídeo>", "overlay <vídeo>", "--player", "--inicio", "--pausado"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help does not mention %q:\n%s", want, out.String())
 		}

@@ -28,6 +28,7 @@ var (
 	procPostQuitMessage              = user32.NewProc("PostQuitMessage")
 	procUpdateLayeredWindow          = user32.NewProc("UpdateLayeredWindow")
 	procShowWindow                   = user32.NewProc("ShowWindow")
+	procSetWindowPos                 = user32.NewProc("SetWindowPos")
 	procGetClientRect                = user32.NewProc("GetClientRect")
 	procClientToScreen               = user32.NewProc("ClientToScreen")
 	procIsIconic                     = user32.NewProc("IsIconic")
@@ -66,6 +67,10 @@ const (
 
 	SW_HIDE   = 0
 	SW_SHOWNA = 8
+
+	SWP_NOSIZE     = 0x0001
+	SWP_NOZORDER   = 0x0004
+	SWP_NOACTIVATE = 0x0010
 
 	ULW_ALPHA    = 0x00000002
 	AC_SRC_OVER  = 0x00
@@ -242,6 +247,15 @@ func ClientRectOnScreen(hwnd windows.HWND) (Rect, error) {
 		return Rect{}, callErr(err)
 	}
 	return Rect{Left: origin.X, Top: origin.Y, Right: origin.X + r.Right, Bottom: origin.Y + r.Bottom}, nil
+}
+
+// MoveWindow moves a window without resizing, activating or reordering it.
+func MoveWindow(hwnd windows.HWND, x, y int32) error {
+	const flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+	if r, _, err := procSetWindowPos.Call(uintptr(hwnd), 0, uintptr(x), uintptr(y), 0, 0, flags); r == 0 {
+		return callErr(err)
+	}
+	return nil
 }
 
 // IsIconic reports whether a window is minimized.
