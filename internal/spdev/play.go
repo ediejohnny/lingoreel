@@ -45,6 +45,9 @@ type runningPlayer interface {
 	session.Player
 	Samples() <-chan playback.Sample
 	ProcessID() int
+	// Err tells why the samples ended: playback.ErrPlayerLost for a player
+	// that crashed or stopped answering, nil for one the user closed.
+	Err() error
 	Close() error
 }
 
@@ -149,6 +152,10 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	err = runner.Run(ctx, running.Samples())
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		err = nil
+	}
+	// Asked before Close, which ends the player on purpose.
+	if lost := running.Err(); err == nil && lost != nil {
+		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), lost)
 	}
 	var overlayErr error
 	if screen != nil {

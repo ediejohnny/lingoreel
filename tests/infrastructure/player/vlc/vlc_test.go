@@ -4,8 +4,16 @@ package vlc_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +26,53 @@ import (
 )
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")
+
+// fakeArgsEnv turns the test binary into a fake VLC that records its command
+// line in the named file and exits at once.
+const fakeArgsEnv = "LINGOREEL_FAKE_VLC_ARGS"
+
+func TestMain(m *testing.M) {
+	if record := os.Getenv(fakeArgsEnv); record != "" {
+		if err := os.WriteFile(record, []byte(strings.Join(os.Args[1:], "\n")), 0o600); err != nil {
+			os.Exit(2)
+		}
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
+
+// A relative file name that starts with "-" would reach VLC as an option;
+// Launch hands VLC the absolute path instead.
+func TestLaunchGivesVLCAnAbsoluteVideoPath(t *testing.T) {
+	dir := t.TempDir()
+	const name = "-Ifake.mkv"
+	video := filepath.Join(dir, name)
+	if err := os.WriteFile(video, []byte("not a video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	record := filepath.Join(dir, "args.txt")
+	t.Chdir(dir)
+	t.Setenv(fakeArgsEnv, record)
+
+	session, err := vlc.Launch(t.Context(), os.Args[0], player.LaunchRequest{File: name, AudioIndex: -1})
+	if err == nil {
+		session.Close()
+		t.Fatal("the fake VLC exits at once; Launch must fail")
+	}
+	data, err := os.ReadFile(record)
+	if err != nil {
+		t.Fatalf("the fake VLC recorded nothing: %v", err)
+	}
+	args := strings.Split(string(data), "\n")
+	if last := args[len(args)-1]; !strings.EqualFold(last, video) || !filepath.IsAbs(last) {
+		t.Fatalf("video argument = %q, want the absolute %q", last, video)
+	}
+	for _, arg := range args {
+		if arg == name {
+			t.Fatalf("the relative name reached VLC: %q", args)
+		}
+	}
+}
 
 func TestArgumentsKeepControlLocalAndPlayerQuiet(t *testing.T) {
 	request := player.LaunchRequest{File: `D:\Filmes\Um filme; & "teste".mkv`, AudioIndex: -1}
@@ -269,8 +324,22 @@ func TestVLCIntegration(t *testing.T) {
 	if err := session.StepFrame(false); err == nil {
 		t.Fatal("VLC reported a backward frame step, which it cannot do")
 	}
+	// The session emulates the backward step with an exact seek one frame
+	// back (1/24 s), which VLC must land on exactly.
+	if !session.Capabilities().ExactSeek {
+		t.Fatal("VLC must declare exact seeks")
+	}
+	oneFrameBack := 4500*time.Millisecond - 41_667*time.Microsecond
+	if err := session.SeekTo(oneFrameBack); err != nil {
+		t.Fatalf("SeekTo one frame back: %v", err)
+	}
+	waitFor(t, samples, "the seek one frame back", func(s playback.Sample) bool {
+		return s.Position == oneFrameBack && s.Status == playback.StatusPaused
+	})
 
-	session.Close()
+	if err := session.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
 	select {
 	case _, open := <-samples:
 		for open {
@@ -279,4 +348,113 @@ func TestVLCIntegration(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("samples kept flowing after Close")
 	}
+	if err := session.Err(); err != nil {
+		t.Fatalf("Err after a normal Close = %v, want nil", err)
+	}
+}
+
+// A VLC that dies must not look like one the user closed.
+func TestVLCCrashIsReportedAsLost(t *testing.T) {
+	executable, video := realVLC(t)
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	process, err := os.FindProcess(session.ProcessID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := process.Kill(); err != nil {
+		t.Fatalf("killing VLC: %v", err)
+	}
+	deadline := time.After(10 * time.Second)
+	for open := true; open; {
+		select {
+		case _, open = <-session.Samples():
+		case <-deadline:
+			t.Fatal("samples still open after VLC died")
+		}
+	}
+	if err := session.Err(); !errors.Is(err, playback.ErrPlayerLost) {
+		t.Fatalf("Err after a crash = %v, want ErrPlayerLost", err)
+	}
+}
+
+// The HTTP password sits on VLC's command line, which other programs can
+// read. Reading it the same way, a request without the session token must be
+// refused.
+func TestVLCRefusesRequestsWithoutTheSessionToken(t *testing.T) {
+	executable, video := realVLC(t)
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+
+	query := fmt.Sprintf("(Get-CimInstance Win32_Process -Filter 'ProcessId=%d').CommandLine", session.ProcessID())
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", query).Output()
+	if err != nil {
+		t.Fatalf("reading VLC's command line: %v", err)
+	}
+	line := string(out)
+	port := regexp.MustCompile(`--http-port (\d+)`).FindStringSubmatch(line)
+	password := regexp.MustCompile(`--http-password ([0-9a-f]+)`).FindStringSubmatch(line)
+	if port == nil || password == nil {
+		t.Fatalf("port or password not found in %q", line)
+	}
+	for name, token := range map[string]string{"sem token": "", "token errado": "0123456789abcdef"} {
+		t.Run(name, func(t *testing.T) {
+			target := "http://127.0.0.1:" + port[1] + "/requests/lingoreel.json?command=pause"
+			if token != "" {
+				target += "&token=" + token
+			}
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.SetBasicAuth("", password[1])
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			defer response.Body.Close()
+			body, _ := io.ReadAll(io.LimitReader(response.Body, 1024))
+			if !strings.Contains(string(body), `"denied"`) {
+				t.Fatalf("answer without the token = %s %q, want denied", response.Status, body)
+			}
+		})
+	}
+}
+
+// A port that was free when picked may be taken before VLC binds it; the
+// program there does not know the endpoint, so Launch tries another port.
+func TestVLCLaunchMovesOffATakenPort(t *testing.T) {
+	executable, video := realVLC(t)
+	squatter := httptest.NewServer(http.NotFoundHandler())
+	defer squatter.Close()
+	taken := squatter.Listener.Addr().(*net.TCPAddr).Port
+
+	picks := 0
+	pick := func() (int, error) {
+		picks++
+		if picks == 1 {
+			return taken, nil
+		}
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return 0, err
+		}
+		defer listener.Close()
+		return listener.Addr().(*net.TCPAddr).Port, nil
+	}
+	session, err := vlc.LaunchWith(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true}, vlc.Options{PickPort: pick})
+	if err != nil {
+		t.Fatalf("LaunchWith: %v", err)
+	}
+	defer session.Close()
+	if picks != 2 {
+		t.Fatalf("ports picked = %d, want 2 (the taken one, then a free one)", picks)
+	}
+	waitFor(t, session.Samples(), "a sample from the second VLC", func(s playback.Sample) bool { return s.Duration > 19*time.Second })
 }

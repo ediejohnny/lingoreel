@@ -1,6 +1,13 @@
 package playback
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrPlayerLost reports a player that crashed or stopped answering, as
+// opposed to one the user closed.
+var ErrPlayerLost = errors.New("the player stopped responding")
 
 // Status is what a player is doing.
 type Status string
@@ -37,12 +44,18 @@ const (
 // Capabilities declares what a player can do. Features a player lacks are
 // shown as unavailable instead of failing silently.
 type Capabilities struct {
-	Pause               bool
-	Seek                bool
-	Speed               bool
-	FrameStepForward    bool
-	FrameStepBackward   bool
-	AudioTrackSelection bool
-	SubtitleSuppression bool
-	Precision           Precision
+	Pause bool
+	Seek  bool
+	// ExactSeek means a seek lands on the requested time, not on the nearest
+	// keyframe, so a backward frame step can be emulated by seeking.
+	ExactSeek         bool
+	Speed             bool
+	FrameStepForward  bool
+	FrameStepBackward bool
+	// FrameStepBackwardEmulated marks a backward step made by an exact seek
+	// one frame back instead of a player command; the UI calls it approximate.
+	FrameStepBackwardEmulated bool
+	AudioTrackSelection       bool
+	SubtitleSuppression       bool
+	Precision                 Precision
 }

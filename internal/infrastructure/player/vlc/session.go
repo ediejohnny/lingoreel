@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"lingoreel/internal/domain/playback"
@@ -37,8 +38,15 @@ type Session struct {
 	client      *client
 	endpointDir string
 
-	samples   chan playback.Sample
-	exited    chan struct{}
+	samples chan playback.Sample
+	exited  chan struct{}
+	// waitErr is the process exit error, set before exited is closed.
+	waitErr error
+	// lost is set when VLC stops answering while its process still runs.
+	lost atomic.Bool
+	// closing is set by Close, so a VLC ended on purpose is not a crash.
+	closing   atomic.Bool
+	polling   atomic.Bool
 	stop      context.CancelFunc
 	pollCtx   context.Context
 	pollDone  chan struct{}
@@ -53,17 +61,17 @@ func newSession(cmd *exec.Cmd, killer *job.Job, control *client, endpointDir str
 		stop: stop, pollCtx: ctx, pollDone: make(chan struct{}),
 	}
 	go func() {
-		_ = cmd.Wait()
+		s.waitErr = cmd.Wait()
 		close(s.exited)
 	}()
 	return s
 }
 
-// Capabilities reports what VLC offers: no backward frame step, and positions
-// that are estimates updated a few times per second.
+// Capabilities reports what VLC offers: exact seeks but no backward frame
+// step, and positions that are estimates updated a few times per second.
 func (s *Session) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
-		Pause: true, Seek: true, Speed: true,
+		Pause: true, Seek: true, ExactSeek: true, Speed: true,
 		FrameStepForward: true, FrameStepBackward: false,
 		AudioTrackSelection: true, SubtitleSuppression: true,
 		Precision: playback.PrecisionEstimated,
@@ -76,9 +84,25 @@ func (s *Session) ProcessID() int {
 }
 
 // Samples delivers the latest observation roughly every 100 ms. It is closed
-// when VLC exits or stops answering.
+// when VLC exits or stops answering; Err then tells the two apart.
 func (s *Session) Samples() <-chan playback.Sample {
 	return s.samples
+}
+
+// Err reports why the samples ended: playback.ErrPlayerLost when VLC stopped
+// answering or crashed, nil when it was closed normally or is still running.
+func (s *Session) Err() error {
+	if s.lost.Load() {
+		return playback.ErrPlayerLost
+	}
+	select {
+	case <-s.exited:
+		if s.waitErr != nil && !s.closing.Load() {
+			return fmt.Errorf("%w: %v", playback.ErrPlayerLost, s.waitErr)
+		}
+	default:
+	}
+	return nil
 }
 
 // Play resumes playback.
@@ -97,7 +121,8 @@ func (s *Session) SetSpeed(speed playback.Speed) error {
 	return s.send(command("rate", "value", strconv.FormatFloat(float64(speed), 'f', 4, 64)))
 }
 
-// StepFrame advances one frame; VLC cannot step backward.
+// StepFrame advances one frame; VLC cannot step backward (the session
+// emulates it with an exact seek).
 func (s *Session) StepFrame(forward bool) error {
 	if !forward {
 		return ErrNotSupported
@@ -120,7 +145,8 @@ func (s *Session) send(values map[string][]string) error {
 // waitUntilReady polls the endpoint until the video is open at the requested
 // start, VLC exits or time runs out. VLC answers before it opens the file and
 // reports 0 s before applying --start-time; publishing those states would show
-// the subtitles of the wrong moment.
+// the subtitles of the wrong moment. An answer that is not our endpoint's means
+// another program holds the port.
 func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error {
 	deadline := time.NewTimer(startTimeout)
 	defer deadline.Stop()
@@ -130,6 +156,9 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 		attempt, cancel := context.WithTimeout(ctx, requestTimeout)
 		current, err := s.client.call(attempt, nil)
 		cancel()
+		if errors.Is(err, errForeignEndpoint) {
+			return err
+		}
 		if err == nil {
 			if positioned(current, start) {
 				return nil
@@ -137,8 +166,7 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 			last, answered = current, true
 			// With --start-paused VLC sometimes pauses before applying
 			// --start-time and stays at 0 s; an exact seek finishes the job.
-			length := time.Duration(current.Length) * time.Microsecond
-			if !seeked && current.Status != "stopped" && start > 0 && start < length {
+			if !seeked && current.Status != statusStopped && start > 0 && start < microseconds(current.Length) {
 				seeked = s.SeekTo(start) == nil
 			}
 		}
@@ -160,17 +188,17 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 // positioned reports whether VLC has opened the video and reached the start
 // position. VLC ignores a start at or beyond the end and stays at 0 s.
 func positioned(current status, start time.Duration) bool {
-	if current.Status == "stopped" || current.Length <= 0 {
+	if current.Status == statusStopped || current.Length <= 0 {
 		return false
 	}
-	if start >= time.Duration(current.Length)*time.Microsecond {
+	if start >= microseconds(current.Length) {
 		start = 0
 	}
-	position := time.Duration(current.Time) * time.Microsecond
-	return position >= start-startTolerance
+	return microseconds(current.Time) >= start-startTolerance
 }
 
 func (s *Session) startPolling() {
+	s.polling.Store(true)
 	go s.poll()
 }
 
@@ -197,7 +225,8 @@ func (s *Session) poll() {
 		cancel()
 		finished := time.Now()
 		if err != nil {
-			if finished.Sub(lastSuccess) > unreachableLimit {
+			if finished.Sub(lastSuccess) > unreachableLimit && s.pollCtx.Err() == nil {
+				s.lost.Store(true)
 				return
 			}
 			continue
@@ -220,36 +249,62 @@ func (s *Session) publish(sample playback.Sample) {
 
 func toSample(current status, observedAt time.Time) playback.Sample {
 	sample := playback.Sample{
-		Position:   time.Duration(current.Time) * time.Microsecond,
-		Duration:   time.Duration(current.Length) * time.Microsecond,
+		Position:   microseconds(current.Time),
+		Duration:   microseconds(current.Length),
 		Speed:      playback.Speed(current.Rate),
 		Status:     playback.StatusStopped,
 		ObservedAt: observedAt,
 	}
 	switch current.Status {
-	case "playing":
+	case statusPlaying:
 		sample.Status = playback.StatusPlaying
-	case "paused":
+	case statusPaused:
 		sample.Status = playback.StatusPaused
 	}
 	return sample
 }
 
-// Close asks VLC to quit, then ends it through the job object if needed, and
-// removes the temporary endpoint folder.
+// microseconds converts the endpoint's integer microseconds.
+func microseconds(value int64) time.Duration {
+	return time.Duration(value) * time.Microsecond
+}
+
+// Close asks VLC to quit, ends it through the job object if it lingers, and
+// removes the temporary endpoint folder. Every wait is bounded.
 func (s *Session) Close() error {
+	var err error
 	s.closeOnce.Do(func() {
+		s.closing.Store(true)
 		quit, cancel := context.WithTimeout(context.Background(), quitTimeout)
+		// VLC may already be gone; the job object below ends it either way.
 		_, _ = s.client.call(quit, command("quit"))
 		cancel()
 		s.stop()
-		select {
-		case <-s.exited:
-		case <-time.After(exitWait):
+		waitClosed(s.exited, exitWait)
+		if jobErr := s.job.Close(); jobErr != nil {
+			err = errors.Join(err, fmt.Errorf("ending VLC: %w", jobErr))
 		}
-		_ = s.job.Close()
-		<-s.exited
-		os.RemoveAll(s.endpointDir)
+		if !waitClosed(s.exited, exitWait) {
+			err = errors.Join(err, errors.New("VLC did not exit"))
+		}
+		if s.polling.Load() && !waitClosed(s.pollDone, requestTimeout) {
+			err = errors.Join(err, errors.New("the VLC status reader did not stop"))
+		}
+		if removeErr := os.RemoveAll(s.endpointDir); removeErr != nil {
+			err = errors.Join(err, fmt.Errorf("removing the VLC endpoint folder: %w", removeErr))
+		}
 	})
-	return nil
+	return err
+}
+
+// waitClosed waits for a channel to close, at most for limit.
+func waitClosed(done <-chan struct{}, limit time.Duration) bool {
+	timer := time.NewTimer(limit)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
+	}
 }
