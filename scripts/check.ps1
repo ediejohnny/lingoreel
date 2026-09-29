@@ -1,0 +1,78 @@
+﻿# check.ps1 - Quality gates required before every commit: formatting, static
+# analysis and tests (with the race detector when a C compiler is available).
+#
+# Usage:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1 [-SkipRace]
+
+param(
+    [switch]$SkipRace
+)
+
+$ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib\native.ps1")
+
+$root = Split-Path -Parent $PSScriptRoot
+
+# Scripts need a UTF-8 BOM: without it Windows PowerShell 5.1 reads them as ANSI
+# and breaks every accented message.
+function Test-PowerShellScripts {
+    $problems = @()
+    foreach ($script in Get-ChildItem -LiteralPath $PSScriptRoot -Recurse -Filter "*.ps1") {
+        $bytes = [System.IO.File]::ReadAllBytes($script.FullName)
+        $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+        if (-not $hasBom) {
+            $problems += "$($script.Name): sem BOM UTF-8"
+        }
+        $parseErrors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$null, [ref]$parseErrors) | Out-Null
+        foreach ($parseError in $parseErrors) {
+            $problems += "$($script.Name):$($parseError.Extent.StartLineNumber): $($parseError.Message)"
+        }
+    }
+    return $problems
+}
+
+Push-Location -LiteralPath $root
+$previousCgo = $env:CGO_ENABLED
+try {
+    Write-Host "[1/4] Validando os scripts PowerShell (codificação e sintaxe)..."
+    $scriptProblems = @(Test-PowerShellScripts)
+    if ($scriptProblems.Count -gt 0) {
+        $scriptProblems | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+        throw "Há scripts PowerShell com problemas."
+    }
+
+    Write-Host "[2/4] Verificando a formatação (gofmt)..."
+    $packageDirs = Invoke-Native -FilePath "go" -Arguments @("list", "-f", "{{.Dir}}", "./...") `
+        -FailureMessage "Não foi possível listar os pacotes Go" -Capture
+    $unformatted = Invoke-Native -FilePath "gofmt" -Arguments (@("-l") + @($packageDirs)) `
+        -FailureMessage "O gofmt falhou" -Capture
+    if ($unformatted) {
+        Write-Host "Arquivos fora do padrão do gofmt:" -ForegroundColor Red
+        $unformatted | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+        throw "Formatação pendente. Rode: gofmt -w ."
+    }
+
+    Write-Host "[3/4] Análise estática (go vet)..."
+    Invoke-Native -FilePath "go" -Arguments @("vet", "./...") -FailureMessage "O go vet encontrou problemas"
+
+    $testArguments = @("test", "./...")
+    if (-not $SkipRace) {
+        if (Get-Command "gcc" -ErrorAction SilentlyContinue) {
+            $env:CGO_ENABLED = "1"
+            $testArguments = @("test", "-race", "./...")
+        }
+        else {
+            Write-Host "Aviso: gcc não encontrado no PATH; os testes vão rodar sem -race." -ForegroundColor Yellow
+        }
+    }
+    Write-Host "[4/4] Testes (go $($testArguments -join ' '))..."
+    Invoke-Native -FilePath "go" -Arguments $testArguments -FailureMessage "Há testes falhando"
+
+    Write-Host ""
+    Write-Host "Tudo certo: scripts, formatação, análise estática e testes passaram." -ForegroundColor Green
+}
+finally {
+    $env:CGO_ENABLED = $previousCgo
+    Pop-Location
+}
