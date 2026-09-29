@@ -1,0 +1,56 @@
+<?vlc
+--[[ Control endpoint of the LingoReel. VLC's own status.json only
+reports whole seconds; this one reports microseconds and accepts a short,
+fixed list of commands. Query values are parsed as numbers and never run. ]]
+local input = vlc.object.input()
+local command = _GET["command"]
+
+local function number(name)
+  return tonumber(_GET[name])
+end
+
+if input then
+  if command == "seek" then
+    local microseconds = number("us")
+    if microseconds and microseconds >= 0 then
+      vlc.var.set(input, "time", math.floor(microseconds))
+    end
+  elseif command == "pause" then
+    if vlc.playlist.status() == "playing" then vlc.playlist.pause() end
+  elseif command == "play" then
+    if vlc.playlist.status() == "paused" then vlc.playlist.pause() end
+  elseif command == "rate" then
+    local rate = number("value")
+    if rate and rate > 0 and rate <= 4 then vlc.var.set(input, "rate", rate) end
+  elseif command == "frame" then
+    vlc.var.trigger_callback(input, "frame-next")
+  elseif command == "audio" then
+    local index = number("index")
+    local ok, ids = pcall(vlc.var.get_list, input, "audio-es")
+    if ok and ids and index then
+      local position = 0
+      for _, id in ipairs(ids) do
+        if id >= 0 then
+          if position == index then
+            vlc.var.set(input, "audio-es", id)
+            break
+          end
+          position = position + 1
+        end
+      end
+    end
+  end
+end
+
+if command == "quit" then
+  vlc.misc.quit()
+end
+
+if input then
+  print(string.format('{"status":"%s","time":%d,"length":%d,"rate":%.4f}',
+    vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
+    math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate")))
+else
+  print('{"status":"stopped","time":0,"length":0,"rate":1}')
+end
+?>

@@ -2,6 +2,8 @@
 // drive and the rule for choosing one.
 package player
 
+import "time"
+
 // ID identifies a player program.
 type ID string
 
@@ -32,6 +34,16 @@ func (id ID) DisplayName() string {
 		return "MPC-BE"
 	}
 	return string(id)
+}
+
+// LaunchRequest describes how a player should open a video.
+type LaunchRequest struct {
+	File string
+	// AudioIndex is the audio track by its position among the file's audio
+	// tracks, starting at zero; negative keeps the player's choice.
+	AudioIndex  int
+	StartPaused bool
+	Start       time.Duration
 }
 
 // Installation is a player found on this computer.
