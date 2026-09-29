@@ -55,8 +55,13 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// A cancelled context stops play at its first blocking step, so a
+			// validation that wrongly lets a case through fails at once instead
+			// of opening a real player.
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
 			var out bytes.Buffer
-			err := spdev.Run(t.Context(), c.args, &out)
+			err := spdev.Run(ctx, c.args, &out)
 			if !errors.Is(err, c.want) {
 				t.Fatalf("Run(%q) = %v, want %v", c.args, err, c.want)
 			}
