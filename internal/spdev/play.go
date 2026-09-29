@@ -19,7 +19,6 @@ import (
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
 	"lingoreel/internal/infrastructure/subtitlefile"
-	"lingoreel/internal/presentation/overlay"
 )
 
 var (
@@ -123,7 +122,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 
 	precision := running.Capabilities().Precision
 	out.line("Precisão:  %s", describePrecision(precision))
-	var screen *overlay.Overlay
+	var screen session.Display
 	if withOverlay {
 		if screen, err = openOverlay(ctx, running, result.Info); err != nil {
 			return errors.Join(fmt.Errorf("abrindo o overlay: %w", err), running.Close())
@@ -143,7 +142,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	runner := session.NewRunner(clock, subtitles, func(position time.Duration, visible session.Visible) {
 		out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, labels))
 		if screen != nil {
-			if err := screen.Show(overlayContent(visible)); err != nil {
+			if err := screen.Show(screenOf(visible)); err != nil {
 				out.line("Aviso: o overlay não foi atualizado: %v", err)
 			}
 		}

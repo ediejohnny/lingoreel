@@ -19,15 +19,16 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
+	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/win32"
-	"lingoreel/internal/presentation/overlay"
 )
 
-var sampleVideo = filepath.Join("..", "..", "testdata", "video", "study-sample.mkv")
+var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")
 
 var (
 	user32            = windows.NewLazySystemDLL("user32.dll")
@@ -258,7 +259,7 @@ func openOver(t *testing.T, processID int) *scene {
 		t.Fatalf("Open: %v", err)
 	}
 	t.Cleanup(func() { screen.Close() })
-	if err := screen.Show(overlay.Content{Primary: "That's sick!", Translation: "Que loucura!", TranslationVisible: true}); err != nil {
+	if err := screen.Show(session.Screen{Primary: "That's sick!", Translation: "Que loucura!", TranslationVisible: true}); err != nil {
 		t.Fatalf("Show: %v", err)
 	}
 	found := overlayWindows()
@@ -536,13 +537,13 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 	blank := settle()
 
 	steps := []struct {
-		content overlay.Content
+		content session.Screen
 		visible bool
 	}{
-		{overlay.Content{Primary: "That's sick!", Translation: "Que loucura!", TranslationVisible: true}, true},
-		{overlay.Content{}, false},
-		{overlay.Content{Primary: "I'm not going there."}, true},
-		{overlay.Content{Primary: "I'm not going there.", Translation: "Eu não vou para lá.", TranslationVisible: false}, true},
+		{session.Screen{Primary: "That's sick!", Translation: "Que loucura!", TranslationVisible: true}, true},
+		{session.Screen{}, false},
+		{session.Screen{Primary: "I'm not going there."}, true},
+		{session.Screen{Primary: "I'm not going there.", Translation: "Eu não vou para lá.", TranslationVisible: false}, true},
 	}
 	var previous []byte
 	for i, step := range steps {
@@ -578,7 +579,7 @@ func TestHungPlayerNeverBlocksShowOrClose(t *testing.T) {
 
 	start := time.Now()
 	for i := range 50 {
-		if err := s.screen.Show(overlay.Content{Primary: fmt.Sprint("linha ", i)}); err != nil && !errors.Is(err, overlay.ErrPlayerNotResponding) {
+		if err := s.screen.Show(session.Screen{Primary: fmt.Sprint("linha ", i)}); err != nil && !errors.Is(err, overlay.ErrPlayerNotResponding) {
 			t.Fatalf("Show: %v", err)
 		}
 	}
@@ -648,7 +649,7 @@ func openOverAnother(t *testing.T, processID int, existing windows.HWND) *scene 
 		t.Fatalf("Open: %v", err)
 	}
 	t.Cleanup(func() { screen.Close() })
-	if err := screen.Show(overlay.Content{Primary: "Second."}); err != nil {
+	if err := screen.Show(session.Screen{Primary: "Second."}); err != nil {
 		t.Fatalf("Show: %v", err)
 	}
 	for _, window := range overlayWindows() {

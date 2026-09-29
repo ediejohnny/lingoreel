@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/infrastructure/windows/gdiplus"
@@ -56,12 +57,8 @@ type Options struct {
 	Logger *slog.Logger
 }
 
-// Content is what the overlay shows.
-type Content struct {
-	Primary            string
-	Translation        string
-	TranslationVisible bool
-}
+// The overlay is the session's display.
+var _ session.Display = (*Overlay)(nil)
 
 // Overlay is a subtitle window over a player window.
 type Overlay struct {
@@ -78,7 +75,7 @@ type Overlay struct {
 	bounds  win32.Rect
 	dpi     int
 	shown   bool
-	content Content
+	content session.Screen
 
 	done     chan struct{}
 	doneOnce sync.Once
@@ -91,7 +88,7 @@ type Overlay struct {
 
 	// Content waiting to be drawn; only the latest counts.
 	pendingMu sync.Mutex
-	pending   Content
+	pending   session.Screen
 	scheduled bool
 	drawErr   error
 }
@@ -290,7 +287,7 @@ func (o *Overlay) setup() error {
 // Show replaces the content. It never waits for the drawing, so a hung
 // player cannot stall the session: the latest content is drawn as soon as
 // the UI thread is free, and a drawing error is returned by the next call.
-func (o *Overlay) Show(content Content) error {
+func (o *Overlay) Show(content session.Screen) error {
 	o.pendingMu.Lock()
 	o.pending = content
 	already := o.scheduled
