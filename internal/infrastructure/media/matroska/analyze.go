@@ -31,6 +31,8 @@ type Container struct {
 	segmentDataStart int64
 	segmentEnd       int64
 	firstCluster     int64
+	// cuesOffset is where the Cues index starts, or zero without one.
+	cuesOffset int64
 }
 
 // Analyze reads the header, segment information and tracks of a Matroska or
@@ -118,6 +120,8 @@ func (container *Container) readTopLevel(c *cursor) error {
 			if err := container.readTracks(c, child); err != nil {
 				return err
 			}
+		case idCues:
+			container.cuesOffset = child.start
 		case idCluster:
 			if container.firstCluster == 0 {
 				container.firstCluster = child.start
@@ -140,6 +144,9 @@ func (container *Container) readTopLevel(c *cursor) error {
 // readIndexedElements loads Info and Tracks through the SeekHead when the
 // linear walk stopped before finding them.
 func (container *Container) readIndexedElements(c *cursor, targets map[uint32]int64, haveInfo bool) error {
+	if offset, found := targets[idCues]; found && container.cuesOffset == 0 {
+		container.cuesOffset = offset
+	}
 	if !haveInfo {
 		if offset, found := targets[idInfo]; found {
 			if err := container.readElementAt(c, offset, idInfo, container.readInfo); err != nil {

@@ -27,12 +27,48 @@ const (
 	maxSubtitleEvents = 500_000
 )
 
-// ReadSubtitles reads the events of the given text subtitle tracks in a
-// single pass over the clusters. progress, when set, receives the bytes
-// scanned so far and the file size.
+// ReadSubtitles reads the events of the given text subtitle tracks. It jumps
+// straight to their blocks through the cue index when the file has one for
+// every wanted track, and otherwise scans the clusters in a single pass.
+// progress, when set, receives the work done so far and its total.
 func ReadSubtitles(ctx context.Context, source io.ReaderAt, size int64, container Container, trackNumbers []uint64, progress func(done, total int64)) (map[uint64]media.SubtitleContent, error) {
+	collectors, err := newCollectors(container, trackNumbers)
+	if err != nil {
+		return nil, err
+	}
+	wanted := make(map[uint64]bool, len(collectors))
+	for number := range collectors {
+		wanted[number] = true
+	}
+	collect := func(frame rawFrame) error {
+		return collectors[frame.track].add(frame)
+	}
+
+	c := newCursor(source, size)
+	refs, err := container.subtitleRefs(c, wanted)
+	if err == nil {
+		err = container.readIndexed(ctx, c, refs, wanted, progress, collect)
+	}
+	if errors.Is(err, errIndexUnusable) {
+		// Start over: the index may have delivered some frames already.
+		if collectors, err = newCollectors(container, trackNumbers); err != nil {
+			return nil, err
+		}
+		err = container.scanFrames(ctx, c, wanted, progress, collect)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint64]media.SubtitleContent, len(collectors))
+	for number, collector := range collectors {
+		result[number] = collector.finish()
+	}
+	return result, nil
+}
+
+func newCollectors(container Container, trackNumbers []uint64) (map[uint64]*cueCollector, error) {
 	collectors := make(map[uint64]*cueCollector, len(trackNumbers))
-	wanted := make(map[uint64]bool, len(trackNumbers))
 	for _, number := range trackNumbers {
 		entry, found := container.track(number)
 		if !found {
@@ -47,21 +83,8 @@ func ReadSubtitles(ctx context.Context, source io.ReaderAt, size int64, containe
 			return nil, err
 		}
 		collectors[number] = &cueCollector{format: format, decoder: decoder, entry: entry, scale: container.TimestampScale}
-		wanted[number] = true
 	}
-
-	err := container.scanFrames(ctx, newCursor(source, size), wanted, progress, func(frame rawFrame) error {
-		return collectors[frame.track].add(frame)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[uint64]media.SubtitleContent, len(collectors))
-	for number, collector := range collectors {
-		result[number] = collector.finish()
-	}
-	return result, nil
+	return collectors, nil
 }
 
 // pendingCue is a cue whose end may still be unknown.

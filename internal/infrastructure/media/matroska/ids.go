@@ -52,6 +52,12 @@ const (
 	idBlockGroup       = 0xA0
 	idBlock            = 0xA1
 	idBlockDuration    = 0x9B
+
+	idCuePoint            = 0xBB
+	idCueTrackPositions   = 0xB7
+	idCueTrack            = 0xF7
+	idCueClusterPosition  = 0xF1
+	idCueRelativePosition = 0xF0
 )
 
 // topLevelIDs end an unknown-size cluster: once one of them appears, the
