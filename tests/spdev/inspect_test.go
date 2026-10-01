@@ -60,8 +60,8 @@ func TestInspectReportsBadInput(t *testing.T) {
 	if err := spdev.Run(t.Context(), []string{"inspect"}, &bytes.Buffer{}); !errors.Is(err, spdev.ErrMissingArgument) {
 		t.Fatalf("missing path error = %v, want ErrMissingArgument", err)
 	}
-	if err := spdev.Run(t.Context(), []string{"inspect", "filme.mp4"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
-		t.Fatalf("mp4 error = %v, want ErrUnsupportedFile", err)
+	if err := spdev.Run(t.Context(), []string{"inspect", "filme.txt"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
+		t.Fatalf("txt error = %v, want ErrUnsupportedFile", err)
 	}
 	missing := filepath.Join(t.TempDir(), "nao-existe.mkv")
 	if err := spdev.Run(t.Context(), []string{"inspect", missing}, &bytes.Buffer{}); !errors.Is(err, os.ErrNotExist) {

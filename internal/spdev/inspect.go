@@ -36,7 +36,7 @@ var bitmapSubtitleCodecs = []string{"S_HDMV/PGS", "S_VOBSUB", "S_DVBSUB", "S_IMA
 
 // inspect prints the tracks of a video, the suggested study tracks and, with
 // --legendas, the first lines of the suggested subtitles.
-func inspect(args []string, stdout io.Writer) error {
+func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%w: caminho do vídeo", ErrMissingArgument)
 	}
@@ -44,7 +44,7 @@ func inspect(args []string, stdout io.Writer) error {
 	withSubtitles := len(args) > 1 && args[1] == subtitlesFlag
 
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
-	result, err := service.Analyze(path, defaultPreferences())
+	result, err := service.Analyze(ctx, path, defaultPreferences())
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func inspect(args []string, stdout io.Writer) error {
 		return out.err
 	}
 
-	loaded, err := service.LoadSubtitles(context.Background(), result, []uint64{result.Suggested.Primary, result.Suggested.Translation}, nil)
+	loaded, err := service.LoadSubtitles(ctx, result, []uint64{result.Suggested.Primary, result.Suggested.Translation}, nil)
 	if err != nil {
 		return err
 	}

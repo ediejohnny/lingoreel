@@ -47,7 +47,7 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 		{"início com vírgula aceito", []string{"play", missing, "--inicio", "2,5"}, os.ErrNotExist},
 		{"opções antes do vídeo", []string{"play", "--pausado", "--player", "VLC", missing}, os.ErrNotExist},
 		{"player desconhecido não barra a análise", []string{"play", missing, "--player", "xyz"}, os.ErrNotExist},
-		{"formato não suportado", []string{"play", "filme.mp4"}, analysis.ErrUnsupportedFile},
+		{"formato não suportado", []string{"play", "filme.txt"}, analysis.ErrUnsupportedFile},
 		// The sample lasts 20.052 s: starting at or past its end is refused
 		// after the analysis and before any player is looked for.
 		{"início no fim do vídeo", []string{"play", studySample, "--inicio", "20.052"}, spdev.ErrInvalidOption},

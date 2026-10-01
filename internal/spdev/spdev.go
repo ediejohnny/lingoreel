@@ -27,7 +27,7 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		_, err := fmt.Fprintln(stdout, buildinfo.Version)
 		return err
 	case "inspect":
-		return inspect(args[1:], stdout)
+		return inspect(ctx, args[1:], stdout)
 	case "play":
 		return play(ctx, args[1:], stdout, false)
 	case "overlay":

@@ -77,7 +77,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	}
 
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
-	result, err := service.Analyze(options.path, defaultPreferences())
+	result, err := service.Analyze(ctx, options.path, defaultPreferences())
 	if err != nil {
 		return err
 	}

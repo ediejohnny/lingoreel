@@ -60,7 +60,7 @@ func TestExternalSubtitlesJoinTheAnalysisAndTheSelection(t *testing.T) {
 		},
 	}
 	service := analysis.NewService(&fakeReader{info: portugueseOnlyMovie()}, files)
-	result, err := service.Analyze(`D:\Filmes\Exemplo.mkv`, preferences)
+	result, err := service.Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 	}
 	reader := &fakeReader{info: portugueseOnlyMovie(), content: map[uint64]media.SubtitleContent{5: lines("Capitão Nova e Cometa!")}}
 	service := analysis.NewService(reader, files)
-	result, err := service.Analyze(`D:\Filmes\Exemplo.mkv`, preferences)
+	result, err := service.Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,8 +99,10 @@ func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 	if !slices.Equal(reader.requested, []uint64{5}) {
 		t.Fatalf("container reader asked for %v, want only [5]", reader.requested)
 	}
-	if !slices.Equal(files.loaded, []string{`D:\Filmes\Exemplo.en.srt`}) {
-		t.Fatalf("files loaded %v", files.loaded)
+	// The analysis already read the file to learn its language; loading it
+	// again would parse up to 32 MB twice (RNF-011).
+	if len(files.loaded) != 0 {
+		t.Fatalf("files read again when loading: %v", files.loaded)
 	}
 	if loaded[media.ExternalTrackBase].Timeline.Len() != 2 || loaded[5].Timeline.Len() != 1 {
 		t.Fatalf("loaded = %+v", loaded)
@@ -112,7 +114,7 @@ func TestUnreadableFilesAreListedButNeverSelected(t *testing.T) {
 		paths:   []string{`D:\Filmes\Exemplo.en.srt`},
 		failing: map[string]error{`D:\Filmes\Exemplo.en.srt`: errors.New("garbage")},
 	}
-	result, err := analysis.NewService(&fakeReader{info: portugueseOnlyMovie()}, files).Analyze(`D:\Filmes\Exemplo.mkv`, preferences)
+	result, err := analysis.NewService(&fakeReader{info: portugueseOnlyMovie()}, files).Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +129,7 @@ func TestUnreadableFilesAreListedButNeverSelected(t *testing.T) {
 
 func TestAFolderThatCannotBeListedStillAnalyzesTheVideo(t *testing.T) {
 	files := &fakeFiles{findErr: errors.New("access denied")}
-	result, err := analysis.NewService(&fakeReader{info: studyInfo()}, files).Analyze(`D:\Filmes\x.mkv`, preferences)
+	result, err := analysis.NewService(&fakeReader{info: studyInfo()}, files).Analyze(context.Background(), `D:\Filmes\x.mkv`, preferences)
 	if err != nil || len(result.Info.Tracks) != 3 {
 		t.Fatalf("Analyze = %+v, %v", result, err)
 	}

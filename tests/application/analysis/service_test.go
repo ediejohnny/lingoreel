@@ -18,6 +18,8 @@ type fakeReader struct {
 	content       map[uint64]media.SubtitleContent
 	err           error
 	analyzeCalls  []string
+	checkCalls    []string
+	checkErr      error
 	requested     []uint64
 	progressCalls int
 }
@@ -25,6 +27,11 @@ type fakeReader struct {
 func (f *fakeReader) Analyze(path string) (media.Info, error) {
 	f.analyzeCalls = append(f.analyzeCalls, path)
 	return f.info, f.err
+}
+
+func (f *fakeReader) Check(path string) error {
+	f.checkCalls = append(f.checkCalls, path)
+	return f.checkErr
 }
 
 func (f *fakeReader) ReadSubtitles(ctx context.Context, path string, tracks []uint64, progress func(done, total int64)) (map[uint64]media.SubtitleContent, error) {
@@ -60,8 +67,8 @@ func TestAnalyzeRejectsUnsupportedFilesWithoutReadingThem(t *testing.T) {
 	reader := &fakeReader{info: studyInfo()}
 	service := analysis.NewService(reader, nil)
 
-	for _, path := range []string{`C:\Filmes\Filme.mp4`, `C:\Filmes\Filme`, `C:\Filmes\Filme.mkv.txt`, ``} {
-		if _, err := service.Analyze(path, preferences); !errors.Is(err, analysis.ErrUnsupportedFile) {
+	for _, path := range []string{`C:\Filmes\Filme.txt`, `C:\Filmes\Filme`, `C:\Filmes\Filme.mkv.txt`, ``} {
+		if _, err := service.Analyze(context.Background(), path, preferences); !errors.Is(err, analysis.ErrUnsupportedFile) {
 			t.Fatalf("Analyze(%q) error = %v, want ErrUnsupportedFile", path, err)
 		}
 	}
@@ -75,7 +82,7 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 	service := analysis.NewService(reader, nil)
 
 	for _, path := range []string{`D:\Filmes\Matrix.MKV`, `D:\Séries\Episódio 1.webm`} {
-		result, err := service.Analyze(path, preferences)
+		result, err := service.Analyze(context.Background(), path, preferences)
 		if err != nil {
 			t.Fatalf("Analyze(%q): %v", path, err)
 		}
@@ -88,11 +95,53 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 	}
 }
 
+// Other videos open too (PRD §1: "especially" .mkv): their own tracks are not
+// read, so their subtitles come only from the files next to them.
+func TestVideosWithoutReadableTracksUseOnlySubtitleFiles(t *testing.T) {
+	reader := &fakeReader{info: studyInfo()}
+	files := &fakeFiles{
+		paths:   []string{`D:\Filmes\Filme.en.srt`},
+		content: map[string]media.SubtitleContent{`D:\Filmes\Filme.en.srt`: lines("Hello there.")},
+	}
+	service := analysis.NewService(reader, files)
+	for _, path := range []string{`D:\Filmes\Filme.mp4`, `D:\Filmes\Filme.AVI`, `D:\Filmes\Filme.m4v`, `D:\Filmes\Filme.mov`, `D:\Filmes\Filme.wmv`} {
+		result, err := service.Analyze(context.Background(), path, preferences)
+		if err != nil {
+			t.Fatalf("Analyze(%q): %v", path, err)
+		}
+		if len(result.Info.Tracks) != 1 || result.Suggested.Primary != media.ExternalTrackBase || result.Suggested.Audio != 0 {
+			t.Fatalf("Analyze(%q) = %+v, want only the subtitle file, chosen, and the player's own audio", path, result)
+		}
+	}
+	if len(reader.analyzeCalls) != 0 {
+		t.Fatalf("the Matroska reader opened %v", reader.analyzeCalls)
+	}
+
+	// Without the container reader, the file must still be checked.
+	missing := errors.New("file not found")
+	reader.checkErr = missing
+	if _, err := service.Analyze(context.Background(), `D:\Filmes\Sumiu.mp4`, preferences); !errors.Is(err, missing) {
+		t.Fatalf("Analyze of a missing mp4 = %v, want the check error", err)
+	}
+}
+
+func TestAnalyzeStopsWhenCancelled(t *testing.T) {
+	files := &fakeFiles{paths: []string{`D:\a.srt`, `D:\b.srt`}, content: map[string]media.SubtitleContent{}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := analysis.NewService(&fakeReader{info: studyInfo()}, files).Analyze(ctx, `D:\x.mkv`, preferences); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Analyze = %v, want context.Canceled", err)
+	}
+	if len(files.loaded) != 0 {
+		t.Fatalf("files read after cancellation: %v", files.loaded)
+	}
+}
+
 func TestAnalyzePropagatesReaderErrors(t *testing.T) {
 	failure := errors.New("disk on fire")
 	service := analysis.NewService(&fakeReader{err: failure}, nil)
 
-	if _, err := service.Analyze(`C:\x.mkv`, preferences); !errors.Is(err, failure) {
+	if _, err := service.Analyze(context.Background(), `C:\x.mkv`, preferences); !errors.Is(err, failure) {
 		t.Fatalf("error = %v, want the reader's error", err)
 	}
 }
