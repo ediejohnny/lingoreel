@@ -281,6 +281,38 @@ func TestVLCReportsPositionsBeyond36Minutes(t *testing.T) {
 	})
 }
 
+// Opening at a start position and seeking right away must keep the seek:
+// Launch used to send its own seek to the start while VLC was still applying
+// --start-time, and that late seek undid the user's first one.
+func TestVLCFirstSeekAfterLaunchHolds(t *testing.T) {
+	executable, _ := realVLC(t)
+	video, err := filepath.Abs(filepath.Join(filepath.Dir(sampleVideo), "long-sample.mkv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true, Start: 38 * time.Minute})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	target := 37 * time.Minute
+	if err := session.SeekTo(target); err != nil {
+		t.Fatalf("SeekTo: %v", err)
+	}
+	waitFor(t, session.Samples(), "the seek", func(s playback.Sample) bool { return s.Position == target })
+	hold := time.After(1500 * time.Millisecond)
+	for {
+		select {
+		case sample := <-session.Samples():
+			if sample.Position != target {
+				t.Fatalf("the first seek was undone: position %v, want %v", sample.Position, target)
+			}
+		case <-hold:
+			return
+		}
+	}
+}
+
 // TestVLCIntegration drives the real VLC through its commands.
 func TestVLCIntegration(t *testing.T) {
 	executable, video := realVLC(t)

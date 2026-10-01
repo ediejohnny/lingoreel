@@ -29,6 +29,11 @@ const (
 	exitWait         = 2 * time.Second
 	// startTolerance absorbs the estimate error of VLC's first position.
 	startTolerance = 500 * time.Millisecond
+	// startSeekGrace is how long an open video may sit at 0 s before Launch
+	// seeks to the start itself. VLC usually applies --start-time a moment
+	// after opening; a seek sent meanwhile arrived late and undid the user's
+	// first seek.
+	startSeekGrace = time.Second
 )
 
 // Session is a running VLC playing one video.
@@ -161,6 +166,7 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 	defer deadline.Stop()
 	var last status
 	answered, seeked := false, false
+	var openedAt time.Time
 	for {
 		attempt, cancel := context.WithTimeout(ctx, requestTimeout)
 		current, err := s.client.call(attempt, nil)
@@ -173,9 +179,14 @@ func (s *Session) waitUntilReady(ctx context.Context, start time.Duration) error
 				return nil
 			}
 			last, answered = current, true
+			open := current.Status != statusStopped && current.Length > 0
+			if open && openedAt.IsZero() {
+				openedAt = time.Now()
+			}
 			// With --start-paused VLC sometimes pauses before applying
-			// --start-time and stays at 0 s; an exact seek finishes the job.
-			if !seeked && current.Status != statusStopped && start > 0 && start < microseconds(current.Length) {
+			// --start-time and stays at 0 s; an exact seek finishes the job, but
+			// only once VLC had its chance to apply the start itself.
+			if !seeked && open && start > 0 && start < microseconds(current.Length) && time.Since(openedAt) >= startSeekGrace {
 				seeked = s.SeekTo(start) == nil
 			}
 		}
