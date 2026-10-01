@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +58,7 @@ type launcher func(ctx context.Context, executable string, request player.Launch
 // not offered yet.
 var launchers = map[player.ID]launcher{
 	player.VLC: func(ctx context.Context, executable string, request player.LaunchRequest) (runningPlayer, error) {
-		return vlc.Launch(ctx, executable, request)
+		return vlc.LaunchWith(ctx, executable, request, vlc.Options{Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))})
 	},
 }
 

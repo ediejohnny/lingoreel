@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strconv"
@@ -42,6 +43,7 @@ type Session struct {
 	job         *job.Job
 	client      *client
 	endpointDir string
+	logger      *slog.Logger
 
 	samples chan playback.Sample
 	exited  chan struct{}
@@ -58,10 +60,10 @@ type Session struct {
 	closeOnce sync.Once
 }
 
-func newSession(cmd *exec.Cmd, killer *job.Job, control *client, endpointDir string) *Session {
+func newSession(cmd *exec.Cmd, killer *job.Job, control *client, endpointDir string, logger *slog.Logger) *Session {
 	ctx, stop := context.WithCancel(context.Background())
 	s := &Session{
-		cmd: cmd, job: killer, client: control, endpointDir: endpointDir,
+		cmd: cmd, job: killer, client: control, endpointDir: endpointDir, logger: logger,
 		samples: make(chan playback.Sample, 1), exited: make(chan struct{}),
 		stop: stop, pollCtx: ctx, pollDone: make(chan struct{}),
 	}
@@ -246,6 +248,7 @@ func (s *Session) poll() {
 		finished := time.Now()
 		if err != nil {
 			if finished.Sub(lastSuccess) > unreachableLimit && s.pollCtx.Err() == nil {
+				s.logger.Warn("VLC stopped answering", "error", err)
 				s.lost.Store(true)
 				return
 			}

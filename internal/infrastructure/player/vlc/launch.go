@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -53,6 +54,9 @@ type Options struct {
 	// PickPort returns the loopback port for VLC's control interface; nil
 	// picks a free one.
 	PickPort func() (int, error)
+	// Logger receives what has no caller to report to, such as a taken port
+	// or a VLC that stopped answering; nil discards it.
+	Logger *slog.Logger
 }
 
 // Arguments returns the command line given to VLC: the bare video window
@@ -116,19 +120,24 @@ func LaunchWith(ctx context.Context, executable string, request player.LaunchReq
 	if pickPort == nil {
 		pickPort = freeLoopbackPort
 	}
+	logger := options.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
 
 	var lastErr error
 	for range maxPortAttempts {
-		session, err := launchOnce(ctx, executable, request, pickPort)
+		session, err := launchOnce(ctx, executable, request, pickPort, logger)
 		if !errors.Is(err, errForeignEndpoint) {
 			return session, err
 		}
+		logger.Warn("VLC control port taken, trying another", "error", err)
 		lastErr = err
 	}
 	return nil, fmt.Errorf("starting VLC on %d ports: %w", maxPortAttempts, lastErr)
 }
 
-func launchOnce(ctx context.Context, executable string, request player.LaunchRequest, pickPort func() (int, error)) (*Session, error) {
+func launchOnce(ctx context.Context, executable string, request player.LaunchRequest, pickPort func() (int, error), logger *slog.Logger) (*Session, error) {
 	password, err := randomSecret()
 	if err != nil {
 		return nil, fmt.Errorf("creating the VLC password: %w", err)
@@ -163,7 +172,7 @@ func launchOnce(ctx context.Context, executable string, request player.LaunchReq
 		return nil, fmt.Errorf("tying VLC to the app: %w", err)
 	}
 
-	session := newSession(cmd, killer, newClient(port, password, token), endpointDir)
+	session := newSession(cmd, killer, newClient(port, password, token), endpointDir, logger)
 	if err := session.waitUntilReady(ctx, request.Start); err != nil {
 		if closeErr := session.Close(); closeErr != nil {
 			err = errors.Join(err, closeErr)
