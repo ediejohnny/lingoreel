@@ -225,6 +225,40 @@ func TestBackgroundFillsTheBlockBounds(t *testing.T) {
 	}
 }
 
+func TestNoticeIsDrawnInItsCornerWithItsBox(t *testing.T) {
+	r := newRenderer(t)
+	dib := newDIB(t, 640, 360)
+	notice := appearance.NoticeStyle()
+	frame := layout.Compute(layout.Input{
+		Video: layout.Rect{W: 640, H: 360}, DPI: 96, Layout: appearance.DefaultLayout(),
+		Notice: layout.Text{Style: notice, Content: "Legenda de cima (inglês): −0,150 s"},
+	}, r)
+	if frame.Notice == nil {
+		t.Fatal("no notice laid out")
+	}
+	if err := r.Draw(dib, frame, gdiplus.Look{Notice: notice}); err != nil {
+		t.Fatalf("Draw: %v", err)
+	}
+	box := rectOf(frame.Notice.Bounds)
+	ink := inkBounds(dib, image.Rect(0, 0, 640, 360))
+	if ink.Empty() || !ink.In(box.Inset(-2)) {
+		t.Fatalf("notice ink %v, want it inside its box %v", ink, box)
+	}
+	// Inside the box's corner only the see-through background: alpha 0xA0.
+	x, y := box.Min.X+2, box.Min.Y+2
+	if got := dib.Pixels[(y*dib.Width+x)*4+3]; got < 0x98 || got > 0xA8 {
+		t.Fatalf("background alpha in the box corner = %#x, want about 0xA0", got)
+	}
+	// The frame decides whether there is a notice; the look only styles it.
+	empty := newDIB(t, 640, 360)
+	if err := r.Draw(empty, layout.Frame{}, gdiplus.Look{Notice: notice}); err != nil {
+		t.Fatal(err)
+	}
+	if !inkBounds(empty, image.Rect(0, 0, 640, 360)).Empty() {
+		t.Fatal("a frame without a notice drew one")
+	}
+}
+
 func TestDrawRejectsAMissingBitmap(t *testing.T) {
 	r := newRenderer(t)
 	if err := r.Draw(nil, layout.Frame{}, gdiplus.Look{}); err == nil {

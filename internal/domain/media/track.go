@@ -52,6 +52,28 @@ type Track struct {
 	// Path is the subtitle file of an external track; empty for tracks
 	// inside the video.
 	Path string
+	// Candidate marks a file found where other films' subtitles may be (a
+	// subfolder, another name): it is chosen automatically only when its
+	// timing matches the video.
+	Candidate bool
+	// Alignment is how a readable file lines up with the video's own
+	// subtitles; an empty Verdict means it was not measured.
+	Alignment subtitle.Alignment
+}
+
+// AutoSelectable reports a track the automatic choice may use: readable, and
+// for files, not timed for another cut or film, and matching the video when
+// nothing else ties the file to it.
+func (t Track) AutoSelectable() bool {
+	switch {
+	case !t.Readable:
+		return false
+	case t.Alignment.Verdict == subtitle.VerdictOtherCut || t.Alignment.Verdict == subtitle.VerdictNoMatch:
+		return false
+	case t.Candidate:
+		return t.Alignment.Verdict == subtitle.VerdictMatch
+	}
+	return true
 }
 
 // External reports a subtitle file found next to the video.

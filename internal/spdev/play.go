@@ -34,6 +34,7 @@ const (
 	playerFlag = "--player"
 	startFlag  = "--inicio"
 	pausedFlag = "--pausado"
+	stepFlag   = "--passo"
 
 	// maxStart keeps --inicio within a sane range before the video duration
 	// is known; the player itself clamps to the real duration.
@@ -67,6 +68,7 @@ type playOptions struct {
 	preferred player.ID
 	start     time.Duration
 	paused    bool
+	steps     subtitle.NudgeSteps
 }
 
 // play opens a video in the chosen player and prints the subtitles as they
@@ -105,6 +107,11 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	out.line("Player:    %s  %s", describeInstallation(choice.Installation), choice.Installation.Path)
 	out.line("Legenda:   %s", describeChoice(result.Info, result.Suggested.Primary))
 	out.line("Tradução:  %s", describeChoice(result.Info, result.Suggested.Translation))
+	for _, number := range chosen {
+		if track, found := loaded[number]; found && track.Corrected {
+			out.line("Sincronia: %s ajustada automaticamente para casar com o vídeo: %s", trackLabel(number), describeCorrection(track.Correction))
+		}
+	}
 	if out.err != nil {
 		return out.err
 	}
@@ -140,7 +147,14 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	}
 	clock := session.NewClock(precision, time.Now)
 	subtitles := session.NewSubtitles(trackOf(loaded, result.Suggested.Primary), trackOf(loaded, result.Suggested.Translation))
-	// The runner calls back from its own loop, so the printer needs no lock.
+	names := lineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
+	sync := session.NewSync(subtitles, options.steps, time.Now)
+	stopSync, err := listenSync(ctx, running.ProcessID(), sync, names, screen, os.Stdin, out)
+	if err != nil {
+		return errors.Join(fmt.Errorf("ativando os atalhos de sincronia: %w", err), closeDisplay(screen), running.Close())
+	}
+	out.line("Sincronia: Shift+, / Shift+. movem a legenda de cima, Ctrl+, / Ctrl+. a de baixo (passo %s); z + Enter zera.",
+		strings.TrimPrefix(formatOffset(subtitle.Offset(options.steps.Step)), "+"))
 	runner := session.NewRunner(clock, subtitles, func(position time.Duration, visible session.Visible) {
 		out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, labels))
 		if screen != nil {
@@ -158,12 +172,11 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	if lost := running.Err(); err == nil && lost != nil {
 		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), lost)
 	}
-	var overlayErr error
-	if screen != nil {
-		if overlayErr = screen.Close(); overlayErr != nil {
-			overlayErr = fmt.Errorf("ao fechar o overlay: %w", overlayErr)
-		}
+	syncErr := stopSync()
+	if syncErr != nil {
+		syncErr = fmt.Errorf("ao soltar os atalhos de sincronia: %w", syncErr)
 	}
+	overlayErr := closeDisplay(screen)
 	closeErr := running.Close()
 	if closeErr != nil {
 		closeErr = fmt.Errorf("ao fechar o %s: %w", choice.Installation.ID.DisplayName(), closeErr)
@@ -171,28 +184,46 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	if err == nil {
 		out.line("Sessão encerrada.")
 	}
-	return errors.Join(err, overlayErr, closeErr, out.err)
+	return errors.Join(err, syncErr, overlayErr, closeErr, out.err)
+}
+
+// closeDisplay closes the overlay, if there is one.
+func closeDisplay(screen session.Display) error {
+	if screen == nil {
+		return nil
+	}
+	if err := screen.Close(); err != nil {
+		return fmt.Errorf("ao fechar o overlay: %w", err)
+	}
+	return nil
 }
 
 func parsePlayOptions(args []string) (playOptions, error) {
-	var options playOptions
+	options := playOptions{steps: subtitle.DefaultNudgeSteps()}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
-		case playerFlag, startFlag:
+		case playerFlag, startFlag, stepFlag:
 			if i+1 >= len(args) {
 				return playOptions{}, fmt.Errorf("%w: %s precisa de um valor", ErrInvalidOption, arg)
 			}
 			i++
-			if arg == playerFlag {
+			switch arg {
+			case playerFlag:
 				options.preferred = player.ID(strings.ToLower(args[i]))
-				continue
+			case stepFlag:
+				steps, err := parseStep(args[i])
+				if err != nil {
+					return playOptions{}, err
+				}
+				options.steps = steps
+			default:
+				start, err := parseSeconds(args[i])
+				if err != nil {
+					return playOptions{}, err
+				}
+				options.start = start
 			}
-			start, err := parseSeconds(args[i])
-			if err != nil {
-				return playOptions{}, err
-			}
-			options.start = start
 		case pausedFlag:
 			options.paused = true
 		default:
@@ -206,6 +237,19 @@ func parsePlayOptions(args []string) (playOptions, error) {
 		return playOptions{}, fmt.Errorf("%w: caminho do vídeo", ErrMissingArgument)
 	}
 	return options, nil
+}
+
+// parseStep reads the sync step in milliseconds; holding a shortcut moves
+// by the default fast step, or by the step when it is larger.
+func parseStep(value string) (subtitle.NudgeSteps, error) {
+	milliseconds, err := strconv.Atoi(value)
+	steps := subtitle.NudgeSteps{Step: time.Duration(milliseconds) * time.Millisecond}
+	steps.FastStep = max(subtitle.DefaultFastNudgeStep, steps.Step)
+	if err != nil || steps.Validate() != nil {
+		return subtitle.NudgeSteps{}, fmt.Errorf("%w: %s %q (use milissegundos, de %d a %d)", ErrInvalidOption, stepFlag, value,
+			subtitle.MinNudgeStep.Milliseconds(), subtitle.MaxNudgeStep.Milliseconds())
+	}
+	return steps, nil
 }
 
 // parseSeconds reads a start position in seconds; a comma works as the

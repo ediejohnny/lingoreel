@@ -96,6 +96,66 @@ func TestFindSkipsFoldersNamedLikeSubtitlesAndOtherFolders(t *testing.T) {
 	}
 }
 
+func TestFindTakesAFolderNamedAfterTheVideo(t *testing.T) {
+	root := layout(t, "Movie.mkv", "Other.mkv", "movie/English.srt", "Movie/Deep/x.srt", "Other/English.srt")
+	assertFound(t, find(t, root, "Movie.mkv"), "movie/English.srt")
+}
+
+func relativeTo(t *testing.T, root string, paths []string) []string {
+	t.Helper()
+	relative := make([]string, len(paths))
+	for i, path := range paths {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		relative[i] = filepath.ToSlash(rel)
+	}
+	return relative
+}
+
+func candidates(t *testing.T, root, video string) []string {
+	t.Helper()
+	found, err := subtitlefile.Files{}.FindCandidates(filepath.Join(root, video))
+	if err != nil {
+		t.Fatalf("FindCandidates: %v", err)
+	}
+	return relativeTo(t, root, found)
+}
+
+// The real case: subtitles downloaded into folders named after the zip, in a
+// folder with several films.
+func TestFindCandidatesLooksOneLevelIntoAnySubfolder(t *testing.T) {
+	root := layout(t, "Exemplo.mkv", "End.mkv", "Exemplo.pt.srt", "End.en.srt", "notes.txt",
+		"exemplo.de.filme.(1000001)/Example Movie.eng.srt", "exemplo.de.filme.(1000001)/info.nfo",
+		"exemplo.de.filme.(1000002)/Example Movie DC.en.srt", "Subs/English.srt", "deep/er/x.srt", "empty/")
+	assertFound(t, candidates(t, root, "Exemplo.mkv"),
+		"End.en.srt", "Subs/English.srt",
+		"exemplo.de.filme.(1000001)/Example Movie.eng.srt", "exemplo.de.filme.(1000002)/Example Movie DC.en.srt")
+}
+
+func TestFindCandidatesLeavesOutTheVideosOwnFiles(t *testing.T) {
+	root := layout(t, "Movie.mkv", "Movie.en.srt", "Subs/Movie.pt.srt", "Subs/other.srt", "MOVIE/x.srt")
+	assertFound(t, candidates(t, root, "Movie.mkv"))
+	root = layout(t, "Movie.mkv", "Other.mkv", "Movie.en.srt", "SUBS/movie.pt.srt", "Subs2/Movie.en.srt")
+	assertFound(t, candidates(t, root, "Movie.mkv"), "Subs2/Movie.en.srt")
+}
+
+func TestFindCandidatesIsBounded(t *testing.T) {
+	var names []string
+	for i := range 60 {
+		names = append(names, "A.mkv", "B.mkv", filepath.ToSlash(filepath.Join("f"+string(rune('a'+i%26))+string(rune('a'+i/26)), "x.srt")))
+	}
+	for i := range 70 {
+		names = append(names, "loose"+string(rune('a'+i%26))+string(rune('a'+i/26))+".srt")
+	}
+	root := layout(t, names...)
+	// 70 loose files already pass the limit of 50.
+	if got := candidates(t, root, "A.mkv"); len(got) != 50 {
+		t.Fatalf("%d candidates, want the limit of 50", len(got))
+	}
+}
+
 func TestFindReportsAMissingFolder(t *testing.T) {
 	if _, err := (subtitlefile.Files{}).Find(filepath.Join(t.TempDir(), "gone", "Movie.mkv")); err == nil {
 		t.Fatal("Find in a missing folder succeeded")

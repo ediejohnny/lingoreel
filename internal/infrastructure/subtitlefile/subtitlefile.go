@@ -24,9 +24,16 @@ var (
 	ErrUnsupported = errors.New("unsupported subtitle file")
 )
 
-// maxFolderEntries bounds how many entries of one folder are looked at, so a
-// video in a huge folder (Downloads) does not stall the analysis.
-const maxFolderEntries = 5000
+const (
+	// maxFolderEntries bounds how many entries of one folder are looked at,
+	// so a video in a huge folder (Downloads) does not stall the analysis.
+	maxFolderEntries = 5000
+	// maxCandidateFolders bounds the subfolders searched for candidates.
+	maxCandidateFolders = 50
+	// maxCandidates bounds the candidates returned: each one is read and
+	// compared with the video.
+	maxCandidates = 50
+)
 
 var (
 	subtitleExtensions = map[string]bool{".srt": true, ".ass": true, ".ssa": true, ".vtt": true}
@@ -41,7 +48,8 @@ type Files struct{}
 // Find returns the subtitle files of a video: files named after it in its
 // folder, or every subtitle file there when it is the folder's only video;
 // the same inside a subtitles folder (Subs, Subtitles, Legendas), including a
-// folder named after the video inside it. Files next to the video come first.
+// folder named after the video inside it; and every subtitle file in a folder
+// named after the video. Files next to the video come first.
 func (Files) Find(videoPath string) ([]string, error) {
 	folder := filepath.Dir(videoPath)
 	videoName := strings.TrimSuffix(filepath.Base(videoPath), filepath.Ext(videoPath))
@@ -59,11 +67,76 @@ func (Files) Find(videoPath string) ([]string, error) {
 			beside = append(beside, filepath.Join(folder, name))
 		case entry.IsDir() && subtitleFolders[strings.ToLower(name)]:
 			inFolders = append(inFolders, findInSubtitleFolder(filepath.Join(folder, name), videoName, onlyVideo)...)
+		case entry.IsDir() && strings.EqualFold(name, videoName):
+			inFolders = append(inFolders, subtitlesIn(filepath.Join(folder, name))...)
 		}
 	}
 	sort.Strings(beside)
 	sort.Strings(inFolders)
 	return append(beside, inFolders...), nil
+}
+
+// FindCandidates returns subtitle files that may belong to the video, though
+// nothing says so: the other ones in its folder and those one level inside
+// any subfolder, such as the folder a downloaded zip was extracted to. A
+// folder may hold several films, so they are only used once their timing
+// matches the video. Files that Find returns are left out.
+func (f Files) FindCandidates(videoPath string) ([]string, error) {
+	own, err := f.Find(videoPath)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(own))
+	for _, path := range own {
+		known[strings.ToLower(path)] = true
+	}
+	var found []string
+	add := func(paths []string) {
+		for _, path := range paths {
+			if !known[strings.ToLower(path)] && len(found) < maxCandidates {
+				found = append(found, path)
+			}
+		}
+	}
+
+	folder := filepath.Dir(videoPath)
+	entries, err := readFolder(folder)
+	if err != nil {
+		return nil, fmt.Errorf("reading the video folder: %w", err)
+	}
+	var beside, subfolders []string
+	for _, entry := range entries {
+		switch {
+		case entry.Type().IsRegular() && isSubtitle(entry.Name()):
+			beside = append(beside, filepath.Join(folder, entry.Name()))
+		case entry.IsDir():
+			subfolders = append(subfolders, filepath.Join(folder, entry.Name()))
+		}
+	}
+	sort.Strings(beside)
+	add(beside)
+	sort.Strings(subfolders)
+	for _, subfolder := range subfolders[:min(len(subfolders), maxCandidateFolders)] {
+		add(subtitlesIn(subfolder))
+	}
+	return found, nil
+}
+
+// subtitlesIn returns the subtitle files directly inside a folder, sorted;
+// an unreadable folder only means fewer choices.
+func subtitlesIn(folder string) []string {
+	entries, err := readFolder(folder)
+	if err != nil {
+		return nil
+	}
+	var found []string
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && isSubtitle(entry.Name()) {
+			found = append(found, filepath.Join(folder, entry.Name()))
+		}
+	}
+	sort.Strings(found)
+	return found
 }
 
 func findInSubtitleFolder(folder, videoName string, onlyVideo bool) []string {
@@ -79,15 +152,7 @@ func findInSubtitleFolder(folder, videoName string, onlyVideo bool) []string {
 			found = append(found, filepath.Join(folder, name))
 		case entry.IsDir() && strings.EqualFold(name, videoName):
 			// Series releases keep one folder per episode: Subs/<episode>/.
-			perVideo, err := readFolder(filepath.Join(folder, name))
-			if err != nil {
-				continue
-			}
-			for _, file := range perVideo {
-				if file.Type().IsRegular() && isSubtitle(file.Name()) {
-					found = append(found, filepath.Join(folder, name, file.Name()))
-				}
-			}
+			found = append(found, subtitlesIn(filepath.Join(folder, name))...)
 		}
 	}
 	return found

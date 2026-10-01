@@ -13,14 +13,17 @@ import (
 
 // fakeFiles serves subtitle files from memory.
 type fakeFiles struct {
-	paths   []string
-	findErr error
-	content map[string]media.SubtitleContent
-	failing map[string]error
-	loaded  []string
+	paths      []string
+	candidates []string
+	findErr    error
+	content    map[string]media.SubtitleContent
+	failing    map[string]error
+	loaded     []string
 }
 
 func (f *fakeFiles) Find(string) ([]string, error) { return f.paths, f.findErr }
+
+func (f *fakeFiles) FindCandidates(string) ([]string, error) { return f.candidates, f.findErr }
 
 func (f *fakeFiles) Load(path string) (subtitle.Format, media.SubtitleContent, error) {
 	f.loaded = append(f.loaded, path)
@@ -91,13 +94,17 @@ func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files.loaded = nil
+	// The analysis read the container tracks as the timing reference.
+	if !slices.Equal(reader.requested, []uint64{4, 5}) {
+		t.Fatalf("analysis asked the container for %v, want its readable subtitles [4 5]", reader.requested)
+	}
+	files.loaded, reader.requested = nil, nil
 	loaded, err := service.LoadSubtitles(context.Background(), result, []uint64{result.Suggested.Primary, result.Suggested.Translation}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(reader.requested, []uint64{5}) {
-		t.Fatalf("container reader asked for %v, want only [5]", reader.requested)
+	if reader.requested != nil {
+		t.Fatalf("container read again when loading: %v", reader.requested)
 	}
 	// The analysis already read the file to learn its language; loading it
 	// again would parse up to 32 MB twice (RNF-011).

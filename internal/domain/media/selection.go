@@ -50,7 +50,7 @@ func SelectTracks(info Info, preferences Preferences) Selection {
 	var selection Selection
 	selection.Audio = selectAudio(info.TracksOf(TrackAudio), preferences.Audio)
 
-	subtitles := readableSubtitles(info.TracksOf(TrackSubtitle))
+	subtitles := selectableSubtitles(info.TracksOf(TrackSubtitle))
 	selection.Primary = selectSubtitle(subtitles, preferences.Primary, 0)
 	if selection.Primary == 0 {
 		selection.Primary = fallbackSubtitle(subtitles, preferences.Translation)
@@ -75,14 +75,14 @@ func fallbackSubtitle(tracks []Track, translation LanguageTag) uint64 {
 	return 0
 }
 
-func readableSubtitles(tracks []Track) []Track {
-	var readable []Track
+func selectableSubtitles(tracks []Track) []Track {
+	var selectable []Track
 	for _, track := range tracks {
-		if track.Readable {
-			readable = append(readable, track)
+		if track.AutoSelectable() {
+			selectable = append(selectable, track)
 		}
 	}
-	return readable
+	return selectable
 }
 
 // selectSubtitle returns the best scoring track in the wanted language other
