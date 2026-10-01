@@ -69,8 +69,8 @@ Para ser encontrado, o plugin também implementa `Hints() discovery.Hints`
 
 1. Crie o pacote `internal/infrastructure/player/<seu-player>` com um tipo `Plugin`.
 2. Implemente `Descriptor`, `Launch` e `Hints`.
-3. Registre o plugin com uma linha na lista de plugins do ponto de composição (`plugins()` em
-   `internal/spdev/players.go` e no app).
+3. Registre o plugin com uma linha na lista `All` de `internal/infrastructure/player/plugins`.
+   O app e a ferramenta de desenvolvimento usam essa mesma lista.
 4. Escreva os testes em `tests/infrastructure/player/<seu-player>/` e passe pelo **kit de
    conformidade**:
 

@@ -19,8 +19,11 @@ import (
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
+	"lingoreel/internal/infrastructure/player/plugins"
 	"lingoreel/internal/infrastructure/subtitlefile"
 	"lingoreel/internal/infrastructure/windows/hotkeys"
+	"lingoreel/internal/infrastructure/windows/placement"
+	"lingoreel/internal/presentation/ptbr"
 )
 
 var (
@@ -67,11 +70,11 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		return fmt.Errorf("%w: %s %s está além do fim do vídeo (%s)", ErrInvalidOption, startFlag,
 			formatClock(options.start), formatClock(result.Info.Duration))
 	}
-	registry, hints, err := newRegistry()
+	registry, hints, err := plugins.Registry(stderrLogger())
 	if err != nil {
 		return err
 	}
-	installed := discovery.Detect(discovery.SystemEnvironment{}, append(hints, discovery.Known()...), nil)
+	installed := discovery.Detect(discovery.SystemEnvironment{}, hints, nil)
 	choice, found := player.Choose(installed, registry.Supported, options.preferred)
 	if !found {
 		return fmt.Errorf("%w (suportados agora: %s)", ErrNoPlayer, supportedNames(registry))
@@ -97,15 +100,15 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	if withOverlay {
 		ports.OpenDisplay = openOverlay
 	}
-	names := lineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
+	names := ptbr.NewLineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
 	listener := &consoleListener{out: out, names: names, labels: [2]string{
 		lineLabel(result.Info, result.Suggested.Primary, "Legenda"),
 		lineLabel(result.Info, result.Suggested.Translation, "Tradução"),
 	}}
 	watching, err := watch.Start(ctx, ports, watch.Request{
 		Analysis: result, Tracks: result.Suggested, Player: choice.Installation,
-		Start: options.start, Paused: options.paused, Window: initialWindow(result.Info), Steps: options.steps,
-	}, listener, names.notice)
+		Start: options.start, Paused: options.paused, Window: placement.ForVideo(result.Info), Steps: options.steps,
+	}, listener, names.Notice)
 	if err != nil {
 		return err
 	}
@@ -119,7 +122,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		out.line("Overlay:   legendas desenhadas sobre o vídeo")
 	}
 	out.line("Sincronia: Shift+, / Shift+. movem a legenda de cima, Ctrl+, / Ctrl+. a de baixo (passo %s); z + Enter zera.",
-		strings.TrimPrefix(formatOffset(subtitle.Offset(options.steps.Step)), "+"))
+		strings.TrimPrefix(ptbr.Offset(subtitle.Offset(options.steps.Step)), "+"))
 	out.line("Feche o player ou pressione Ctrl+C para encerrar.")
 	out.line("")
 	go readConsole(ctx, os.Stdin, func(command string) {
@@ -146,7 +149,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 // consoleListener prints what happens in the session.
 type consoleListener struct {
 	out    *printer
-	names  lineNamesPair
+	names  ptbr.LineNames
 	labels [2]string
 }
 
@@ -155,7 +158,7 @@ func (l *consoleListener) SubtitlesChanged(position time.Duration, visible sessi
 }
 
 func (l *consoleListener) Synced(line session.Line, offset subtitle.Offset) {
-	l.out.line("Sincronia: %s", l.names.notice(line, offset))
+	l.out.line("Sincronia: %s", l.names.Notice(line, offset))
 }
 
 func parsePlayOptions(args []string) (playOptions, error) {
