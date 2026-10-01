@@ -43,6 +43,12 @@ var (
 	procGetThreadDpiAwarenessContext  = user32.NewProc("GetThreadDpiAwarenessContext")
 	procAreDpiAwarenessContextsEqual  = user32.NewProc("AreDpiAwarenessContextsEqual")
 	procPeekMessageW                  = user32.NewProc("PeekMessageW")
+	procSetTimer                      = user32.NewProc("SetTimer")
+	procKillTimer                     = user32.NewProc("KillTimer")
+	procRegisterHotKey                = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey              = user32.NewProc("UnregisterHotKey")
+	procGetForegroundWindow           = user32.NewProc("GetForegroundWindow")
+	procGetAsyncKeyState              = user32.NewProc("GetAsyncKeyState")
 	procCreateCompatibleDC            = gdi32.NewProc("CreateCompatibleDC")
 	procCreateDIBSection              = gdi32.NewProc("CreateDIBSection")
 	procSelectObject                  = gdi32.NewProc("SelectObject")
@@ -58,7 +64,20 @@ const (
 	WM_CLOSE         = 0x0010
 	WM_NCHITTEST     = 0x0084
 	WM_MOUSEACTIVATE = 0x0021
+	WM_HOTKEY        = 0x0312
+	WM_TIMER         = 0x0113
 	WM_APP           = 0x8000
+
+	// HWND_MESSAGE is the parent of message-only windows: never shown, they
+	// only receive messages.
+	HWND_MESSAGE = windows.HWND(^uintptr(2)) // -3
+
+	MOD_ALT     = 0x0001
+	MOD_CONTROL = 0x0002
+	MOD_SHIFT   = 0x0004
+
+	VK_OEM_COMMA  = 0xBC
+	VK_OEM_PERIOD = 0xBE
 
 	HTTRANSPARENT = ^uintptr(0) // -1
 	MA_NOACTIVATE = 3
@@ -86,6 +105,7 @@ const (
 
 // WinEvent constants.
 const (
+	EVENT_SYSTEM_FOREGROUND     = 0x0003
 	EVENT_SYSTEM_MINIMIZESTART  = 0x0016
 	EVENT_SYSTEM_MINIMIZEEND    = 0x0017
 	EVENT_OBJECT_DESTROY        = 0x8001
@@ -336,6 +356,45 @@ func SetWinEventHook(eventMin, eventMax uint32, processID uint32, callback uintp
 // UnhookWinEvent removes a hook.
 func UnhookWinEvent(hook windows.Handle) {
 	procUnhookWinEvent.Call(uintptr(hook))
+}
+
+// SetTimer starts or restarts a window timer that posts WM_TIMER with the id.
+func SetTimer(hwnd windows.HWND, id uintptr, milliseconds uint32) error {
+	if r, _, err := procSetTimer.Call(uintptr(hwnd), id, uintptr(milliseconds), 0); r == 0 {
+		return callErr(err)
+	}
+	return nil
+}
+
+// KillTimer stops a window timer; stopping one that is not running is harmless.
+func KillTimer(hwnd windows.HWND, id uintptr) {
+	procKillTimer.Call(uintptr(hwnd), id)
+}
+
+// RegisterHotKey makes a key combination post WM_HOTKEY with the id to the
+// window, and keeps it from reaching other programs, until unregistered.
+func RegisterHotKey(hwnd windows.HWND, id int32, modifiers, key uint32) error {
+	if r, _, err := procRegisterHotKey.Call(uintptr(hwnd), uintptr(id), uintptr(modifiers), uintptr(key)); r == 0 {
+		return callErr(err)
+	}
+	return nil
+}
+
+// UnregisterHotKey releases a key combination registered by the window.
+func UnregisterHotKey(hwnd windows.HWND, id int32) {
+	procUnregisterHotKey.Call(uintptr(hwnd), uintptr(id))
+}
+
+// ForegroundWindow returns the window the user is working in, or zero.
+func ForegroundWindow() windows.HWND {
+	r, _, _ := procGetForegroundWindow.Call()
+	return windows.HWND(r)
+}
+
+// KeyDown reports whether a key is physically down now.
+func KeyDown(key uint32) bool {
+	r, _, _ := procGetAsyncKeyState.Call(uintptr(key))
+	return r&0x8000 != 0
 }
 
 // UpdateLayered shows a premultiplied 32-bit bitmap as the whole content of a

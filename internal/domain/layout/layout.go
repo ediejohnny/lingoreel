@@ -65,6 +65,8 @@ type Input struct {
 	Layout      appearance.Layout
 	Primary     Text
 	Translation Text
+	// Notice is a short message for the top left corner of the picture.
+	Notice Text
 }
 
 // Line is one wrapped line of text; X and Y are its top left corner.
@@ -89,6 +91,7 @@ type Block struct {
 type Frame struct {
 	Primary     *Block
 	Translation *Block
+	Notice      *Block
 }
 
 // Compute places both subtitles. The primary is placed from its own style
@@ -112,7 +115,29 @@ func Compute(in Input, m Measurer) Frame {
 	if primary != nil && translation != nil {
 		placeTranslation(primary, translation, area, m)
 	}
-	return Frame{Primary: primary.finish(area), Translation: translation.finish(area)}
+	return Frame{Primary: primary.finish(area), Translation: translation.finish(area), Notice: placeNotice(in, m)}
+}
+
+const (
+	// noticeMargin keeps the notice off the picture's edges, as a share of
+	// its height.
+	noticeMargin = 0.03
+	// noticeMaxWidth is the most of the picture width the notice may take.
+	noticeMaxWidth = 0.6
+)
+
+// placeNotice puts the notice in the top left corner of the picture, away
+// from the subtitles, whatever their margins.
+func placeNotice(in Input, m Measurer) *Block {
+	video := in.Video
+	margin := noticeMargin * video.H
+	area := Rect{X: video.X + margin, Y: video.Y + margin, W: noticeMaxWidth * video.W, H: math.Max(video.H-2*margin, 0)}
+	notice := wrapBlock(in.Notice, in, area, m)
+	if notice == nil {
+		return nil
+	}
+	notice.bottom = clampBottom(area.Y+notice.height(), notice.height(), area)
+	return notice.finish(area)
 }
 
 // shaped is a block whose lines are wrapped but not yet placed vertically.

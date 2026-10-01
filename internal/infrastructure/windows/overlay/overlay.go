@@ -37,6 +37,11 @@ const (
 	// player ties the overlay's thread to the player's: a hung player can
 	// block it, and the session must not hang with it.
 	uiTimeout = 3 * time.Second
+	// noticeDuration is how long a notice stays, counted on the wall clock:
+	// it is about the user's action, not about the video.
+	noticeDuration = 1500 * time.Millisecond
+	// noticeTimer identifies the window timer that removes the notice.
+	noticeTimer = 1
 )
 
 // Options configures an overlay.
@@ -76,6 +81,7 @@ type Overlay struct {
 	dpi     int
 	shown   bool
 	content session.Screen
+	notice  string
 
 	done     chan struct{}
 	doneOnce sync.Once
@@ -124,6 +130,12 @@ func (t *callbackTable) takeWindow(window windows.HWND) *Overlay {
 	return o
 }
 
+func (t *callbackTable) window(window windows.HWND) *Overlay {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.windows[window]
+}
+
 func (t *callbackTable) hook(hook windows.Handle) *Overlay {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -147,6 +159,7 @@ var (
 	winEventProc      = syscall.NewCallback(dispatchWinEvent)
 	callbacks         = &callbackTable{windows: map[windows.HWND]*Overlay{}, hooks: map[windows.Handle]*Overlay{}}
 	classNameUTF16, _ = windows.UTF16PtrFromString(className)
+	noticeStyle       = appearance.NoticeStyle()
 )
 
 // Open waits for the player's video window and puts the overlay over it.
@@ -318,6 +331,34 @@ func (o *Overlay) drawPending() {
 	}
 }
 
+// Notify shows a notice in the top left corner of the video for
+// noticeDuration; a new notice replaces the current one and starts the time
+// again. Like Show, it never waits for the drawing.
+func (o *Overlay) Notify(text string) error {
+	return o.thread.Post(func() {
+		if o.window == 0 {
+			return
+		}
+		o.notice = text
+		err := o.redraw()
+		if err == nil {
+			err = win32.SetTimer(o.window, noticeTimer, uint32(noticeDuration/time.Millisecond))
+		}
+		if err != nil {
+			o.logger.Warn("overlay could not show a notice", "error", err)
+		}
+	})
+}
+
+// clearNotice runs on the UI thread when the notice's time is up.
+func (o *Overlay) clearNotice() {
+	win32.KillTimer(o.window, noticeTimer)
+	o.notice = ""
+	if err := o.redraw(); err != nil {
+		o.logger.Warn("overlay could not remove a notice", "error", err)
+	}
+}
+
 // Done is closed when the player window goes away.
 func (o *Overlay) Done() <-chan struct{} {
 	return o.done
@@ -454,8 +495,12 @@ func (o *Overlay) redraw() error {
 		Layout:      o.options.Layout,
 		Primary:     layout.Text{Style: o.options.Primary, Content: o.content.Primary},
 		Translation: layout.Text{Style: o.options.Translation, Content: o.content.Translation},
+		Notice:      layout.Text{Style: noticeStyle, Content: o.notice},
 	}, o.renderer)
-	look := gdiplus.Look{Primary: o.options.Primary, Translation: o.options.Translation, TranslationVisible: o.content.TranslationVisible}
+	look := gdiplus.Look{
+		Primary: o.options.Primary, Translation: o.options.Translation,
+		TranslationVisible: o.content.TranslationVisible, Notice: noticeStyle,
+	}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
 		return fmt.Errorf("drawing the subtitles: %w", err)
 	}
@@ -476,6 +521,11 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 		return win32.HTTRANSPARENT
 	case win32.WM_MOUSEACTIVATE:
 		return win32.MA_NOACTIVATE
+	case win32.WM_TIMER:
+		if o := callbacks.window(hwnd); o != nil && wparam == noticeTimer {
+			o.clearNotice()
+			return 0
+		}
 	case win32.WM_DESTROY:
 		if o := callbacks.takeWindow(hwnd); o != nil {
 			// The system destroys owned windows with their owner: the player

@@ -80,6 +80,26 @@ func DefaultPrimaryStyle() SubtitleStyle {
 	return style
 }
 
+// noticeBackgroundAlpha keeps the notice box discreet over the picture.
+const noticeBackgroundAlpha = 0xA0
+
+// NoticeStyle is the look of the short notices drawn in a corner of the
+// video, such as which subtitle a sync shortcut moved: small, plain text on
+// a see-through dark box, far from the subtitles (DESIGN: the overlay shows
+// only subtitles, except these notices).
+func NoticeStyle() SubtitleStyle {
+	return SubtitleStyle{
+		FontFamily: "Segoe UI",
+		FontSize:   22,
+		SizeMode:   SizeResponsive,
+		Color:      white,
+		Opacity:    1,
+		Background: Background{Enabled: true, Color: black.WithAlpha(noticeBackgroundAlpha), Padding: 8},
+		Alignment:  AlignLeft,
+		MaxLines:   2,
+	}
+}
+
 // translationOpacity keeps the translation a step behind the primary line.
 const translationOpacity = 0.9
 

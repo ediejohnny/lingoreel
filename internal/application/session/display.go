@@ -14,6 +14,10 @@ type Screen struct {
 type Display interface {
 	// Show replaces what is on screen without waiting for the drawing.
 	Show(screen Screen) error
+	// Notify shows a short notice in a corner of the video for a moment,
+	// such as which subtitle a sync shortcut moved; a new notice replaces
+	// the one on screen. It does not wait for the drawing.
+	Notify(text string) error
 	// Done is closed when the player's window goes away.
 	Done() <-chan struct{}
 	Close() error

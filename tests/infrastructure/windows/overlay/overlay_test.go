@@ -565,6 +565,75 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 	}
 }
 
+// A notice shows in the top left corner and leaves by itself after 1.5 s,
+// counted from the latest notice.
+func TestNoticeShowsAndLeavesByItself(t *testing.T) {
+	player := launchFakePlayer(t, true)
+	screen, err := overlay.Open(t.Context(), overlay.Options{
+		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
+		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer screen.Close()
+	found := overlayWindows()
+	if len(found) != 1 {
+		t.Fatalf("found %d overlay windows, want 1", len(found))
+	}
+	owner, _, _ := procGetWindow.Call(uintptr(found[0]), gwOwner)
+	target := windows.HWND(owner)
+	settle := func() []byte {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		skipIfCovered(t, target)
+		previous := captureClient(t, target)
+		for {
+			time.Sleep(100 * time.Millisecond)
+			shot := captureClient(t, target)
+			if changedPixels(previous, shot) == 0 {
+				return shot
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("the screen over the player never settled")
+			}
+			previous = shot
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+	blank := settle()
+
+	start := time.Now()
+	if err := screen.Notify("Legenda de cima (inglês): −0,150 s"); err != nil {
+		t.Fatalf("Notify: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	shown := settle()
+	if changed := changedPixels(blank, shown); changed < 100 {
+		t.Fatalf("only %d pixels changed: the notice did not reach the screen (%s)", changed, windowFacts(found[0], target))
+	}
+	// A second notice before the first leaves restarts the time.
+	time.Sleep(800 * time.Millisecond)
+	if err := screen.Notify("Legenda de cima (inglês): −0,200 s"); err != nil {
+		t.Fatalf("Notify: %v", err)
+	}
+	restarted := time.Now()
+	time.Sleep(1000 * time.Millisecond) // 1.8 s after the first, 1.0 s after the second
+	if changed := changedPixels(blank, captureClient(t, target)); changed < 100 {
+		t.Fatalf("the notice left %v after the first one, though a second came %v later", time.Since(start), restarted.Sub(start))
+	}
+	deadline := restarted.Add(3 * time.Second)
+	for changedPixels(blank, captureClient(t, target)) != 0 {
+		if time.Now().After(deadline) {
+			t.Fatalf("the notice was still on screen 3 s after the last one (%s)", windowFacts(found[0], target))
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if left := time.Since(restarted); left < 1400*time.Millisecond {
+		t.Fatalf("the notice left %v after the last one, want about 1.5 s", left)
+	}
+}
+
 // A hung player blocks the thread of a window it owns. Show must still return
 // at once (the session keeps running) and Close must give up in bounded time
 // instead of hanging the app, which is what a real hang did in development.

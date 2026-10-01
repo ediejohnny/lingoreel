@@ -30,6 +30,7 @@ type Look struct {
 	Primary            appearance.SubtitleStyle
 	Translation        appearance.SubtitleStyle
 	TranslationVisible bool
+	Notice             appearance.SubtitleStyle
 }
 
 // Renderer measures and draws subtitle text. It is not safe for concurrent
@@ -199,7 +200,12 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 		}
 	}
 	if frame.Translation != nil && look.TranslationVisible {
-		return r.drawBlock(canvas, target, frame.Translation, look.Translation)
+		if err := r.drawBlock(canvas, target, frame.Translation, look.Translation); err != nil {
+			return err
+		}
+	}
+	if frame.Notice != nil {
+		return r.drawBlock(canvas, target, frame.Notice, look.Notice)
 	}
 	return nil
 }
