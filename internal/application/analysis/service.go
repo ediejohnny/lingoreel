@@ -118,7 +118,7 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		hints := media.HintsFromFileName(path, videoPath)
+		hints := media.HintsFromFileName(filepath.Base(path), filepath.Base(videoPath))
 		track := media.Track{
 			Number: media.ExternalTrackBase + uint64(i), Type: media.TrackSubtitle,
 			Name: filepath.Base(path), Path: path, Language: hints.Language,

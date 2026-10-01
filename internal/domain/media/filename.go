@@ -1,7 +1,6 @@
 package media
 
 import (
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -27,9 +26,11 @@ var (
 // not read "quillon" or "2020"). Codes ("en", "por", "pt-BR", "pt_br") and
 // language names in English or Portuguese are recognized; "hi" means hearing
 // impaired, as in release names, not Hindi.
+//
+// Both are file names without their folders.
 func HintsFromFileName(fileName, videoName string) FileHints {
-	name := strings.TrimSuffix(filepath.Base(fileName), filepath.Ext(fileName))
-	video := strings.TrimSuffix(filepath.Base(videoName), filepath.Ext(videoName))
+	name := withoutExtension(fileName)
+	video := withoutExtension(videoName)
 	if video != "" && len(name) >= len(video) && strings.EqualFold(name[:len(video)], video) {
 		name = name[len(video):]
 	}
@@ -98,4 +99,12 @@ func regionToken(token string) string {
 		return token
 	}
 	return ""
+}
+
+// withoutExtension drops what follows the last dot of a file name.
+func withoutExtension(name string) string {
+	if dot := strings.LastIndexByte(name, '.'); dot >= 0 {
+		return name[:dot]
+	}
+	return name
 }

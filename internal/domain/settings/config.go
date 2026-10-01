@@ -5,7 +5,6 @@ package settings
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -67,8 +66,10 @@ func (c Config) Validate() error {
 		if !playerIDPattern.MatchString(playerID) {
 			return fmt.Errorf("%w: player id %q", ErrInvalidSettings, playerID)
 		}
-		if !filepath.IsAbs(path) || !strings.EqualFold(filepath.Ext(path), ".exe") {
-			return fmt.Errorf("%w: player path for %q must be an absolute .exe path", ErrInvalidSettings, playerID)
+		// Whether it is an absolute .exe path is an operating system rule,
+		// checked where the settings are stored (settingsfile).
+		if strings.TrimSpace(path) == "" {
+			return fmt.Errorf("%w: empty player path for %q", ErrInvalidSettings, playerID)
 		}
 	}
 	for _, playerID := range c.InstallRecommendations.Dismissed {
