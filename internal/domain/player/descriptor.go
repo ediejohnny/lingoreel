@@ -45,8 +45,14 @@ type Install struct {
 	Benefit string
 }
 
-// wingetIDPattern is the shape of a winget package id: "VideoLAN.VLC".
+// wingetIDPattern is the shape of a winget package id: "VideoLAN.VLC". It
+// never starts with a dash, so it cannot become a command-line option.
 var wingetIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_-]{0,99}$`)
+
+// ValidWingetID reports a winget package id safe to install.
+func ValidWingetID(id string) bool {
+	return wingetIDPattern.MatchString(id)
+}
 
 // Validate checks every field a plugin must fill.
 func (d Descriptor) Validate() error {
@@ -57,7 +63,7 @@ func (d Descriptor) Validate() error {
 		return fmt.Errorf("%w: %s has no usable name", ErrInvalidDescriptor, d.ID)
 	case !usableText(d.Install.Benefit):
 		return fmt.Errorf("%w: %s has no usable benefit text", ErrInvalidDescriptor, d.ID)
-	case d.Install.WingetID != "" && !wingetIDPattern.MatchString(d.Install.WingetID):
+	case d.Install.WingetID != "" && !ValidWingetID(d.Install.WingetID):
 		return fmt.Errorf("%w: %s winget id %q", ErrInvalidDescriptor, d.ID, d.Install.WingetID)
 	}
 	link, err := url.Parse(d.Install.DownloadURL)
