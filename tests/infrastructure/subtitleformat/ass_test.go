@@ -40,6 +40,21 @@ func TestASSParsesDialogueAndStripsOverrides(t *testing.T) {
 	}
 }
 
+// In ASS, \N always breaks the line, but the lowercase \n is a soft break:
+// it only breaks under WrapStyle 2 and reads as a space otherwise.
+func TestASSLowercaseBreakFollowsTheWrapStyle(t *testing.T) {
+	events := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,one\\ntwo\\Nthree\n"
+
+	soft := mustParse(t, subtitleformat.ASSParser{}, "[Script Info]\nWrapStyle: 0\n\n"+events)
+	assertEvents(t, soft.Events, []wantEvent{{1_000, 2_000, "one two\nthree"}})
+
+	noStyle := mustParse(t, subtitleformat.ASSParser{}, events)
+	assertEvents(t, noStyle.Events, []wantEvent{{1_000, 2_000, "one two\nthree"}})
+
+	hard := mustParse(t, subtitleformat.ASSParser{}, "[Script Info]\nwrapstyle:  2 \n\n"+events)
+	assertEvents(t, hard.Events, []wantEvent{{1_000, 2_000, "one\ntwo\nthree"}})
+}
+
 func TestASSHonorsCustomFormatOrder(t *testing.T) {
 	document := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.5,0:00:02.25,text, with, commas\n"
 
