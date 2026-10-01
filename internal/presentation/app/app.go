@@ -1,0 +1,201 @@
+// Package app is the Go side of the app window: the API the screens call and
+// the events they receive. It only translates between the screens and the use
+// cases (analysis, watch, players, settings); the rules live below it.
+package app
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"sync"
+
+	"lingoreel/internal/application/analysis"
+	"lingoreel/internal/application/players"
+	"lingoreel/internal/application/watch"
+	"lingoreel/internal/domain/media"
+	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/settings"
+)
+
+// Events sent to the window.
+const (
+	EventVideoDropped = "video:dropped"
+	EventPlayback     = "playback:state"
+	EventEnded        = "playback:ended"
+	EventInstall      = "player:install"
+)
+
+// UI is what the app needs from the window toolkit, so the API can be tested
+// without a window.
+type UI interface {
+	Emit(event string, data any)
+	// OpenVideoDialog asks for a video file; empty when cancelled.
+	OpenVideoDialog() (string, error)
+	OpenURL(url string)
+}
+
+// Settings stores the preferences.
+type Settings interface {
+	LoadConfig() (settings.Config, error)
+	SaveConfig(settings.Config) error
+	LoadProfiles() (settings.Profiles, error)
+	SaveProfiles(settings.Profiles) error
+}
+
+// Installer installs players.
+type Installer interface {
+	Available() bool
+	Install(ctx context.Context, packageID string) error
+}
+
+// Deps are the pieces the composition root wires in.
+type Deps struct {
+	Service  *analysis.Service
+	Registry *players.Registry
+	// Detect lists the players on the computer; configured are the paths
+	// the user set for some of them.
+	Detect    func(configured map[player.ID]string) []player.Installation
+	Ports     watch.Ports
+	Settings  Settings
+	Installer Installer
+	// Window places the player's window for a video; nil leaves it to the player.
+	Window func(info media.Info) player.Placement
+	// InitialVideo is the file the app was opened with, if any.
+	InitialVideo string
+	Logger       *slog.Logger
+}
+
+// API is bound to the window: every exported method is callable from the
+// screens.
+type API struct {
+	deps   Deps
+	logger *slog.Logger
+
+	mu       sync.Mutex
+	ctx      context.Context
+	ui       UI
+	config   settings.Config
+	profiles settings.Profiles
+	video    *analysis.Analysis
+	watching *watching
+	initial  string
+}
+
+// Lifecycle connects the API to the window. It is kept apart from the API so
+// the screens cannot call it.
+type Lifecycle struct {
+	api *API
+}
+
+// ErrNotReady reports a call before the window started.
+var ErrNotReady = errors.New("the app window is not ready")
+
+// New creates the API and its lifecycle.
+func New(deps Deps) (*API, Lifecycle) {
+	logger := deps.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	api := &API{
+		deps: deps, logger: logger, initial: deps.InitialVideo,
+		config: settings.DefaultConfig(), profiles: settings.DefaultProfiles(),
+	}
+	return api, Lifecycle{api: api}
+}
+
+// InitialVideo returns, once, the video the app was opened with (a double
+// click on a video file); empty otherwise.
+func (a *API) InitialVideo() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	path := a.initial
+	a.initial = ""
+	return path
+}
+
+// Attach starts the API for a window: it loads the settings, keeping the
+// defaults when the files are damaged (the problem is logged, never fatal).
+func (l Lifecycle) Attach(ctx context.Context, ui UI) {
+	a := l.api
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.ctx, a.ui = ctx, ui
+	if a.deps.Settings == nil {
+		return
+	}
+	if config, err := a.deps.Settings.LoadConfig(); err != nil {
+		a.logger.Warn("settings could not be read; using the defaults", "error", err)
+	} else {
+		a.config = config
+	}
+	if profiles, err := a.deps.Settings.LoadProfiles(); err != nil {
+		a.logger.Warn("profiles could not be read; using the defaults", "error", err)
+	} else {
+		a.profiles = profiles
+	}
+}
+
+// Dropped handles files dropped on the window: the first one goes to the
+// screens, which analyze it.
+func (l Lifecycle) Dropped(paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	l.api.emit(EventVideoDropped, paths[0])
+}
+
+// Shutdown ends a running session when the window closes.
+func (l Lifecycle) Shutdown() {
+	// The window is closing: a failure to end the session has no one to tell.
+	_ = l.api.StopWatching()
+}
+
+func (a *API) emit(event string, data any) {
+	a.mu.Lock()
+	ui := a.ui
+	a.mu.Unlock()
+	if ui != nil {
+		ui.Emit(event, data)
+	}
+}
+
+// context returns the window's context, or ErrNotReady before Attach.
+func (a *API) context() (context.Context, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.ctx == nil {
+		return nil, ErrNotReady
+	}
+	return a.ctx, nil
+}
+
+// profile is the active study profile.
+func (a *API) profile() settings.Profile {
+	if profile, found := a.profiles.Find(a.config.ActiveProfile); found {
+		return profile
+	}
+	return settings.DefaultProfile()
+}
+
+// saveConfig writes the configuration; a failure is logged and reported.
+func (a *API) saveConfig() error {
+	if a.deps.Settings == nil {
+		return nil
+	}
+	if err := a.deps.Settings.SaveConfig(a.config); err != nil {
+		a.logger.Warn("settings could not be saved", "error", err)
+		return errors.New("Não foi possível salvar as configurações.")
+	}
+	return nil
+}
+
+func (a *API) saveProfiles() error {
+	if a.deps.Settings == nil {
+		return nil
+	}
+	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil {
+		a.logger.Warn("profiles could not be saved", "error", err)
+		return errors.New("Não foi possível salvar o perfil.")
+	}
+	return nil
+}
