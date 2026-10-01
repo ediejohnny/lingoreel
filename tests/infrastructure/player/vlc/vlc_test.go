@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	appsession "lingoreel/internal/application/session"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/player/discovery"
@@ -350,6 +351,64 @@ func TestVLCIntegration(t *testing.T) {
 	}
 	if err := session.Err(); err != nil {
 		t.Fatalf("Err after a normal Close = %v, want nil", err)
+	}
+}
+
+// M10 (RNF-006): how far the session clock drifts from VLC between reports.
+// VLC 3's own time is an estimate, so this measures our extrapolation against
+// VLC's next report (at 1x, 2x and 0.75x), not the true error on screen; mpv,
+// which reports exact positions, gets the absolute measurement (F11).
+func TestVLCClockStaysCloseToVLCsReports(t *testing.T) {
+	executable, video := realVLC(t)
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+
+	clock := appsession.NewClock(playback.PrecisionEstimated, time.Now)
+	var errors []time.Duration
+	measure := func(speed playback.Speed, length time.Duration) {
+		if speed != 1 {
+			if err := session.SetSpeed(speed); err != nil {
+				t.Fatalf("SetSpeed(%v): %v", speed, err)
+			}
+			clock.SetSpeed(speed)
+		}
+		settleUntil := time.Now().Add(time.Second) // VLC takes a moment to apply the speed
+		deadline := time.Now().Add(length)
+		last := time.Duration(-1)
+		for time.Now().Before(deadline) {
+			sample, open := <-session.Samples()
+			if !open {
+				t.Fatal("VLC stopped reporting")
+			}
+			fresh := sample.Position != last
+			last = sample.Position
+			if fresh && sample.Status == playback.StatusPlaying && time.Now().After(settleUntil) {
+				state := clock.State()
+				predicted := state.Position - time.Duration(float64(time.Since(sample.ObservedAt))*float64(state.Speed))
+				errors = append(errors, (predicted - sample.Position).Abs())
+			}
+			clock.Observe(sample)
+		}
+	}
+	measure(1, 5*time.Second)
+	measure(2, 3*time.Second)
+	measure(0.75, 3*time.Second)
+
+	if len(errors) < 10 {
+		t.Fatalf("only %d comparisons; VLC reported too rarely", len(errors))
+	}
+	slices.Sort(errors)
+	p50, p95, worst := errors[len(errors)/2], errors[len(errors)*95/100], errors[len(errors)-1]
+	t.Logf("clock vs VLC over %d reports: p50 %v, p95 %v, worst %v", len(errors), p50, p95, worst)
+	// Measured on 2026-10-01 (VLC 3.0.23, three runs): p50 33-36 ms, p95
+	// 101-105 ms, worst 102-129 ms. The median meets RNF-006 (< 50 ms); the
+	// tail does not, because VLC's own reports jitter. The ceilings catch a
+	// regression with room for a loaded machine.
+	if p50 > 60*time.Millisecond || p95 > 200*time.Millisecond {
+		t.Fatalf("clock drifted from VLC: p50 %v (max 60ms), p95 %v (max 200ms)", p50, p95)
 	}
 }
 
