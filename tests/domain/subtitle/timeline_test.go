@@ -206,6 +206,33 @@ func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
 	}
 }
 
+// RNF-015 with a pass/fail line: 50,000 events and 100,000 lookups. The index
+// does this in milliseconds; scanning every event per lookup would take
+// billions of steps. The ceiling is generous (race detector, loaded machine).
+func TestFiftyThousandEventsStayFast(t *testing.T) {
+	const count, lookups = 50_000, 100_000
+	events := make([]subtitle.Event, 0, count)
+	for i := range count {
+		start := i * 2_500
+		events = append(events, event(fmt.Sprint(i), start, start+2_000))
+	}
+	started := time.Now()
+	timeline := mustTimeline(t, events...)
+	random := rand.New(rand.NewSource(11))
+	for range lookups {
+		at := random.Intn(count * 2_500)
+		active := timeline.ActiveAt(ms(at))
+		// Oracle: event i covers [2500 i, 2500 i + 2000).
+		inside := at%2_500 < 2_000
+		if inside != (len(active) == 1) || (inside && active[0].ID != fmt.Sprint(at/2_500)) {
+			t.Fatalf("ActiveAt(%d ms) = %d events", at, len(active))
+		}
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("building and querying took %v, want under 2 s", elapsed)
+	}
+}
+
 func BenchmarkActiveAt50kEvents(b *testing.B) {
 	events := make([]subtitle.Event, 0, 50_000)
 	for i := range 50_000 {
