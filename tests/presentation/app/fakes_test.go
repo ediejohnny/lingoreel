@@ -45,14 +45,30 @@ type fakeRunning struct {
 	samples chan playback.Sample
 	once    sync.Once
 	paused  int
+	mu      sync.Mutex
+	seeks   []time.Duration
+}
+
+func (r *fakeRunning) lastSeek() (time.Duration, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.seeks) == 0 {
+		return 0, false
+	}
+	return r.seeks[len(r.seeks)-1], true
 }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact}
 }
-func (r *fakeRunning) Play() error                     { return nil }
-func (r *fakeRunning) Pause() error                    { r.paused++; return nil }
-func (r *fakeRunning) SeekTo(time.Duration) error      { return nil }
+func (r *fakeRunning) Play() error  { return nil }
+func (r *fakeRunning) Pause() error { r.paused++; return nil }
+func (r *fakeRunning) SeekTo(at time.Duration) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.seeks = append(r.seeks, at)
+	return nil
+}
 func (r *fakeRunning) SetSpeed(playback.Speed) error   { return nil }
 func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no") }
 func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }

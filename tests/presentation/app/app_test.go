@@ -2,8 +2,10 @@ package app_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/presentation/app"
@@ -118,6 +120,33 @@ func TestWatchAndControlTheSession(t *testing.T) {
 	}
 	if err := r.api.TogglePause(); err == nil {
 		t.Fatal("a command worked without a session")
+	}
+}
+
+func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.SeekTo(95.5); err != nil {
+		t.Fatal(err)
+	}
+	if at, _ := r.plugin.current().lastSeek(); at != 95500*time.Millisecond {
+		t.Fatalf("SeekTo(95.5) reached the player as %v", at)
+	}
+	// A day or more, infinities and NaN from the window become position 0,
+	// never an overflowed duration.
+	for _, hostile := range []float64{86400, -86400, math.Inf(1), math.NaN(), 1e300} {
+		if err := r.api.SeekTo(hostile); err != nil {
+			t.Fatal(err)
+		}
+		if at, _ := r.plugin.current().lastSeek(); at != 0 {
+			t.Errorf("SeekTo(%v) reached the player as %v, want 0", hostile, at)
+		}
 	}
 }
 
