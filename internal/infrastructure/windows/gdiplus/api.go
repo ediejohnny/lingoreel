@@ -52,6 +52,13 @@ var (
 	procFillRectangle            = dll.NewProc("GdipFillRectangle")
 	procTranslateWorldTransform  = dll.NewProc("GdipTranslateWorldTransform")
 	procResetWorldTransform      = dll.NewProc("GdipResetWorldTransform")
+	procAddPathEllipse           = dll.NewProc("GdipAddPathEllipse")
+	procAddPathPolygon           = dll.NewProc("GdipAddPathPolygon")
+	procAddPathLine              = dll.NewProc("GdipAddPathLine")
+	procAddPathArc               = dll.NewProc("GdipAddPathArc")
+	procStartPathFigure          = dll.NewProc("GdipStartPathFigure")
+	procClosePathFigure          = dll.NewProc("GdipClosePathFigure")
+	procSetPenLineCap            = dll.NewProc("GdipSetPenLineCap197819")
 )
 
 const (
@@ -60,6 +67,8 @@ const (
 	smoothingAntiAlias    = 4
 	fillModeWinding       = 1
 	lineJoinRound         = 2
+	lineCapRound          = 2
+	dashCapFlat           = 0
 	matrixOrderAppend     = 1
 
 	fontStyleBold   = 1
@@ -74,6 +83,13 @@ type Status uintptr
 
 func (s Status) Error() string { return fmt.Sprintf("GDI+ status %d", uintptr(s)) }
 
+// call runs a GDI+ function. Arguments are often pointers converted to
+// uintptr; like LazyProc.Call, the directive below moves what they point to
+// onto the heap and keeps it alive for the call. Without it a pointed value
+// could stay on a goroutine stack that moves, and GDI+ would write its
+// result (a new path's handle) to the old address.
+//
+//go:uintptrescapes
 func call(proc *windows.LazyProc, args ...uintptr) error {
 	r, _, _ := proc.Call(args...)
 	if r != 0 {
@@ -85,6 +101,8 @@ func call(proc *windows.LazyProc, args ...uintptr) error {
 func f32(v float64) uintptr { return uintptr(math.Float32bits(float32(v))) }
 
 type rectF struct{ X, Y, W, H float32 }
+
+type pointF struct{ X, Y float32 }
 
 type startupInput struct {
 	Version                  uint32
