@@ -53,6 +53,35 @@ func TestLoadMissingDocumentReturnsDefaultsWithoutCreatingIt(t *testing.T) {
 	}
 }
 
+// checked validates itself like the settings do: a negative limit is invalid.
+type checked struct {
+	Limit int `json:"limit"`
+}
+
+func (c checked) Validate() error {
+	if c.Limit < 0 {
+		return errors.New("limit must not be negative")
+	}
+	return nil
+}
+
+// A hand-edited document with bad values must not reach the app: Load returns
+// the defaults and says why (RNF-020).
+func TestLoadValidatesValuesThatCheckThemselves(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	store := jsonstore.New(path, 1, func() checked { return checked{Limit: 5} }, nil)
+
+	writeFile(t, path, `{"version": 1, "limit": -3}`)
+	got, err := store.Load()
+	if !errors.Is(err, jsonstore.ErrInvalid) || got.Limit != 5 {
+		t.Fatalf("Load() = %+v, %v; want the defaults and ErrInvalid", got, err)
+	}
+	writeFile(t, path, `{"version": 1, "limit": 9}`)
+	if got, err := store.Load(); err != nil || got.Limit != 9 {
+		t.Fatalf("Load() of a valid document = %+v, %v", got, err)
+	}
+}
+
 func TestSaveThenLoadRoundTrips(t *testing.T) {
 	store, path := newSampleStore(t, 3, nil)
 	want := sample{Name: "Inglês", Count: 0, Tags: []string{}, Extra: map[string]string{"k": "v"}}

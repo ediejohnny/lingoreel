@@ -131,31 +131,49 @@ func namedAfter(name, videoName string) bool {
 
 // Load reads and parses a subtitle file.
 func (Files) Load(path string) (subtitle.Format, media.SubtitleContent, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return "", media.SubtitleContent{}, err
-	}
-	if !info.Mode().IsRegular() {
-		return "", media.SubtitleContent{}, fmt.Errorf("%w: %s is not a file", ErrUnsupported, filepath.Base(path))
-	}
-	if info.Size() > subtitleformat.MaxInputBytes {
-		return "", media.SubtitleContent{}, fmt.Errorf("%w: %s has %d bytes", ErrTooLarge, filepath.Base(path), info.Size())
-	}
-	data, err := os.ReadFile(path)
+	name := filepath.Base(path)
+	data, err := readLimited(path)
 	if err != nil {
 		return "", media.SubtitleContent{}, err
 	}
 	format, ok := subtitleformat.DetectFormat(path, data)
 	if !ok {
-		return "", media.SubtitleContent{}, fmt.Errorf("%w: %s", ErrUnsupported, filepath.Base(path))
+		return "", media.SubtitleContent{}, fmt.Errorf("%w: %s", ErrUnsupported, name)
 	}
 	parser, err := subtitleformat.NewParser(format)
 	if err != nil {
-		return "", media.SubtitleContent{}, err
+		return "", media.SubtitleContent{}, fmt.Errorf("reading %s: %w", name, err)
 	}
 	result, err := parser.Parse(data)
 	if err != nil {
-		return "", media.SubtitleContent{}, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
+		return "", media.SubtitleContent{}, fmt.Errorf("reading %s: %w", name, err)
 	}
 	return format, media.SubtitleContent{Events: result.Events, Skipped: result.Skipped}, nil
+}
+
+// readLimited reads a regular file of at most the parsers' input limit. The
+// limit is enforced on the bytes read, not only on the size seen before
+// reading, so a file that grows in between cannot exceed it.
+func readLimited(path string) ([]byte, error) {
+	name := filepath.Base(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening %s: %w", name, err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("inspecting %s: %w", name, err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%w: %s is not a file", ErrUnsupported, name)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, subtitleformat.MaxInputBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", name, err)
+	}
+	if len(data) > subtitleformat.MaxInputBytes {
+		return nil, fmt.Errorf("%w: %s is larger than %d bytes", ErrTooLarge, name, subtitleformat.MaxInputBytes)
+	}
+	return data, nil
 }
