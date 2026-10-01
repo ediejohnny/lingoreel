@@ -53,7 +53,13 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --player <vlc>                 player preferido (por enquanto só o VLC é controlado)")
 	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
 	fmt.Fprintln(w, "      --pausado                      abre pausado")
+	fmt.Fprintln(w, "      --passo <ms>                   passo dos atalhos de sincronia (10 a 1000, padrão 50)")
 	fmt.Fprintln(w, "  overlay <vídeo> [opções]       como play, desenhando as legendas sobre o vídeo")
 	fmt.Fprintln(w, "  diag                           mostra monitores, escala e o roteiro de conferência")
 	fmt.Fprintln(w, "  help                           mostra esta ajuda")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Sincronia (play e overlay, com o player em foco):")
+	fmt.Fprintln(w, "  Shift+, / Shift+.   legenda de cima mais cedo / mais tarde")
+	fmt.Fprintln(w, "  Ctrl+, / Ctrl+.     legenda de baixo mais cedo / mais tarde")
+	fmt.Fprintln(w, "  segurar a tecla acelera; no console, z + Enter zera as duas")
 }

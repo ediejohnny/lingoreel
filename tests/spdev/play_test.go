@@ -47,6 +47,14 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 		{"início com vírgula aceito", []string{"play", missing, "--inicio", "2,5"}, os.ErrNotExist},
 		{"opções antes do vídeo", []string{"play", "--pausado", "--player", "VLC", missing}, os.ErrNotExist},
 		{"player desconhecido não barra a análise", []string{"play", missing, "--player", "xyz"}, os.ErrNotExist},
+		{"passo sem valor", []string{"play", missing, "--passo"}, spdev.ErrInvalidOption},
+		{"passo abaixo de 10 ms", []string{"play", missing, "--passo", "9"}, spdev.ErrInvalidOption},
+		{"passo acima de 1 s", []string{"play", missing, "--passo", "1001"}, spdev.ErrInvalidOption},
+		{"passo negativo", []string{"play", missing, "--passo", "-50"}, spdev.ErrInvalidOption},
+		{"passo com unidade", []string{"play", missing, "--passo", "50ms"}, spdev.ErrInvalidOption},
+		{"passo decimal", []string{"play", missing, "--passo", "50,5"}, spdev.ErrInvalidOption},
+		{"passo mínimo aceito", []string{"play", missing, "--passo", "10"}, os.ErrNotExist},
+		{"passo máximo aceito", []string{"play", missing, "--passo", "1000"}, os.ErrNotExist},
 		{"formato não suportado", []string{"play", "filme.txt"}, analysis.ErrUnsupportedFile},
 		// The sample lasts 20.052 s: starting at or past its end is refused
 		// after the analysis and before any player is looked for.
@@ -79,7 +87,7 @@ func TestHelpListsPlay(t *testing.T) {
 	if err := spdev.Run(t.Context(), []string{"help"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"play <vídeo>", "overlay <vídeo>", "--player", "--inicio", "--pausado"} {
+	for _, want := range []string{"play <vídeo>", "overlay <vídeo>", "--player", "--inicio", "--pausado", "--passo", "Shift+, / Shift+.", "Ctrl+, / Ctrl+."} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help does not mention %q:\n%s", want, out.String())
 		}

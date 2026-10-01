@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"lingoreel/internal/application/analysis"
@@ -213,12 +214,17 @@ func formatClock(d time.Duration) string {
 }
 
 // printer writes lines and keeps the first write error.
+// printer writes lines, keeping the first error. Lines may come from several
+// goroutines (the session and the shortcuts); err is read once they stopped.
 type printer struct {
+	mu  sync.Mutex
 	w   io.Writer
 	err error
 }
 
 func (p *printer) line(format string, args ...any) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.err == nil {
 		_, p.err = fmt.Fprintf(p.w, format+"\n", args...)
 	}
