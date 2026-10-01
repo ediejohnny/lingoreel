@@ -30,7 +30,9 @@ import (
 	"lingoreel/internal/infrastructure/windows/hotkeys"
 	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/placement"
+	"lingoreel/internal/infrastructure/windows/playerwindow"
 	"lingoreel/internal/presentation/app"
+	"lingoreel/internal/presentation/ptbr"
 )
 
 //go:embed all:frontend/dist
@@ -80,9 +82,12 @@ func run() error {
 		},
 		Ports: watch.Ports{
 			Service: service, Registry: registry,
+			OpenWindow: playerwindow.Opener(look, playerwindow.Labels{
+				Tip: ptbr.BarTip, Item: ptbr.BarItem, Time: ptbr.BarTime,
+			}, ptbr.WindowTitle, logger),
 			OpenDisplay: overlay.Opener(look, logger),
-			StartShortcuts: func(processID int) (watch.Shortcuts, error) {
-				return hotkeys.StartSync(processID, logger)
+			StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
+				return hotkeys.StartSync(target, logger)
 			},
 		},
 		Settings:  files,

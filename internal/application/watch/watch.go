@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,16 +49,58 @@ type Shortcuts interface {
 	Close() error
 }
 
+// ShortcutTarget is the player the sync shortcuts follow: the app's window
+// it draws into, or else (Window zero) any window of its process.
+type ShortcutTarget struct {
+	ProcessID int
+	Window    uintptr
+}
+
+// Remote is what the controls on the player window drive: the same
+// session the app's panel drives, so both always agree.
+type Remote interface {
+	State() playback.Sample
+	Controls() *session.Controls
+	HasTranslation() bool
+	TranslationVisible() bool
+	SetTranslationVisible(visible bool)
+}
+
+// Window is the app's own window a player draws its video into. It shows
+// the subtitles (it is the session's display) and its own controls over the
+// video, and closing it by any means ends the session.
+type Window interface {
+	session.Display
+	// Handle is the window the player draws into.
+	Handle() uintptr
+	// Closed is closed when the user closes the window.
+	Closed() <-chan struct{}
+	// Attach hands the window the session its controls drive, once the
+	// player shows the video.
+	Attach(remote Remote)
+}
+
+// WindowRequest describes the player window to open.
+type WindowRequest struct {
+	// Title names the video, usually its file name.
+	Title     string
+	Placement player.Placement
+	Info      media.Info
+}
+
 // Ports are the outside pieces a session uses; nil ones are left out.
 type Ports struct {
 	Service  *analysis.Service
 	Registry *players.Registry
-	// OpenDisplay puts the subtitle display over the player; nil shows
-	// nothing (the development tool prints instead).
+	// OpenWindow opens the app's window for players that draw into one
+	// (player.Descriptor.DrawsInHost); nil lets every player open its own.
+	OpenWindow func(ctx context.Context, request WindowRequest) (Window, error)
+	// OpenDisplay puts the subtitle display over a player's own window; nil
+	// shows nothing (the development tool prints instead).
 	OpenDisplay func(ctx context.Context, running players.Running, info media.Info) (session.Display, error)
-	// StartShortcuts listens to SyncShortcuts for the player's process; nil
-	// leaves the shortcuts off.
-	StartShortcuts func(processID int) (Shortcuts, error)
+	// StartShortcuts listens to SyncShortcuts while the player is in the
+	// foreground; nil leaves the shortcuts off.
+	StartShortcuts func(target ShortcutTarget) (Shortcuts, error)
 	Now            func() time.Time
 }
 
@@ -98,6 +141,8 @@ type Session struct {
 	listener  Listener
 	loaded    map[uint64]analysis.LoadedTrack
 	notice    func(session.Line, subtitle.Offset) string
+	// hasTranslation tells a translation track is loaded.
+	hasTranslation bool
 
 	translationVisible atomic.Bool
 	lastVisible        atomic.Pointer[session.Visible]
@@ -137,29 +182,41 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 		StartPaused: request.Paused, Start: request.Start, Window: request.Window,
 	}
 	launch.VideoWidth, _ = videoSize(info)
-	running, err := ports.Registry.Launch(ctx, request.Player, launch)
+	window, err := openWindow(ctx, ports, request)
 	if err != nil {
 		return nil, err
+	}
+	if window != nil {
+		launch.Host = window.Handle()
+	}
+	running, err := ports.Registry.Launch(ctx, request.Player, launch)
+	if err != nil {
+		return nil, errors.Join(err, closeWindow(window))
 	}
 
 	s := &Session{
 		running: running, listener: listener, loaded: loaded, notice: notice,
-		clock: session.NewClock(running.Capabilities().Precision, now),
-		done:  make(chan struct{}),
+		clock:          session.NewClock(running.Capabilities().Precision, now),
+		hasTranslation: request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil,
+		done:           make(chan struct{}),
 	}
 	s.translationVisible.Store(!request.TranslationHidden)
 	s.subtitles = session.NewSubtitles(trackOf(loaded, request.Tracks.Primary), trackOf(loaded, request.Tracks.Translation))
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 
-	if ports.OpenDisplay != nil {
+	target := ShortcutTarget{ProcessID: running.ProcessID()}
+	switch {
+	case window != nil:
+		s.display, target.Window = window, window.Handle()
+	case ports.OpenDisplay != nil:
 		if s.display, err = ports.OpenDisplay(ctx, running, info); err != nil {
 			return nil, errors.Join(fmt.Errorf("opening the subtitle display: %w", err), running.Close())
 		}
 	}
 	if ports.StartShortcuts != nil {
-		if s.shortcuts, err = ports.StartShortcuts(running.ProcessID()); err != nil {
-			return nil, errors.Join(fmt.Errorf("starting the sync shortcuts: %w", err), s.closeDisplay(), running.Close())
+		if s.shortcuts, err = ports.StartShortcuts(target); err != nil {
+			return nil, errors.Join(fmt.Errorf("starting the sync shortcuts: %w", err), running.Close(), s.closeDisplay())
 		}
 		go s.listenShortcuts()
 	}
@@ -168,7 +225,46 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.cancel = cancel
 	runner := session.NewRunner(s.clock, s.subtitles, s.changed, session.NewRealTimer)
 	go s.run(runCtx, runner)
+	if window != nil {
+		window.Attach(s)
+		go s.endWhenClosed(window.Closed())
+	}
 	return s, nil
+}
+
+// openWindow opens the app's window when the player draws into one.
+func openWindow(ctx context.Context, ports Ports, request Request) (Window, error) {
+	plugin, found := ports.Registry.Plugin(request.Player.ID)
+	if ports.OpenWindow == nil || !found || !plugin.Descriptor().DrawsInHost {
+		return nil, nil
+	}
+	window, err := ports.OpenWindow(ctx, WindowRequest{
+		Title: filepath.Base(request.Analysis.Path), Placement: request.Window, Info: request.Analysis.Info,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("opening the player window: %w", err)
+	}
+	return window, nil
+}
+
+func closeWindow(window Window) error {
+	if window == nil {
+		return nil
+	}
+	if err := window.Close(); err != nil {
+		return fmt.Errorf("closing the player window: %w", err)
+	}
+	return nil
+}
+
+// endWhenClosed ends the session when the user closes the player window:
+// the close button, Alt+F4 or the taskbar. It returns with the session.
+func (s *Session) endWhenClosed(closed <-chan struct{}) {
+	select {
+	case <-closed:
+		s.stopOnce.Do(s.cancel)
+	case <-s.done:
+	}
 }
 
 func (s *Session) run(ctx context.Context, runner *session.Runner) {
@@ -184,7 +280,8 @@ func (s *Session) run(ctx context.Context, runner *session.Runner) {
 	if s.shortcuts != nil {
 		shortcutsErr = s.shortcuts.Close()
 	}
-	s.err = errors.Join(err, shortcutsErr, s.closeDisplay(), s.running.Close())
+	// The player first: it may draw into the display's window.
+	s.err = errors.Join(err, shortcutsErr, s.running.Close(), s.closeDisplay())
 	close(s.done)
 }
 
@@ -253,6 +350,11 @@ func (s *Session) SetTranslationVisible(visible bool) {
 	if last := s.lastVisible.Load(); last != nil {
 		s.show(*last)
 	}
+}
+
+// HasTranslation tells whether the session shows a translation line.
+func (s *Session) HasTranslation() bool {
+	return s.hasTranslation
 }
 
 // TranslationVisible tells whether the translation is shown.

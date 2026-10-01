@@ -48,6 +48,9 @@ const (
 type Options struct {
 	// ProcessID is the player process whose video window is followed.
 	ProcessID int
+	// Target is a window of this process to cover instead, such as the
+	// window a player draws into; when set, ProcessID is not used.
+	Target uintptr
 	// VideoWidth and VideoHeight give the picture's aspect ratio, to keep the
 	// text inside the picture when the window has black bars; zero fills the
 	// window.
@@ -82,6 +85,8 @@ type Overlay struct {
 	shown   bool
 	content session.Screen
 	notice  string
+	// reserve is the height at the bottom kept free for the control bar.
+	reserve int
 
 	done     chan struct{}
 	doneOnce sync.Once
@@ -164,12 +169,16 @@ var (
 
 // Open waits for the player's video window and puts the overlay over it.
 func Open(ctx context.Context, options Options) (*Overlay, error) {
-	if options.ProcessID <= 0 {
-		return nil, fmt.Errorf("invalid player process id %d", options.ProcessID)
-	}
-	target, err := waitForTarget(ctx, uint32(options.ProcessID), cmp.Or(options.FindTimeout, defaultFindFor))
-	if err != nil {
-		return nil, fmt.Errorf("finding the player window: %w", err)
+	target := windows.HWND(options.Target)
+	if target == 0 {
+		if options.ProcessID <= 0 {
+			return nil, fmt.Errorf("invalid player process id %d", options.ProcessID)
+		}
+		found, err := waitForTarget(ctx, uint32(options.ProcessID), cmp.Or(options.FindTimeout, defaultFindFor))
+		if err != nil {
+			return nil, fmt.Errorf("finding the player window: %w", err)
+		}
+		target = found
 	}
 	thread, err := uithread.Start()
 	if err != nil {
@@ -287,7 +296,13 @@ func (o *Overlay) setup() error {
 		{win32.EVENT_SYSTEM_MINIMIZESTART, win32.EVENT_SYSTEM_MINIMIZEEND},
 		{win32.EVENT_OBJECT_DESTROY, win32.EVENT_OBJECT_LOCATIONCHANGE},
 	} {
-		hook, err := win32.SetWinEventHook(span[0], span[1], uint32(o.options.ProcessID), winEventProc)
+		var hook windows.Handle
+		var err error
+		if o.options.Target != 0 {
+			hook, err = win32.SetWinEventHookInProcess(span[0], span[1], winEventProc)
+		} else {
+			hook, err = win32.SetWinEventHook(span[0], span[1], uint32(o.options.ProcessID), winEventProc)
+		}
 		if err != nil {
 			return fmt.Errorf("following the player window: %w", err)
 		}
@@ -346,6 +361,21 @@ func (o *Overlay) Notify(text string) error {
 		}
 		if err != nil {
 			o.logger.Warn("overlay could not show a notice", "error", err)
+		}
+	})
+}
+
+// ReserveBottom keeps the subtitles above a band of the given height at the
+// bottom of the window, where the control bar shows; zero frees it. Like
+// Show, it never waits for the drawing.
+func (o *Overlay) ReserveBottom(pixels int) error {
+	return o.thread.Post(func() {
+		if o.window == 0 || o.reserve == max(pixels, 0) {
+			return
+		}
+		o.reserve = max(pixels, 0)
+		if err := o.redraw(); err != nil {
+			o.logger.Warn("overlay could not make room for the controls", "error", err)
 		}
 	})
 }
@@ -489,7 +519,12 @@ func (o *Overlay) redraw() error {
 	// the DPI of the monitor it is on, whatever the player's awareness.
 	o.dpi = win32.DpiForWindow(o.window)
 	area := layout.Rect{W: float64(width), H: float64(height)}
+	floor := 0.0
+	if o.reserve > 0 {
+		floor = float64(height - o.reserve)
+	}
 	frame := layout.Compute(layout.Input{
+		Floor:       floor,
 		Video:       layout.VideoRect(area, o.options.VideoWidth, o.options.VideoHeight),
 		DPI:         o.dpi,
 		Layout:      o.options.Layout,

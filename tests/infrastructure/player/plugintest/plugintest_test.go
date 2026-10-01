@@ -43,6 +43,8 @@ const (
 	ignoresCancel
 	leavesProcessWhenCancelled
 	samplesNeverClose
+	volumeWithoutMethod
+	claimsToDrawInHost
 )
 
 type fakePlugin struct {
@@ -67,6 +69,8 @@ func newFake(f flaw) *fakePlugin {
 	return &fakePlugin{flaw: f, descriptor: player.Descriptor{
 		ID: "fake", Name: "Fake",
 		Install: player.Install{DownloadURL: "https://example.org/fake", Benefit: "Só para testes."},
+		// The stand-in process has no window to put in the app's.
+		DrawsInHost: f == claimsToDrawInHost,
 	}}
 }
 
@@ -112,7 +116,8 @@ type fakeRunning struct {
 var errUnsupported = errors.New("not supported")
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
-	return playback.Capabilities{Pause: true, Seek: true, Speed: true, FrameStepForward: true, Precision: playback.PrecisionEstimated}
+	return playback.Capabilities{Pause: true, Seek: true, Speed: true, FrameStepForward: true, Precision: playback.PrecisionEstimated,
+		Volume: r.flaw == volumeWithoutMethod}
 }
 func (r *fakeRunning) Play() error  { return nil }
 func (r *fakeRunning) Pause() error { return nil }
@@ -207,6 +212,8 @@ func TestTheKitCatchesEveryFlaw(t *testing.T) {
 		"cancelled launch succeeds":   {ignoresCancel, "cancelled context succeeded"},
 		"cancelled launch leaves one": {leavesProcessWhenCancelled, "cancelled launch left"},
 		"samples never close":         {samplesNeverClose, "Samples still open"},
+		"volume without its method":   {volumeWithoutMethod, "declares Volume without"},
+		"claims to draw in the app":   {claimsToDrawInHost, "did not draw into the app's window"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

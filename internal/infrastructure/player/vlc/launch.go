@@ -60,8 +60,8 @@ type Options struct {
 }
 
 // Arguments returns the command line given to VLC: the bare video window
-// (no VLC interface), its own subtitles disabled, no network lookups, and the
-// control interface bound to 127.0.0.1.
+// (no VLC interface) or the app's window to draw into, its own subtitles
+// disabled, no network lookups, and the control interface bound to 127.0.0.1.
 func Arguments(request player.LaunchRequest, port int, password, endpointDir string) []string {
 	args := []string{
 		"--intf", "dummy", "--dummy-quiet",
@@ -84,6 +84,13 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 	}
 	if request.Start > 0 {
 		args = append(args, "--start-time", strconv.FormatFloat(request.Start.Seconds(), 'f', 3, 64))
+	}
+	if request.Host != 0 {
+		// VLC draws inside the app's window, which owns the mouse and the
+		// keys: VLC 3 ignores the close button of a window of its own.
+		args = append(args, "--drawable-hwnd", strconv.FormatUint(uint64(request.Host), 10),
+			"--no-mouse-events", "--no-keyboard-events")
+		return append(args, request.File)
 	}
 	if window := request.Window; window.Set() {
 		// VLC opens its window at the video's size times --zoom, which may
@@ -178,6 +185,14 @@ func launchOnce(ctx context.Context, executable string, request player.LaunchReq
 			err = errors.Join(err, closeErr)
 		}
 		return nil, err
+	}
+	if request.StartPaused && request.Host != 0 {
+		// Paused from the start, VLC creates no video window inside the
+		// host until a picture is decoded (measured): the window would stay
+		// black until Play. One frame forward shows the picture, silently.
+		if err := session.StepFrame(true); err != nil {
+			logger.Warn("VLC did not show the first picture", "error", err)
+		}
 	}
 	session.startPolling()
 	return session, nil

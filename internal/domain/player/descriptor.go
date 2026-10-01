@@ -31,6 +31,10 @@ type Descriptor struct {
 	Name string
 	// Install is how to get the player; both ways are offered to the user.
 	Install Install
+	// DrawsInHost tells the player can draw its video inside a window of
+	// the app (LaunchRequest.Host). The app then owns the window: closing,
+	// fullscreen, the keys and its own controls over the video.
+	DrawsInHost bool
 }
 
 // Install tells how the user can get a player.

@@ -29,6 +29,7 @@ func (Plugin) Descriptor() player.Descriptor {
 			DownloadURL: "https://www.videolan.org/vlc/download-windows.html",
 			Benefit:     "O player mais popular: abre praticamente qualquer formato e é ótimo se você já usa.",
 		},
+		DrawsInHost: true,
 	}
 }
 

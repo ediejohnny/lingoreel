@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"lingoreel/internal/domain/playback"
@@ -28,6 +29,12 @@ type Player interface {
 	SelectAudioTrack(index int) error
 }
 
+// VolumePlayer is a player whose volume can be changed; its capabilities say
+// Volume. Players start at their full volume (playback.MaxVolume).
+type VolumePlayer interface {
+	SetVolume(volume playback.Volume) error
+}
+
 // Controls is the single owner of playback time arithmetic: seeking, speed
 // and frame stepping all go through it, and it keeps the clock in step.
 type Controls struct {
@@ -36,13 +43,25 @@ type Controls struct {
 	capabilities playback.Capabilities
 	frame        time.Duration
 	hasFrame     bool
+
+	// volume is the level last asked for; muted keeps it to restore.
+	volumeMu sync.Mutex
+	volume   playback.Volume
+	muted    bool
 }
 
 // NewControls creates the controls; frameRate is the video's real rate, or 0
 // when unknown.
 func NewControls(player Player, clock *Clock, frameRate float64) *Controls {
 	frame, hasFrame := playback.FrameDuration(frameRate)
-	return &Controls{player: player, clock: clock, capabilities: player.Capabilities(), frame: frame, hasFrame: hasFrame}
+	capabilities := player.Capabilities()
+	if _, ok := player.(VolumePlayer); !ok {
+		capabilities.Volume = false
+	}
+	return &Controls{
+		player: player, clock: clock, capabilities: capabilities, frame: frame, hasFrame: hasFrame,
+		volume: playback.MaxVolume,
+	}
 }
 
 // Capabilities reports what the controls can do with this player, so the UI
@@ -188,5 +207,50 @@ func (c *Controls) SelectAudioTrack(index int) error {
 	if err := c.player.SelectAudioTrack(index); err != nil {
 		return fmt.Errorf("selecting audio track %d: %w", index, err)
 	}
+	return nil
+}
+
+// Volume is the level last asked for and whether the sound is muted.
+func (c *Controls) Volume() (playback.Volume, bool) {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	return c.volume, c.muted
+}
+
+// SetVolume changes the level, kept inside the range; it also unmutes.
+func (c *Controls) SetVolume(volume playback.Volume) error {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	return c.applyVolume(volume.Clamp(), false)
+}
+
+// ChangeVolume moves the level by delta, as the volume keys do.
+func (c *Controls) ChangeVolume(delta playback.Volume) error {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	return c.applyVolume((c.volume + delta).Clamp(), false)
+}
+
+// ToggleMute silences the sound or brings back the level it had.
+func (c *Controls) ToggleMute() error {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	return c.applyVolume(c.volume, !c.muted)
+}
+
+// applyVolume runs with volumeMu held, so two changes never cross on their
+// way to the player.
+func (c *Controls) applyVolume(volume playback.Volume, muted bool) error {
+	if !c.capabilities.Volume {
+		return ErrNotSupported
+	}
+	heard := volume
+	if muted {
+		heard = playback.MinVolume
+	}
+	if err := c.player.(VolumePlayer).SetVolume(heard); err != nil {
+		return fmt.Errorf("changing the volume: %w", err)
+	}
+	c.volume, c.muted = volume, muted
 	return nil
 }

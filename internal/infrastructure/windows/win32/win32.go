@@ -353,6 +353,28 @@ func SetWinEventHook(eventMin, eventMax uint32, processID uint32, callback uintp
 	return windows.Handle(h), nil
 }
 
+// SetWinEventHookInProcess installs an out-of-context hook for the windows
+// of this very process; the callback runs on the calling thread's message
+// loop.
+func SetWinEventHookInProcess(eventMin, eventMax uint32, callback uintptr) (windows.Handle, error) {
+	h, _, err := procSetWinEventHook.Call(uintptr(eventMin), uintptr(eventMax), 0, callback,
+		uintptr(windows.GetCurrentProcessId()), 0, WINEVENT_OUTOFCONTEXT)
+	if h == 0 {
+		return 0, callErr(err)
+	}
+	return windows.Handle(h), nil
+}
+
+// SetWinEventHookEverywhere installs an out-of-context hook for every
+// process, this one included.
+func SetWinEventHookEverywhere(eventMin, eventMax uint32, callback uintptr) (windows.Handle, error) {
+	h, _, err := procSetWinEventHook.Call(uintptr(eventMin), uintptr(eventMax), 0, callback, 0, 0, WINEVENT_OUTOFCONTEXT)
+	if h == 0 {
+		return 0, callErr(err)
+	}
+	return windows.Handle(h), nil
+}
+
 // UnhookWinEvent removes a hook.
 func UnhookWinEvent(hook windows.Handle) {
 	procUnhookWinEvent.Call(uintptr(hook))

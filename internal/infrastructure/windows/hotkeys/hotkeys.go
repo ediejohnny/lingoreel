@@ -74,7 +74,11 @@ type Options struct {
 	// ProcessID is the player: shortcuts work while one of its windows is
 	// in the foreground.
 	ProcessID int
-	Bindings  []Binding
+	// Window, when set, is the player window instead: the app's own window
+	// a player draws into, which shares the app's process. The shortcuts
+	// work while it, or a window it owns, is in the foreground.
+	Window   uintptr
+	Bindings []Binding
 	// Logger receives problems that have no caller, such as a combination
 	// another program already took; nil discards them.
 	Logger *slog.Logger
@@ -146,7 +150,7 @@ var (
 // Start begins listening. The shortcuts are registered at once if the
 // player is in the foreground, and whenever it comes back to it.
 func Start(options Options) (*Hotkeys, error) {
-	if options.ProcessID <= 0 {
+	if options.ProcessID <= 0 && options.Window == 0 {
 		return nil, fmt.Errorf("invalid player process id %d", options.ProcessID)
 	}
 	if len(options.Bindings) == 0 {
@@ -195,8 +199,9 @@ func (h *Hotkeys) setup() error {
 		return fmt.Errorf("creating the shortcuts window: %w", err)
 	}
 	h.window = window
-	// Every process: the foreground moves between programs.
-	hook, err := win32.SetWinEventHook(win32.EVENT_SYSTEM_FOREGROUND, win32.EVENT_SYSTEM_FOREGROUND, 0, winEventProc)
+	// Every process: the foreground moves between programs, and with a
+	// window of the app's own it also moves inside this process.
+	hook, err := h.followForeground()
 	if err != nil {
 		return fmt.Errorf("following the foreground window: %w", err)
 	}
@@ -204,6 +209,14 @@ func (h *Hotkeys) setup() error {
 	callbacks.add(h)
 	h.follow(win32.ForegroundWindow())
 	return nil
+}
+
+func (h *Hotkeys) followForeground() (windows.Handle, error) {
+	const event = win32.EVENT_SYSTEM_FOREGROUND
+	if h.options.Window != 0 {
+		return win32.SetWinEventHookEverywhere(event, event, winEventProc)
+	}
+	return win32.SetWinEventHook(event, event, 0, winEventProc)
 }
 
 // Presses delivers the shortcuts as they are pressed; it is closed by Close.
@@ -241,6 +254,14 @@ func (h *Hotkeys) teardown() {
 // follow registers the shortcuts while the player is in the foreground and
 // releases them as soon as another program is.
 func (h *Hotkeys) follow(foreground windows.HWND) {
+	if h.options.Window != 0 {
+		if player := windows.HWND(h.options.Window); foreground != 0 && (foreground == player || win32.RootOwner(foreground) == player) {
+			h.register()
+		} else {
+			h.unregister()
+		}
+		return
+	}
 	var owner uint32
 	if foreground != 0 {
 		if _, err := windows.GetWindowThreadProcessId(foreground, &owner); err != nil {

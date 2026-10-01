@@ -30,13 +30,14 @@ type syncShortcuts struct {
 	presses chan watch.Press
 }
 
-// StartSync listens to watch.SyncShortcuts for the player's process.
-func StartSync(processID int, logger *slog.Logger) (watch.Shortcuts, error) {
+// StartSync listens to watch.SyncShortcuts while the player is in the
+// foreground: its own window, or else any window of its process.
+func StartSync(target watch.ShortcutTarget, logger *slog.Logger) (watch.Shortcuts, error) {
 	bindings := make([]Binding, len(watch.SyncShortcuts))
 	for i, shortcut := range watch.SyncShortcuts {
 		bindings[i] = SyncBinding(shortcut)
 	}
-	keys, err := Start(Options{ProcessID: processID, Bindings: bindings, Logger: logger})
+	keys, err := Start(Options{ProcessID: target.ProcessID, Window: target.Window, Bindings: bindings, Logger: logger})
 	if err != nil {
 		return nil, err
 	}
