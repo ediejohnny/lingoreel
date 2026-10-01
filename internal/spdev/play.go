@@ -12,6 +12,7 @@ import (
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/session"
+	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
@@ -19,6 +20,7 @@ import (
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/subtitlefile"
+	"lingoreel/internal/infrastructure/windows/hotkeys"
 )
 
 var (
@@ -65,12 +67,6 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		return fmt.Errorf("%w: %s %s está além do fim do vídeo (%s)", ErrInvalidOption, startFlag,
 			formatClock(options.start), formatClock(result.Info.Duration))
 	}
-	chosen := []uint64{result.Suggested.Primary, result.Suggested.Translation}
-	loaded, err := service.LoadSubtitles(ctx, result, chosen, nil)
-	if err != nil {
-		return err
-	}
-
 	registry, hints, err := newRegistry()
 	if err != nil {
 		return err
@@ -88,95 +84,78 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	out.line("Player:    %s  %s", describeInstallation(choice.Installation), choice.Installation.Path)
 	out.line("Legenda:   %s", describeChoice(result.Info, result.Suggested.Primary))
 	out.line("Tradução:  %s", describeChoice(result.Info, result.Suggested.Translation))
-	for _, number := range chosen {
-		if track, found := loaded[number]; found && track.Corrected {
-			out.line("Sincronia: %s ajustada automaticamente para casar com o vídeo: %s", trackLabel(number), describeCorrection(track.Correction))
-		}
-	}
 	if out.err != nil {
 		return out.err
 	}
 
-	request := player.LaunchRequest{
-		File:        options.path,
-		AudioIndex:  audioIndex(result.Info, result.Suggested.Audio),
-		StartPaused: options.paused,
-		Start:       options.start,
-		Window:      initialWindow(result.Info),
+	ports := watch.Ports{
+		Service: service, Registry: registry,
+		StartShortcuts: func(processID int) (watch.Shortcuts, error) {
+			return hotkeys.StartSync(processID, stderrLogger())
+		},
 	}
-	request.VideoWidth, _ = videoSize(result.Info)
-	running, err := registry.Launch(ctx, choice.Installation, request)
+	if withOverlay {
+		ports.OpenDisplay = openOverlay
+	}
+	names := lineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
+	listener := &consoleListener{out: out, names: names, labels: [2]string{
+		lineLabel(result.Info, result.Suggested.Primary, "Legenda"),
+		lineLabel(result.Info, result.Suggested.Translation, "Tradução"),
+	}}
+	watching, err := watch.Start(ctx, ports, watch.Request{
+		Analysis: result, Tracks: result.Suggested, Player: choice.Installation,
+		Start: options.start, Paused: options.paused, Window: initialWindow(result.Info), Steps: options.steps,
+	}, listener, names.notice)
 	if err != nil {
 		return err
 	}
-
-	precision := running.Capabilities().Precision
-	out.line("Precisão:  %s", describePrecision(precision))
-	var screen session.Display
-	if withOverlay {
-		if screen, err = openOverlay(ctx, running, result.Info); err != nil {
-			return errors.Join(fmt.Errorf("abrindo o overlay: %w", err), running.Close())
+	for _, number := range []uint64{result.Suggested.Primary, result.Suggested.Translation} {
+		if track, found := watching.Loaded()[number]; found && track.Corrected {
+			out.line("Sincronia: %s ajustada automaticamente para casar com o vídeo: %s", trackLabel(number), describeCorrection(track.Correction))
 		}
+	}
+	out.line("Precisão:  %s", describePrecision(watching.Controls().Capabilities().Precision))
+	if withOverlay {
 		out.line("Overlay:   legendas desenhadas sobre o vídeo")
-	}
-	out.line("Feche o player ou pressione Ctrl+C para encerrar.")
-	out.line("")
-
-	labels := [2]string{
-		lineLabel(result.Info, result.Suggested.Primary, "Legenda"),
-		lineLabel(result.Info, result.Suggested.Translation, "Tradução"),
-	}
-	clock := session.NewClock(precision, time.Now)
-	subtitles := session.NewSubtitles(trackOf(loaded, result.Suggested.Primary), trackOf(loaded, result.Suggested.Translation))
-	names := lineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
-	sync := session.NewSync(subtitles, options.steps, time.Now)
-	stopSync, err := listenSync(ctx, running.ProcessID(), sync, names, screen, os.Stdin, out)
-	if err != nil {
-		return errors.Join(fmt.Errorf("ativando os atalhos de sincronia: %w", err), closeDisplay(screen), running.Close())
 	}
 	out.line("Sincronia: Shift+, / Shift+. movem a legenda de cima, Ctrl+, / Ctrl+. a de baixo (passo %s); z + Enter zera.",
 		strings.TrimPrefix(formatOffset(subtitle.Offset(options.steps.Step)), "+"))
-	runner := session.NewRunner(clock, subtitles, func(position time.Duration, visible session.Visible) {
-		out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, labels))
-		if screen != nil {
-			if err := screen.Show(screenOf(visible)); err != nil {
-				out.line("Aviso: o overlay não foi atualizado: %v", err)
-			}
+	out.line("Feche o player ou pressione Ctrl+C para encerrar.")
+	out.line("")
+	go readConsole(ctx, os.Stdin, func(command string) {
+		if command == resetCommand {
+			watching.ResetSync(session.LinePrimary)
+			watching.ResetSync(session.LineTranslation)
 		}
-	}, session.NewRealTimer)
+	})
 
-	err = runner.Run(ctx, running.Samples())
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		err = nil
+	select {
+	case <-watching.Done():
+	case <-ctx.Done():
 	}
-	// Asked before Close, which ends the player on purpose.
-	if lost := running.Err(); err == nil && lost != nil {
-		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), lost)
-	}
-	syncErr := stopSync()
-	if syncErr != nil {
-		syncErr = fmt.Errorf("ao soltar os atalhos de sincronia: %w", syncErr)
-	}
-	overlayErr := closeDisplay(screen)
-	closeErr := running.Close()
-	if closeErr != nil {
-		closeErr = fmt.Errorf("ao fechar o %s: %w", choice.Installation.ID.DisplayName(), closeErr)
+	err = watching.Stop()
+	if errors.Is(err, playback.ErrPlayerLost) {
+		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), err)
 	}
 	if err == nil {
 		out.line("Sessão encerrada.")
 	}
-	return errors.Join(err, syncErr, overlayErr, closeErr, out.err)
+	return errors.Join(err, out.err)
 }
 
-// closeDisplay closes the overlay, if there is one.
-func closeDisplay(screen session.Display) error {
-	if screen == nil {
-		return nil
-	}
-	if err := screen.Close(); err != nil {
-		return fmt.Errorf("ao fechar o overlay: %w", err)
-	}
-	return nil
+// consoleListener prints what happens in the session.
+type consoleListener struct {
+	out    *printer
+	names  lineNamesPair
+	labels [2]string
+}
+
+func (l *consoleListener) SubtitlesChanged(position time.Duration, visible session.Visible) {
+	l.out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, l.labels))
+}
+
+func (l *consoleListener) Synced(line session.Line, offset subtitle.Offset) {
+	l.out.line("Sincronia: %s", l.names.notice(line, offset))
 }
 
 func parsePlayOptions(args []string) (playOptions, error) {
@@ -241,25 +220,6 @@ func parseSeconds(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("%w: %s %q (use segundos, de 0 a %d)", ErrInvalidOption, startFlag, value, int(maxStart.Seconds()))
 	}
 	return time.Duration(seconds * float64(time.Second)), nil
-}
-
-// audioIndex converts a track number into the position among audio tracks
-// that players expect; -1 keeps the player's own choice.
-func audioIndex(info media.Info, number uint64) int {
-	for index, track := range info.TracksOf(media.TrackAudio) {
-		if track.Number == number {
-			return index
-		}
-	}
-	return -1
-}
-
-func trackOf(loaded map[uint64]analysis.LoadedTrack, number uint64) *session.Track {
-	track, found := loaded[number]
-	if !found {
-		return nil
-	}
-	return &session.Track{Timeline: track.Timeline}
 }
 
 func describeInstallation(installation player.Installation) string {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"strings"
 
 	"lingoreel/internal/application/players"
 	"lingoreel/internal/application/session"
@@ -12,7 +11,6 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/win32"
 )
@@ -56,21 +54,4 @@ func initialWindow(info media.Info) player.Placement {
 		W: float64(area.Right - area.Left), H: float64(area.Bottom - area.Top),
 	}, layout.InitialWindowFraction)
 	return player.Placement{X: int(fit.X), Y: int(fit.Y), Width: int(fit.W), Height: int(fit.H)}
-}
-
-// screenOf shows both lines; simultaneous events stack, one per line.
-func screenOf(visible session.Visible) session.Screen {
-	return session.Screen{
-		Primary:            stackText(visible.Primary),
-		Translation:        stackText(visible.Translation),
-		TranslationVisible: true,
-	}
-}
-
-func stackText(events []subtitle.Event) string {
-	texts := make([]string, 0, len(events))
-	for _, event := range events {
-		texts = append(texts, event.Text())
-	}
-	return strings.Join(texts, "\n")
 }

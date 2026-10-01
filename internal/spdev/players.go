@@ -21,8 +21,13 @@ type playerPlugin interface {
 // more line here (docs/plugins-de-player.md).
 func plugins() []playerPlugin {
 	return []playerPlugin{
-		vlc.Plugin{Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))},
+		vlc.Plugin{Logger: stderrLogger()},
 	}
+}
+
+// stderrLogger writes the events that have no caller to the console.
+func stderrLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stderr, nil))
 }
 
 // newRegistry registers the plugins and returns where their players live.
