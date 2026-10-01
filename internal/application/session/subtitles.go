@@ -132,6 +132,27 @@ func (s *Subtitles) Offset(line Line) subtitle.Offset {
 	return 0
 }
 
+// ShiftOffset moves the offset of a line by delta, within ±MaxOffset, and
+// signals the change. It returns the new offset, or false for a missing or
+// unknown line, which does not change.
+func (s *Subtitles) ShiftOffset(line Line, delta time.Duration) (subtitle.Offset, bool) {
+	if !knownLine(line) {
+		return 0, false
+	}
+	s.mu.Lock()
+	track := s.lines[line]
+	if track == nil {
+		s.mu.Unlock()
+		return 0, false
+	}
+	updated := *track
+	updated.Offset = track.Offset.Shift(delta)
+	s.lines[line] = &updated
+	s.mu.Unlock()
+	s.notify()
+	return updated.Offset, true
+}
+
 // SetOffset changes the offset of a line and signals the change; it has no
 // effect on a missing or unknown line.
 func (s *Subtitles) SetOffset(line Line, offset subtitle.Offset) {
