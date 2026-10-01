@@ -93,12 +93,12 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 
 	ports := watch.Ports{
 		Service: service, Registry: registry,
-		StartShortcuts: func(processID int) (watch.Shortcuts, error) {
-			return hotkeys.StartSync(processID, stderrLogger())
+		StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
+			return hotkeys.StartSync(target, stderrLogger())
 		},
 	}
 	if withOverlay {
-		ports.OpenDisplay = openOverlay
+		ports.OpenWindow, ports.OpenDisplay = openPlayerWindow, openOverlay
 	}
 	names := ptbr.NewLineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
 	listener := &consoleListener{out: out, names: names, labels: [2]string{

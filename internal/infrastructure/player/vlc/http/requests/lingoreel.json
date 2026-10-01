@@ -41,6 +41,10 @@ else
     elseif command == "fullscreen" then
       local vout = vlc.object.vout()
       if vout then vlc.var.set(vout, "fullscreen", _GET["value"] == "1") end
+    elseif command == "volume" then
+      -- VLC's own scale: 256 is 100%; the app never goes above it.
+      local level = number("value")
+      if level and level >= 0 and level <= 256 then vlc.volume.set(math.floor(level)) end
     elseif command == "audio" then
       local index = number("index")
       local ok, ids = pcall(vlc.var.get_list, input, "audio-es")

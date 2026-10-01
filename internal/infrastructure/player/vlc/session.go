@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/exec"
 	"strconv"
@@ -80,9 +81,21 @@ func (s *Session) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
 		Pause: true, Seek: true, ExactSeek: true, Speed: true,
 		FrameStepForward: true, FrameStepBackward: false,
-		AudioTrackSelection: true, SubtitleSuppression: true,
+		AudioTrackSelection: true, SubtitleSuppression: true, Volume: true,
 		Precision: playback.PrecisionEstimated,
 	}
+}
+
+// vlcFullVolume is 100% on VLC's volume scale.
+const vlcFullVolume = 256
+
+// SetVolume changes the volume; playback.MaxVolume is VLC's 100%.
+func (s *Session) SetVolume(volume playback.Volume) error {
+	if !volume.Valid() {
+		return fmt.Errorf("invalid volume %v", volume)
+	}
+	level := math.Round(float64(volume) * vlcFullVolume)
+	return s.send(command("volume", "value", strconv.FormatFloat(level, 'f', 0, 64)))
 }
 
 // ProcessID identifies the VLC process, whose window the overlay follows.

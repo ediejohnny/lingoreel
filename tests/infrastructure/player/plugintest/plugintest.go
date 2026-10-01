@@ -4,7 +4,8 @@
 // A plugin's tests call Descriptor and Launch with its player; the kit
 // checks the contract of players.Plugin: an honest descriptor, a launch that
 // a cancelled context stops without leaving a process, capabilities that
-// tell the truth, and a bounded, repeatable Close that leaves nothing behind.
+// tell the truth (volume included), a player that draws into the app's window
+// when it says so, and a bounded, repeatable Close that leaves nothing behind.
 package plugintest
 
 import (
@@ -18,8 +19,10 @@ import (
 	"golang.org/x/sys/windows"
 
 	"lingoreel/internal/application/players"
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/infrastructure/windows/playerwindow"
 )
 
 // Bounds of the contract.
@@ -30,7 +33,11 @@ const (
 	CloseBound = 10 * time.Second
 	// settleTime lets a stopped launch's process go away before counting.
 	settleTime = time.Second
+	// HostBound is how long a player may take to draw into the app's window.
+	HostBound = 10 * time.Second
 )
+
+var procEnumChildWindows = windows.NewLazySystemDLL("user32.dll").NewProc("EnumChildWindows")
 
 // T is the part of testing.T the kit uses, so the kit itself can be tested.
 type T interface {
@@ -51,10 +58,22 @@ func Descriptor(t T, plugin players.Plugin) {
 }
 
 // Launch checks the plugin against its real player, found at executable,
-// opening video (a short file the player can play).
+// opening video (a short file the player can play). A plugin that draws
+// into the app's window gets one, off screen and without the focus, and
+// must put its video inside it.
 func Launch(t T, plugin players.Plugin, executable, video string) {
 	t.Helper()
 	request := playerRequest(video)
+	if plugin.Descriptor().DrawsInHost {
+		host, err := playerwindow.Open(context.Background(), playerwindow.Options{
+			Title: "plugintest", Placement: player.Placement{X: -3000, Y: 100, Width: 640, Height: 360}, NoActivate: true,
+		})
+		if err != nil {
+			t.Fatalf("opening a window to draw into: %v", err)
+		}
+		defer host.Close()
+		request.Host = host.Handle()
+	}
 
 	// A cancelled context: fail fast, return nothing, leave no process.
 	before := countProcesses(executable)
@@ -87,8 +106,32 @@ func Launch(t T, plugin players.Plugin, executable, video string) {
 	if pid <= 0 {
 		t.Errorf("ProcessID = %d, want the player's process", pid)
 	}
+	if request.Host != 0 && !drawsInto(windows.HWND(request.Host), pid) {
+		t.Errorf("the descriptor says DrawsInHost but the player did not draw into the app's window within %v", HostBound)
+	}
 	honestCapabilities(t, running)
 	closeCleanly(t, running, pid)
+}
+
+// drawsInto waits for a window of the player's process inside the host.
+func drawsInto(host windows.HWND, pid int) bool {
+	deadline := time.Now().Add(HostBound)
+	for time.Now().Before(deadline) {
+		found := false
+		callback := windows.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+			var owner uint32
+			if _, err := windows.GetWindowThreadProcessId(hwnd, &owner); err == nil && int(owner) == pid {
+				found = true
+			}
+			return 1
+		})
+		procEnumChildWindows.Call(uintptr(host), callback, 0)
+		if found {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return false
 }
 
 // playerRequest opens the video paused, keeping the player's audio choice.
@@ -123,6 +166,17 @@ func honestCapabilities(t T, running players.Running) {
 		case !check.declared && err == nil:
 			t.Errorf("%s is not declared but pretended to work", check.name)
 		}
+	}
+	volume, hasVolume := running.(session.VolumePlayer)
+	switch {
+	case capabilities.Volume && !hasVolume:
+		t.Errorf("declares Volume without a SetVolume method")
+	case capabilities.Volume:
+		if err := volume.SetVolume(playback.MaxVolume); err != nil {
+			t.Errorf("SetVolume is declared but failed: %v", err)
+		}
+	case hasVolume && volume.SetVolume(playback.MaxVolume) == nil:
+		t.Errorf("SetVolume is not declared but pretended to work")
 	}
 	if p := capabilities.Precision; p != playback.PrecisionExact && p != playback.PrecisionEstimated {
 		t.Errorf("Precision %q is neither exact nor estimated", p)

@@ -67,6 +67,9 @@ type Input struct {
 	Translation Text
 	// Notice is a short message for the top left corner of the picture.
 	Notice Text
+	// Floor is the lowest y the subtitles may reach, in overlay pixels, so
+	// controls shown at the bottom never cover them; zero means no limit.
+	Floor float64
 }
 
 // Line is one wrapped line of text; X and Y are its top left corner.
@@ -104,6 +107,9 @@ func Compute(in Input, m Measurer) Frame {
 		return Frame{}
 	}
 	area := safeArea(video, in.Layout)
+	if in.Floor > 0 && in.Floor < area.Bottom() {
+		area.H = math.Max(in.Floor-area.Y, 0)
+	}
 	primary := wrapBlock(in.Primary, in, area, m)
 	translation := wrapBlock(in.Translation, in, area, m)
 

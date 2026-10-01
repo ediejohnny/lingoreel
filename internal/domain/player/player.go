@@ -61,6 +61,10 @@ type LaunchRequest struct {
 	// window as a zoom of it; zero when unknown.
 	VideoWidth int
 	Start      time.Duration
+	// Host is a window of the app the player draws its video into, for
+	// plugins whose descriptor says DrawsInHost; zero lets the player open
+	// its own window at Window. It is an opaque handle for the domain.
+	Host uintptr
 }
 
 // Installation is a player found on this computer.

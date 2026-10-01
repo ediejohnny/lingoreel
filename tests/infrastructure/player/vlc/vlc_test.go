@@ -114,6 +114,37 @@ func TestArgumentsForOptionalRequests(t *testing.T) {
 	}
 }
 
+// With a host window VLC draws inside it and leaves the mouse and the keys
+// to it; the placement and the zoom are the host's business then.
+func TestArgumentsDrawIntoTheHostWindow(t *testing.T) {
+	request := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920, Host: 0x1234ABCD,
+		Window: player.Placement{X: 144, Y: 10, Width: 1152, Height: 624}}
+	args := vlc.Arguments(request, 1, "p", `C:\e`)
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"--drawable-hwnd 305441741", "--no-mouse-events", "--no-keyboard-events", "--intf dummy"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("arguments %q lack %q", joined, want)
+		}
+	}
+	for _, unwanted := range []string{"--zoom", "--video-x", "--video-y"} {
+		if strings.Contains(joined, unwanted) {
+			t.Errorf("arguments %q still place VLC's own window (%s)", joined, unwanted)
+		}
+	}
+	if args[len(args)-1] != `C:\v.mkv` {
+		t.Fatalf("the video is not the last argument: %q", args)
+	}
+	if strings.Contains(strings.Join(vlc.Arguments(player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1}, 1, "p", `C:\e`), " "), "--drawable-hwnd") {
+		t.Fatal("a request without a host drew into a window")
+	}
+}
+
+func TestVLCDrawsIntoTheAppWindow(t *testing.T) {
+	if !(vlc.Plugin{}).Descriptor().DrawsInHost {
+		t.Fatal("the VLC plugin must draw into the app's window: VLC 3 ignores the close button of its own")
+	}
+}
+
 func TestArgumentsPlaceTheWindowOnlyWhenAsked(t *testing.T) {
 	// 1152 of a 1920-pixel video: VLC sizes its window with a 0.6 zoom.
 	placed := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920,

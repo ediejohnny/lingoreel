@@ -27,6 +27,14 @@ Diz o que o usuário vê sobre o player:
 - **`Install.WingetID`:** o pacote do winget usado na instalação automática. Fica vazio se não houver pacote.
 - **`Install.DownloadURL`:** a página oficial de download. Tem que ser `https`.
 - **`Install.Benefit`:** uma frase, em português, com o motivo para escolher esse player. Aparece no botão (?).
+- **`DrawsInHost`:** `true` quando o player consegue desenhar o vídeo dentro de uma janela do app
+  (`LaunchRequest.Host`). É o caminho preferido:
+  - a janela passa a ser do LingoReel, com fechar (X, Alt+F4), tela cheia, teclado e a barra
+    de controles que aparece ao passar o mouse embaixo;
+  - o player não deve tratar mouse nem teclado dentro dela;
+  - com `Host` zero, ele abre a própria janela, e o overlay segue essa janela.
+
+  Exemplos: o VLC usa `--drawable-hwnd` e o mpv usa `--wid`.
 
 ### `Launch` e `Running`
 
@@ -34,6 +42,8 @@ Diz o que o usuário vê sobre o player:
 
 - **Comandos:** tocar, pausar, buscar, mudar a velocidade, avançar quadro e escolher a faixa de áudio.
   - `Capabilities()` diz quais o player tem.
+  - O volume é opcional: quem declara `Volume` implementa `SetVolume` (`session.VolumePlayer`),
+    de 0 a 1, em que 1 é o 100% do player.
   - Comando que o player não tem **devolve erro**. Nunca finja que funcionou: o app mostra o botão
     desabilitado.
 - **`Samples()`:** entrega observações (posição, duração, velocidade, estado). É fechado quando o

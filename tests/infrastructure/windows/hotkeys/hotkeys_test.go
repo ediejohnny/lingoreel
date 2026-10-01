@@ -135,6 +135,41 @@ func TestShortcutsAreHeldOnlyForTheForegroundProcess(t *testing.T) {
 	}
 }
 
+// With the app's own player window, the window decides, not the process:
+// the app's other windows (the panel) share the process and must not take
+// Shift+, and Ctrl+, from the user typing in them.
+func TestShortcutsFollowThePlayerWindow(t *testing.T) {
+	if taken(t, unusedShortcut) {
+		t.Skip("another program holds Ctrl+Shift+F24")
+	}
+	pid := foregroundProcess(t)
+	// The foreground process, but another window: nothing taken.
+	elsewhere, err := hotkeys.Start(hotkeys.Options{ProcessID: pid, Window: uintptr(windows.GetDesktopWindow()), Bindings: []hotkeys.Binding{unusedShortcut}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if taken(t, unusedShortcut) {
+		elsewhere.Close()
+		t.Fatal("the shortcut was taken for the player's process while its window was not in front")
+	}
+	if err := elsewhere.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	front := win32.ForegroundWindow()
+	keys, err := hotkeys.Start(hotkeys.Options{Window: uintptr(front), Bindings: []hotkeys.Binding{unusedShortcut}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer keys.Close()
+	if win32.ForegroundWindow() != front {
+		t.Skip("the foreground changed during the test")
+	}
+	if !taken(t, unusedShortcut) {
+		t.Fatal("the shortcut was not registered with the player window in front")
+	}
+}
+
 // messageWindow finds the hidden window that receives the shortcuts.
 func messageWindow(t *testing.T) windows.HWND {
 	t.Helper()

@@ -48,6 +48,9 @@ type fakeRunning struct {
 	lost    error
 	mu      sync.Mutex
 	closed  int
+	// order records the closes of the player and the window, shared with
+	// fakeWindow.
+	order *[]string
 }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
@@ -66,6 +69,9 @@ func (r *fakeRunning) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.closed++
+	if r.order != nil {
+		*r.order = append(*r.order, "player")
+	}
 	return nil
 }
 func (r *fakeRunning) closes() int {
@@ -77,14 +83,55 @@ func (r *fakeRunning) closes() int {
 type fakePlugin struct {
 	running  *fakeRunning
 	requests []player.LaunchRequest
+	// hosted makes the player draw into the app's window.
+	hosted    bool
+	launchErr error
 }
 
 func (p *fakePlugin) Descriptor() player.Descriptor {
-	return player.Descriptor{ID: "fake", Name: "Fake", Install: player.Install{DownloadURL: "https://example.org", Benefit: "Teste."}}
+	return player.Descriptor{ID: "fake", Name: "Fake", Install: player.Install{DownloadURL: "https://example.org", Benefit: "Teste."}, DrawsInHost: p.hosted}
 }
 func (p *fakePlugin) Launch(_ context.Context, _ string, request player.LaunchRequest) (players.Running, error) {
 	p.requests = append(p.requests, request)
+	if p.launchErr != nil {
+		return nil, p.launchErr
+	}
 	return p.running, nil
+}
+
+// fakeWindow is the app's player window.
+type fakeWindow struct {
+	fakeDisplay
+	closed  chan struct{}
+	order   *[]string
+	mu      sync.Mutex
+	remote  watch.Remote
+	closes  int
+	request watch.WindowRequest
+}
+
+const fakeHandle = 777
+
+func (w *fakeWindow) Handle() uintptr         { return fakeHandle }
+func (w *fakeWindow) Closed() <-chan struct{} { return w.closed }
+func (w *fakeWindow) Attach(remote watch.Remote) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.remote = remote
+}
+func (w *fakeWindow) Close() error {
+	w.mu.Lock()
+	w.closes++
+	if w.order != nil {
+		*w.order = append(*w.order, "window")
+	}
+	w.mu.Unlock()
+	return w.fakeDisplay.Close()
+}
+func (w *fakeWindow) state() (watch.Remote, int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.remote, w.closes
 }
 
 // --- display and shortcuts ---
@@ -158,6 +205,7 @@ type rig struct {
 	listener  *recordingListener
 	ports     watch.Ports
 	request   watch.Request
+	target    watch.ShortcutTarget
 }
 
 func newRig(t *testing.T) *rig {
@@ -183,7 +231,10 @@ func newRig(t *testing.T) *rig {
 		OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) {
 			return r.display, nil
 		},
-		StartShortcuts: func(int) (watch.Shortcuts, error) { return r.shortcuts, nil },
+		StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
+			r.target = target
+			return r.shortcuts, nil
+		},
 	}
 	r.request = watch.Request{
 		Analysis: result, Tracks: result.Suggested, Player: player.Installation{ID: "fake", Path: `C:\fake.exe`},
@@ -347,7 +398,7 @@ func TestStartFailuresCleanUp(t *testing.T) {
 	})
 	t.Run("shortcuts fail", func(t *testing.T) {
 		r := newRig(t)
-		r.ports.StartShortcuts = func(int) (watch.Shortcuts, error) { return nil, errors.New("taken") }
+		r.ports.StartShortcuts = func(watch.ShortcutTarget) (watch.Shortcuts, error) { return nil, errors.New("taken") }
 		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
 			t.Fatal("Start succeeded")
 		}
@@ -372,4 +423,120 @@ func TestScreenStacksSimultaneousLines(t *testing.T) {
 	if got.Primary != "One.\nDois." || got.Translation != "" || got.TranslationVisible {
 		t.Fatalf("Screen = %+v", got)
 	}
+}
+
+// hostedRig is a rig whose player draws into the app's window.
+func hostedRig(t *testing.T) (*rig, *fakeWindow, *[]string) {
+	t.Helper()
+	r := newRig(t)
+	order := &[]string{}
+	r.plugin.hosted = true
+	r.running.order = order
+	window := &fakeWindow{closed: make(chan struct{}), order: order}
+	r.ports.OpenWindow = func(_ context.Context, request watch.WindowRequest) (watch.Window, error) {
+		window.request = request
+		return window, nil
+	}
+	r.ports.OpenDisplay = func(context.Context, players.Running, media.Info) (session.Display, error) {
+		t.Error("a hosted player got an overlay of its own")
+		return r.display, nil
+	}
+	return r, window, order
+}
+
+func TestAHostedPlayerDrawsIntoTheAppWindow(t *testing.T) {
+	r, window, _ := hostedRig(t)
+	s := r.start(t)
+	got := r.plugin.requests[0]
+	if got.Host != fakeHandle || got.Window != r.request.Window {
+		t.Fatalf("launch request host %d window %+v, want host %d and the placement", got.Host, got.Window, fakeHandle)
+	}
+	if window.request.Title != "v.mkv" || window.request.Placement != r.request.Window || window.request.Info.Duration != time.Minute {
+		t.Fatalf("window request = %+v", window.request)
+	}
+	// The sync shortcuts follow the window, not every window of the process.
+	if r.target != (watch.ShortcutTarget{ProcessID: 4242, Window: fakeHandle}) {
+		t.Fatalf("shortcut target = %+v", r.target)
+	}
+	remote, _ := window.state()
+	if remote == nil || !remote.HasTranslation() || remote.Controls() != s.Controls() {
+		t.Fatalf("the window's controls do not drive the session (remote %v)", remote)
+	}
+	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
+	eventually(t, "the subtitles in the window", func() bool {
+		screen, _, _, _ := window.last()
+		return screen.Primary == "Hello there."
+	})
+}
+
+func TestClosingThePlayerWindowEndsTheSession(t *testing.T) {
+	r, window, order := hostedRig(t)
+	s := r.start(t)
+	close(window.closed) // the close button, Alt+F4 or the taskbar
+	select {
+	case <-s.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("closing the window did not end the session")
+	}
+	if err := s.Err(); err != nil {
+		t.Fatalf("Err after the user closed the window = %v", err)
+	}
+	_, closes := window.state()
+	r.running.mu.Lock()
+	sequence := append([]string(nil), *order...)
+	r.running.mu.Unlock()
+	// The player goes first: it draws into the window.
+	if r.running.closes() != 1 || closes != 1 || len(sequence) != 2 || sequence[0] != "player" || sequence[1] != "window" {
+		t.Fatalf("player closes %d, window closes %d, order %v", r.running.closes(), closes, sequence)
+	}
+}
+
+func TestAPlayerWithItsOwnWindowGetsNoAppWindow(t *testing.T) {
+	r := newRig(t)
+	r.ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) {
+		t.Error("opened the app's window for a player that draws its own")
+		return nil, errors.New("unexpected")
+	}
+	r.start(t)
+	if got := r.plugin.requests[0]; got.Host != 0 {
+		t.Fatalf("host = %d, want none", got.Host)
+	}
+	if r.target != (watch.ShortcutTarget{ProcessID: 4242}) {
+		t.Fatalf("shortcut target = %+v", r.target)
+	}
+}
+
+func TestPlayerWindowFailuresCleanUp(t *testing.T) {
+	t.Run("window fails", func(t *testing.T) {
+		r, _, _ := hostedRig(t)
+		r.ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) {
+			return nil, errors.New("no window")
+		}
+		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
+			t.Fatal("Start succeeded")
+		}
+		if len(r.plugin.requests) != 0 {
+			t.Fatal("launched a player without its window")
+		}
+	})
+	t.Run("player fails", func(t *testing.T) {
+		r, window, _ := hostedRig(t)
+		r.plugin.launchErr = errors.New("no player")
+		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
+			t.Fatal("Start succeeded")
+		}
+		if _, closes := window.state(); closes != 1 {
+			t.Fatalf("window closes = %d, want the window closed", closes)
+		}
+	})
+	t.Run("shortcuts fail", func(t *testing.T) {
+		r, window, _ := hostedRig(t)
+		r.ports.StartShortcuts = func(watch.ShortcutTarget) (watch.Shortcuts, error) { return nil, errors.New("taken") }
+		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
+			t.Fatal("Start succeeded")
+		}
+		if _, closes := window.state(); closes != 1 || r.running.closes() != 1 {
+			t.Fatalf("window closes %d, player closes %d", closes, r.running.closes())
+		}
+	})
 }

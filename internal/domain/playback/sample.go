@@ -57,5 +57,7 @@ type Capabilities struct {
 	FrameStepBackwardEmulated bool
 	AudioTrackSelection       bool
 	SubtitleSuppression       bool
-	Precision                 Precision
+	// Volume means the player takes volume changes (session.VolumePlayer).
+	Volume    bool
+	Precision Precision
 }
