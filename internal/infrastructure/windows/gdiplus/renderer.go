@@ -16,6 +16,14 @@ import (
 // maxCachedFonts bounds the font cache; layouts use a handful of sizes.
 const maxCachedFonts = 64
 
+// Shadow geometry.
+const (
+	// antialiasMargin covers the pixels antialiasing paints around a glyph.
+	antialiasMargin = 2.0
+	// blurReach is how many blur radii a soft shadow spreads beyond its shape.
+	blurReach = 3
+)
+
 // Look says how to draw a frame: the style of each line and whether the
 // translation is currently shown.
 type Look struct {
@@ -314,13 +322,13 @@ func (r *Renderer) drawText(c *canvas, surface *win32.DIB, block *layout.Block, 
 
 // textRegion is the area the text, its outline and its shadow can reach.
 func textRegion(block *layout.Block, style appearance.SubtitleStyle, target *win32.DIB) image.Rectangle {
-	margin := 2.0
+	margin := antialiasMargin
 	if style.Outline.Enabled {
 		margin += style.Outline.Width * block.Scale
 	}
 	if style.Shadow.Enabled {
 		s := style.Shadow
-		margin += (math.Abs(s.OffsetX) + math.Abs(s.OffsetY) + 3*s.Blur) * block.Scale
+		margin += (math.Abs(s.OffsetX) + math.Abs(s.OffsetY) + blurReach*s.Blur) * block.Scale
 	}
 	b := block.Bounds
 	return image.Rect(
@@ -390,7 +398,8 @@ func (r *Renderer) drawShadow(c *canvas, surface *win32.DIB, block *layout.Block
 	if err != nil {
 		return err
 	}
-	blurRegion(scratch.Pixels, scratch.Width, region, int(math.Round(blur/2)))
+	// Each pass reaches its radius, so the passes together reach the blur.
+	blurRegion(scratch.Pixels, scratch.Width, region, int(math.Round(blur/blurPasses)))
 	compositeRegion(surface.Pixels, scratch.Pixels, surface.Width, region, 255)
 	return nil
 }

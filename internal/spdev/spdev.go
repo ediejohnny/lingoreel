@@ -48,7 +48,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  version                        mostra a versão desta compilação")
 	fmt.Fprintln(w, "  inspect <vídeo> [--legendas]   mostra as faixas e a sugestão de estudo")
 	fmt.Fprintln(w, "  play <vídeo> [opções]          abre o vídeo no player e mostra as legendas no tempo certo")
-	fmt.Fprintln(w, "      --player <mpv|vlc|potplayer>   player preferido (padrão: o melhor instalado)")
+	fmt.Fprintln(w, "      --player <vlc>                 player preferido (por enquanto só o VLC é controlado)")
 	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
 	fmt.Fprintln(w, "      --pausado                      abre pausado")
 	fmt.Fprintln(w, "  overlay <vídeo> [opções]       como play, desenhando as legendas sobre o vídeo")
