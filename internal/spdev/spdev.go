@@ -32,6 +32,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return play(ctx, args[1:], stdout, false)
 	case "overlay":
 		return play(ctx, args[1:], stdout, true)
+	case "diag":
+		return diag(stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -52,5 +54,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
 	fmt.Fprintln(w, "      --pausado                      abre pausado")
 	fmt.Fprintln(w, "  overlay <vídeo> [opções]       como play, desenhando as legendas sobre o vídeo")
+	fmt.Fprintln(w, "  diag                           mostra monitores, escala e o roteiro de conferência")
 	fmt.Fprintln(w, "  help                           mostra esta ajuda")
 }
