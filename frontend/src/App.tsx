@@ -1,0 +1,184 @@
+import { ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppHeader } from "./components/AppHeader";
+import { IconButton } from "./components/ui/Button";
+import { HomePage } from "./pages/HomePage";
+import { PlayingPage } from "./pages/PlayingPage";
+import { SessionPage } from "./pages/SessionPage";
+import { backend, messageOf, type Playback, type Players, type Video, type WatchRequest } from "./services/backend";
+import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
+import { durationLabel } from "./format";
+
+type Screen = "home" | "session" | "playing";
+
+/** App holds which screen is open; each screen keeps its own controls. */
+export function App() {
+  const [theme, setTheme] = useState<Theme>("system");
+  useAppliedTheme(theme);
+  const [speeds, setSpeeds] = useState<number[]>([1]);
+  const [screen, setScreen] = useState<Screen>("home");
+  const [video, setVideo] = useState<Video | null>(null);
+  const [players, setPlayers] = useState<Players | null>(null);
+  const [state, setState] = useState<Playback | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+  const [installing, setInstalling] = useState("");
+  const [installError, setInstallError] = useState("");
+
+  const open = useCallback(async (path: string) => {
+    if (!path) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const opened = await backend.openVideo(path);
+      setVideo(opened);
+      setPlayers(opened.players);
+      setScreen("session");
+    } catch (failure) {
+      setError(messageOf(failure));
+      setScreen("home");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    backend
+      .preferences()
+      .then((preferences) => {
+        setTheme(asTheme(preferences.theme));
+        setSpeeds(preferences.speeds);
+      })
+      .catch(() => undefined);
+    backend.initialVideo().then(open).catch(() => undefined);
+    const offDropped = backend.onDropped((path) => void open(path));
+    const offPlayback = backend.onPlayback((next) => setState(next.active ? next : null));
+    const offEnded = backend.onEnded((ended) => {
+      setState(null);
+      setScreen((current) => (current === "playing" ? "session" : current));
+      if (ended.error) {
+        setError(ended.error);
+      }
+    });
+    const offInstall = backend.onInstall(async (progress) => {
+      setInstalling("");
+      setInstallError(progress.error);
+      if (!progress.error) {
+        setPlayers(await backend.players());
+      }
+    });
+    return () => {
+      offDropped();
+      offPlayback();
+      offEnded();
+      offInstall();
+    };
+  }, [open]);
+
+  const chooseTheme = (next: Theme) => {
+    setTheme(next);
+    // The theme still changes when saving fails; it is only not remembered.
+    backend.setTheme(next).catch(() => undefined);
+  };
+
+  const chooseVideo = useCallback(async () => {
+    try {
+      await open(await backend.chooseVideo());
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+  }, [open]);
+
+  const watch = async (request: WatchRequest) => {
+    setStarting(true);
+    setError("");
+    try {
+      await backend.watch(request);
+      setState(await backend.playbackState());
+      setScreen("playing");
+    } catch (failure) {
+      setError(messageOf(failure));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const command = useCallback((run: () => Promise<void>) => {
+    run().catch((failure) => setError(messageOf(failure)));
+  }, []);
+
+  const commands = useMemo(
+    () => ({
+      togglePause: backend.togglePause,
+      seekBy: backend.seekBy,
+      seekTo: backend.seekTo,
+      setSpeed: backend.setSpeed,
+      nudge: backend.nudge,
+      resetSync: backend.resetSync,
+      setTranslationVisible: backend.setTranslationVisible,
+      stop: backend.stop,
+    }),
+    [],
+  );
+
+  const install = (id: string) => {
+    setInstalling(id);
+    setInstallError("");
+    backend.installPlayer(id).catch((failure) => {
+      setInstalling("");
+      setInstallError(messageOf(failure));
+    });
+  };
+
+  const dismissRecommendation = async (id: string) => {
+    try {
+      await backend.dismissRecommendation(id);
+      setPlayers(await backend.players());
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+  };
+
+  const back =
+    screen === "session" ? (
+      <IconButton icon={ArrowLeft} label="Abrir outro vídeo" onClick={() => setScreen("home")} />
+    ) : undefined;
+  const subtitle = video && screen !== "home" ? `${video.name} · ${durationLabel(video.duration)}` : undefined;
+
+  return (
+    <div className="flex h-full flex-col bg-bg">
+      <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} />
+      {screen === "playing" && video && state ? (
+        <PlayingPage
+          name={video.name}
+          state={state}
+          speeds={speeds}
+          error={error}
+          onDismissError={() => setError("")}
+          onCommand={command}
+          commands={commands}
+        />
+      ) : screen === "session" && video && players ? (
+        <SessionPage
+          key={video.path}
+          video={video}
+          players={players}
+          starting={starting}
+          error={error}
+          installing={installing}
+          installError={installError}
+          onWatch={watch}
+          onDismissError={() => setError("")}
+          onInstall={install}
+          onDownload={(id) => command(() => backend.openDownloadPage(id))}
+          onDismissRecommendation={dismissRecommendation}
+        />
+      ) : (
+        <HomePage loading={loading} error={error} onChoose={chooseVideo} onDismissError={() => setError("")} />
+      )}
+    </div>
+  );
+}

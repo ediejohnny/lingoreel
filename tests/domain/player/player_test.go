@@ -65,8 +65,17 @@ func TestChooseSkipsPlayersWithoutAnAdapter(t *testing.T) {
 	if !ok || choice.Installation.ID != player.VLC || !choice.PreferredMissing {
 		t.Fatalf("Choose with mpv unsupported = %+v, %v", choice, ok)
 	}
-	if _, ok := player.Choose(installed(player.MPCHC, player.MPCBE), everything, ""); ok {
-		t.Fatal("MPC players are outside the default priority and must not be picked automatically")
+	// Players outside the default priority (MPC, or another developer's
+	// plugin) are used only when no player of the priority is installed, in
+	// the order found.
+	if choice, ok := player.Choose(installed(player.MPCBE, player.MPCHC), everything, ""); !ok || choice.Installation.ID != player.MPCBE {
+		t.Fatalf("Choose(only MPC) = %+v, %v; want the first supported one found", choice, ok)
+	}
+	if choice, ok := player.Choose(installed(player.MPCHC, player.PotPlayer), everything, ""); !ok || choice.Installation.ID != player.PotPlayer {
+		t.Fatalf("Choose(MPC and PotPlayer) = %+v, %v; the default priority must win", choice, ok)
+	}
+	if _, ok := player.Choose(installed(player.MPCHC), supportedOnly(player.VLC), ""); ok {
+		t.Fatal("picked a player without a plugin")
 	}
 	if choice, ok := player.Choose(installed(player.MPCHC), everything, player.MPCHC); !ok || choice.Installation.ID != player.MPCHC {
 		t.Fatalf("an explicitly preferred supported player must be used: %+v, %v", choice, ok)

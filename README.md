@@ -34,6 +34,9 @@ As versões seguem o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 Contribuições são bem-vindas! Abra uma issue para conversar sobre a ideia ou envie um pull request.
 Antes de enviar, rode o `scripts\check.ps1`: ele precisa passar sem erros.
 
+Quer usar outro player? Cada player é um plugin que segue o mesmo contrato: veja
+[Plugins de player](docs/plugins-de-player.md).
+
 ## Licença e créditos
 
 O LingoReel é distribuído sob a [licença MIT](LICENSE): você pode usar, copiar, modificar e

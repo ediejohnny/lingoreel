@@ -191,7 +191,7 @@ func realVLC(t *testing.T) (executable, video string) {
 	if os.Getenv("LINGOREEL_VLC_TEST") != "1" {
 		t.Skip("set LINGOREEL_VLC_TEST=1 to run against the installed VLC")
 	}
-	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, nil) {
+	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, []discovery.Hints{vlc.Plugin{}.Hints()}, nil) {
 		if installation.ID == player.VLC {
 			executable = installation.Path
 		}

@@ -5,9 +5,10 @@ package settings
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
+
+	"lingoreel/internal/domain/player"
 )
 
 // ErrInvalidSettings reports a preference outside its allowed values.
@@ -21,9 +22,6 @@ const (
 	ThemeLight  Theme = "light"
 	ThemeDark   Theme = "dark"
 )
-
-// playerIDPattern restricts player identifiers such as "mpv" or "potplayer".
-var playerIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 // InstallRecommendations remembers which player install suggestions the user
 // dismissed.
@@ -63,7 +61,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("activeProfile: %w", err)
 	}
 	for playerID, path := range c.PlayerPaths {
-		if !playerIDPattern.MatchString(playerID) {
+		if !player.ID(playerID).Valid() {
 			return fmt.Errorf("%w: player id %q", ErrInvalidSettings, playerID)
 		}
 		// Whether it is an absolute .exe path is an operating system rule,
@@ -73,7 +71,7 @@ func (c Config) Validate() error {
 		}
 	}
 	for _, playerID := range c.InstallRecommendations.Dismissed {
-		if !playerIDPattern.MatchString(playerID) {
+		if !player.ID(playerID).Valid() {
 			return fmt.Errorf("%w: dismissed player id %q", ErrInvalidSettings, playerID)
 		}
 	}

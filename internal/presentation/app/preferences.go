@@ -1,0 +1,34 @@
+package app
+
+import (
+	"errors"
+
+	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/settings"
+)
+
+// Preferences are the settings the window needs at start.
+func (a *API) Preferences() Preferences {
+	a.mu.Lock()
+	theme := a.config.Theme
+	a.mu.Unlock()
+	steps := playback.SpeedSteps()
+	speeds := make([]float64, len(steps))
+	for i, step := range steps {
+		speeds[i] = float64(step)
+	}
+	return Preferences{Theme: string(theme), Speeds: speeds}
+}
+
+// SetTheme changes the color theme: "system", "light" or "dark".
+func (a *API) SetTheme(theme string) error {
+	switch settings.Theme(theme) {
+	case settings.ThemeSystem, settings.ThemeLight, settings.ThemeDark:
+	default:
+		return errors.New("Tema desconhecido.")
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.config.Theme = settings.Theme(theme)
+	return a.saveConfig()
+}

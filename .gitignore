@@ -7,7 +7,10 @@ coverage.*
 
 # Frontend dependencies and bundles
 /frontend/node_modules/
-/frontend/dist/
+# The app embeds frontend/dist: the marker keeps the folder so Go builds
+# before the first frontend build.
+/frontend/dist/*
+!/frontend/dist/.gitkeep
 
 # Logs
 *.log

@@ -741,7 +741,7 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 		t.Skip("defina LINGOREEL_VLC_TEST=1 para abrir o VLC de verdade")
 	}
 	var executable string
-	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, nil) {
+	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, []discovery.Hints{vlc.Plugin{}.Hints()}, nil) {
 		if installation.ID == player.VLC {
 			executable = installation.Path
 		}

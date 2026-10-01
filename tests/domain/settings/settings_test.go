@@ -11,6 +11,7 @@ import (
 
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/domain/subtitle"
 )
 
 func TestDefaultsAreValidAndConsistent(t *testing.T) {
@@ -112,9 +113,13 @@ func TestProfileValidate(t *testing.T) {
 		}, false},
 		{"zero offset step", func(p *settings.Profile) { p.Sync.OffsetStep = 0 }, false},
 		{"negative offset step", func(p *settings.Profile) { p.Sync.OffsetStep = settings.Duration(-100 * time.Millisecond) }, false},
-		{"large offset step at maximum", func(p *settings.Profile) { p.Sync.OffsetLargeStep = settings.Duration(settings.MaxOffsetLargeStep) }, true},
+		{"large offset step at maximum", func(p *settings.Profile) { p.Sync.OffsetLargeStep = settings.Duration(subtitle.MaxFastNudgeStep) }, true},
+		{"offset step above 1 s", func(p *settings.Profile) {
+			p.Sync.OffsetStep = settings.Duration(subtitle.MaxNudgeStep + time.Millisecond)
+		}, false},
+		{"large step below the step", func(p *settings.Profile) { p.Sync.OffsetLargeStep = p.Sync.OffsetStep - 1 }, false},
 		{"large offset step above maximum", func(p *settings.Profile) {
-			p.Sync.OffsetLargeStep = settings.Duration(settings.MaxOffsetLargeStep + time.Second)
+			p.Sync.OffsetLargeStep = settings.Duration(subtitle.MaxFastNudgeStep + time.Millisecond)
 		}, false},
 	}
 	for _, tc := range cases {

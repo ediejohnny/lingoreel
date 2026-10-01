@@ -8,6 +8,7 @@ import (
 
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/player/discovery"
+	"lingoreel/internal/infrastructure/player/vlc"
 )
 
 // fakeEnvironment is an in-memory machine.
@@ -66,6 +67,12 @@ func (f *fakeEnvironment) Glob(pattern string) []string {
 	return matches
 }
 
+// allHints are the hints of every known player: VLC's from its plugin and
+// the others' from the discovery list.
+func allHints() []discovery.Hints {
+	return append([]discovery.Hints{vlc.Plugin{}.Hints()}, discovery.Known()...)
+}
+
 func found(t *testing.T, installations []player.Installation) map[player.ID]string {
 	t.Helper()
 	paths := map[player.ID]string{}
@@ -79,7 +86,7 @@ func found(t *testing.T, installations []player.Installation) map[player.ID]stri
 }
 
 func TestDetectFindsNothingOnACleanMachine(t *testing.T) {
-	if got := discovery.Detect(newEnvironment(), nil); len(got) != 0 {
+	if got := discovery.Detect(newEnvironment(), allHints(), nil); len(got) != 0 {
 		t.Fatalf("Detect on an empty machine = %+v", got)
 	}
 }
@@ -102,7 +109,7 @@ func TestDetectUsesEachSource(t *testing.T) {
 	env.path["mpc-be64.exe"] = `F:\Tools\mpc-be64.exe`
 	env.addFile(`F:\Tools\mpc-be64.exe`)
 
-	paths := found(t, discovery.Detect(env, nil))
+	paths := found(t, discovery.Detect(env, allHints(), nil))
 	want := map[player.ID]string{
 		player.VLC:       `d:\apps\vlc\vlc.exe`,
 		player.MPV:       `c:\users\u\appdata\local\microsoft\winget\links\mpv.exe`,
@@ -125,12 +132,12 @@ func TestConfiguredPathWinsWhenItExists(t *testing.T) {
 	env.addFile(`C:\Program Files\VideoLAN\VLC\vlc.exe`)
 	env.addFile(`D:\Portable\VLC\vlc.exe`)
 
-	paths := found(t, discovery.Detect(env, map[player.ID]string{player.VLC: `D:\Portable\VLC\vlc.exe`}))
+	paths := found(t, discovery.Detect(env, allHints(), map[player.ID]string{player.VLC: `D:\Portable\VLC\vlc.exe`}))
 	if paths[player.VLC] != `d:\portable\vlc\vlc.exe` {
 		t.Fatalf("configured path ignored: %q", paths[player.VLC])
 	}
 
-	stale := found(t, discovery.Detect(env, map[player.ID]string{player.VLC: `D:\Removed\vlc.exe`}))
+	stale := found(t, discovery.Detect(env, allHints(), map[player.ID]string{player.VLC: `D:\Removed\vlc.exe`}))
 	if stale[player.VLC] != `c:\program files\videolan\vlc\vlc.exe` {
 		t.Fatalf("a configured path that no longer exists must fall back to detection, got %q", stale[player.VLC])
 	}
@@ -149,13 +156,37 @@ func TestDetectRejectsPathsThatAreNotThePlayer(t *testing.T) {
 	configured := map[player.ID]string{player.MPCBE: `C:\Tools\notepad.exe`}
 	env.addFile(`C:\Tools\notepad.exe`)
 
-	if got := discovery.Detect(env, configured); len(got) != 0 {
+	if got := discovery.Detect(env, allHints(), configured); len(got) != 0 {
 		t.Fatalf("Detect accepted foreign or missing programs: %+v", got)
 	}
 }
 
+func TestDetectFollowsTheHintsItIsGiven(t *testing.T) {
+	env := newEnvironment()
+	env.addFile(`C:\Program Files\VideoLAN\VLC\vlc.exe`)
+	env.addFile(`C:\Program Files\mpv\mpv.exe`)
+	// Only the players whose hints were given are looked for.
+	if got := found(t, discovery.Detect(env, discovery.Known(), nil)); len(got) != 1 || got[player.MPV] == "" {
+		t.Fatalf("Detect with the list without plugins = %v, want only mpv", got)
+	}
+	// Hints listed twice are looked for once; incomplete hints are skipped.
+	hints := []discovery.Hints{vlc.Plugin{}.Hints(), vlc.Plugin{}.Hints(), {ID: "empty"}, {Executables: []string{"x.exe"}}}
+	if got := discovery.Detect(env, hints, nil); len(got) != 1 || got[0].ID != player.VLC {
+		t.Fatalf("Detect = %+v, want VLC once", got)
+	}
+	// No uninstall pattern: that source is skipped, not a crash.
+	bare := discovery.Hints{ID: "bare", Executables: []string{"bare.exe"}}
+	env.subkeys["0|"+strings.ToLower(`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`)] = []string{"Bare"}
+	if got := discovery.Detect(env, []discovery.Hints{bare}, nil); len(got) != 0 {
+		t.Fatalf("Detect = %+v, want nothing", got)
+	}
+	if known := discovery.Known(); len(known) == 0 || &known[0] == &discovery.Known()[0] {
+		t.Fatal("Known must return its own copy")
+	}
+}
+
 func TestDetectOnThisMachineReturnsOnlyExistingExecutables(t *testing.T) {
-	installations := discovery.Detect(discovery.SystemEnvironment{}, nil)
+	installations := discovery.Detect(discovery.SystemEnvironment{}, allHints(), nil)
 	for _, installation := range installations {
 		info, err := os.Stat(installation.Path)
 		if err != nil || !info.Mode().IsRegular() || !filepath.IsAbs(installation.Path) {

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "LingoReel",
+  "outputfilename": "LingoReel",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Edie Johnny"
+  },
+  "info": {
+    "companyName": "Edie Johnny",
+    "productName": "LingoReel",
+    "comments": "Duas legendas sincronizadas para estudar idiomas com filmes e séries."
+  }
+}

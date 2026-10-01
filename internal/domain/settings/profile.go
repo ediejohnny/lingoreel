@@ -9,7 +9,9 @@ import (
 
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/study"
+	"lingoreel/internal/domain/subtitle"
 )
 
 // DefaultProfileName is the profile created on the first run.
@@ -25,10 +27,6 @@ var languageTagPattern = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$
 const (
 	MinPrecisionSeekStep = 10 * time.Millisecond
 	MaxPrecisionSeekStep = 10 * time.Second
-	MinOffsetStep        = 10 * time.Millisecond
-	MaxOffsetStep        = 5 * time.Second
-	MinOffsetLargeStep   = 100 * time.Millisecond
-	MaxOffsetLargeStep   = time.Minute
 )
 
 // LanguagePreferences lists the preferred languages as BCP 47 tags. An empty
@@ -45,11 +43,17 @@ type StudyPreferences struct {
 	Reveal study.RevealBehavior `json:"reveal"`
 }
 
-// SyncPreferences configures the fine time adjustments.
+// SyncPreferences configures the fine time adjustments. OffsetStep and
+// OffsetLargeStep are the sync shortcuts' steps (a press, and while held).
 type SyncPreferences struct {
 	PrecisionSeekStep Duration `json:"precisionSeekStep"`
 	OffsetStep        Duration `json:"offsetStep"`
 	OffsetLargeStep   Duration `json:"offsetLargeStep"`
+}
+
+// Nudge returns the sync shortcuts' steps.
+func (s SyncPreferences) Nudge() subtitle.NudgeSteps {
+	return subtitle.NudgeSteps{Step: time.Duration(s.OffsetStep), FastStep: time.Duration(s.OffsetLargeStep)}
 }
 
 // Profile is a named set of study preferences, such as "Inglês" or "Francês".
@@ -78,8 +82,8 @@ func DefaultProfile() Profile {
 		Speed:       playback.NormalSpeed,
 		Sync: SyncPreferences{
 			PrecisionSeekStep: Duration(100 * time.Millisecond),
-			OffsetStep:        Duration(100 * time.Millisecond),
-			OffsetLargeStep:   Duration(time.Second),
+			OffsetStep:        Duration(subtitle.DefaultNudgeStep),
+			OffsetLargeStep:   Duration(subtitle.DefaultFastNudgeStep),
 		},
 	}
 }
@@ -89,7 +93,7 @@ func (p Profile) Validate() error {
 	if err := validateProfileName(p.Name); err != nil {
 		return err
 	}
-	if p.PreferredPlayer != "" && !playerIDPattern.MatchString(p.PreferredPlayer) {
+	if p.PreferredPlayer != "" && !player.ID(p.PreferredPlayer).Valid() {
 		return fmt.Errorf("%w: preferredPlayer %q", ErrInvalidSettings, p.PreferredPlayer)
 	}
 	if !languageTagPattern.MatchString(p.Languages.Audio) || !languageTagPattern.MatchString(p.Languages.Primary) {
@@ -120,10 +124,8 @@ func (s SyncPreferences) validate() error {
 	switch {
 	case !s.PrecisionSeekStep.within(MinPrecisionSeekStep, MaxPrecisionSeekStep):
 		return fmt.Errorf("%w: precisionSeekStep", ErrInvalidSettings)
-	case !s.OffsetStep.within(MinOffsetStep, MaxOffsetStep):
-		return fmt.Errorf("%w: offsetStep", ErrInvalidSettings)
-	case !s.OffsetLargeStep.within(MinOffsetLargeStep, MaxOffsetLargeStep):
-		return fmt.Errorf("%w: offsetLargeStep", ErrInvalidSettings)
+	case s.Nudge().Validate() != nil:
+		return fmt.Errorf("%w: offsetStep and offsetLargeStep: %w", ErrInvalidSettings, s.Nudge().Validate())
 	}
 	return nil
 }

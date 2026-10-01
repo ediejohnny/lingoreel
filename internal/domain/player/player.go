@@ -79,8 +79,9 @@ type Choice struct {
 }
 
 // Choose picks the user's preferred player when it is installed and
-// supported; otherwise the first supported player in the default priority.
-// It reports false when no supported player is installed.
+// supported; otherwise the first supported player in the default priority,
+// then any other supported player (a plugin outside the default list), in
+// the order found. It reports false when no supported player is installed.
 func Choose(installed []Installation, supported func(ID) bool, preferred ID) (Choice, bool) {
 	find := func(id ID) (Installation, bool) {
 		for _, installation := range installed {
@@ -98,6 +99,11 @@ func Choose(installed []Installation, supported func(ID) bool, preferred ID) (Ch
 	}
 	for _, id := range defaultPriority {
 		if installation, found := find(id); found {
+			return Choice{Installation: installation, PreferredMissing: preferred != ""}, true
+		}
+	}
+	for _, installation := range installed {
+		if supported(installation.ID) {
 			return Choice{Installation: installation, PreferredMissing: preferred != ""}, true
 		}
 	}

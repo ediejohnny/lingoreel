@@ -1,5 +1,6 @@
 ﻿# check.ps1 - Quality gates required before every commit: formatting, static
-# analysis and tests (with the race detector when a C compiler is available).
+# analysis and tests (with the race detector when a C compiler is available),
+# then the window's frontend: types, lint and tests.
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1 [-SkipRace]
@@ -14,7 +15,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 # Every test lives under tests\, mirroring the production tree.
 $testsRoot = Join-Path $root "tests"
-$goSourceDirs = @("cmd", "internal", "tests")
+$goSourceDirs = @("main.go", "cmd", "internal", "tests")
+$frontendDir = Join-Path $root "frontend"
 
 # Scripts need a UTF-8 BOM: without it Windows PowerShell 5.1 reads them as ANSI
 # and breaks every accented message.
@@ -38,14 +40,14 @@ function Test-PowerShellScripts {
 Push-Location -LiteralPath $root
 $previousCgo = $env:CGO_ENABLED
 try {
-    Write-Host "[1/5] Validando os scripts PowerShell (codificação e sintaxe)..."
+    Write-Host "[1/6] Validando os scripts PowerShell (codificação e sintaxe)..."
     $scriptProblems = @(Test-PowerShellScripts)
     if ($scriptProblems.Count -gt 0) {
         $scriptProblems | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
         throw "Há scripts PowerShell com problemas."
     }
 
-    Write-Host "[2/5] Conferindo a organização dos testes (só em tests\)..."
+    Write-Host "[2/6] Conferindo a organização dos testes (só em tests\)..."
     $packages = Invoke-Native -FilePath "go" -Arguments @("list", "-f", "{{.Dir}}|{{len .TestGoFiles}}|{{len .XTestGoFiles}}", "./...") `
         -FailureMessage "Não foi possível listar os pacotes Go" -Capture
     $misplacedTests = @($packages | ForEach-Object {
@@ -59,7 +61,7 @@ try {
         throw "Há pacotes com arquivos de teste fora da pasta tests\."
     }
 
-    Write-Host "[3/5] Verificando a formatação (gofmt)..."
+    Write-Host "[3/6] Verificando a formatação (gofmt)..."
     $sourceDirs = @($goSourceDirs | Where-Object { Test-Path -LiteralPath (Join-Path $root $_) })
     $unformatted = Invoke-Native -FilePath "gofmt" -Arguments (@("-l") + $sourceDirs) `
         -FailureMessage "O gofmt falhou" -Capture
@@ -69,7 +71,7 @@ try {
         throw "Formatação pendente. Rode: gofmt -w $($sourceDirs -join ' ')"
     }
 
-    Write-Host "[4/5] Análise estática (go vet)..."
+    Write-Host "[4/6] Análise estática (go vet)..."
     Invoke-Native -FilePath "go" -Arguments @("vet", "./...") -FailureMessage "O go vet encontrou problemas"
 
     $testArguments = @("test", "./...")
@@ -82,11 +84,25 @@ try {
             Write-Host "Aviso: gcc não encontrado no PATH; os testes vão rodar sem -race." -ForegroundColor Yellow
         }
     }
-    Write-Host "[5/5] Testes (go $($testArguments -join ' '))..."
+    Write-Host "[5/6] Testes (go $($testArguments -join ' '))..."
     Invoke-Native -FilePath "go" -Arguments $testArguments -FailureMessage "Há testes falhando"
 
+    Write-Host "[6/6] Interface (tipos, lint e testes)..."
+    Push-Location -LiteralPath $frontendDir
+    try {
+        if (-not (Test-Path -LiteralPath (Join-Path $frontendDir "node_modules"))) {
+            Invoke-Native -FilePath "npm.cmd" -Arguments @("ci") -FailureMessage "A instalação das dependências da interface falhou"
+        }
+        Invoke-Native -FilePath "npm.cmd" -Arguments @("run", "typecheck") -FailureMessage "A interface tem erros de tipo"
+        Invoke-Native -FilePath "npm.cmd" -Arguments @("run", "lint") -FailureMessage "O lint da interface encontrou problemas"
+        Invoke-Native -FilePath "npm.cmd" -Arguments @("test") -FailureMessage "Há testes da interface falhando"
+    }
+    finally {
+        Pop-Location
+    }
+
     Write-Host ""
-    Write-Host "Tudo certo: scripts, organização, formatação, análise estática e testes passaram." -ForegroundColor Green
+    Write-Host "Tudo certo: scripts, organização, formatação, análise estática, testes e interface passaram." -ForegroundColor Green
 }
 finally {
     $env:CGO_ENABLED = $previousCgo

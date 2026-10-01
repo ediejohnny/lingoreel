@@ -1,4 +1,5 @@
-﻿# build.ps1 - Compiles the LingoReel executables into build\bin.
+﻿# build.ps1 - Compiles the LingoReel executables into build\bin: the
+# development tool (spdev.exe) and the app with its window (LingoReel.exe).
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 [-Version 1.2.3]
@@ -44,20 +45,29 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Push-Location -LiteralPath $root
 try {
     $spdev = Join-Path $binDir "spdev.exe"
-    Write-Host "[1/2] Compilando spdev.exe (versão $buildVersion)..."
+    Write-Host "[1/3] Compilando spdev.exe (versão $buildVersion)..."
     Invoke-Native -FilePath "go" -Arguments @("build", "-trimpath", "-ldflags", $ldflags, "-o", $spdev, "./cmd/spdev") `
         -FailureMessage "A compilação do spdev falhou"
 
-    Write-Host "[2/2] Conferindo a versão gravada no executável..."
+    Write-Host "[2/3] Conferindo a versão gravada no executável..."
     $reported = Invoke-Native -FilePath $spdev -Arguments @("version") -FailureMessage "O spdev.exe não executou" -Capture
     if ("$reported".Trim() -ne $buildVersion) {
         throw "O spdev.exe informa a versão '$reported', mas o esperado era '$buildVersion'."
     }
 
+    $app = Join-Path $binDir "LingoReel.exe"
+    Write-Host "[3/3] Compilando o app (LingoReel.exe) com a interface..."
+    Invoke-Native -FilePath "wails" -Arguments @("build", "-trimpath", "-ldflags", $ldflags) `
+        -FailureMessage "A compilação do app falhou"
+    if (-not (Test-Path -LiteralPath $app)) {
+        throw "O app não foi gerado em $app."
+    }
     $sizeMb = [math]::Round((Get-Item -LiteralPath $spdev).Length / 1MB, 1)
     Write-Host ""
     Write-Host "Compilação concluída." -ForegroundColor Green
     Write-Host "  $spdev ($sizeMb MB)"
+    $appMb = [math]::Round((Get-Item -LiteralPath $app).Length / 1MB, 1)
+    Write-Host "  $app ($appMb MB)"
 }
 finally {
     Pop-Location
