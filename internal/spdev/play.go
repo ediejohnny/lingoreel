@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ import (
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/vlc"
 	"lingoreel/internal/infrastructure/subtitlefile"
 )
 
@@ -40,28 +38,6 @@ const (
 	// is known; the player itself clamps to the real duration.
 	maxStart = 24 * time.Hour
 )
-
-// runningPlayer is a launched player: the controls the session uses, its
-// observations and a way to end it.
-type runningPlayer interface {
-	session.Player
-	Samples() <-chan playback.Sample
-	ProcessID() int
-	// Err tells why the samples ended: playback.ErrPlayerLost for a player
-	// that crashed or stopped answering, nil for one the user closed.
-	Err() error
-	Close() error
-}
-
-type launcher func(ctx context.Context, executable string, request player.LaunchRequest) (runningPlayer, error)
-
-// launchers holds the players spdev can drive; the others are detected but
-// not offered yet.
-var launchers = map[player.ID]launcher{
-	player.VLC: func(ctx context.Context, executable string, request player.LaunchRequest) (runningPlayer, error) {
-		return vlc.LaunchWith(ctx, executable, request, vlc.Options{Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))})
-	},
-}
 
 type playOptions struct {
 	path      string
@@ -95,9 +71,14 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		return err
 	}
 
-	choice, found := player.Choose(discovery.Detect(discovery.SystemEnvironment{}, nil), isDrivable, options.preferred)
+	registry, hints, err := newRegistry()
+	if err != nil {
+		return err
+	}
+	installed := discovery.Detect(discovery.SystemEnvironment{}, append(hints, discovery.Known()...), nil)
+	choice, found := player.Choose(installed, registry.Supported, options.preferred)
 	if !found {
-		return fmt.Errorf("%w (suportados agora: VLC)", ErrNoPlayer)
+		return fmt.Errorf("%w (suportados agora: %s)", ErrNoPlayer, supportedNames(registry))
 	}
 
 	out := &printer{w: stdout}
@@ -124,7 +105,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		Window:      initialWindow(result.Info),
 	}
 	request.VideoWidth, _ = videoSize(result.Info)
-	running, err := launchers[choice.Installation.ID](ctx, choice.Installation.Path, request)
+	running, err := registry.Launch(ctx, choice.Installation, request)
 	if err != nil {
 		return err
 	}
@@ -260,11 +241,6 @@ func parseSeconds(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("%w: %s %q (use segundos, de 0 a %d)", ErrInvalidOption, startFlag, value, int(maxStart.Seconds()))
 	}
 	return time.Duration(seconds * float64(time.Second)), nil
-}
-
-func isDrivable(id player.ID) bool {
-	_, found := launchers[id]
-	return found
 }
 
 // audioIndex converts a track number into the position among audio tracks

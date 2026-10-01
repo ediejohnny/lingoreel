@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"lingoreel/internal/application/players"
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/domain/media"
@@ -18,7 +19,7 @@ import (
 
 // openOverlay puts the subtitle window over the player, with the default
 // profile's look; its errors without a caller go to stderr.
-func openOverlay(ctx context.Context, running runningPlayer, info media.Info) (session.Display, error) {
+func openOverlay(ctx context.Context, running players.Running, info media.Info) (session.Display, error) {
 	profile := settings.DefaultProfile()
 	options := overlay.Options{
 		ProcessID: running.ProcessID(),

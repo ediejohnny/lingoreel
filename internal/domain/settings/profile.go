@@ -9,6 +9,7 @@ import (
 
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/study"
 )
 
@@ -89,7 +90,7 @@ func (p Profile) Validate() error {
 	if err := validateProfileName(p.Name); err != nil {
 		return err
 	}
-	if p.PreferredPlayer != "" && !playerIDPattern.MatchString(p.PreferredPlayer) {
+	if p.PreferredPlayer != "" && !player.ID(p.PreferredPlayer).Valid() {
 		return fmt.Errorf("%w: preferredPlayer %q", ErrInvalidSettings, p.PreferredPlayer)
 	}
 	if !languageTagPattern.MatchString(p.Languages.Audio) || !languageTagPattern.MatchString(p.Languages.Primary) {
