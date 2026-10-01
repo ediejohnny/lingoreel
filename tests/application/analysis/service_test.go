@@ -22,6 +22,10 @@ type fakeReader struct {
 	checkErr      error
 	requested     []uint64
 	progressCalls int
+	// whileReading runs when subtitles are being read, to cancel mid-read.
+	whileReading func()
+	// readErr fails only the reading of subtitles.
+	readErr error
 }
 
 func (f *fakeReader) Analyze(path string) (media.Info, error) {
@@ -36,12 +40,18 @@ func (f *fakeReader) Check(path string) error {
 
 func (f *fakeReader) ReadSubtitles(ctx context.Context, path string, tracks []uint64, progress func(done, total int64)) (map[uint64]media.SubtitleContent, error) {
 	f.requested = append([]uint64{}, tracks...)
+	if f.whileReading != nil {
+		f.whileReading()
+	}
 	if progress != nil {
 		progress(50, 100)
 		progress(100, 100)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if f.readErr != nil {
+		return nil, f.readErr
 	}
 	return f.content, f.err
 }

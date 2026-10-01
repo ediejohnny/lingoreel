@@ -105,6 +105,11 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	out.line("Player:    %s  %s", describeInstallation(choice.Installation), choice.Installation.Path)
 	out.line("Legenda:   %s", describeChoice(result.Info, result.Suggested.Primary))
 	out.line("Tradução:  %s", describeChoice(result.Info, result.Suggested.Translation))
+	for _, number := range chosen {
+		if track, found := loaded[number]; found && track.Corrected {
+			out.line("Sincronia: %s ajustada automaticamente para casar com o vídeo: %s", trackLabel(number), describeCorrection(track.Correction))
+		}
+	}
 	if out.err != nil {
 		return out.err
 	}

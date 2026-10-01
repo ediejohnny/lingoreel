@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/subtitlefile"
 )
@@ -22,6 +25,8 @@ var ErrMissingArgument = errors.New("argumento obrigatório ausente")
 const (
 	subtitlesFlag     = "--legendas"
 	previewEventCount = 3
+	// rateShownFrom is the least speed change worth printing (0.001%).
+	rateShownFrom = 1e-5
 )
 
 var trackTypeNames = map[media.TrackType]string{
@@ -56,6 +61,9 @@ func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 	out.line("Faixas:")
 	for _, track := range result.Info.Tracks {
 		out.line("  %s", describeTrack(track))
+		if track.External() && track.Readable {
+			out.line("       sincronia: %s", describeAlignment(track))
+		}
 	}
 	out.line("")
 	out.line("Sugestão:")
@@ -125,10 +133,42 @@ func describeTrack(track media.Track) string {
 	if track.HearingImpaired {
 		parts = append(parts, "[SDH]")
 	}
-	if track.External() {
+	switch {
+	case track.Candidate:
+		parts = append(parts, fmt.Sprintf("[candidata em %s]", filepath.Base(filepath.Dir(track.Path))))
+	case track.External():
 		parts = append(parts, "[arquivo]")
 	}
 	return strings.Join(parts, "  ")
+}
+
+// describeAlignment tells how a subtitle file fits the video.
+func describeAlignment(track media.Track) string {
+	alignment := track.Alignment
+	share := fmt.Sprintf("%.0f%% das falas", alignment.Score*100)
+	notChosen := ""
+	if !track.AutoSelectable() {
+		notChosen = "; não é escolhida sozinha"
+	}
+	switch alignment.Verdict {
+	case subtitle.VerdictMatch:
+		return fmt.Sprintf("casa com o vídeo (%s); correção %s", share, describeCorrection(alignment))
+	case subtitle.VerdictOtherCut:
+		return fmt.Sprintf("feita para outra versão do filme (estendida? Director's Cut?), se afasta a cada cena (%s)%s", share, notChosen)
+	case subtitle.VerdictNoMatch:
+		return fmt.Sprintf("não casa com este vídeo (%s)%s", share, notChosen)
+	}
+	return "sem legenda interna para comparar" + notChosen
+}
+
+// describeCorrection shows the move a matching file gets, as "+0,036 s" and,
+// when it runs at another speed, "× 0,99996".
+func describeCorrection(alignment subtitle.Alignment) string {
+	text := strings.Replace(fmt.Sprintf("%+.3f s", alignment.Offset.Seconds()), ".", ",", 1)
+	if math.Abs(alignment.Rate-1) >= rateShownFrom {
+		text += strings.Replace(fmt.Sprintf(", velocidade × %.5f", alignment.Rate), ".", ",", 1)
+	}
+	return text
 }
 
 // trackLabel shows container tracks as "#3" and subtitle files as "#A1",

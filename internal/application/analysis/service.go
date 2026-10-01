@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/subtitle"
@@ -36,7 +38,10 @@ type Reader interface {
 
 // SubtitleFiles finds and reads the subtitle files that sit next to a video.
 type SubtitleFiles interface {
+	// Find returns the files that belong to the video by their name or folder.
 	Find(videoPath string) ([]string, error)
+	// FindCandidates returns other files nearby that may belong to it.
+	FindCandidates(videoPath string) ([]string, error)
 	Load(path string) (subtitle.Format, media.SubtitleContent, error)
 }
 
@@ -49,6 +54,8 @@ type Analysis struct {
 	// external keeps the subtitle files read during the analysis, so loading
 	// one of them does not parse it again.
 	external map[uint64]media.SubtitleContent
+	// internal keeps the container tracks read as the timing reference.
+	internal map[uint64]media.SubtitleContent
 }
 
 // LoadedTrack is a subtitle track ready to be synchronized with playback.
@@ -56,7 +63,18 @@ type LoadedTrack struct {
 	Timeline *subtitle.Timeline
 	// Skipped counts frames dropped for being unreadable, empty or malformed.
 	Skipped int
+	// Corrected tells that a file's times were moved by Correction to match
+	// the video.
+	Corrected  bool
+	Correction subtitle.Alignment
 }
+
+const (
+	// minCorrectionOffset and minCorrectionRate are the least correction
+	// worth applying; below them the file already matches.
+	minCorrectionOffset = time.Millisecond
+	minCorrectionRate   = 1e-6
+)
 
 // Service runs the analysis use cases.
 type Service struct {
@@ -99,19 +117,64 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 	if err != nil {
 		return Analysis{}, err
 	}
+	var internal map[uint64]media.SubtitleContent
+	if len(contents) > 0 {
+		if internal, err = s.alignFiles(ctx, path, info, tracks, contents); err != nil {
+			return Analysis{}, err
+		}
+	}
 	info.Tracks = append(info.Tracks, tracks...)
-	return Analysis{Path: path, Info: info, Suggested: media.SelectTracks(info, preferences), external: contents}, nil
+	return Analysis{Path: path, Info: info, Suggested: media.SelectTracks(info, preferences), external: contents, internal: internal}, nil
 }
 
-// externalTracks describes the subtitle files next to the video. Each one is
-// read now: to know whether it is readable and, when its name does not say,
-// to detect its language from the text. What was read is kept for loading.
+// alignFiles measures how each subtitle file lines up with the video against
+// its fullest subtitle track, in any language. The container tracks read for
+// that are returned to be kept, so loading one of them later reads nothing.
+// A video whose tracks cannot be read is only compared by its length.
+func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, tracks []media.Track, contents map[uint64]media.SubtitleContent) (map[uint64]media.SubtitleContent, error) {
+	var readable []uint64
+	for _, track := range info.TracksOf(media.TrackSubtitle) {
+		if track.Readable {
+			readable = append(readable, track.Number)
+		}
+	}
+	var internal map[uint64]media.SubtitleContent
+	if len(readable) > 0 {
+		read, err := s.reader.ReadSubtitles(ctx, path, readable, nil)
+		switch {
+		case ctx.Err() != nil:
+			return nil, ctx.Err()
+		case err == nil:
+			internal = read
+		}
+	}
+	var reference []time.Duration
+	for _, number := range readable {
+		if events := internal[number].Events; len(events) > len(reference) {
+			reference = subtitle.Starts(events)
+		}
+	}
+	for i := range tracks {
+		if content, read := contents[tracks[i].Number]; read {
+			tracks[i].Alignment = subtitle.Align(reference, subtitle.Starts(content.Events), info.Duration)
+		}
+	}
+	return internal, nil
+}
+
+// externalTracks describes the subtitle files of the video, then the
+// candidates nearby. Each one is read now: to know whether it is readable
+// and, when its name does not say, to detect its language from the text.
+// What was read is kept for loading.
 func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media.Track, map[uint64]media.SubtitleContent, error) {
 	if s.files == nil {
 		return nil, nil, nil
 	}
 	// A folder that cannot be listed only means no external subtitles.
 	paths, _ := s.files.Find(videoPath)
+	own := len(paths)
+	candidates, _ := s.files.FindCandidates(videoPath)
+	paths = append(paths, candidates...)
 	tracks := make([]media.Track, 0, len(paths))
 	contents := map[uint64]media.SubtitleContent{}
 	for i, path := range paths {
@@ -123,6 +186,7 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media
 			Number: media.ExternalTrackBase + uint64(i), Type: media.TrackSubtitle,
 			Name: filepath.Base(path), Path: path, Language: hints.Language,
 			Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
+			Candidate: i >= own,
 		}
 		format, content, err := s.files.Load(path)
 		if err == nil {
@@ -163,7 +227,11 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 			return nil, fmt.Errorf("subtitle track %d does not exist", number)
 		}
 		if !track.External() {
-			internal = append(internal, number)
+			if cached, read := analysis.internal[number]; read {
+				content[number] = cached
+			} else {
+				internal = append(internal, number)
+			}
 			continue
 		}
 		if cached, read := analysis.external[number]; read {
@@ -195,13 +263,31 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 		if !found {
 			return nil, fmt.Errorf("subtitle track %d was not read", number)
 		}
-		timeline, err := subtitle.NewTimeline(track.Events)
+		events, result := track.Events, LoadedTrack{Skipped: track.Skipped}
+		if alignment, ok := correction(analysis.Info, number); ok {
+			events, result.Corrected, result.Correction = subtitle.Retime(events, alignment), true, alignment
+		}
+		timeline, err := subtitle.NewTimeline(events)
 		if err != nil {
 			return nil, fmt.Errorf("indexing subtitle track %d: %w", number, err)
 		}
-		loaded[number] = LoadedTrack{Timeline: timeline, Skipped: track.Skipped}
+		result.Timeline = timeline
+		loaded[number] = result
 	}
 	return loaded, nil
+}
+
+// correction returns how to move a file's times to match the video: only for
+// a file whose timing matched (tracks of the video are never measured), and
+// only when the move is measurable.
+func correction(info media.Info, number uint64) (subtitle.Alignment, bool) {
+	track, _ := info.Track(number)
+	alignment := track.Alignment
+	if alignment.Verdict != subtitle.VerdictMatch {
+		return subtitle.Alignment{}, false
+	}
+	moves := alignment.Offset.Abs() >= minCorrectionOffset || math.Abs(alignment.Rate-1) >= minCorrectionRate
+	return alignment, moves
 }
 
 func uniqueTracks(tracks []uint64) []uint64 {
