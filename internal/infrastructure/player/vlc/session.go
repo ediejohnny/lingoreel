@@ -130,6 +130,15 @@ func (s *Session) StepFrame(forward bool) error {
 	return s.send(command("frame"))
 }
 
+// SetFullscreen puts the video window in or out of fullscreen.
+func (s *Session) SetFullscreen(on bool) error {
+	value := "0"
+	if on {
+		value = "1"
+	}
+	return s.send(command("fullscreen", "value", value))
+}
+
 // SelectAudioTrack picks the audio track by its position among audio tracks.
 func (s *Session) SelectAudioTrack(index int) error {
 	return s.send(command("audio", "index", strconv.Itoa(index)))

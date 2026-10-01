@@ -713,6 +713,47 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 		return s.covering()
 	})
 
+	// RF-065: real fullscreen, not a resize. If VLC moved the video to
+	// another window, the overlay would hide with the old one. Right after a
+	// restore VLC refits its window to the video and was seen ignoring a
+	// fullscreen request sent meanwhile, so the request waits for the window
+	// to settle and is repeated a few times.
+	s.waitUntil("VLC's window to settle after the restore", func() bool {
+		before, _ := win32.ClientRectOnScreen(s.target)
+		time.Sleep(500 * time.Millisecond)
+		after, _ := win32.ClientRectOnScreen(s.target)
+		return before == after
+	})
+	fullscreen := func() bool {
+		player, err := win32.ClientRectOnScreen(s.target)
+		return err == nil && player.Right-player.Left >= 1000
+	}
+	for attempt := 1; !fullscreen(); attempt++ {
+		if attempt > 3 {
+			t.Fatalf("VLC ignored 3 fullscreen requests; %s", s.state())
+		}
+		if err := session.SetFullscreen(true); err != nil {
+			t.Fatalf("SetFullscreen(true): %v", err)
+		}
+		for deadline := time.Now().Add(2 * time.Second); !fullscreen() && time.Now().Before(deadline); {
+			time.Sleep(100 * time.Millisecond)
+		}
+		if fullscreen() && attempt > 1 {
+			t.Logf("VLC entered fullscreen on request %d", attempt)
+		}
+	}
+	s.waitUntil("the overlay to cover VLC in fullscreen", s.covering)
+	if err := session.SetFullscreen(false); err != nil {
+		t.Fatalf("SetFullscreen(false): %v", err)
+	}
+	s.waitUntil("the overlay to follow VLC out of fullscreen", func() bool {
+		if s.playerEmpty() {
+			return s.hidden()
+		}
+		player, err := win32.ClientRectOnScreen(s.target)
+		return err == nil && player.Right-player.Left < 1000 && s.covering()
+	})
+
 	if err := session.Close(); err != nil {
 		t.Fatalf("closing VLC: %v", err)
 	}

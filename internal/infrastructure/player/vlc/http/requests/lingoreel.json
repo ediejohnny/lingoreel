@@ -33,6 +33,9 @@ else
       if rate and rate > 0 and rate <= maxRate then vlc.var.set(input, "rate", rate) end
     elseif command == "frame" then
       vlc.var.trigger_callback(input, "frame-next")
+    elseif command == "fullscreen" then
+      local vout = vlc.object.vout()
+      if vout then vlc.var.set(vout, "fullscreen", _GET["value"] == "1") end
     elseif command == "audio" then
       local index = number("index")
       local ok, ids = pcall(vlc.var.get_list, input, "audio-es")
