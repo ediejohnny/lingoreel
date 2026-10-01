@@ -18,12 +18,15 @@ type Selection struct {
 	Translation uint64
 }
 
-// Weights of the selection score. Language dominates everything else; among
-// tracks of the same language, forced tracks lose because they only carry the
-// lines spoken in a foreign language.
+// Weights of the selection score, compared as tiers: a higher tier always
+// outweighs every lower one combined. Tracks of another language never take
+// part. Among the rest, a forced track loses first, because it only carries
+// the lines spoken in a foreign language; then a language nobody declared;
+// then a less exact region; then the default and hearing-impaired flags.
 const (
-	languageWeight        = 100
-	notForcedWeight       = 50
+	notForcedWeight       = 10_000
+	declaredWeight        = 1_000
+	languageWeight        = 100 // times the match level, at most 3
 	defaultFlagWeight     = 5
 	notHearingImpairedBit = 2
 )
@@ -126,6 +129,9 @@ func subtitleQuality(track Track) int {
 	if !isForced(track) {
 		score += notForcedWeight
 	}
+	if !track.LanguageGuessed {
+		score += declaredWeight
+	}
 	if track.Default {
 		score += defaultFlagWeight
 	}
@@ -141,6 +147,9 @@ func selectAudio(tracks []Track, want LanguageTag) uint64 {
 		score := languageMatch(track.Language, want) * languageWeight
 		if score == 0 {
 			continue
+		}
+		if !track.LanguageGuessed {
+			score += declaredWeight
 		}
 		if track.Default {
 			score += defaultFlagWeight

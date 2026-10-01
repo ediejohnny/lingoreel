@@ -47,6 +47,9 @@ func ReadSubtitles(ctx context.Context, source io.ReaderAt, size int64, containe
 	c := newCursor(source, size)
 	refs, err := container.subtitleRefs(c, wanted)
 	if err == nil {
+		err = container.checkCoverage(c, refs, wanted)
+	}
+	if err == nil {
 		err = container.readIndexed(ctx, c, refs, wanted, progress, collect)
 	}
 	if errors.Is(err, errIndexUnusable) {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +21,6 @@ import (
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
 	"lingoreel/internal/infrastructure/subtitlefile"
-	"lingoreel/internal/presentation/overlay"
 )
 
 var (
@@ -45,6 +46,9 @@ type runningPlayer interface {
 	session.Player
 	Samples() <-chan playback.Sample
 	ProcessID() int
+	// Err tells why the samples ended: playback.ErrPlayerLost for a player
+	// that crashed or stopped answering, nil for one the user closed.
+	Err() error
 	Close() error
 }
 
@@ -54,7 +58,7 @@ type launcher func(ctx context.Context, executable string, request player.Launch
 // not offered yet.
 var launchers = map[player.ID]launcher{
 	player.VLC: func(ctx context.Context, executable string, request player.LaunchRequest) (runningPlayer, error) {
-		return vlc.Launch(ctx, executable, request)
+		return vlc.LaunchWith(ctx, executable, request, vlc.Options{Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))})
 	},
 }
 
@@ -75,7 +79,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	}
 
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
-	result, err := service.Analyze(options.path, defaultPreferences())
+	result, err := service.Analyze(ctx, options.path, defaultPreferences())
 	if err != nil {
 		return err
 	}
@@ -120,7 +124,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 
 	precision := running.Capabilities().Precision
 	out.line("Precisão:  %s", describePrecision(precision))
-	var screen *overlay.Overlay
+	var screen session.Display
 	if withOverlay {
 		if screen, err = openOverlay(ctx, running, result.Info); err != nil {
 			return errors.Join(fmt.Errorf("abrindo o overlay: %w", err), running.Close())
@@ -140,7 +144,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	runner := session.NewRunner(clock, subtitles, func(position time.Duration, visible session.Visible) {
 		out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, labels))
 		if screen != nil {
-			if err := screen.Show(overlayContent(visible)); err != nil {
+			if err := screen.Show(screenOf(visible)); err != nil {
 				out.line("Aviso: o overlay não foi atualizado: %v", err)
 			}
 		}
@@ -149,6 +153,10 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	err = runner.Run(ctx, running.Samples())
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		err = nil
+	}
+	// Asked before Close, which ends the player on purpose.
+	if lost := running.Err(); err == nil && lost != nil {
+		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), lost)
 	}
 	var overlayErr error
 	if screen != nil {

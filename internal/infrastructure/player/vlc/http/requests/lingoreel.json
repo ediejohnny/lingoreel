@@ -1,58 +1,71 @@
 <?vlc
 --[[ Control endpoint of the LingoReel. VLC's own status.json only
 reports whole seconds; this one reports microseconds and accepts a short,
-fixed list of commands. Query values are parsed as numbers and never run. ]]
-local input = vlc.object.input()
-local command = _GET["command"]
+fixed list of commands. Query values are parsed as numbers and never run.
+The placeholders are filled when the file is written for one session: the
+token keeps other programs that read VLC's command line (and so its HTTP
+password) from driving it. ]]
+local expectedToken = "{{SESSION_TOKEN}}"
+local maxRate = {{MAX_RATE}}
 
-local function number(name)
-  return tonumber(_GET[name])
-end
+if _GET["token"] ~= expectedToken then
+  print('{"status":"denied"}')
+else
+  local input = vlc.object.input()
+  local command = _GET["command"]
 
-if input then
-  if command == "seek" then
-    local microseconds = number("us")
-    if microseconds and microseconds >= 0 then
-      vlc.var.set(input, "time", math.floor(microseconds))
-    end
-  elseif command == "pause" then
-    if vlc.playlist.status() == "playing" then vlc.playlist.pause() end
-  elseif command == "play" then
-    if vlc.playlist.status() == "paused" then vlc.playlist.pause() end
-  elseif command == "rate" then
-    local rate = number("value")
-    if rate and rate > 0 and rate <= 4 then vlc.var.set(input, "rate", rate) end
-  elseif command == "frame" then
-    vlc.var.trigger_callback(input, "frame-next")
-  elseif command == "audio" then
-    local index = number("index")
-    local ok, ids = pcall(vlc.var.get_list, input, "audio-es")
-    if ok and ids and index then
-      local position = 0
-      for _, id in ipairs(ids) do
-        if id >= 0 then
-          if position == index then
-            vlc.var.set(input, "audio-es", id)
-            break
+  local function number(name)
+    return tonumber(_GET[name])
+  end
+
+  if input then
+    if command == "seek" then
+      local microseconds = number("us")
+      if microseconds and microseconds >= 0 then
+        vlc.var.set(input, "time", math.floor(microseconds))
+      end
+    elseif command == "pause" then
+      if vlc.playlist.status() == "playing" then vlc.playlist.pause() end
+    elseif command == "play" then
+      if vlc.playlist.status() == "paused" then vlc.playlist.pause() end
+    elseif command == "rate" then
+      local rate = number("value")
+      if rate and rate > 0 and rate <= maxRate then vlc.var.set(input, "rate", rate) end
+    elseif command == "frame" then
+      vlc.var.trigger_callback(input, "frame-next")
+    elseif command == "fullscreen" then
+      local vout = vlc.object.vout()
+      if vout then vlc.var.set(vout, "fullscreen", _GET["value"] == "1") end
+    elseif command == "audio" then
+      local index = number("index")
+      local ok, ids = pcall(vlc.var.get_list, input, "audio-es")
+      if ok and ids and index then
+        local position = 0
+        for _, id in ipairs(ids) do
+          if id >= 0 then
+            if position == index then
+              vlc.var.set(input, "audio-es", id)
+              break
+            end
+            position = position + 1
           end
-          position = position + 1
         end
       end
     end
   end
-end
 
-if command == "quit" then
-  vlc.misc.quit()
-end
+  if command == "quit" then
+    vlc.misc.quit()
+  end
 
-if input then
-  -- %.0f, not %d: VLC's Lua formats %d as a 32-bit int, which overflows
-  -- at 2^31 microseconds (35 min 47 s).
-  print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f}',
-    vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
-    math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate")))
-else
-  print('{"status":"stopped","time":0,"length":0,"rate":1}')
+  if input then
+    -- %.0f, not %d: VLC's Lua formats %d as a 32-bit int, which overflows
+    -- at 2^31 microseconds (35 min 47 s).
+    print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f}',
+      vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
+      math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate")))
+  else
+    print('{"status":"stopped","time":0,"length":0,"rate":1}')
+  end
 end
 ?>

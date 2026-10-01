@@ -10,7 +10,12 @@ import (
 // overlay applies its own appearance.
 type ASSParser struct{}
 
-const assEventsSection = "[events]"
+const (
+	assEventsSection     = "[events]"
+	assScriptInfoSection = "[script info]"
+	// assWrapStyleHardBreaks is the WrapStyle under which \n breaks lines.
+	assWrapStyleHardBreaks = "2"
+)
 
 // defaultASSEventFormat is used when a document has no Format line.
 var defaultASSEventFormat = []string{"layer", "start", "end", "style", "name", "marginl", "marginr", "marginv", "effect", "text"}
@@ -26,6 +31,7 @@ func (ASSParser) Parse(data []byte) (Result, error) {
 	section := ""
 	sawEvents := false
 	format := defaultASSEventFormat
+	softBreaks := false
 	for _, line := range splitLines(DecodeText(data)) {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, ";") {
@@ -36,19 +42,22 @@ func (ASSParser) Parse(data []byte) (Result, error) {
 			sawEvents = sawEvents || section == assEventsSection
 			continue
 		}
-		if section != assEventsSection {
-			continue
-		}
-
 		key, value, found := strings.Cut(trimmed, ":")
 		if !found {
+			continue
+		}
+		if section == assScriptInfoSection && strings.EqualFold(strings.TrimSpace(key), "wrapstyle") {
+			softBreaks = strings.TrimSpace(value) == assWrapStyleHardBreaks
+			continue
+		}
+		if section != assEventsSection {
 			continue
 		}
 		switch strings.ToLower(strings.TrimSpace(key)) {
 		case "format":
 			format = parseASSFormat(value)
 		case "dialogue":
-			if parsed, ok := parseASSDialogue(value, format); ok {
+			if parsed, ok := parseASSDialogue(value, format, softBreaks); ok {
 				cues = append(cues, parsed)
 			} else {
 				skipped++
@@ -71,7 +80,7 @@ func parseASSFormat(value string) []string {
 
 // parseASSDialogue splits a Dialogue line by its Format; the text field keeps
 // any commas because it receives the remainder of the line.
-func parseASSDialogue(value string, format []string) (cue, bool) {
+func parseASSDialogue(value string, format []string, softBreaks bool) (cue, bool) {
 	fields := strings.SplitN(value, ",", len(format))
 	if len(fields) != len(format) {
 		return cue{}, false
@@ -88,7 +97,7 @@ func parseASSDialogue(value string, format []string) (cue, bool) {
 			end, err := ParseTimestamp(fields[i])
 			parsed.end, hasEnd = end, err == nil
 		case "text":
-			parsed.text, hasText = assToPlainText(fields[i]), true
+			parsed.text, hasText = assToPlainText(fields[i], softBreaks), true
 		}
 	}
 	return parsed, hasStart && hasEnd && hasText

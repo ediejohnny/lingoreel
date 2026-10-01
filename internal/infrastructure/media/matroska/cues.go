@@ -145,6 +145,9 @@ func (container Container) readIndexed(ctx context.Context, c *cursor, refs []cu
 			}
 			return visit(frame)
 		}
+		// Entries without a relative position sort first in their cluster, so a
+		// scanned cluster is scanned before its other entries come up; those
+		// entries are skipped, since the scan already delivered their blocks.
 		if ref.relative == unknownRelative {
 			if !scanned[ref.cluster] {
 				scanned[ref.cluster] = true
@@ -155,8 +158,10 @@ func (container Container) readIndexed(ctx context.Context, c *cursor, refs []cu
 					return err
 				}
 			}
-		} else if err := readIndexedBlock(c, current, ref.relative, ticks, wanted, counting); err != nil {
-			return err
+		} else if !scanned[ref.cluster] {
+			if err := readIndexedBlock(c, current, ref.relative, ticks, wanted, counting); err != nil {
+				return err
+			}
 		}
 		if frames == 0 && !scanned[ref.cluster] {
 			return errIndexUnusable
@@ -164,6 +169,109 @@ func (container Container) readIndexed(ctx context.Context, c *cursor, refs []cu
 		reportProgress(progress, int64(i+1), int64(len(refs)))
 	}
 	return nil
+}
+
+// Coverage check limits: how many clusters outside the index are sampled,
+// and how many elements are skipped looking for the cluster after a position.
+const (
+	maxCoverageSamples = 6
+	maxElementsToNext  = 16
+)
+
+// errBlockOutsideIndex marks a wanted block found in a cluster the index
+// leaves out.
+var errBlockOutsideIndex = errors.New("subtitle block outside the cue index")
+
+// checkCoverage samples clusters the index leaves out: the first cluster, the
+// one after the last indexed cluster and the ones after the widest gaps. A
+// wanted block in any of them means the index stops early or skips parts of
+// the file, and reading through it would silently lose lines.
+func (container Container) checkCoverage(c *cursor, refs []cueRef, wanted map[uint64]bool) error {
+	indexed := map[int64]bool{}
+	var positions []int64
+	for _, ref := range refs {
+		at := container.segmentDataStart + ref.cluster
+		if !indexed[at] {
+			indexed[at] = true
+			positions = append(positions, at)
+		}
+	}
+	if len(positions) == 0 {
+		return errIndexUnusable
+	}
+	// refs are sorted by cluster, so positions are too.
+	starts := []int64{positions[len(positions)-1]}
+	gaps := make([]int, 0, len(positions))
+	for i := 0; i+1 < len(positions); i++ {
+		gaps = append(gaps, i)
+	}
+	sort.SliceStable(gaps, func(a, b int) bool {
+		return positions[gaps[a]+1]-positions[gaps[a]] > positions[gaps[b]+1]-positions[gaps[b]]
+	})
+	for _, gap := range gaps[:min(len(gaps), maxCoverageSamples-2)] {
+		starts = append(starts, positions[gap])
+	}
+
+	samples := map[int64]bool{}
+	if first := container.firstCluster; first != 0 && !indexed[first] {
+		samples[first] = true
+	}
+	for _, start := range starts {
+		if next, found := container.nextCluster(c, start); found && !indexed[next] {
+			samples[next] = true
+		}
+	}
+	for at := range samples {
+		if err := container.sampleCluster(c, at, wanted); err != nil {
+			return errIndexUnusable
+		}
+	}
+	return nil
+}
+
+// nextCluster returns the start of the first cluster after the cluster at a
+// file position, skipping a few other top-level elements.
+func (container Container) nextCluster(c *cursor, at int64) (int64, bool) {
+	if err := c.seek(at); err != nil {
+		return 0, false
+	}
+	current, err := c.readElement()
+	if err != nil || current.unknownSize {
+		return 0, false
+	}
+	position := current.end()
+	for range maxElementsToNext {
+		if position >= container.segmentEnd || c.seek(position) != nil {
+			return 0, false
+		}
+		child, err := c.readElement()
+		if err != nil || child.unknownSize {
+			return 0, false
+		}
+		if child.id == idCluster {
+			return child.start, true
+		}
+		position = child.end()
+	}
+	return 0, false
+}
+
+// sampleCluster fails when the cluster at a file position holds a block of a
+// wanted track.
+func (container Container) sampleCluster(c *cursor, at int64, wanted map[uint64]bool) error {
+	if err := c.seek(at); err != nil {
+		return err
+	}
+	cluster, err := c.readElement()
+	if err != nil {
+		return err
+	}
+	if cluster.id != idCluster {
+		return fmt.Errorf("%w: 0x%X is not a cluster", ErrCorrupt, cluster.id)
+	}
+	return container.scanCluster(c, cluster, wanted, func(rawFrame) error {
+		return errBlockOutsideIndex
+	})
 }
 
 func readIndexedBlock(c *cursor, cluster element, relative, ticks int64, wanted map[uint64]bool, visit func(rawFrame) error) error {

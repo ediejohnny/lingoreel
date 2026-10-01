@@ -171,6 +171,51 @@ func TestIndexWithoutRelativePositionsScansOnlyTheClusters(t *testing.T) {
 	assertSameAsScan(t, got, 2, 3)
 }
 
+// An index may mix entries with and without a relative position inside one
+// cluster. The entry without one makes the reader scan the whole cluster, so
+// the other entries of that cluster must not deliver their blocks again.
+func TestMixedEntriesInOneClusterDoNotDuplicateLines(t *testing.T) {
+	entries := []cueEntry{
+		{track: 2, cluster: 0, block: 1, noRelative: true},
+		{track: 3, cluster: 0, block: 2},
+		{track: 2, cluster: 1, block: 1},
+		{track: 3, cluster: 1, block: 2, noRelative: true},
+	}
+	got, total := readWithProgress(t, indexedFile(sampleClusters, entries), 2, 3)
+	if total != 4 {
+		t.Fatalf("progress total = %d, want 4 (the index was not used)", total)
+	}
+	assertSameAsScan(t, got, 2, 3)
+}
+
+// An index that covers every wanted track but skips whole clusters of
+// subtitles would silently lose lines: the reader samples the clusters left
+// out of the index and falls back to the full scan when they hold subtitles.
+func TestIndexSkippingSubtitleClustersFallsBackToTheFullScan(t *testing.T) {
+	firstClusterOnly := []cueEntry{
+		{track: 2, cluster: 0, block: 1},
+		{track: 3, cluster: 0, block: 2},
+	}
+	data := indexedFile(sampleClusters, firstClusterOnly)
+	got, total := readWithProgress(t, data, 2, 3)
+	if total != int64(len(data)) {
+		t.Fatalf("progress total = %d, want the file size %d (full scan)", total, len(data))
+	}
+	assertSameAsScan(t, got, 2, 3)
+}
+
+// Clusters left out of the index that hold only video are fine: the index
+// stays in use.
+func TestIndexSkippingVideoOnlyClustersIsKept(t *testing.T) {
+	clusters := append([]testCluster{}, sampleClusters...)
+	clusters = append(clusters, testCluster{9000, [][]byte{simpleBlock(1, 0, "video frame")}})
+	data := indexedFile(clusters, completeIndex)
+	_, total := readWithProgress(t, data, 2, 3)
+	if total != 4 {
+		t.Fatalf("progress total = %d, want 4 (a video-only cluster must not reject the index)", total)
+	}
+}
+
 // A broken or partial index must never lose lines: the reader falls back to
 // the full scan, whose progress total is the file size.
 func TestUnusableIndexFallsBackToTheFullScan(t *testing.T) {

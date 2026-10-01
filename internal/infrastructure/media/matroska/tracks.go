@@ -5,16 +5,19 @@ const defaultLanguage = "eng"
 
 // TrackEntry is a track as declared in the file.
 type TrackEntry struct {
-	Number          uint64
-	UID             uint64
-	Type            uint64
-	CodecID         string
-	Name            string
-	Language        string
-	LanguageBCP47   string
-	FlagDefault     bool
-	FlagForced      bool
-	HearingImpaired bool
+	Number  uint64
+	UID     uint64
+	Type    uint64
+	CodecID string
+	Name    string
+	// Language holds the spec default "eng" when the element is absent;
+	// LanguageDeclared tells the two cases apart.
+	Language         string
+	LanguageDeclared bool
+	LanguageBCP47    string
+	FlagDefault      bool
+	FlagForced       bool
+	HearingImpaired  bool
 	// DefaultDuration is the duration of one frame in nanoseconds, 0 if unknown.
 	DefaultDuration uint64
 	PixelWidth      uint64
@@ -59,6 +62,7 @@ func readTrackEntry(c *cursor, entry element) (TrackEntry, error) {
 			track.Name, err = c.readString(field, maxStringBytes)
 		case idLanguage:
 			track.Language, err = c.readString(field, maxStringBytes)
+			track.LanguageDeclared = true
 		case idLanguageBCP47:
 			track.LanguageBCP47, err = c.readString(field, maxStringBytes)
 		case idFlagDefault:

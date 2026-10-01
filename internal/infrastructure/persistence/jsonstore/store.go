@@ -37,7 +37,15 @@ var (
 	ErrNewerVersion     = errors.New("document written by a newer version")
 	ErrMissingMigration = errors.New("missing migration")
 	ErrReservedField    = errors.New("value uses the reserved version field")
+	// ErrInvalid reports a document whose values its own Validate rejects.
+	ErrInvalid = errors.New("document has invalid values")
 )
+
+// validator is implemented by values that check themselves, such as the
+// settings; Load runs it so a hand-edited file cannot slip in bad values.
+type validator interface {
+	Validate() error
+}
 
 // Migration upgrades a decoded document from one version to the next, in place.
 type Migration func(document map[string]any) error
@@ -99,6 +107,11 @@ func (s *Store[T]) Load() (T, error) {
 	if err := json.Unmarshal(upgraded, &value); err != nil {
 		return s.defaults(), fmt.Errorf("%s: %w: %v", s.path, ErrCorrupt, err)
 	}
+	if check, validates := any(value).(validator); validates {
+		if err := check.Validate(); err != nil {
+			return s.defaults(), fmt.Errorf("%s: %w: %w", s.path, ErrInvalid, err)
+		}
+	}
 	return value, nil
 }
 
@@ -131,7 +144,7 @@ func (s *Store[T]) Save(value T) error {
 func readLimited(path string) ([]byte, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("opening %s: %w", path, err)
 	}
 	defer file.Close()
 
@@ -208,7 +221,9 @@ func renameWithRetry(from, to string) error {
 		if err = os.Rename(from, to); err == nil {
 			return nil
 		}
-		time.Sleep(renameBackoff * time.Duration(attempt+1))
+		if attempt+1 < renameAttempts {
+			time.Sleep(renameBackoff * time.Duration(attempt+1))
+		}
 	}
 	return err
 }

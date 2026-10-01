@@ -30,7 +30,9 @@ func BlockText(format subtitle.Format, payload []byte) (string, error) {
 		if len(fields) != matroskaASSFields {
 			return "", fmt.Errorf("%w: ASS block with %d fields", ErrMalformed, len(fields))
 		}
-		return subtitle.NormalizeText(assToPlainText(fields[matroskaASSFields-1])), nil
+		// The WrapStyle lives in the track header, which is not read here;
+		// the default style makes \n a soft break.
+		return subtitle.NormalizeText(assToPlainText(fields[matroskaASSFields-1], false)), nil
 	}
 	return "", fmt.Errorf("%w: %q", ErrUnsupportedFormat, format)
 }

@@ -46,6 +46,16 @@ func (FileReader) ReadSubtitles(ctx context.Context, path string, trackNumbers [
 	return content, nil
 }
 
+// Check confirms that path is a regular file the player can open, for videos
+// whose tracks this reader does not read.
+func (FileReader) Check(path string) error {
+	file, _, err := openReadOnly(path)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
 func openReadOnly(path string) (*os.File, int64, error) {
 	file, err := os.Open(path)
 	if err != nil {

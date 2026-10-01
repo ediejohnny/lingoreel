@@ -6,6 +6,7 @@
 package vlc
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"embed"
@@ -13,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -20,6 +22,7 @@ import (
 	"strconv"
 	"time"
 
+	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/windows/job"
 )
@@ -32,10 +35,29 @@ var endpointFiles embed.FS
 var ErrStartTimeout = errors.New("VLC did not open the video in time")
 
 const (
-	startTimeout  = 15 * time.Second
-	startRetry    = 100 * time.Millisecond
-	passwordBytes = 16
+	startTimeout = 15 * time.Second
+	startRetry   = 100 * time.Millisecond
+	secretBytes  = 16
+	// maxPortAttempts bounds the ports tried when another program answers on
+	// the one picked (it was free when chosen, then taken before VLC bound it).
+	maxPortAttempts = 3
 )
+
+// Placeholders of the endpoint template, filled for each session.
+const (
+	tokenPlaceholder   = "{{SESSION_TOKEN}}"
+	maxRatePlaceholder = "{{MAX_RATE}}"
+)
+
+// Options tunes a launch; the zero value is what the app uses.
+type Options struct {
+	// PickPort returns the loopback port for VLC's control interface; nil
+	// picks a free one.
+	PickPort func() (int, error)
+	// Logger receives what has no caller to report to, such as a taken port
+	// or a VLC that stopped answering; nil discards it.
+	Logger *slog.Logger
+}
 
 // Arguments returns the command line given to VLC: the bare video window
 // (no VLC interface), its own subtitles disabled, no network lookups, and the
@@ -78,31 +100,64 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 
 // Launch starts VLC on a video and waits until its control interface answers.
 func Launch(ctx context.Context, executable string, request player.LaunchRequest) (*Session, error) {
+	return LaunchWith(ctx, executable, request, Options{})
+}
+
+// LaunchWith is Launch with options. When another program answers on the
+// control port, VLC is ended and started again on another port.
+func LaunchWith(ctx context.Context, executable string, request player.LaunchRequest, options Options) (*Session, error) {
 	if !filepath.IsAbs(executable) || !isRegularFile(executable) {
 		return nil, fmt.Errorf("VLC executable %q not found", executable)
 	}
-	if !isRegularFile(request.File) {
+	file, err := filepath.Abs(request.File)
+	if err != nil || !isRegularFile(file) {
 		return nil, fmt.Errorf("video %q not found", request.File)
 	}
+	// An absolute path starts with a drive or a share, never with "-", so
+	// VLC cannot take a file name for one of its options.
+	request.File = file
+	pickPort := options.PickPort
+	if pickPort == nil {
+		pickPort = freeLoopbackPort
+	}
+	logger := options.Logger
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
 
-	endpointDir, err := writeEndpoint()
+	var lastErr error
+	for range maxPortAttempts {
+		session, err := launchOnce(ctx, executable, request, pickPort, logger)
+		if !errors.Is(err, errForeignEndpoint) {
+			return session, err
+		}
+		logger.Warn("VLC control port taken, trying another", "error", err)
+		lastErr = err
+	}
+	return nil, fmt.Errorf("starting VLC on %d ports: %w", maxPortAttempts, lastErr)
+}
+
+func launchOnce(ctx context.Context, executable string, request player.LaunchRequest, pickPort func() (int, error), logger *slog.Logger) (*Session, error) {
+	password, err := randomSecret()
+	if err != nil {
+		return nil, fmt.Errorf("creating the VLC password: %w", err)
+	}
+	token, err := randomSecret()
+	if err != nil {
+		return nil, fmt.Errorf("creating the VLC session token: %w", err)
+	}
+	port, err := pickPort()
 	if err != nil {
 		return nil, err
 	}
-	port, err := freeLoopbackPort()
+	endpointDir, err := writeEndpoint(token)
 	if err != nil {
-		os.RemoveAll(endpointDir)
-		return nil, err
-	}
-	password, err := randomPassword()
-	if err != nil {
-		os.RemoveAll(endpointDir)
 		return nil, err
 	}
 
 	cmd := exec.Command(executable, Arguments(request, port, password, endpointDir)...)
 	if err := cmd.Start(); err != nil {
-		os.RemoveAll(endpointDir)
+		removeEndpoint(endpointDir)
 		return nil, fmt.Errorf("starting VLC: %w", err)
 	}
 	killer, err := job.NewKillOnClose()
@@ -110,23 +165,35 @@ func Launch(ctx context.Context, executable string, request player.LaunchRequest
 		err = killer.Assign(cmd.Process.Pid)
 	}
 	if err != nil {
-		_ = cmd.Process.Kill()
-		os.RemoveAll(endpointDir)
-		return nil, err
+		if killErr := cmd.Process.Kill(); killErr != nil {
+			err = errors.Join(err, fmt.Errorf("ending VLC: %w", killErr))
+		}
+		removeEndpoint(endpointDir)
+		return nil, fmt.Errorf("tying VLC to the app: %w", err)
 	}
 
-	session := newSession(cmd, killer, newClient(port, password), endpointDir)
+	session := newSession(cmd, killer, newClient(port, password, token), endpointDir, logger)
 	if err := session.waitUntilReady(ctx, request.Start); err != nil {
-		session.Close()
+		if closeErr := session.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
 		return nil, err
 	}
 	session.startPolling()
 	return session, nil
 }
 
-// writeEndpoint copies the embedded Lua endpoint to a private temporary folder
-// that VLC serves through --http-src.
-func writeEndpoint() (string, error) {
+// removeEndpoint deletes the endpoint folder of a launch that failed; the
+// folder is in the user's temporary directory, so a failure only leaves it
+// for the system's cleanup.
+func removeEndpoint(dir string) {
+	_ = os.RemoveAll(dir)
+}
+
+// writeEndpoint copies the embedded Lua endpoint to a private temporary
+// folder that VLC serves through --http-src, filling in the session token
+// and the highest speed the app uses.
+func writeEndpoint(token string) (string, error) {
 	dir, err := os.MkdirTemp("", "lingoreel-vlc-*")
 	if err != nil {
 		return "", fmt.Errorf("creating the VLC endpoint folder: %w", err)
@@ -139,6 +206,8 @@ func writeEndpoint() (string, error) {
 		if err != nil {
 			return err
 		}
+		data = bytes.ReplaceAll(data, []byte(tokenPlaceholder), []byte(token))
+		data = bytes.ReplaceAll(data, []byte(maxRatePlaceholder), []byte(strconv.FormatFloat(float64(playback.MaxSpeed), 'f', -1, 64)))
 		target := filepath.Join(dir, filepath.FromSlash(path[len("http/"):]))
 		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 			return err
@@ -146,7 +215,7 @@ func writeEndpoint() (string, error) {
 		return os.WriteFile(target, data, 0o600)
 	})
 	if err != nil {
-		os.RemoveAll(dir)
+		removeEndpoint(dir)
 		return "", fmt.Errorf("writing the VLC endpoint: %w", err)
 	}
 	return dir, nil
@@ -161,10 +230,11 @@ func freeLoopbackPort() (int, error) {
 	return listener.Addr().(*net.TCPAddr).Port, nil
 }
 
-func randomPassword() (string, error) {
-	buffer := make([]byte, passwordBytes)
+// randomSecret returns a random hex string, safe inside a Lua string literal.
+func randomSecret() (string, error) {
+	buffer := make([]byte, secretBytes)
 	if _, err := rand.Read(buffer); err != nil {
-		return "", fmt.Errorf("creating the VLC password: %w", err)
+		return "", err
 	}
 	return hex.EncodeToString(buffer), nil
 }

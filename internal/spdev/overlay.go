@@ -2,6 +2,8 @@ package spdev
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"strings"
 
 	"lingoreel/internal/application/session"
@@ -10,20 +12,25 @@ import (
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/subtitle"
+	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/win32"
-	"lingoreel/internal/presentation/overlay"
 )
 
 // openOverlay puts the subtitle window over the player, with the default
-// profile's look.
-func openOverlay(ctx context.Context, running runningPlayer, info media.Info) (*overlay.Overlay, error) {
+// profile's look; its errors without a caller go to stderr.
+func openOverlay(ctx context.Context, running runningPlayer, info media.Info) (session.Display, error) {
 	profile := settings.DefaultProfile()
 	options := overlay.Options{
 		ProcessID: running.ProcessID(),
 		Layout:    profile.Layout, Primary: profile.Primary, Translation: profile.Translation,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 	}
 	options.VideoWidth, options.VideoHeight = videoSize(info)
-	return overlay.Open(ctx, options)
+	screen, err := overlay.Open(ctx, options)
+	if err != nil {
+		return nil, err // never a nil *Overlay inside a non-nil Display
+	}
+	return screen, nil
 }
 
 // videoSize is the first video track's size, or zeros when unknown.
@@ -50,9 +57,9 @@ func initialWindow(info media.Info) player.Placement {
 	return player.Placement{X: int(fit.X), Y: int(fit.Y), Width: int(fit.W), Height: int(fit.H)}
 }
 
-// overlayContent shows both lines; simultaneous events stack, one per line.
-func overlayContent(visible session.Visible) overlay.Content {
-	return overlay.Content{
+// screenOf shows both lines; simultaneous events stack, one per line.
+func screenOf(visible session.Visible) session.Screen {
+	return session.Screen{
 		Primary:            stackText(visible.Primary),
 		Translation:        stackText(visible.Translation),
 		TranslationVisible: true,

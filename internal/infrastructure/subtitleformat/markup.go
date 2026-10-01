@@ -31,9 +31,10 @@ func cleanVTTText(text string) string {
 }
 
 // assToPlainText drops ASS override blocks, vector drawings and escapes,
-// keeping only the visible text. It walks bytes but only splits on ASCII, so
-// multi-byte characters stay intact.
-func assToPlainText(text string) string {
+// keeping only the visible text. \N always breaks the line; \n is a soft
+// break that only breaks under WrapStyle 2 and is a space otherwise. It walks
+// bytes but only splits on ASCII, so multi-byte characters stay intact.
+func assToPlainText(text string, softBreaks bool) string {
 	var builder strings.Builder
 	drawing := false
 	emit := func(s string) {
@@ -55,8 +56,15 @@ func assToPlainText(text string) string {
 				drawing = level > 0
 			}
 			i += closing + 1
-		case strings.HasPrefix(text[i:], `\N`), strings.HasPrefix(text[i:], `\n`):
+		case strings.HasPrefix(text[i:], `\N`):
 			emit("\n")
+			i += 2
+		case strings.HasPrefix(text[i:], `\n`):
+			if softBreaks {
+				emit("\n")
+			} else {
+				emit(" ")
+			}
 			i += 2
 		case strings.HasPrefix(text[i:], `\h`):
 			emit(" ")

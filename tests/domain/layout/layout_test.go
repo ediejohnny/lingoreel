@@ -32,7 +32,7 @@ func defaults(v layout.Rect, primary, translation string) layout.Input {
 	}
 }
 
-// safeArea mirrors the documented rule: side margins, bottom margin and a
+// safeArea mirrors the documented rule: side, top and bottom margins and a
 // centered maximum width, all as fractions of the video.
 func safeArea(in layout.Input) layout.Rect {
 	l := in.Layout
@@ -42,8 +42,12 @@ func safeArea(in layout.Input) layout.Rect {
 		left += (width - limit) / 2
 		width = limit
 	}
-	return layout.Rect{X: left, Y: in.Video.Y, W: width, H: in.Video.H * (1 - l.MarginBottom)}
+	top := in.Video.Y + l.MarginTop*in.Video.H
+	return layout.Rect{X: left, Y: top, W: width, H: in.Video.H * (1 - l.MarginTop - l.MarginBottom)}
 }
+
+// minFontAt96 is the readable minimum at 100% scaling (documented rule).
+const minFontAt96 = 10
 
 // checkInvariants holds for every layout: lines inside the safe area, no
 // overlap between the blocks and no word lost or invented.
@@ -139,8 +143,109 @@ func TestLongTranslationNeverCoversThePrimary(t *testing.T) {
 	if len(frame.Translation.Lines) < 3 {
 		t.Fatalf("translation has %d lines; the test needs one that cannot fit below the primary", len(frame.Translation.Lines))
 	}
-	if frame.Translation.Bounds.Y < frame.Primary.Bounds.Bottom() {
-		t.Fatalf("translation top %v above primary bottom %v", frame.Translation.Bounds.Y, frame.Primary.Bounds.Bottom())
+	alone := layout.Compute(defaults(video(1280, 720), "Short.", ""), monoMeasurer{})
+	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
+		t.Fatalf("primary moved for a long translation: alone %+v, paired %+v", alone.Primary.Bounds, frame.Primary.Bounds)
+	}
+}
+
+// DESIGN §23: the English line never moves when the translation appears, not
+// even when the translation does not fit on its side. At 1280x720 the
+// primary (82%) has about 97 px below it; this translation needs more even at
+// 80%, so it must go above the primary, which stays put.
+func TestPrimaryNeverMovesForATranslationThatDoesNotFitBelow(t *testing.T) {
+	primary := "I'm not going there."
+	translation := strings.TrimSpace(strings.Repeat("uma frase bem longa ", 45))
+	in := defaults(video(1280, 720), primary, translation)
+	in.Translation.Style.MaxLines = appearance.MaxLines
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+
+	alone := layout.Compute(defaults(video(1280, 720), primary, ""), monoMeasurer{})
+	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
+		t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
+	}
+	if frame.Translation.Bounds.Bottom() > frame.Primary.Bounds.Y+eps {
+		t.Fatalf("translation %+v not above the primary %+v", frame.Translation.Bounds, frame.Primary.Bounds)
+	}
+	if got, want := frame.Translation.Font.Size, 28*720.0/1080*0.8; got < want-eps {
+		t.Fatalf("translation font = %v; with room above it must not shrink below 80%% (%v)", got, want)
+	}
+}
+
+// When neither side has room even at the minimum size, the translation stays
+// on its side and the primary still does not move.
+func TestPrimaryStaysEvenWhenNothingFits(t *testing.T) {
+	// 3200 characters at the 10 px minimum (5 px each, 576 px per line) need
+	// about 28 lines of 12.5 px: more than the whole 360 px picture.
+	solo := defaults(video(640, 360), "Center.", "")
+	solo.Primary.Style.VerticalPosition = 0.5
+	in := solo
+	in.Translation.Content = strings.Repeat("palavra ", 400)
+	frame := layout.Compute(in, monoMeasurer{})
+	alone := layout.Compute(solo, monoMeasurer{})
+	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
+		t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
+	}
+	if got := frame.Translation.Font.Size; math.Abs(got-minFontAt96) > eps {
+		t.Fatalf("translation font = %v, want the minimum %v before giving up", got, minFontAt96)
+	}
+}
+
+// PRD §34: a block may not take more than 35% of the picture height; past
+// the line limit it keeps shrinking (never cut) until it fits or reaches the
+// minimum. 400 words at 1920x1080: at 80% (25.6 px) they need 15 lines of
+// 32 px = 480 px, more than 378 px (35%).
+func TestLongTextShrinksToItsShareOfThePicture(t *testing.T) {
+	in := defaults(video(1920, 1080), strings.TrimSpace(strings.Repeat("abcd ", 400)), "")
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	if got, limit := frame.Primary.Bounds.H, 0.35*1080; got > limit+eps {
+		t.Fatalf("block height = %v, want at most %v", got, limit)
+	}
+	if got := frame.Primary.Font.Size; got >= 25.6-eps {
+		t.Fatalf("font = %v, want below the 80%% floor (25.6) to respect the height share", got)
+	}
+}
+
+// countingMeasurer counts measurements: in the overlay each one is a GDI+
+// call on the UI thread.
+type countingMeasurer struct {
+	monoMeasurer
+	widths int
+}
+
+func (c *countingMeasurer) Width(text string, font layout.Font) float64 {
+	c.widths++
+	return c.monoMeasurer.Width(text, font)
+}
+
+// Hostile text (the parsers allow 1000 characters per line) must not stall
+// the overlay's UI thread. Unbroken 1000-letter words on a wide video make
+// long pieces; measuring every prefix of each piece would cost about 1000
+// measurements per word and per shrink step (hundreds of thousands in all),
+// a binary search about 10 per piece.
+func TestHostileTextNeedsFewMeasurements(t *testing.T) {
+	word := strings.Repeat("w", 1000)
+	hostile := strings.TrimSuffix(strings.Repeat(word+"\n", 8), "\n")
+	in := defaults(video(1920, 1080), hostile, hostile)
+	in.Primary.Style.VerticalPosition = 0.5
+	measurer := &countingMeasurer{}
+	frame := layout.Compute(in, measurer)
+	if measurer.widths > 50_000 {
+		t.Fatalf("layout measured text %d times, want at most 50000", measurer.widths)
+	}
+	checkLinesOnly(t, in, layout.Frame{Primary: frame.Primary})
+}
+
+// The top margin keeps a subtitle placed at the very top off the edge.
+func TestTopMarginKeepsTopSubtitlesOffTheEdge(t *testing.T) {
+	in := defaults(video(1920, 1080), "At the top.", "")
+	in.Primary.Style.VerticalPosition = 0.01
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	if got, want := frame.Primary.Bounds.Y, 0.05*1080; math.Abs(got-want) > eps {
+		t.Fatalf("top = %v, want the top margin %v", got, want)
 	}
 }
 
@@ -381,13 +486,19 @@ func FuzzComputeKeepsInvariants(f *testing.F) {
 		in.Primary.Style.MaxLines = appearance.MaxLines
 		in.Translation.Style.MaxLines = appearance.MaxLines
 		frame := layout.Compute(in, monoMeasurer{})
-		// Overlap may be unavoidable when the text is taller than the video;
-		// check it only when both blocks fit together.
-		if frame.Primary != nil && frame.Translation != nil && frame.Primary.Bounds.H+frame.Translation.Bounds.H+frame.Translation.Lines[0].Height > safeArea(in).H {
+		// The primary never moves, so overlap is allowed only once the
+		// translation has shrunk to the minimum and still found no room.
+		if frame.Translation != nil && frame.Translation.Font.Size <= minFontAt96+eps {
 			frame.Translation = nil
 			in.Translation.Content = ""
 		}
 		checkLinesOnly(t, in, frame)
+		solo := defaults(video(w, h), primary, "")
+		solo.Primary.Style.VerticalPosition = pPos
+		solo.Primary.Style.MaxLines = appearance.MaxLines
+		if alone := layout.Compute(solo, monoMeasurer{}); frame.Primary != nil && !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
+			t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
+		}
 	})
 }
 

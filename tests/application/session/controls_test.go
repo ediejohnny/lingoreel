@@ -133,6 +133,50 @@ func TestFrameStepNeedsTheCapabilityAndAKnownRate(t *testing.T) {
 	}
 }
 
+// VLC has no backward frame command but seeks exactly: the controls emulate
+// the step with a seek one frame back and mark it as emulated for the UI.
+func TestBackwardFrameIsEmulatedWithAnExactSeek(t *testing.T) {
+	vlcLike := allCapabilities(playback.PrecisionEstimated)
+	vlcLike.FrameStepBackward, vlcLike.ExactSeek = false, true
+	player := &fakePlayer{capabilities: vlcLike}
+	controls, clock, _ := newControls(t, player, playback.StatusPlaying, ms(10_000), frameRate24)
+
+	capabilities := controls.Capabilities()
+	if !capabilities.FrameStepBackward || !capabilities.FrameStepBackwardEmulated {
+		t.Fatalf("capabilities = %+v, want an emulated backward step", capabilities)
+	}
+	if err := controls.StepFrame(false); err != nil {
+		t.Fatalf("StepFrame(false): %v", err)
+	}
+	if !slices.Equal(player.calls, []string{"pause", "seek"}) {
+		t.Fatalf("player calls = %v, want pause then seek (never frame-)", player.calls)
+	}
+	want := ms(10_000) - 41_666_667*time.Nanosecond
+	if player.seekTarget != want || clock.Position() != want {
+		t.Fatalf("seek target %v, clock %v, want %v", player.seekTarget, clock.Position(), want)
+	}
+
+	// Without exact seeks, or without a frame rate, there is nothing to emulate.
+	roughSeek := vlcLike
+	roughSeek.ExactSeek = false
+	rough := &fakePlayer{capabilities: roughSeek}
+	controls, _, _ = newControls(t, rough, playback.StatusPaused, ms(10_000), frameRate24)
+	if controls.Capabilities().FrameStepBackward || !errors.Is(controls.StepFrame(false), session.ErrNotSupported) {
+		t.Fatal("a player with keyframe seeks got an emulated backward step")
+	}
+	noRate := &fakePlayer{capabilities: vlcLike}
+	controls, _, _ = newControls(t, noRate, playback.StatusPaused, ms(10_000), 0)
+	if controls.Capabilities().FrameStepBackward || len(noRate.calls) != 0 {
+		t.Fatal("an unknown frame rate got an emulated backward step")
+	}
+	// At the very start the step stops at zero.
+	atStart := &fakePlayer{capabilities: vlcLike}
+	controls, _, _ = newControls(t, atStart, playback.StatusPaused, ms(10), frameRate24)
+	if err := controls.StepFrame(false); err != nil || atStart.seekTarget != 0 {
+		t.Fatalf("step back at 10 ms = %v, target %v, want 0", err, atStart.seekTarget)
+	}
+}
+
 func TestMissingCapabilitiesAreReportedNotIgnored(t *testing.T) {
 	player := &fakePlayer{capabilities: playback.Capabilities{Precision: playback.PrecisionEstimated}}
 	controls, _, _ := newControls(t, player, playback.StatusPlaying, 0, frameRate24)

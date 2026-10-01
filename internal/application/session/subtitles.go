@@ -44,16 +44,38 @@ func sameEvents(a, b []subtitle.Event) bool {
 	return true
 }
 
+// maxVisiblePerLine bounds the events shown at once on one line; a hostile
+// file can stack thousands of overlapping events. The latest ones win.
+const maxVisiblePerLine = 4
+
 // Subtitles decides which events are visible at a playback position.
 // It is safe for concurrent use.
 type Subtitles struct {
-	mu    sync.RWMutex
-	lines [2]*Track
+	mu      sync.RWMutex
+	lines   [2]*Track
+	changes chan struct{}
 }
 
 // NewSubtitles creates the subtitles of a session; either track may be nil.
 func NewSubtitles(primary, translation *Track) *Subtitles {
-	return &Subtitles{lines: [2]*Track{primary, translation}}
+	return &Subtitles{lines: [2]*Track{primary, translation}, changes: make(chan struct{}, 1)}
+}
+
+// Changes signals every change of what the lines show at a given position,
+// such as a new offset, so the runner redraws at once.
+func (s *Subtitles) Changes() <-chan struct{} {
+	return s.changes
+}
+
+func (s *Subtitles) notify() {
+	select {
+	case s.changes <- struct{}{}:
+	default:
+	}
+}
+
+func knownLine(line Line) bool {
+	return line >= LinePrimary && line <= LineTranslation
 }
 
 // At returns the events visible at a playback position.
@@ -70,7 +92,9 @@ func activeAt(track *Track, position time.Duration) []subtitle.Event {
 	if track == nil || track.Timeline == nil {
 		return nil
 	}
-	return track.Timeline.ActiveAt(track.Offset.TrackTime(position))
+	active := track.Timeline.ActiveAt(track.Offset.TrackTime(position))
+	// ActiveAt orders by Start, so the latest events are at the end.
+	return active[max(len(active)-maxVisiblePerLine, 0):]
 }
 
 // NextChangeAfter returns the earliest playback position after the given one
@@ -95,8 +119,11 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 	return next, found
 }
 
-// Offset returns the offset of a line.
+// Offset returns the offset of a line; zero for a missing or unknown line.
 func (s *Subtitles) Offset(line Line) subtitle.Offset {
+	if !knownLine(line) {
+		return 0
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if track := s.lines[line]; track != nil {
@@ -105,13 +132,21 @@ func (s *Subtitles) Offset(line Line) subtitle.Offset {
 	return 0
 }
 
-// SetOffset changes the offset of a line; it has no effect on a missing line.
+// SetOffset changes the offset of a line and signals the change; it has no
+// effect on a missing or unknown line.
 func (s *Subtitles) SetOffset(line Line, offset subtitle.Offset) {
+	if !knownLine(line) {
+		return
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if track := s.lines[line]; track != nil {
+	track := s.lines[line]
+	if track != nil {
 		updated := *track
 		updated.Offset = offset
 		s.lines[line] = &updated
+	}
+	s.mu.Unlock()
+	if track != nil {
+		s.notify()
 	}
 }

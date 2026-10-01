@@ -26,6 +26,23 @@ func TestRunVersionPrintsInjectedBuildVersion(t *testing.T) {
 	}
 }
 
+// diag lists one line per monitor and the checklist for other machines.
+func TestDiagListsMonitorsAndTheChecklist(t *testing.T) {
+	var out bytes.Buffer
+	if err := spdev.Run(t.Context(), []string{"diag"}, &out); err != nil {
+		t.Fatalf("Run(diag): %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{"Monitores:", "(principal)", "DPI)", "área útil", "Ciente de DPI por monitor:", "Roteiro de conferência"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("diag output lacks %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "%!") {
+		t.Fatalf("diag output has a formatting error:\n%s", text)
+	}
+}
+
 func TestRunWithoutArgumentsOrWithHelpPrintsUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {}, {"help"}, {"-h"}, {"--help"}} {
 		var out bytes.Buffer

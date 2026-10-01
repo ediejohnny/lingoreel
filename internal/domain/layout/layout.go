@@ -5,14 +5,15 @@ package layout
 
 import (
 	"math"
+	"sort"
 	"strings"
 
 	"lingoreel/internal/domain/appearance"
 )
 
 const (
-	// baseDPI is the display density at 100% scaling.
-	baseDPI = 96
+	// BaseDPI is the display density at 100% scaling.
+	BaseDPI = 96
 	// minFontPixels keeps text readable on tiny windows (at 100% scaling).
 	minFontPixels = 10
 	// minShrink is how far a block may shrink to fit its maximum lines before
@@ -23,6 +24,12 @@ const (
 	// minGapLines is the smallest gap between the two blocks, in translation
 	// line heights.
 	minGapLines = 0.2
+	// maxTextAreaShare is the most of the picture height one block may take
+	// (PRD §34: long subtitles must not cover the screen); past it the block
+	// keeps shrinking down to the minimum size.
+	maxTextAreaShare = 0.35
+	// sizeEpsilon absorbs float error when comparing sizes and positions.
+	sizeEpsilon = 1e-9
 )
 
 // Font is a concrete font in pixels.
@@ -84,9 +91,10 @@ type Frame struct {
 	Translation *Block
 }
 
-// Compute places both subtitles. The translation takes its space from its
-// text whether it is visible or not, so the primary line never moves when the
-// translation is shown or hidden.
+// Compute places both subtitles. The primary is placed from its own style
+// alone, so it never moves when a translation appears, disappears or grows
+// (DESIGN §23); the translation finds room around it. The translation also
+// takes its space from its text whether it is visible or not.
 func Compute(in Input, m Measurer) Frame {
 	video := in.Video
 	if !video.Valid() {
@@ -96,24 +104,31 @@ func Compute(in Input, m Measurer) Frame {
 	primary := wrapBlock(in.Primary, in, area, m)
 	translation := wrapBlock(in.Translation, in, area, m)
 
-	if primary != nil && translation != nil {
-		gap := minGapLines * translation.lineHeight
-		placeBoth(primary, translation, video, area, gap)
-	} else {
-		for _, b := range []*shaped{primary, translation} {
-			if b != nil {
-				b.bottom = clampBottom(anchor(b.style, video), b.height(), area)
-			}
+	for _, b := range []*shaped{primary, translation} {
+		if b != nil {
+			b.bottom = clampBottom(b.anchor, b.height(), area)
 		}
+	}
+	if primary != nil && translation != nil {
+		placeTranslation(primary, translation, area, m)
 	}
 	return Frame{Primary: primary.finish(area), Translation: translation.finish(area)}
 }
 
 // shaped is a block whose lines are wrapped but not yet placed vertically.
 type shaped struct {
-	style      appearance.SubtitleStyle
-	font       Font
-	scale      float64
+	style appearance.SubtitleStyle
+	font  Font
+	scale float64
+	// anchor is where the style asks the block's bottom to be.
+	anchor     float64
+	paragraphs []string
+	maxWidth   float64
+	// baseSize is the style's size in pixels, minSize the readable minimum
+	// and fittedSize the size after the block's own limits.
+	baseSize   float64
+	minSize    float64
+	fittedSize float64
 	lines      []string
 	widths     []float64
 	lineHeight float64
@@ -125,6 +140,34 @@ func (s *shaped) height() float64 {
 	return float64(len(s.lines))*s.lineHeight + 2*s.padding
 }
 
+func (s *shaped) top() float64 {
+	return s.bottom - s.height()
+}
+
+// resize wraps the text again at a new font size, never below the minimum.
+func (s *shaped) resize(size float64, m Measurer) {
+	s.font.Size = max(size, s.minSize)
+	s.lines = wrapAll(s.paragraphs, s.font, s.maxWidth, m)
+	s.widths = make([]float64, len(s.lines))
+	for i, line := range s.lines {
+		s.widths[i] = m.Width(line, s.font)
+	}
+	s.lineHeight = m.LineHeight(s.font)
+}
+
+// shrinkTo lowers the font in steps of the base size until fits holds or the
+// size reaches floor; it reports whether fits holds at the end.
+func (s *shaped) shrinkTo(floor float64, m Measurer, fits func() bool) bool {
+	floor = max(floor, s.minSize)
+	for !fits() {
+		if s.font.Size <= floor+sizeEpsilon {
+			return false
+		}
+		s.resize(max(s.font.Size-shrinkStep*s.baseSize, floor), m)
+	}
+	return true
+}
+
 // scaleFor converts style units into pixels: responsive styles follow the
 // video height, fixed ones follow the display density.
 func scaleFor(style appearance.SubtitleStyle, in Input) float64 {
@@ -134,7 +177,7 @@ func scaleFor(style appearance.SubtitleStyle, in Input) float64 {
 	if in.DPI <= 0 {
 		return 1
 	}
-	return float64(in.DPI) / baseDPI
+	return float64(in.DPI) / BaseDPI
 }
 
 func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
@@ -144,7 +187,7 @@ func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
 	}
 	style := text.Style
 	scale := scaleFor(style, in)
-	minPixels := minFontPixels * max(float64(in.DPI), baseDPI) / baseDPI
+	minPixels := minFontPixels * max(float64(in.DPI), BaseDPI) / BaseDPI
 	size := max(style.FontSize*scale, minPixels)
 	if !isFinitePositive(size) || !isFinitePositive(scale) {
 		return nil
@@ -153,61 +196,56 @@ func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
 	if style.Background.Enabled {
 		padding = style.Background.Padding * scale
 	}
-	maxWidth := math.Max(area.W-2*padding, 1)
+	s := &shaped{
+		style: style, scale: scale, anchor: in.Video.Y + style.VerticalPosition*in.Video.H,
+		font:       Font{Family: style.FontFamily, Bold: style.Bold, Italic: style.Italic},
+		paragraphs: paragraphs, maxWidth: math.Max(area.W-2*padding, 1),
+		baseSize: size, minSize: minPixels, padding: padding,
+	}
+	s.resize(size, m)
 	maxLines := max(style.MaxLines, 1)
-
-	font := Font{Family: style.FontFamily, Size: size, Bold: style.Bold, Italic: style.Italic}
-	lines := wrapAll(paragraphs, font, maxWidth, m)
-	for factor := 1 - shrinkStep; len(lines) > maxLines && factor >= minShrink-1e-9; factor -= shrinkStep {
-		smaller := font
-		smaller.Size = max(size*factor, minPixels)
-		lines = wrapAll(paragraphs, smaller, maxWidth, m)
-		font = smaller
-	}
-
-	widths := make([]float64, len(lines))
-	for i, line := range lines {
-		widths[i] = m.Width(line, font)
-	}
-	return &shaped{
-		style: style, font: font, scale: scale, lines: lines, widths: widths,
-		lineHeight: m.LineHeight(font), padding: padding,
-	}
+	s.shrinkTo(size*minShrink, m, func() bool { return len(s.lines) <= maxLines })
+	// Text is never cut: past the line limit it takes extra lines, but it
+	// keeps shrinking while it covers too much of the picture.
+	s.shrinkTo(minPixels, m, func() bool { return s.height() <= maxTextAreaShare*in.Video.H+sizeEpsilon })
+	s.fittedSize = s.font.Size
+	return s
 }
 
-// placeBoth resolves the two anchors so the blocks never overlap: the
-// translation moves away from the primary first, and the primary only moves
-// when the safe area leaves no other room.
-func placeBoth(primary, translation *shaped, video, area Rect, gap float64) {
-	pBottom := clampBottom(anchor(primary.style, video), primary.height(), area)
-	tBottom := clampBottom(anchor(translation.style, video), translation.height(), area)
-	pTop := pBottom - primary.height()
-	tTop := tBottom - translation.height()
-
-	if pBottom <= tBottom {
-		// Translation below the primary.
-		if overlap := pBottom + gap - tTop; overlap > 0 {
-			shift := math.Max(math.Min(overlap, area.Bottom()-tBottom), 0)
-			tBottom += shift
-			tTop += shift
-			if pBottom+gap > tTop {
-				pBottom = math.Max(tTop-gap, area.Y+primary.height())
+// placeTranslation puts the translation next to the primary, which stays
+// where its style put it. The translation keeps its side (below or above the
+// primary, as the styles say) and shrinks down to the usual 80% to fit there,
+// then tries the other side, then shrinks down to the minimum size. When
+// nothing fits even then, it stays on its side at the edge of the safe area
+// and may overlap the primary, which still does not move.
+func placeTranslation(primary, translation *shaped, area Rect, m Measurer) {
+	sides := []bool{translation.bottom >= primary.bottom, translation.bottom < primary.bottom}
+	for _, floor := range []float64{translation.baseSize * minShrink, translation.minSize} {
+		for _, below := range sides {
+			translation.resize(translation.fittedSize, m)
+			if translation.shrinkTo(floor, m, func() bool { return translation.fitBeside(primary, below, area) }) {
+				return
 			}
 		}
-	} else if overlap := tBottom + gap - pTop; overlap > 0 {
-		// Translation above the primary.
-		shift := math.Max(math.Min(overlap, tTop-area.Y), 0)
-		tBottom -= shift
-		if tBottom+gap > pTop {
-			pBottom = math.Min(tBottom+gap+primary.height(), area.Bottom())
-		}
 	}
-	primary.bottom = pBottom
-	translation.bottom = tBottom
+	if sides[0] {
+		translation.bottom = area.Bottom()
+	} else {
+		translation.bottom = math.Min(area.Y+translation.height(), area.Bottom())
+	}
 }
 
-func anchor(style appearance.SubtitleStyle, video Rect) float64 {
-	return video.Y + style.VerticalPosition*video.H
+// fitBeside places the block below or above the primary, as close to its own
+// anchor as the gap allows, and reports whether it stays inside the area.
+func (s *shaped) fitBeside(primary *shaped, below bool, area Rect) bool {
+	gap := minGapLines * s.lineHeight
+	anchored := clampBottom(s.anchor, s.height(), area)
+	if below {
+		s.bottom = math.Max(anchored, primary.bottom+gap+s.height())
+		return s.bottom <= area.Bottom()+sizeEpsilon
+	}
+	s.bottom = math.Min(anchored, primary.top()-gap)
+	return s.top() >= area.Y-sizeEpsilon
 }
 
 // clampBottom keeps a block inside the safe area, favoring its bottom edge
@@ -251,8 +289,8 @@ func alignX(alignment appearance.Alignment, width float64, area Rect, padding fl
 	}
 }
 
-// safeArea is the part of the video where text may go: inside the side and
-// bottom margins, and no wider than the maximum width, centered.
+// safeArea is the part of the video where text may go: inside the side, top
+// and bottom margins, and no wider than the maximum width, centered.
 func safeArea(video Rect, layout appearance.Layout) Rect {
 	left := video.X + layout.MarginLeft*video.W
 	right := video.Right() - layout.MarginRight*video.W
@@ -261,7 +299,9 @@ func safeArea(video Rect, layout appearance.Layout) Rect {
 		left += (width - limit) / 2
 		width = limit
 	}
-	return Rect{X: left, Y: video.Y, W: width, H: video.H - layout.MarginBottom*video.H}
+	top := video.Y + layout.MarginTop*video.H
+	height := math.Max(video.H*(1-layout.MarginTop-layout.MarginBottom), 0)
+	return Rect{X: left, Y: top, W: width, H: height}
 }
 
 // paragraphsOf splits the text at its explicit line breaks, dropping empty ones.
@@ -318,10 +358,12 @@ func breakWord(word string, font Font, maxWidth float64, m Measurer) []string {
 	var pieces []string
 	runes := []rune(word)
 	for len(runes) > 0 {
-		n := 1
-		for n < len(runes) && m.Width(string(runes[:n+1]), font) <= maxWidth {
-			n++
-		}
+		// The longest prefix that fits, found by binary search: measuring
+		// every prefix would be quadratic on a hostile thousand-letter word.
+		fits := sort.Search(len(runes), func(i int) bool {
+			return m.Width(string(runes[:i+1]), font) > maxWidth
+		})
+		n := max(fits, 1)
 		pieces = append(pieces, string(runes[:n]))
 		runes = runes[n:]
 	}

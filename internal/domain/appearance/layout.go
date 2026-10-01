@@ -14,8 +14,10 @@ const MaxMarginFraction = 0.25
 // Layout holds the safe area shared by both subtitle lines. Every value is a
 // fraction of the video size, so the layout survives resizing and DPI changes.
 type Layout struct {
-	MarginLeft   float64 `json:"marginLeft"`
-	MarginRight  float64 `json:"marginRight"`
+	MarginLeft  float64 `json:"marginLeft"`
+	MarginRight float64 `json:"marginRight"`
+	// MarginTop keeps subtitles placed near the top off the picture's edge.
+	MarginTop    float64 `json:"marginTop"`
 	MarginBottom float64 `json:"marginBottom"`
 	// MaxWidth caps the text width as a fraction of the video width.
 	MaxWidth float64 `json:"maxWidth"`
@@ -23,7 +25,7 @@ type Layout struct {
 
 // DefaultLayout returns the layout used before the user changes anything.
 func DefaultLayout() Layout {
-	return Layout{MarginLeft: 0.05, MarginRight: 0.05, MarginBottom: 0.04, MaxWidth: 0.9}
+	return Layout{MarginLeft: 0.05, MarginRight: 0.05, MarginTop: 0.05, MarginBottom: 0.04, MaxWidth: 0.9}
 }
 
 // Validate checks the margins and the maximum width.
@@ -33,6 +35,8 @@ func (l Layout) Validate() error {
 		return fmt.Errorf("%w: marginLeft", ErrInvalidLayout)
 	case !inRange(l.MarginRight, 0, MaxMarginFraction):
 		return fmt.Errorf("%w: marginRight", ErrInvalidLayout)
+	case !inRange(l.MarginTop, 0, MaxMarginFraction):
+		return fmt.Errorf("%w: marginTop", ErrInvalidLayout)
 	case !inRange(l.MarginBottom, 0, MaxMarginFraction):
 		return fmt.Errorf("%w: marginBottom", ErrInvalidLayout)
 	// Written as "not inside" so NaN, which fails every comparison, is rejected.

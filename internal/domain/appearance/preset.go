@@ -80,11 +80,16 @@ func DefaultPrimaryStyle() SubtitleStyle {
 	return style
 }
 
-// DefaultTranslationStyle is the look of the translation: same preset, smaller
-// and lower, so it never competes with the primary line.
+// translationOpacity keeps the translation a step behind the primary line.
+const translationOpacity = 0.9
+
+// DefaultTranslationStyle is the look of the translation: same preset,
+// smaller, lower and slightly see-through, so it never competes with the
+// primary line (DESIGN §10).
 func DefaultTranslationStyle() SubtitleStyle {
 	style := DefaultPrimaryStyle()
 	style.FontSize = 28
 	style.VerticalPosition = 0.91
+	style.Opacity = translationOpacity
 	return style
 }
