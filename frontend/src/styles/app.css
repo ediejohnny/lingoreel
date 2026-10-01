@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens (DESIGN §4, §5, §57). Components use only these names, so a
+ * theme changes the tokens and never the components.
+ */
+:root {
+  color-scheme: light;
+  --sp-bg: #f5f6f8;
+  --sp-surface: #ffffff;
+  --sp-surface-raised: #ffffff;
+  --sp-surface-sunken: #eef0f3;
+  --sp-border: #dde1e7;
+  --sp-border-strong: #c3c9d2;
+  --sp-text: #18202b;
+  --sp-text-secondary: #455161;
+  --sp-text-muted: #687384;
+  --sp-accent: #1f66d1;
+  --sp-accent-hover: #1854b0;
+  --sp-accent-soft: #e6eefb;
+  --sp-on-accent: #ffffff;
+  --sp-success: #19764a;
+  --sp-warning: #985600;
+  --sp-warning-soft: #fdf3e2;
+  --sp-error: #b42318;
+  --sp-error-soft: #fdecea;
+  --sp-info: #1f66d1;
+  --sp-focus: #1f66d1;
+  --sp-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.06);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --sp-bg: #0e1217;
+  --sp-surface: #151a21;
+  --sp-surface-raised: #1b222b;
+  --sp-surface-sunken: #10151b;
+  --sp-border: #28303b;
+  --sp-border-strong: #3a4452;
+  --sp-text: #e7eaef;
+  --sp-text-secondary: #b6bfcb;
+  --sp-text-muted: #8a95a4;
+  --sp-accent: #5b9bff;
+  --sp-accent-hover: #7aaeff;
+  --sp-accent-soft: #1a2a44;
+  --sp-on-accent: #0b1220;
+  --sp-success: #43b97f;
+  --sp-warning: #e2a43c;
+  --sp-warning-soft: #2c2312;
+  --sp-error: #f07167;
+  --sp-error-soft: #33181a;
+  --sp-info: #5b9bff;
+  --sp-focus: #7aaeff;
+  --sp-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.3);
+}
+
+@theme inline {
+  --color-bg: var(--sp-bg);
+  --color-surface: var(--sp-surface);
+  --color-raised: var(--sp-surface-raised);
+  --color-sunken: var(--sp-surface-sunken);
+  --color-line: var(--sp-border);
+  --color-line-strong: var(--sp-border-strong);
+  --color-fg: var(--sp-text);
+  --color-fg-secondary: var(--sp-text-secondary);
+  --color-fg-muted: var(--sp-text-muted);
+  --color-accent: var(--sp-accent);
+  --color-accent-hover: var(--sp-accent-hover);
+  --color-accent-soft: var(--sp-accent-soft);
+  --color-on-accent: var(--sp-on-accent);
+  --color-success: var(--sp-success);
+  --color-warning: var(--sp-warning);
+  --color-warning-soft: var(--sp-warning-soft);
+  --color-error: var(--sp-error);
+  --color-error-soft: var(--sp-error-soft);
+  --color-focus: var(--sp-focus);
+  --shadow-card: var(--sp-shadow);
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Motion tokens (DESIGN §45) and reduced motion (§46). */
+:root {
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus is always visible (DESIGN §21). */
+:focus-visible {
+  outline: 2px solid var(--sp-focus);
+  outline-offset: 2px;
+}
