@@ -73,8 +73,8 @@ export function SessionPage(props: SessionPageProps) {
           title="Legendas"
           aside={
             <HelpTip topic="legendas">
-              A legenda de cima é a do idioma que você estuda; a de baixo é a tradução. Legendas baixadas na pasta do vídeo ou em
-              subpastas aparecem aqui, e o tempo delas é conferido com o vídeo.
+              A legenda de cima é a do idioma que você estuda; a de baixo é a tradução. Legendas baixadas na pasta do vídeo ou em subpastas
+              aparecem aqui, e o tempo delas é conferido com o vídeo.
             </HelpTip>
           }
         >
@@ -105,7 +105,10 @@ export function SessionPage(props: SessionPageProps) {
           <Select
             label="Faixa de áudio"
             value={audio}
-            options={[{ value: none, label: "Escolha do player" }, ...video.audio.map((track) => ({ value: String(track.number), label: track.label }))]}
+            options={[
+              { value: none, label: "Escolha do player" },
+              ...video.audio.map((track) => ({ value: String(track.number), label: track.label })),
+            ]}
             onChange={setAudio}
           />
         </Card>
@@ -127,7 +130,12 @@ export function SessionPage(props: SessionPageProps) {
               )}
               <Select label="Abrir com" value={player} options={playerOptions} onChange={setPlayer} />
               <label className="flex w-fit items-center gap-2 text-sm text-fg">
-                <input type="checkbox" checked={alwaysUse} onChange={(event) => setAlwaysUse(event.target.checked)} className="size-4 accent-[var(--sp-accent)]" />
+                <input
+                  type="checkbox"
+                  checked={alwaysUse}
+                  onChange={(event) => setAlwaysUse(event.target.checked)}
+                  className="size-4 accent-[var(--sp-accent)]"
+                />
                 Usar sempre este player
                 <HelpTip topic="usar sempre este player">
                   O LingoReel passa a abrir os vídeos sempre com este player, enquanto ele estiver instalado.

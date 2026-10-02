@@ -33,7 +33,7 @@ As versões seguem o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## Contribuindo
 
 Contribuições são bem-vindas! Abra uma issue para conversar sobre a ideia ou envie um pull request.
-Antes de enviar, rode o `scripts\check.ps1`: ele precisa passar sem erros.
+Antes de enviar, rode o `scripts\check.ps1`: ele precisa passar sem erros. A interface segue o [Prettier](https://prettier.io/): `npm run format` na pasta `frontend` formata o código.
 
 Quer usar outro player? Cada player é um plugin que segue o mesmo contrato: veja
 [Plugins de player](docs/plugins-de-player.md).

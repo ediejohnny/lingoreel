@@ -17,7 +17,10 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
         <Select
           label="Abrir os vídeos com"
           value={draft.preferredPlayer}
-          options={[{ value: "", label: "Automático (o melhor instalado)" }, ...supported.map((item) => ({ value: item.id, label: item.name }))]}
+          options={[
+            { value: "", label: "Automático (o melhor instalado)" },
+            ...supported.map((item) => ({ value: item.id, label: item.name })),
+          ]}
           onChange={(id) => change(setDraft, "preferredPlayer")(id)}
           help={
             <HelpTip topic="Player preferido">
@@ -31,8 +34,7 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
         title="Onde estão os players"
         aside={
           <HelpTip topic="Onde estão os players">
-            O app procura os players nos lugares de costume. Se o seu estiver em outra pasta, escolha o programa dele (o arquivo
-            .exe).
+            O app procura os players nos lugares de costume. Se o seu estiver em outra pasta, escolha o programa dele (o arquivo .exe).
           </HelpTip>
         }
       >
@@ -49,7 +51,11 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
                 Escolher programa…
               </Button>
               {item.custom && (
-                <Button icon={RotateCcw} variant="ghost" onClick={() => void run(() => backend.clearPlayerPath(item.id), "O app volta a procurar o player sozinho.")}>
+                <Button
+                  icon={RotateCcw}
+                  variant="ghost"
+                  onClick={() => void run(() => backend.clearPlayerPath(item.id), "O app volta a procurar o player sozinho.")}
+                >
                   Procurar sozinho
                 </Button>
               )}
@@ -69,7 +75,10 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
             Detectar novamente
           </Button>
           {view.general.recommendationsHidden && (
-            <Button variant="ghost" onClick={() => void run(() => backend.showRecommendations(), "As recomendações de instalação voltam a aparecer.")}>
+            <Button
+              variant="ghost"
+              onClick={() => void run(() => backend.showRecommendations(), "As recomendações de instalação voltam a aparecer.")}
+            >
               Mostrar recomendações de instalação novamente
             </Button>
           )}

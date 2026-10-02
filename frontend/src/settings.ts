@@ -25,11 +25,7 @@ export interface KeyPress {
   metaKey: boolean;
 }
 
-export type Capture =
-  | { kind: "wait" }
-  | { kind: "cancel" }
-  | { kind: "unsupported" }
-  | { kind: "chord"; chord: string };
+export type Capture = { kind: "wait" } | { kind: "cancel" } | { kind: "unsupported" } | { kind: "chord"; chord: string };
 
 /**
  * captureOf reads a key going down while a shortcut is captured, as the Go

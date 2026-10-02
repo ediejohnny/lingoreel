@@ -37,8 +37,8 @@ export function ShortcutsSection(props: SectionProps) {
   return (
     <>
       <p className="text-sm leading-relaxed text-fg-secondary">
-        Os atalhos valem na janela do filme. Clique num atalho e pressione as novas teclas: até três, como Ctrl+Shift+P. Alt+Shift
-        não é aceito, porque troca o idioma do teclado no Windows. Os atalhos de estudo que faltam chegam numa próxima versão.
+        Os atalhos valem na janela do filme. Clique num atalho e pressione as novas teclas: até três, como Ctrl+Shift+P. Alt+Shift não é
+        aceito, porque troca o idioma do teclado no Windows. Os atalhos de estudo que faltam chegam numa próxima versão.
       </p>
       {[...groups.entries()].map(([category, items]) => (
         <Card

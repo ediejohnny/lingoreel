@@ -19,7 +19,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /** Button with an optional icon; disabled and loading look unavailable but stay readable. */
-export function Button({ variant = "secondary", icon: Icon, loading = false, size = "md", children, disabled, className = "", ...rest }: ButtonProps) {
+export function Button({
+  variant = "secondary",
+  icon: Icon,
+  loading = false,
+  size = "md",
+  children,
+  disabled,
+  className = "",
+  ...rest
+}: ButtonProps) {
   const sizing = size === "lg" ? "h-11 px-5 text-base" : "h-9 px-3.5 text-sm";
   return (
     <button

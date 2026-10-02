@@ -41,8 +41,8 @@ function KaraokeCard({ state, onCommand }: TrainingCardsProps) {
       aside={
         <HelpTip topic="Modo Karaokê">
           Mostra a próxima fala antes da hora, para você se preparar e falar junto com o ator. A prévia aparece 5 s antes, só nas pausas
-          maiores que 10 s. Durante a fala, o texto é pintado como num karaokê; esse preenchimento é uma estimativa, porque a legenda
-          não traz o tempo de cada palavra.
+          maiores que 10 s. Durante a fala, o texto é pintado como num karaokê; esse preenchimento é uma estimativa, porque a legenda não
+          traz o tempo de cada palavra.
         </HelpTip>
       }
     >
@@ -104,8 +104,7 @@ function PassageCard({ state, onCommand }: TrainingCardsProps) {
       Marcar
     </Button>
   );
-  const study = () =>
-    onCommand(() => backend.studyPassage({ start, end, snap, loop, gap, progressive, ladder, goal }));
+  const study = () => onCommand(() => backend.studyPassage({ start, end, snap, loop, gap, progressive, ladder, goal }));
   const thisLine = () =>
     onCommand(async () => {
       const times = await backend.passageOfLine();
@@ -176,7 +175,14 @@ function PassageCard({ state, onCommand }: TrainingCardsProps) {
             </HelpTip>
           }
         />
-        {loop && <Select label="Intervalo entre as repetições" value={String(gap)} options={gapOptions} onChange={(value) => setGap(Number(value))} />}
+        {loop && (
+          <Select
+            label="Intervalo entre as repetições"
+            value={String(gap)}
+            options={gapOptions}
+            onChange={(value) => setGap(Number(value))}
+          />
+        )}
         <Toggle
           label="Velocidade progressiva"
           checked={progressive}

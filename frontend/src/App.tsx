@@ -56,7 +56,10 @@ export function App() {
         setSpeeds(preferences.speeds);
       })
       .catch(() => undefined);
-    backend.initialVideo().then(open).catch(() => undefined);
+    backend
+      .initialVideo()
+      .then(open)
+      .catch(() => undefined);
     const offDropped = backend.onDropped((path) => void open(path));
     const offPlayback = backend.onPlayback((next) => setState(next.active ? next : null));
     const offEnded = backend.onEnded((ended) => {
