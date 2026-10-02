@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/controlbar"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/windows/gdiplus"
 	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/uithread"
@@ -58,8 +60,8 @@ const (
 
 // Labels word what the bar shows; the presentation layer gives them.
 type Labels struct {
-	// Tip is an item's tip with its key, such as "Pausar (Espaço)".
-	Tip func(item controlbar.Item, state controlbar.State) string
+	// Tip is an item's tip with its key in keys, such as "Pausar (Espaço)".
+	Tip func(item controlbar.Item, state controlbar.State, keys shortcut.Map) string
 	// Item is the text on an item: the speeds.
 	Item func(item controlbar.Item) string
 	// Time is the "current / total" text.
@@ -83,8 +85,11 @@ type Options struct {
 	NoActivate bool
 }
 
-// The window is a watch session's player window.
-var _ watch.Window = (*Window)(nil)
+// The window is a watch session's player window, and changes its look.
+var (
+	_ watch.Window     = (*Window)(nil)
+	_ session.Restyler = (*Window)(nil)
+)
 
 // Window is an open player window.
 type Window struct {
@@ -110,9 +115,12 @@ type Window struct {
 	style      uint32
 	hideCursor bool
 	tracking   [2]bool // WM_MOUSELEAVE asked for the host and the bar
+	// revealKey is the translation key held down, to send its release.
+	revealKey shortcut.Key
 
 	remoteMu sync.Mutex
 	remote   watch.Remote
+	keys     atomic.Pointer[shortcut.Map]
 
 	closed      chan struct{}
 	closedOnce  sync.Once
@@ -283,9 +291,30 @@ func (w *Window) currentRemote() watch.Remote {
 	return w.remote
 }
 
+// SetShortcuts changes the keys the window takes.
+func (w *Window) SetShortcuts(keys shortcut.Map) {
+	resolved := keys.Resolved()
+	w.keys.Store(&resolved)
+	_ = w.thread.Post(w.refreshBar) // the tips show the keys; the window may be closing
+}
+
+// shortcuts are the keys the window takes: the defaults until a session
+// gives its own.
+func (w *Window) shortcuts() shortcut.Map {
+	if keys := w.keys.Load(); keys != nil {
+		return *keys
+	}
+	return shortcut.Defaults()
+}
+
 // Show draws the subtitles.
 func (w *Window) Show(content session.Screen) error {
 	return w.overlay.Show(content)
+}
+
+// Restyle draws the subtitles with a new look.
+func (w *Window) Restyle(look overlay.Look) error {
+	return w.overlay.Restyle(look)
 }
 
 // Notify shows a short notice over the video.

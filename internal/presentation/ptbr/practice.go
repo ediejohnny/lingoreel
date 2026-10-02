@@ -30,7 +30,7 @@ func PracticeNotice(event session.PracticeEvent, status session.PracticeStatus) 
 		}
 		return text
 	case session.PracticeAtEnd:
-		return "Fim do trecho · Espaço para repetir"
+		return "Fim do trecho · Reproduzir para repetir"
 	case session.PracticeSuspended:
 		return "Trecho pausado — fora do intervalo"
 	case session.PracticeFinished:

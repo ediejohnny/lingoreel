@@ -64,6 +64,7 @@ func (a *API) Watch(request WatchRequest) error {
 	}
 	a.mu.Lock()
 	profile := a.profile()
+	syncNotice := a.config.SyncNotice
 	a.mu.Unlock()
 
 	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
@@ -73,6 +74,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Analysis: *video, Tracks: tracks, Player: installation, Steps: profile.Sync.Nudge(),
 		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
+		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
 	}
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)

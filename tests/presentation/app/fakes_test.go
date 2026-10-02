@@ -47,6 +47,7 @@ type fakeRunning struct {
 	paused  int
 	mu      sync.Mutex
 	seeks   []time.Duration
+	speeds  []playback.Speed
 }
 
 func (r *fakeRunning) lastSeek() (time.Duration, bool) {
@@ -69,7 +70,12 @@ func (r *fakeRunning) SeekTo(at time.Duration) error {
 	r.seeks = append(r.seeks, at)
 	return nil
 }
-func (r *fakeRunning) SetSpeed(playback.Speed) error   { return nil }
+func (r *fakeRunning) SetSpeed(speed playback.Speed) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.speeds = append(r.speeds, speed)
+	return nil
+}
 func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no") }
 func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
@@ -117,6 +123,8 @@ type fakeUI struct {
 	events []event
 	urls   []string
 	choose string
+	// program is what the program dialog answers.
+	program string
 }
 
 func (u *fakeUI) Emit(name string, data any) {
@@ -124,7 +132,8 @@ func (u *fakeUI) Emit(name string, data any) {
 	defer u.mu.Unlock()
 	u.events = append(u.events, event{name, data})
 }
-func (u *fakeUI) OpenVideoDialog() (string, error) { return u.choose, nil }
+func (u *fakeUI) OpenVideoDialog() (string, error)         { return u.choose, nil }
+func (u *fakeUI) OpenProgramDialog(string) (string, error) { return u.program, nil }
 func (u *fakeUI) OpenURL(url string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -208,13 +217,15 @@ type rig struct {
 	settings  *memorySettings
 	installer *fakeInstaller
 	installed []player.Installation
+	display   *recordingDisplay
+	preview   *fakePreview
 }
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
-		installer: &fakeInstaller{available: true},
+		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{},
 		installed: []player.Installation{{ID: "fake", Path: `C:\fake\fake.exe`}, {ID: "potplayer", Path: `C:\pot\PotPlayerMini64.exe`}},
 	}
 	registry, err := players.NewRegistry(r.plugin)
@@ -226,11 +237,18 @@ func newRig(t *testing.T) *rig {
 		Service: service, Registry: registry,
 		Detect: func(map[player.ID]string) []player.Installation { return r.installed },
 		Ports: watch.Ports{Service: service, Registry: registry,
-			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) { return nopDisplay{}, nil },
+			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) { return r.display, nil },
 		},
 		Settings: r.settings, Installer: r.installer,
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
+		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,
+		OpenFolder: func(path string) error {
+			r.ui.mu.Lock()
+			defer r.ui.mu.Unlock()
+			r.ui.urls = append(r.ui.urls, "folder:"+path)
+			return nil
+		},
 	})
 	t.Cleanup(r.lifecycle.Shutdown)
 	return r
@@ -258,3 +276,63 @@ func eventually(t *testing.T, what string, condition func() bool) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// recordingDisplay is the subtitle display; it keeps the looks it was given.
+type recordingDisplay struct {
+	nopDisplay
+	mu      sync.Mutex
+	looks   []session.Look
+	notices []string
+}
+
+func (d *recordingDisplay) Notify(text string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.notices = append(d.notices, text)
+	return nil
+}
+
+func (d *recordingDisplay) noticeCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.notices)
+}
+
+func (d *recordingDisplay) Restyle(look session.Look) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.looks = append(d.looks, look)
+	return nil
+}
+
+func (d *recordingDisplay) lastLook() (session.Look, int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.looks) == 0 {
+		return session.Look{}, 0
+	}
+	return d.looks[len(d.looks)-1], len(d.looks)
+}
+
+// fakePreview draws nothing: it answers a fixed picture and keeps the
+// requests.
+type fakePreview struct {
+	mu       sync.Mutex
+	requests []previewCall
+	err      error
+}
+
+type previewCall struct {
+	look                session.Look
+	width, height, dpi  int
+	primary, translated string
+}
+
+func (p *fakePreview) Preview(look session.Look, width, height, dpi int, primary, translation string) ([]byte, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.requests = append(p.requests, previewCall{look, width, height, dpi, primary, translation})
+	return []byte("PNG!"), p.err
+}
+
+func (p *fakePreview) Fonts() ([]string, error) { return []string{"Arial", "Verdana"}, nil }

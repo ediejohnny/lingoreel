@@ -8,6 +8,7 @@ import (
 
 	"lingoreel/internal/domain/controlbar"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/shortcut"
 )
 
 // unavailable ends the tip of a control the player lacks.
@@ -47,37 +48,48 @@ func BarItem(item controlbar.Item) string {
 	return ""
 }
 
-// BarTip is a control's tip, with its key when it has one.
-func BarTip(item controlbar.Item, state controlbar.State) string {
-	tip := barTip(item, state)
+// BarTips are the player window's tips, with keys named by char.
+func BarTips(char KeyChar) func(controlbar.Item, controlbar.State, shortcut.Map) string {
+	return func(item controlbar.Item, state controlbar.State, keys shortcut.Map) string {
+		return BarTip(item, state, keys, char)
+	}
+}
+
+// BarTip is a control's tip, with its key when it has one: the key the
+// profile gives the command.
+func BarTip(item controlbar.Item, state controlbar.State, keys shortcut.Map, char KeyChar) string {
+	key := func(command shortcut.Command) string { return ShortcutLabel(keys.Of(command), char) }
+	tip := barTip(item, state, key)
 	if tip != "" && !item.Enabled && item.Action != controlbar.ActionTranslation {
 		tip += unavailable
 	}
 	return tip
 }
 
-func barTip(item controlbar.Item, state controlbar.State) string {
+func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Command) string) string {
+	with := func(text string, command shortcut.Command) string { return text + " (" + key(command) + ")" }
+	jump := int(controlbar.JumpStep / time.Second)
 	switch item.Action {
 	case controlbar.ActionPlayPause:
 		if state.Paused {
-			return "Reproduzir (Espaço)"
+			return with("Reproduzir", shortcut.PlayPause)
 		}
-		return "Pausar (Espaço)"
+		return with("Pausar", shortcut.PlayPause)
 	case controlbar.ActionBack:
-		return fmt.Sprintf("Voltar %d s (←)", int(controlbar.JumpStep/time.Second))
+		return with(fmt.Sprintf("Voltar %d s", jump), shortcut.SeekBack)
 	case controlbar.ActionForward:
-		return fmt.Sprintf("Avançar %d s (→)", int(controlbar.JumpStep/time.Second))
+		return with(fmt.Sprintf("Avançar %d s", jump), shortcut.SeekForward)
 	case controlbar.ActionMute:
 		if state.Muted {
-			return "Ativar o som (M)"
+			return with("Ativar o som", shortcut.Mute)
 		}
-		return "Sem som (M)"
+		return with("Sem som", shortcut.Mute)
 	case controlbar.ActionVolume:
 		level := state.Volume.Clamp()
 		if state.Muted {
 			level = 0
 		}
-		return fmt.Sprintf("Volume: %d%% (↑ ↓)", int(math.Round(float64(level)*100)))
+		return fmt.Sprintf("Volume: %d%% (%s %s)", int(math.Round(float64(level)*100)), key(shortcut.VolumeUp), key(shortcut.VolumeDown))
 	case controlbar.ActionTrack:
 		return "Clique ou arraste para ir a outro ponto"
 	case controlbar.ActionTranslation:
@@ -85,16 +97,16 @@ func barTip(item controlbar.Item, state controlbar.State) string {
 		case !state.HasTranslation:
 			return "Nenhuma tradução escolhida"
 		case state.TranslationVisible:
-			return "Ocultar a tradução"
+			return with("Ocultar a tradução", shortcut.Translation)
 		}
-		return "Mostrar a tradução"
+		return with("Mostrar a tradução", shortcut.Translation)
 	case controlbar.ActionSpeed:
 		return "Velocidade"
 	case controlbar.ActionFullscreen:
 		if state.Fullscreen {
-			return "Sair da tela cheia (Esc)"
+			return with("Sair da tela cheia", shortcut.ExitFullscreen)
 		}
-		return "Tela cheia (F)"
+		return with("Tela cheia", shortcut.Fullscreen)
 	}
 	return ""
 }

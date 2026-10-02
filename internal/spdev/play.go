@@ -16,6 +16,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
@@ -93,8 +94,8 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 
 	ports := watch.Ports{
 		Service: service, Registry: registry,
-		StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
-			return hotkeys.StartSync(target, stderrLogger())
+		StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
+			return hotkeys.StartSync(target, chords, stderrLogger())
 		},
 	}
 	if withOverlay {

@@ -565,6 +565,65 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 	}
 }
 
+// A new look reaches the screen at once, with no new content: a change on
+// the settings screen shows on the video being watched.
+func TestRestyleRedrawsTheSubtitles(t *testing.T) {
+	player := launchFakePlayer(t, true)
+	look := overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()}
+	screen, err := overlay.Open(t.Context(), overlay.Options{
+		ProcessID: player.pid(), Layout: look.Layout, Primary: look.Primary, Translation: look.Translation,
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer screen.Close()
+	found := overlayWindows()
+	if len(found) != 1 {
+		t.Fatalf("found %d overlay windows, want 1", len(found))
+	}
+	owner, _, _ := procGetWindow.Call(uintptr(found[0]), gwOwner)
+	target := windows.HWND(owner)
+	settle := func() []byte {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		time.Sleep(300 * time.Millisecond)
+		skipIfCovered(t, target)
+		previous := captureClient(t, target)
+		for {
+			time.Sleep(150 * time.Millisecond)
+			shot := captureClient(t, target)
+			if changedPixels(previous, shot) == 0 {
+				return shot
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("the screen over the player never settled")
+			}
+			previous = shot
+		}
+	}
+	if err := screen.Show(session.Screen{Primary: "That's sick!"}); err != nil {
+		t.Fatal(err)
+	}
+	before := settle()
+	yellow := look
+	yellow.Primary.Color = appearance.RGB(0xFF, 0xE6, 0x00)
+	yellow.Primary.FontSize *= 1.5
+	if err := screen.Restyle(yellow); err != nil {
+		t.Fatal(err)
+	}
+	after := settle()
+	if changed := changedPixels(before, after); changed < 100 {
+		t.Fatalf("only %d pixels changed with the new look", changed)
+	}
+	// Back to the first look: the first picture again.
+	if err := screen.Restyle(look); err != nil {
+		t.Fatal(err)
+	}
+	if changed := changedPixels(before, settle()); changed != 0 {
+		t.Fatalf("%d pixels differ after going back to the first look", changed)
+	}
+}
+
 // A notice shows in the top left corner and leaves by itself after 1.5 s,
 // counted from the latest notice.
 func TestNoticeShowsAndLeavesByItself(t *testing.T) {

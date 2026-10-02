@@ -19,6 +19,7 @@ var (
 	procGetWindowPlacement  = user32.NewProc("GetWindowPlacement")
 	procSetWindowPlacement  = user32.NewProc("SetWindowPlacement")
 	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
+	procMonitorFromRect     = user32.NewProc("MonitorFromRect")
 	procSetCapture          = user32.NewProc("SetCapture")
 	procReleaseCapture      = user32.NewProc("ReleaseCapture")
 	procTrackMouseEvent     = user32.NewProc("TrackMouseEvent")
@@ -44,8 +45,11 @@ const (
 	WM_ACTIVATE       = 0x0006
 	WM_SETCURSOR      = 0x0020
 	WM_GETMINMAXINFO  = 0x0024
+	WM_KILLFOCUS      = 0x0008
 	WM_KEYDOWN        = 0x0100
+	WM_KEYUP          = 0x0101
 	WM_SYSKEYDOWN     = 0x0104
+	WM_SYSKEYUP       = 0x0105
 	WM_MOUSEMOVE      = 0x0200
 	WM_LBUTTONDOWN    = 0x0201
 	WM_LBUTTONUP      = 0x0202
@@ -170,6 +174,13 @@ func SetPlacement(hwnd windows.HWND, p WindowPlacement) error {
 		return callErr(err)
 	}
 	return nil
+}
+
+// OnAnyMonitor reports whether a screen rectangle touches a monitor.
+func OnAnyMonitor(r Rect) bool {
+	const monitorDefaultToNull = 0
+	monitor, _, _ := procMonitorFromRect.Call(uintptr(unsafe.Pointer(&r)), monitorDefaultToNull)
+	return monitor != 0
 }
 
 // MonitorBounds returns the whole area of the display showing most of a

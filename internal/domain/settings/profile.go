@@ -10,6 +10,7 @@ import (
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
@@ -116,6 +117,9 @@ type Profile struct {
 	Study           StudyPreferences         `json:"study"`
 	Speed           playback.Speed           `json:"speed"`
 	Sync            SyncPreferences          `json:"sync"`
+	// Shortcuts are the profile's own chords; commands left out keep the
+	// default one.
+	Shortcuts shortcut.Map `json:"shortcuts"`
 }
 
 // DefaultProfile returns the English study profile described in the PRD.
@@ -133,6 +137,7 @@ func DefaultProfile() Profile {
 			OffsetStep:        Duration(subtitle.DefaultNudgeStep),
 			OffsetLargeStep:   Duration(subtitle.DefaultFastNudgeStep),
 		},
+		Shortcuts: shortcut.Defaults(),
 	}
 }
 
@@ -167,6 +172,9 @@ func (p Profile) Validate() error {
 	}
 	if !p.Speed.Valid() {
 		return fmt.Errorf("%w: speed %v", ErrInvalidSettings, p.Speed)
+	}
+	if err := p.Shortcuts.Validate(); err != nil {
+		return fmt.Errorf("%w: shortcuts: %w", ErrInvalidSettings, err)
 	}
 	return p.Sync.validate()
 }

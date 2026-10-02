@@ -26,6 +26,7 @@ no `PATH`.
 |---|---|
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatação, análise estática e testes |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1` | Compila os executáveis em `build\bin` |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev.ps1` | Abre o app em modo de desenvolvimento (recarrega ao mudar o código) |
 
 As versões seguem o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 

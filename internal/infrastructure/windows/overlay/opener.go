@@ -8,19 +8,15 @@ import (
 
 	"lingoreel/internal/application/players"
 	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/infrastructure/windows/placement"
 )
 
 // Look is how the subtitles are drawn.
-type Look struct {
-	Layout      appearance.Layout
-	Primary     appearance.SubtitleStyle
-	Translation appearance.SubtitleStyle
-	// PreviewColor and FillColor are the Modo Karaokê's colors.
-	PreviewColor, FillColor appearance.Color
-}
+type Look = session.Look
+
+// The overlay changes its look while it shows.
+var _ session.Restyler = (*Overlay)(nil)
 
 // Opener returns what a watch session uses to put the overlay over its
 // player, drawing with the look look returns at that moment.

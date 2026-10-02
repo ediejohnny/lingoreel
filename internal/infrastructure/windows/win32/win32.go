@@ -49,6 +49,8 @@ var (
 	procUnregisterHotKey              = user32.NewProc("UnregisterHotKey")
 	procGetForegroundWindow           = user32.NewProc("GetForegroundWindow")
 	procGetAsyncKeyState              = user32.NewProc("GetAsyncKeyState")
+	procGetKeyState                   = user32.NewProc("GetKeyState")
+	procMapVirtualKeyW                = user32.NewProc("MapVirtualKeyW")
 	procCreateCompatibleDC            = gdi32.NewProc("CreateCompatibleDC")
 	procCreateDIBSection              = gdi32.NewProc("CreateDIBSection")
 	procSelectObject                  = gdi32.NewProc("SelectObject")
@@ -417,6 +419,38 @@ func ForegroundWindow() windows.HWND {
 func KeyDown(key uint32) bool {
 	r, _, _ := procGetAsyncKeyState.Call(uintptr(key))
 	return r&0x8000 != 0
+}
+
+// KeyHeld reports whether a key was down when the message being handled
+// was sent, which is what a key message's modifiers are.
+func KeyHeld(key uint32) bool {
+	r, _, _ := procGetKeyState.Call(uintptr(key))
+	return r&0x8000 != 0
+}
+
+// mapvkVscToVkEx converts a scan code, with 0xE0 in the high byte for the
+// extended keys, into a virtual key of the current keyboard layout.
+const mapvkVscToVkEx = 3
+
+// mapvkVkToChar converts a virtual key into the character it types,
+// unshifted; dead keys come back with the top bit set.
+const mapvkVkToChar = 2
+
+// CharOfVirtualKey is the character a virtual key types on the current
+// keyboard layout, accents (dead keys) included; zero when none.
+func CharOfVirtualKey(vk uint32) rune {
+	r, _, _ := procMapVirtualKeyW.Call(uintptr(vk), mapvkVkToChar)
+	return rune(uint32(r) &^ (1 << 31))
+}
+
+// VirtualKeyOfScan is the virtual key a key position types on the current
+// keyboard layout; zero when none.
+func VirtualKeyOfScan(scan uint32, extended bool) uint32 {
+	if extended {
+		scan |= 0xE000
+	}
+	r, _, _ := procMapVirtualKeyW.Call(uintptr(scan), mapvkVscToVkEx)
+	return uint32(r)
 }
 
 // UpdateLayered shows a premultiplied 32-bit bitmap as the whole content of a

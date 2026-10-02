@@ -1,15 +1,16 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { IconButton } from "./components/ui/Button";
 import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { backend, messageOf, type Playback, type Players, type Video, type WatchRequest } from "./services/backend";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
 
-type Screen = "home" | "session" | "playing";
+type Screen = "home" | "session" | "playing" | "settings";
 
 /** App holds which screen is open; each screen keeps its own controls. */
 export function App() {
@@ -17,6 +18,8 @@ export function App() {
   useAppliedTheme(theme);
   const [speeds, setSpeeds] = useState<number[]>([1]);
   const [screen, setScreen] = useState<Screen>("home");
+  // returnTo is the screen the settings go back to.
+  const [returnTo, setReturnTo] = useState<Screen>("home");
   const [video, setVideo] = useState<Video | null>(null);
   const [players, setPlayers] = useState<Players | null>(null);
   const [state, setState] = useState<Playback | null>(null);
@@ -142,16 +145,35 @@ export function App() {
     }
   };
 
+  // The settings go back to where they were opened; a session that ended
+  // meanwhile goes back to its screen.
+  const closeSettings = () => setScreen(returnTo === "playing" && !state ? "session" : returnTo);
   const back =
-    screen === "session" ? (
+    screen === "settings" ? (
+      <IconButton icon={ArrowLeft} label="Voltar" onClick={closeSettings} />
+    ) : screen === "session" ? (
       <IconButton icon={ArrowLeft} label="Abrir outro vídeo" onClick={() => setScreen("home")} />
     ) : undefined;
-  const subtitle = video && screen !== "home" ? `${video.name} · ${durationLabel(video.duration)}` : undefined;
+  const subtitle =
+    screen === "settings" ? "Configurações" : video && screen !== "home" ? `${video.name} · ${durationLabel(video.duration)}` : undefined;
+  const openSettings =
+    screen === "settings" ? undefined : (
+      <IconButton
+        icon={Settings}
+        label="Configurações"
+        onClick={() => {
+          setReturnTo(screen);
+          setScreen("settings");
+        }}
+      />
+    );
 
   return (
     <div className="flex h-full flex-col bg-bg">
-      <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} />
-      {screen === "playing" && video && state ? (
+      <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
+      {screen === "settings" ? (
+        <SettingsPage theme={theme} onTheme={chooseTheme} />
+      ) : screen === "playing" && video && state ? (
         <PlayingPage
           name={video.name}
           state={state}

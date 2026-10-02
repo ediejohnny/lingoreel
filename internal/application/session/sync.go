@@ -1,6 +1,7 @@
 package session
 
 import (
+	"sync"
 	"time"
 
 	"lingoreel/internal/domain/subtitle"
@@ -12,12 +13,27 @@ import (
 type Sync struct {
 	subtitles *Subtitles
 	now       func() time.Time
-	nudger    *subtitle.Nudger
+
+	// mu guards the nudger: the shortcuts and the app's buttons nudge from
+	// their own goroutines, and the steps change from the settings.
+	mu     sync.Mutex
+	nudger *subtitle.Nudger
 }
 
 // NewSync creates the sync shortcuts of a session.
 func NewSync(subtitles *Subtitles, steps subtitle.NudgeSteps, now func() time.Time) *Sync {
 	return &Sync{subtitles: subtitles, now: now, nudger: subtitle.NewNudger(steps)}
+}
+
+// SetSteps changes the steps of the next nudges.
+func (s *Sync) SetSteps(steps subtitle.NudgeSteps) error {
+	if err := steps.Validate(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nudger = subtitle.NewNudger(steps)
+	return nil
 }
 
 // Nudge moves a line one step earlier or later. repeat tells that the
@@ -27,7 +43,9 @@ func (s *Sync) Nudge(line Line, later, repeat bool) (subtitle.Offset, bool) {
 	if !knownLine(line) {
 		return 0, false
 	}
+	s.mu.Lock()
 	move := s.nudger.Move(s.now(), repeat)
+	s.mu.Unlock()
 	if !later {
 		move = -move
 	}

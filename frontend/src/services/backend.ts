@@ -13,6 +13,23 @@ export type Preferences = app.Preferences;
 export type WatchRequest = app.WatchRequest;
 export type PassageRequest = app.PassageRequest;
 export type PassageTimes = app.PassageTimes;
+
+/** Plain is a generated class's data without its methods, as the screens build it. */
+type Plain<T> = T extends (infer U)[]
+  ? Plain<U>[]
+  : T extends object
+    ? { [K in keyof T as T[K] extends (...args: never[]) => unknown ? never : K]: Plain<T[K]> }
+    : T;
+
+export type SettingsView = Plain<app.SettingsView>;
+export type ProfileSettings = Plain<app.ProfileSettings>;
+export type StyleSettings = Plain<app.StyleSettings>;
+export type LayoutSettings = Plain<app.LayoutSettings>;
+export type KaraokeSettings = Plain<app.KaraokeSettings>;
+export type ShortcutSetting = Plain<app.ShortcutSetting>;
+export type PlayerSetting = Plain<app.PlayerSetting>;
+export type SettingsOptions = Plain<app.SettingsOptions>;
+export type PreviewRequest = Plain<app.PreviewRequest>;
 export type Line = "primary" | "translation";
 
 export interface Ended {
@@ -72,6 +89,22 @@ export const backend = {
   installPlayer: (id: string) => api.InstallPlayer(id),
   openDownloadPage: (id: string) => api.OpenDownloadPage(id),
   dismissRecommendation: (id: string) => api.DismissRecommendation(id),
+  showRecommendations: () => api.ShowRecommendations(),
+  settings: (): Promise<SettingsView> => api.Settings(),
+  // The Go side reads plain data: the generated classes only add helpers.
+  saveProfile: (profile: ProfileSettings) => api.SaveProfile(profile as app.ProfileSettings),
+  setSyncNotice: (show: boolean) => api.SetSyncNotice(show),
+  switchProfile: (name: string) => api.SwitchProfile(name),
+  createProfile: (name: string) => api.CreateProfile(name),
+  renameProfile: (from: string, to: string) => api.RenameProfile(from, to),
+  deleteProfile: (name: string) => api.DeleteProfile(name),
+  resetProfile: () => api.ResetProfile(),
+  applyPreset: (style: StyleSettings, preset: string): Promise<StyleSettings> => api.ApplyPreset(style as app.StyleSettings, preset),
+  checkShortcut: (chord: string) => api.CheckShortcut(chord),
+  previewSubtitles: (request: PreviewRequest) => api.PreviewSubtitles(request as app.PreviewRequest),
+  choosePlayerProgram: (id: string) => api.ChoosePlayerProgram(id),
+  clearPlayerPath: (id: string) => api.ClearPlayerPath(id),
+  openSettingsFolder: () => api.OpenSettingsFolder(),
 
   onDropped: (listener: (path: string) => void) => EventsOn(events.dropped, listener),
   onPlayback: (listener: (state: Playback) => void) => EventsOn(events.playback, listener),

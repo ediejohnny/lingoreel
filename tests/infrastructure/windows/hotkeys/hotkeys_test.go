@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"lingoreel/internal/application/watch"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/windows/hotkeys"
 	"lingoreel/internal/infrastructure/windows/win32"
 )
@@ -233,5 +235,19 @@ func TestPressesTellRepeatsFromNewPresses(t *testing.T) {
 	case got := <-keys.Presses():
 		t.Fatalf("an unknown id was delivered as %+v", got)
 	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+func TestBindingOfAChord(t *testing.T) {
+	binding, err := hotkeys.BindingOf(shortcut.Chord{Modifiers: shortcut.Ctrl, Key: shortcut.KeyComma})
+	if err != nil || binding != (hotkeys.Binding{Modifiers: win32.MOD_CONTROL, Key: win32.VK_OEM_COMMA}) {
+		t.Fatalf("BindingOf(Ctrl+Comma) = %+v, %v", binding, err)
+	}
+	if _, err := hotkeys.BindingOf(shortcut.Chord{Key: "Nope"}); !errors.Is(err, hotkeys.ErrInvalidBinding) {
+		t.Fatalf("BindingOf an unknown key = %v", err)
+	}
+	// StartSync needs one chord per sync shortcut.
+	if _, err := hotkeys.StartSync(watch.ShortcutTarget{ProcessID: os.Getpid()}, nil, nil); !errors.Is(err, hotkeys.ErrInvalidBinding) {
+		t.Fatalf("StartSync without chords = %v", err)
 	}
 }
