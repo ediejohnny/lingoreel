@@ -87,7 +87,7 @@ try {
     Write-Host "[5/6] Testes (go $($testArguments -join ' '))..."
     Invoke-Native -FilePath "go" -Arguments $testArguments -FailureMessage "Há testes falhando"
 
-    Write-Host "[6/6] Interface (tipos, lint e testes)..."
+    Write-Host "[6/6] Interface (tipos, lint, formatação e testes)..."
     Push-Location -LiteralPath $frontendDir
     try {
         if (-not (Test-Path -LiteralPath (Join-Path $frontendDir "node_modules"))) {
@@ -95,6 +95,7 @@ try {
         }
         Invoke-Native -FilePath "npm.cmd" -Arguments @("run", "typecheck") -FailureMessage "A interface tem erros de tipo"
         Invoke-Native -FilePath "npm.cmd" -Arguments @("run", "lint") -FailureMessage "O lint da interface encontrou problemas"
+        Invoke-Native -FilePath "npm.cmd" -Arguments @("run", "format:check") -FailureMessage "A interface não está formatada: rode npm run format na pasta frontend"
         Invoke-Native -FilePath "npm.cmd" -Arguments @("test") -FailureMessage "Há testes da interface falhando"
     }
     finally {

@@ -12,8 +12,10 @@ export function StudySection(props: SectionProps) {
   const { view, draft, setDraft } = props;
   const karaoke = draft.karaoke;
   const limits = view.options.limits;
-  const set = <K extends keyof KaraokeSettings>(key: K) => (value: KaraokeSettings[K]) =>
-    change(setDraft, "karaoke")({ ...karaoke, [key]: value });
+  const set =
+    <K extends keyof KaraokeSettings>(key: K) =>
+    (value: KaraokeSettings[K]) =>
+      change(setDraft, "karaoke")({ ...karaoke, [key]: value });
   const { taken, set: setShortcut, defaultOf } = useShortcutEditing(props);
   const translationKey = draft.shortcuts.find((item) => item.command === "translation");
   const standardKey = defaultOf("translation");
@@ -24,8 +26,8 @@ export function StudySection(props: SectionProps) {
         title="Modo Karaokê"
         aside={
           <HelpTip topic="Modo Karaokê">
-            Mostra a próxima fala antes da hora, para você se preparar e falar junto com o ator, e pinta o texto enquanto ele fala.
-            Também dá para ligar e desligar pelo painel enquanto o filme toca.
+            Mostra a próxima fala antes da hora, para você se preparar e falar junto com o ator, e pinta o texto enquanto ele fala. Também
+            dá para ligar e desligar pelo painel enquanto o filme toca.
           </HelpTip>
         }
       >
@@ -40,7 +42,11 @@ export function StudySection(props: SectionProps) {
               step={1}
               unit="s"
               onChange={set("minGap")}
-              help={<HelpTip topic="Lacuna mínima">A prévia só aparece depois de uma pausa sem fala pelo menos deste tamanho. Em diálogos rápidos ela não aparece.</HelpTip>}
+              help={
+                <HelpTip topic="Lacuna mínima">
+                  A prévia só aparece depois de uma pausa sem fala pelo menos deste tamanho. Em diálogos rápidos ela não aparece.
+                </HelpTip>
+              }
             />
             <NumberField
               label="Antecedência"
@@ -50,7 +56,11 @@ export function StudySection(props: SectionProps) {
               step={0.5}
               unit="s"
               onChange={set("lead")}
-              help={<HelpTip topic="Antecedência">Quanto antes da fala a prévia aparece. Ela nunca cobre a fala anterior: numa pausa mais curta, aparece só no fim da pausa.</HelpTip>}
+              help={
+                <HelpTip topic="Antecedência">
+                  Quanto antes da fala a prévia aparece. Ela nunca cobre a fala anterior: numa pausa mais curta, aparece só no fim da pausa.
+                </HelpTip>
+              }
             />
             <Segmented
               label="Tempo até a fala"
@@ -60,14 +70,23 @@ export function StudySection(props: SectionProps) {
                 { value: "countdown", label: "Contagem regressiva" },
               ]}
               onChange={set("indicator")}
-              help={<HelpTip topic="Tempo até a fala">Uma barra fina que diminui até a fala, ou os segundos que faltam (5… 4… 3…), em tempo real.</HelpTip>}
+              help={
+                <HelpTip topic="Tempo até a fala">
+                  Uma barra fina que diminui até a fala, ou os segundos que faltam (5… 4… 3…), em tempo real.
+                </HelpTip>
+              }
             />
             <ColorField label="Cor da prévia" value={karaoke.previewColor} onChange={set("previewColor")} />
             <Toggle
               label="Pintar o texto enquanto o ator fala"
               checked={karaoke.fill}
               onChange={set("fill")}
-              help={<HelpTip topic="Preenchimento">O texto é pintado da esquerda para a direita. É uma estimativa pelo número de letras: a legenda não traz o tempo de cada palavra.</HelpTip>}
+              help={
+                <HelpTip topic="Preenchimento">
+                  O texto é pintado da esquerda para a direita. É uma estimativa pelo número de letras: a legenda não traz o tempo de cada
+                  palavra.
+                </HelpTip>
+              }
             />
             <ColorField label="Cor do preenchimento" value={karaoke.fillColor} disabled={!karaoke.fill} onChange={set("fillColor")} />
             <NumberField
@@ -87,8 +106,8 @@ export function StudySection(props: SectionProps) {
         title="Tecla da tradução"
         aside={
           <HelpTip topic="Tecla da tradução">
-            Na janela do filme, esta tecla mostra e esconde a legenda de baixo. Desmarcada a caixa, cada toque alterna: aperta e
-            mostra, aperta de novo e esconde. Marcada, a tradução aparece só enquanto a tecla está pressionada.
+            Na janela do filme, esta tecla mostra e esconde a legenda de baixo. Desmarcada a caixa, cada toque alterna: aperta e mostra,
+            aperta de novo e esconde. Marcada, a tradução aparece só enquanto a tecla está pressionada.
           </HelpTip>
         }
       >

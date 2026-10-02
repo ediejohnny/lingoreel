@@ -45,9 +45,7 @@ export function InstallCards({ recommendations, installing, error, onInstall, on
             </Button>
           </div>
           {item.autoInstall && (
-            <p className="text-xs text-fg-muted">
-              A instalação usa o winget do Windows; o Windows pode pedir sua permissão.
-            </p>
+            <p className="text-xs text-fg-muted">A instalação usa o winget do Windows; o Windows pode pedir sua permissão.</p>
           )}
         </article>
       ))}

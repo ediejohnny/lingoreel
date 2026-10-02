@@ -57,7 +57,11 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
               value={languages.primary}
               options={languageOptions}
               onChange={(primary) => change(setDraft, "languages")({ ...languages, primary })}
-              help={<HelpTip topic="Idioma preferido">O idioma que o app escolhe sozinho para a legenda de cima ao abrir um vídeo: o que você estuda.</HelpTip>}
+              help={
+                <HelpTip topic="Idioma preferido">
+                  O idioma que o app escolhe sozinho para a legenda de cima ao abrir um vídeo: o que você estuda.
+                </HelpTip>
+              }
             />
           ) : (
             <Select
@@ -76,17 +80,62 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
         title="Margens"
         aside={
           <HelpTip topic="Margens">
-            A área onde as legendas podem ficar, valendo para as duas. Os valores são partes do vídeo, então continuam certos em
-            qualquer tamanho de janela.
+            A área onde as legendas podem ficar, valendo para as duas. Os valores são partes do vídeo, então continuam certos em qualquer
+            tamanho de janela.
           </HelpTip>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <NumberField label="Margem esquerda" value={layout.marginLeft} min={0} max={options.limits.marginMax} step={0.01} scale={100} unit="%" onChange={(marginLeft) => setLayout({ ...layout, marginLeft })} />
-          <NumberField label="Margem direita" value={layout.marginRight} min={0} max={options.limits.marginMax} step={0.01} scale={100} unit="%" onChange={(marginRight) => setLayout({ ...layout, marginRight })} />
-          <NumberField label="Margem de cima" value={layout.marginTop} min={0} max={options.limits.marginMax} step={0.01} scale={100} unit="%" onChange={(marginTop) => setLayout({ ...layout, marginTop })} />
-          <NumberField label="Margem de baixo" value={layout.marginBottom} min={0} max={options.limits.marginMax} step={0.01} scale={100} unit="%" onChange={(marginBottom) => setLayout({ ...layout, marginBottom })} />
-          <NumberField label="Largura máxima do texto" value={layout.maxWidth} min={0.01} max={1} step={0.01} scale={100} unit="%" onChange={(maxWidth) => setLayout({ ...layout, maxWidth })} />
+          <NumberField
+            label="Margem esquerda"
+            value={layout.marginLeft}
+            min={0}
+            max={options.limits.marginMax}
+            step={0.01}
+            scale={100}
+            unit="%"
+            onChange={(marginLeft) => setLayout({ ...layout, marginLeft })}
+          />
+          <NumberField
+            label="Margem direita"
+            value={layout.marginRight}
+            min={0}
+            max={options.limits.marginMax}
+            step={0.01}
+            scale={100}
+            unit="%"
+            onChange={(marginRight) => setLayout({ ...layout, marginRight })}
+          />
+          <NumberField
+            label="Margem de cima"
+            value={layout.marginTop}
+            min={0}
+            max={options.limits.marginMax}
+            step={0.01}
+            scale={100}
+            unit="%"
+            onChange={(marginTop) => setLayout({ ...layout, marginTop })}
+          />
+          <NumberField
+            label="Margem de baixo"
+            value={layout.marginBottom}
+            min={0}
+            max={options.limits.marginMax}
+            step={0.01}
+            scale={100}
+            unit="%"
+            onChange={(marginBottom) => setLayout({ ...layout, marginBottom })}
+          />
+          <NumberField
+            label="Largura máxima do texto"
+            value={layout.maxWidth}
+            min={0.01}
+            max={1}
+            step={0.01}
+            scale={100}
+            unit="%"
+            onChange={(maxWidth) => setLayout({ ...layout, maxWidth })}
+          />
         </div>
       </Card>
       <Card

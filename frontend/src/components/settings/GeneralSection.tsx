@@ -25,8 +25,8 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
         title="Perfil"
         aside={
           <HelpTip topic="Perfil">
-            Um perfil guarda as suas escolhas para um idioma: legendas, cores, atalhos, Modo Karaokê e player. Crie um para cada
-            idioma que você estuda, como “Inglês” e “Francês”.
+            Um perfil guarda as suas escolhas para um idioma: legendas, cores, atalhos, Modo Karaokê e player. Crie um para cada idioma que
+            você estuda, como “Inglês” e “Francês”.
           </HelpTip>
         }
       >
@@ -103,8 +103,8 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
           onChange={(show) => void run(() => backend.setSyncNotice(show))}
           help={
             <HelpTip topic="Aviso de sincronização">
-              Ao adiantar ou atrasar uma legenda pelos atalhos, um aviso pequeno aparece no canto do vídeo por um instante, como
-              “Legenda de cima (inglês): −0,150 s”. Vale para todos os perfis.
+              Ao adiantar ou atrasar uma legenda pelos atalhos, um aviso pequeno aparece no canto do vídeo por um instante, como “Legenda de
+              cima (inglês): −0,150 s”. Vale para todos os perfis.
             </HelpTip>
           }
         />

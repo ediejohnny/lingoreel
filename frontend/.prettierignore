@@ -1,0 +1,5 @@
+# Generated or vendored: never formatted by hand.
+dist
+wailsjs
+package-lock.json
+package.json.md5

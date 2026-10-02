@@ -21,7 +21,11 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
           value={String(draft.speed)}
           options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
           onChange={(speed) => change(setDraft, "speed")(Number(speed))}
-          help={<HelpTip topic="Velocidade inicial">A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.</HelpTip>}
+          help={
+            <HelpTip topic="Velocidade inicial">
+              A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.
+            </HelpTip>
+          }
         />
         <Select
           label="Idioma do áudio preferido"
@@ -70,8 +74,8 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
       </Card>
       <Card title="Restaurar o perfil">
         <p className="mb-3 text-sm text-fg-secondary">
-          Volta todas as escolhas do perfil “{view.general.activeProfile}” ao padrão: legendas, cores, atalhos, Modo Karaokê e player.
-          O nome do perfil continua.
+          Volta todas as escolhas do perfil “{view.general.activeProfile}” ao padrão: legendas, cores, atalhos, Modo Karaokê e player. O
+          nome do perfil continua.
         </p>
         {confirming ? (
           <div className="flex flex-wrap items-center gap-2 rounded-control border border-error/40 bg-error-soft p-3">

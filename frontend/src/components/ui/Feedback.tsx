@@ -22,7 +22,10 @@ export function Banner({ tone, children, action, onClose }: BannerProps) {
   const { box, icon: Icon } = tones[tone];
   return (
     <div role={tone === "error" ? "alert" : "status"} className={`flex items-start gap-3 rounded-card border px-4 py-3 text-sm ${box}`}>
-      <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${tone === "error" ? "text-error" : tone === "warning" ? "text-warning" : "text-accent"}`} />
+      <Icon
+        aria-hidden
+        className={`mt-0.5 size-4 shrink-0 ${tone === "error" ? "text-error" : tone === "warning" ? "text-warning" : "text-accent"}`}
+      />
       <div className="flex-1 leading-relaxed">{children}</div>
       {action}
       {onClose && (
