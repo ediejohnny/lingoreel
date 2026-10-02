@@ -58,6 +58,9 @@ type Options struct {
 	Layout                  appearance.Layout
 	Primary                 appearance.SubtitleStyle
 	Translation             appearance.SubtitleStyle
+	// PreviewColor and FillColor are the Modo Karaokê's colors: a line
+	// shown before its time, and the part of a line already spoken.
+	PreviewColor, FillColor appearance.Color
 	// FindTimeout bounds the wait for the player window; zero means 10 s.
 	FindTimeout time.Duration
 	// Logger receives the errors that have no caller, such as a failure to
@@ -535,6 +538,12 @@ func (o *Overlay) redraw() error {
 	look := gdiplus.Look{
 		Primary: o.options.Primary, Translation: o.options.Translation,
 		TranslationVisible: o.content.TranslationVisible, Notice: noticeStyle,
+		PrimaryHidden: o.content.PrimaryHidden, Preview: o.options.PreviewColor, FillColor: o.options.FillColor,
+	}
+	if cue := o.content.Cue; cue != nil {
+		look.Cue = &gdiplus.CueLook{Indicator: cue.Indicator, Progress: cue.Progress, Seconds: cue.Seconds}
+	} else if o.content.Fill > 0 {
+		look.FillWidths = layout.FillWidths(frame.Primary, o.content.Fill, o.renderer)
 	}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
 		return fmt.Errorf("drawing the subtitles: %w", err)

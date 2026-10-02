@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { durationLabel, progress, speedLabel } from "./format";
+import { passageClock } from "./format";
 
 describe("speedLabel", () => {
   it("shows two decimals with a comma", () => {
@@ -44,5 +45,19 @@ describe("durationLabel", () => {
   it("is empty without a length", () => {
     expect(durationLabel(0)).toBe("");
     expect(durationLabel(Number.NaN)).toBe("");
+  });
+});
+
+describe("passageClock", () => {
+  it("writes what the Go side reads back", () => {
+    expect(passageClock(4223)).toBe("1:10:23");
+    expect(passageClock(623.5)).toBe("10:23,5");
+    expect(passageClock(59.96)).toBe("1:00");
+    expect(passageClock(0)).toBe("0:00");
+  });
+  it("never shows a negative or broken time", () => {
+    expect(passageClock(-3)).toBe("0:00");
+    expect(passageClock(Number.NaN)).toBe("0:00");
+    expect(passageClock(Number.POSITIVE_INFINITY)).toBe("0:00");
   });
 });

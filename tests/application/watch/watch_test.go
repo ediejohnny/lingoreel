@@ -14,6 +14,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
 
@@ -539,4 +540,62 @@ func TestPlayerWindowFailuresCleanUp(t *testing.T) {
 			t.Fatalf("window closes %d, player closes %d", closes, r.running.closes())
 		}
 	})
+}
+
+func TestKaraokeChoices(t *testing.T) {
+	r := newRig(t)
+	r.request.LineRepeats = study.MaxRepeats + 1
+	if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
+		t.Fatal("Start with 11 line repeats succeeded")
+	}
+	if r.running.closes() != 1 {
+		t.Fatalf("player closes = %d, want the player closed", r.running.closes())
+	}
+
+	r = newRig(t)
+	r.request.Karaoke = session.Karaoke{Enabled: true, Rules: study.DefaultCueRules()}
+	r.request.Indicator = study.IndicatorCountdown
+	r.request.LineRepeats = 2
+	s := r.start(t)
+	if !s.Karaoke().Enabled || s.Indicator() != study.IndicatorCountdown || s.LineRepeats() != 2 {
+		t.Fatalf("karaoke %+v indicator %q repeats %d", s.Karaoke(), s.Indicator(), s.LineRepeats())
+	}
+	s.SetKaraoke(false)
+	if s.Karaoke().Enabled || s.Karaoke().Rules != study.DefaultCueRules() {
+		t.Fatalf("turning it off lost the rules: %+v", s.Karaoke())
+	}
+	if err := s.SetIndicator("dots"); err == nil || s.Indicator() != study.IndicatorCountdown {
+		t.Fatal("an unknown indicator was taken")
+	}
+	// No indicator asked: the bar.
+	plain := newRig(t).start(t)
+	if plain.Indicator() != study.IndicatorBar {
+		t.Fatalf("default indicator %q", plain.Indicator())
+	}
+}
+
+func TestStudyPassageHidesLinesByLap(t *testing.T) {
+	r := newRig(t)
+	s := r.start(t)
+	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: time.Now()}
+	eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
+	// "Esta fala" at 1.5 s: the line 1–3 s, with its lead-in.
+	if segment, err := s.LinePassage(); err != nil || segment.Start != 500*time.Millisecond || segment.End != 3*time.Second {
+		t.Fatalf("LinePassage = %+v, %v", segment, err)
+	}
+	plan := study.PracticePlan{Mode: study.EndPause, Ladder: true}
+	if err := s.StudyPassage(study.Segment{Start: time.Second, End: 3 * time.Second}, plan, true); err != nil {
+		t.Fatal(err)
+	}
+	if status := s.Passage(); !status.Active || status.Lap != 1 || status.Segment.Start != 500*time.Millisecond {
+		t.Fatalf("passage %+v; want lap 1 fitted to the line (1 s - 0.5 s)", status)
+	}
+
+	s.StopPassage()
+	if s.Passage().Active {
+		t.Fatal("StopPassage left the passage")
+	}
+	if screen, _, _, _ := r.display.last(); screen.PrimaryHidden || !screen.TranslationVisible {
+		t.Fatalf("after the passage the lines stay hidden: %+v", screen)
+	}
 }

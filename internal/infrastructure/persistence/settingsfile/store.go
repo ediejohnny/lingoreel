@@ -14,8 +14,9 @@ const (
 	// (%APPDATA% on Windows).
 	appFolder = "LingoReel"
 	// configVersion and profilesVersion are the current document versions.
-	configVersion   = 1
-	profilesVersion = 1
+	configVersion = 1
+	// profilesVersion 2 added the Modo Karaokê (migrations.go).
+	profilesVersion = 2
 )
 
 // Dir is where the app keeps its settings: %APPDATA%\LingoReel.
@@ -37,7 +38,7 @@ type Files struct {
 func Open(dir string) *Files {
 	return &Files{
 		config:   jsonstore.New(filepath.Join(dir, "config.json"), configVersion, settings.DefaultConfig, nil),
-		profiles: jsonstore.New(filepath.Join(dir, "profiles.json"), profilesVersion, settings.DefaultProfiles, nil),
+		profiles: jsonstore.New(filepath.Join(dir, "profiles.json"), profilesVersion, settings.DefaultProfiles, profilesMigrations),
 	}
 }
 

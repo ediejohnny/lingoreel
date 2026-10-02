@@ -16,6 +16,22 @@ export namespace app {
 	        this.speed = source["speed"];
 	    }
 	}
+	export class Karaoke {
+	    enabled: boolean;
+	    indicator: string;
+	    repeat: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Karaoke(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.indicator = source["indicator"];
+	        this.repeat = source["repeat"];
+	    }
+	}
 	export class LineNames {
 	    primary: string;
 	    translation: string;
@@ -28,6 +44,70 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.primary = source["primary"];
 	        this.translation = source["translation"];
+	    }
+	}
+	export class Passage {
+	    active: boolean;
+	    start: string;
+	    end: string;
+	    lap: number;
+	    goal: number;
+	    suspended: boolean;
+	    atEnd: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Passage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.active = source["active"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.lap = source["lap"];
+	        this.goal = source["goal"];
+	        this.suspended = source["suspended"];
+	        this.atEnd = source["atEnd"];
+	    }
+	}
+	export class PassageRequest {
+	    start: string;
+	    end: string;
+	    snap: boolean;
+	    loop: boolean;
+	    gap: number;
+	    progressive: boolean;
+	    ladder: boolean;
+	    goal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PassageRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.snap = source["snap"];
+	        this.loop = source["loop"];
+	        this.gap = source["gap"];
+	        this.progressive = source["progressive"];
+	        this.ladder = source["ladder"];
+	        this.goal = source["goal"];
+	    }
+	}
+	export class PassageTimes {
+	    start: string;
+	    end: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PassageTimes(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.start = source["start"];
+	        this.end = source["end"];
 	    }
 	}
 	export class Playback {
@@ -43,6 +123,8 @@ export namespace app {
 	    translationVisible: boolean;
 	    capabilities: Capabilities;
 	    lines: LineNames;
+	    karaoke: Karaoke;
+	    passage: Passage;
 	
 	    static createFrom(source: any = {}) {
 	        return new Playback(source);
@@ -62,6 +144,8 @@ export namespace app {
 	        this.translationVisible = source["translationVisible"];
 	        this.capabilities = this.convertValues(source["capabilities"], Capabilities);
 	        this.lines = this.convertValues(source["lines"], LineNames);
+	        this.karaoke = this.convertValues(source["karaoke"], Karaoke);
+	        this.passage = this.convertValues(source["passage"], Passage);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

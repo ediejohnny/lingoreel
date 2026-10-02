@@ -37,10 +37,58 @@ type LanguagePreferences struct {
 	Translation string `json:"translation"`
 }
 
-// StudyPreferences configures how the translation is revealed.
+// StudyPreferences configures how the translation is revealed and the
+// Modo Karaokê.
 type StudyPreferences struct {
-	Mode   study.Mode           `json:"mode"`
-	Reveal study.RevealBehavior `json:"reveal"`
+	Mode    study.Mode           `json:"mode"`
+	Reveal  study.RevealBehavior `json:"reveal"`
+	Karaoke KaraokePreferences   `json:"karaoke"`
+}
+
+// KaraokePreferences configure the Modo Karaokê: the next line shows before
+// its time after a long silence, and fills in as it is spoken.
+type KaraokePreferences struct {
+	Enabled bool `json:"enabled"`
+	// MinGap is the shortest silence that brings a preview; Lead is how
+	// long before the line it shows.
+	MinGap       Duration         `json:"minGap"`
+	Lead         Duration         `json:"lead"`
+	Indicator    study.Indicator  `json:"indicator"`
+	PreviewColor appearance.Color `json:"previewColor"`
+	// Fill paints the line as it is spoken, in FillColor.
+	Fill      bool             `json:"fill"`
+	FillColor appearance.Color `json:"fillColor"`
+	// Repeat plays each line again that many times; 0 is off.
+	Repeat int `json:"repeat"`
+}
+
+// DefaultKaraoke is off, with a 10 s gap, a 5 s lead, the bar, a light grey
+// preview and the karaoke yellow fill.
+func DefaultKaraoke() KaraokePreferences {
+	rules := study.DefaultCueRules()
+	return KaraokePreferences{
+		MinGap: Duration(rules.MinGap), Lead: Duration(rules.Lead), Indicator: study.IndicatorBar,
+		PreviewColor: appearance.Color{R: 0xC8, G: 0xCD, B: 0xD4, A: 0xFF},
+		Fill:         true, FillColor: appearance.Color{R: 0xFF, G: 0xD2, B: 0x3F, A: 0xFF},
+	}
+}
+
+// Rules are the preview's timing rules.
+func (k KaraokePreferences) Rules() study.CueRules {
+	return study.CueRules{MinGap: time.Duration(k.MinGap), Lead: time.Duration(k.Lead)}
+}
+
+func (k KaraokePreferences) validate() error {
+	if err := k.Rules().Validate(); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidSettings, err)
+	}
+	if !k.Indicator.Valid() {
+		return fmt.Errorf("%w: karaoke indicator %q", ErrInvalidSettings, k.Indicator)
+	}
+	if k.Repeat < 0 || k.Repeat > study.MaxRepeats {
+		return fmt.Errorf("%w: karaoke repeat %d outside 0..%d", ErrInvalidSettings, k.Repeat, study.MaxRepeats)
+	}
+	return nil
 }
 
 // SyncPreferences configures the fine time adjustments. OffsetStep and
@@ -78,7 +126,7 @@ func DefaultProfile() Profile {
 		Primary:     appearance.DefaultPrimaryStyle(),
 		Translation: appearance.DefaultTranslationStyle(),
 		Layout:      appearance.DefaultLayout(),
-		Study:       StudyPreferences{Mode: study.ModeOnDemand, Reveal: study.RevealToggle},
+		Study:       StudyPreferences{Mode: study.ModeOnDemand, Reveal: study.RevealToggle, Karaoke: DefaultKaraoke()},
 		Speed:       playback.NormalSpeed,
 		Sync: SyncPreferences{
 			PrecisionSeekStep: Duration(100 * time.Millisecond),
@@ -113,6 +161,9 @@ func (p Profile) Validate() error {
 	}
 	if !p.Study.Mode.Valid() || !p.Study.Reveal.Valid() {
 		return fmt.Errorf("%w: study preferences", ErrInvalidSettings)
+	}
+	if err := p.Study.Karaoke.validate(); err != nil {
+		return err
 	}
 	if !p.Speed.Valid() {
 		return fmt.Errorf("%w: speed %v", ErrInvalidSettings, p.Speed)

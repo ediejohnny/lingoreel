@@ -11,6 +11,8 @@ export type PlayerInstall = app.PlayerInstall;
 export type Playback = app.Playback;
 export type Preferences = app.Preferences;
 export type WatchRequest = app.WatchRequest;
+export type PassageRequest = app.PassageRequest;
+export type PassageTimes = app.PassageTimes;
 export type Line = "primary" | "translation";
 
 export interface Ended {
@@ -57,6 +59,14 @@ export const backend = {
   resetSync: (line: Line) => api.ResetSync(line),
   setTranslationVisible: (visible: boolean) => api.SetTranslationVisible(visible),
   playbackState: () => api.PlaybackState(),
+  setKaraoke: (enabled: boolean) => api.SetKaraoke(enabled),
+  setKaraokeIndicator: (indicator: string) => api.SetKaraokeIndicator(indicator),
+  setLineRepeats: (times: number) => api.SetLineRepeats(times),
+  replayLine: () => api.ReplayLine(),
+  studyPassage: (request: PassageRequest) => api.StudyPassage(request),
+  passageOfLine: () => api.PassageOfLine(),
+  stopPassage: () => api.StopPassage(),
+  resumePassage: () => api.ResumePassage(),
   preferences: () => api.Preferences(),
   setTheme: (theme: string) => api.SetTheme(theme),
   installPlayer: (id: string) => api.InstallPlayer(id),

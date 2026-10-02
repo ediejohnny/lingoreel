@@ -44,6 +44,11 @@ type Controls struct {
 	frame        time.Duration
 	hasFrame     bool
 
+	// beforePlay and afterSeek let a Practice see the user's commands:
+	// Play at the end of a passage, a seek out of it.
+	beforePlay func()
+	afterSeek  func(position time.Duration)
+
 	// volume is the level last asked for; muted keeps it to restore.
 	volumeMu sync.Mutex
 	volume   playback.Volume
@@ -99,6 +104,9 @@ func (c *Controls) Play() error {
 	if !c.capabilities.Pause {
 		return ErrNotSupported
 	}
+	if c.beforePlay != nil {
+		c.beforePlay()
+	}
 	if err := c.player.Play(); err != nil {
 		return fmt.Errorf("resuming playback: %w", err)
 	}
@@ -136,6 +144,9 @@ func (c *Controls) SeekTo(position time.Duration) error {
 		return fmt.Errorf("seeking to %v: %w", position, err)
 	}
 	c.clock.SetPosition(position)
+	if c.afterSeek != nil {
+		c.afterSeek(position)
+	}
 	return nil
 }
 

@@ -23,6 +23,9 @@ type Timeline struct {
 	// node, which prunes every subtree that finished before the query time.
 	endTree []time.Duration
 	leaves  int
+	// latestEnd[i] is the latest End among events[0..i], so the end of the
+	// speech before any instant is one search away.
+	latestEnd []time.Duration
 }
 
 // NewTimeline sorts a copy of events and indexes them. Every event must be
@@ -42,8 +45,14 @@ func NewTimeline(events []Event) (*Timeline, error) {
 		return sorted[i].End < sorted[j].End
 	})
 
-	timeline := &Timeline{events: sorted}
+	timeline := &Timeline{events: sorted, latestEnd: make([]time.Duration, len(sorted))}
 	timeline.buildEndTree()
+	for i, event := range sorted {
+		timeline.latestEnd[i] = event.End
+		if i > 0 {
+			timeline.latestEnd[i] = max(event.End, timeline.latestEnd[i-1])
+		}
+	}
 	return timeline, nil
 }
 
@@ -100,6 +109,36 @@ func (t *Timeline) NextChangeAfter(at time.Duration) (time.Duration, bool) {
 		}
 	}
 	return next, found
+}
+
+// NextStartAfter returns the first event starting strictly after the
+// instant; with several starting together, the one ending first.
+func (t *Timeline) NextStartAfter(at time.Duration) (Event, bool) {
+	if started := t.countStartedBy(at); started < len(t.events) {
+		return t.events[started], true
+	}
+	return Event{}, false
+}
+
+// LastStartedBy returns the latest event starting at or before the instant.
+func (t *Timeline) LastStartedBy(at time.Duration) (Event, bool) {
+	if started := t.countStartedBy(at); started > 0 {
+		return t.events[started-1], true
+	}
+	return Event{}, false
+}
+
+// LatestEndBefore returns when the speech before an instant ends: the
+// latest End among the events starting before it, or zero when none does.
+// The silence before a line is its Start minus this.
+func (t *Timeline) LatestEndBefore(start time.Duration) time.Duration {
+	before := sort.Search(len(t.events), func(i int) bool {
+		return t.events[i].Start >= start
+	})
+	if before == 0 {
+		return 0
+	}
+	return t.latestEnd[before-1]
 }
 
 // countStartedBy returns how many events start at or before the instant.

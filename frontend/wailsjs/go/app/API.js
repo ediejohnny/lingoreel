@@ -30,6 +30,10 @@ export function OpenVideo(arg1) {
   return window['go']['app']['API']['OpenVideo'](arg1);
 }
 
+export function PassageOfLine() {
+  return window['go']['app']['API']['PassageOfLine']();
+}
+
 export function PlaybackState() {
   return window['go']['app']['API']['PlaybackState']();
 }
@@ -42,8 +46,16 @@ export function Preferences() {
   return window['go']['app']['API']['Preferences']();
 }
 
+export function ReplayLine() {
+  return window['go']['app']['API']['ReplayLine']();
+}
+
 export function ResetSync(arg1) {
   return window['go']['app']['API']['ResetSync'](arg1);
+}
+
+export function ResumePassage() {
+  return window['go']['app']['API']['ResumePassage']();
 }
 
 export function SeekBy(arg1) {
@@ -52,6 +64,18 @@ export function SeekBy(arg1) {
 
 export function SeekTo(arg1) {
   return window['go']['app']['API']['SeekTo'](arg1);
+}
+
+export function SetKaraoke(arg1) {
+  return window['go']['app']['API']['SetKaraoke'](arg1);
+}
+
+export function SetKaraokeIndicator(arg1) {
+  return window['go']['app']['API']['SetKaraokeIndicator'](arg1);
+}
+
+export function SetLineRepeats(arg1) {
+  return window['go']['app']['API']['SetLineRepeats'](arg1);
 }
 
 export function SetSpeed(arg1) {
@@ -70,8 +94,16 @@ export function ShowRecommendations() {
   return window['go']['app']['API']['ShowRecommendations']();
 }
 
+export function StopPassage() {
+  return window['go']['app']['API']['StopPassage']();
+}
+
 export function StopWatching() {
   return window['go']['app']['API']['StopWatching']();
+}
+
+export function StudyPassage(arg1) {
+  return window['go']['app']['API']['StudyPassage'](arg1);
 }
 
 export function TogglePause() {

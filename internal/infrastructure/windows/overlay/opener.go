@@ -18,6 +18,8 @@ type Look struct {
 	Layout      appearance.Layout
 	Primary     appearance.SubtitleStyle
 	Translation appearance.SubtitleStyle
+	// PreviewColor and FillColor are the Modo Karaokê's colors.
+	PreviewColor, FillColor appearance.Color
 }
 
 // Opener returns what a watch session uses to put the overlay over its
@@ -28,6 +30,7 @@ func Opener(look func() Look, logger *slog.Logger) func(context.Context, players
 		options := Options{
 			ProcessID: running.ProcessID(), Layout: current.Layout,
 			Primary: current.Primary, Translation: current.Translation, Logger: logger,
+			PreviewColor: current.PreviewColor, FillColor: current.FillColor,
 		}
 		options.VideoWidth, options.VideoHeight = placement.VideoSize(info)
 		screen, err := Open(ctx, options)

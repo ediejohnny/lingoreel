@@ -1,0 +1,146 @@
+//go:build windows && amd64
+
+package gdiplus_test
+
+import (
+	"testing"
+	"time"
+
+	"lingoreel/internal/domain/appearance"
+	"lingoreel/internal/domain/layout"
+	"lingoreel/internal/domain/study"
+	"lingoreel/internal/infrastructure/windows/gdiplus"
+	"lingoreel/internal/infrastructure/windows/win32"
+)
+
+var (
+	previewGrey = appearance.Color{R: 0xC8, G: 0xCD, B: 0xD4, A: 0xFF}
+	fillYellow  = appearance.Color{R: 0xFF, G: 0xD2, B: 0x3F, A: 0xFF}
+)
+
+// karaokeFrame lays out one primary line on a 1920x1080 picture.
+func karaokeFrame(t *testing.T, r *gdiplus.Renderer) (layout.Frame, gdiplus.Look) {
+	t.Helper()
+	style := appearance.DefaultPrimaryStyle()
+	frame := layout.Compute(layout.Input{
+		Video: layout.Rect{W: 1920, H: 1080}, DPI: 96, Layout: appearance.DefaultLayout(),
+		Primary: layout.Text{Style: style, Content: "Training the karaoke line"},
+	}, r)
+	if frame.Primary == nil || len(frame.Primary.Lines) != 1 {
+		t.Fatalf("layout: %+v", frame.Primary)
+	}
+	return frame, gdiplus.Look{Primary: style, Notice: appearance.NoticeStyle(), Preview: previewGrey, FillColor: fillYellow}
+}
+
+// colored counts the opaque pixels of a rectangle close to a color.
+func colored(dib *win32.DIB, area layout.Rect, c appearance.Color) int {
+	count := 0
+	for y := int(area.Y); y < int(area.Bottom()); y++ {
+		for x := int(area.X); x < int(area.Right()); x++ {
+			if x < 0 || y < 0 || x >= dib.Width || y >= dib.Height {
+				continue
+			}
+			p := dib.Pixels[(y*dib.Width+x)*4:]
+			if p[3] == 0xFF && near(p[2], c.R) && near(p[1], c.G) && near(p[0], c.B) {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func near(a, b byte) bool { return int(a)-int(b) < 24 && int(b)-int(a) < 24 }
+
+func TestPreviewBarShrinksWithTheTimeLeft(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	bounds := frame.Primary.Bounds
+	// The bar sits above the text: 8 style units of gap, 5 thick.
+	strip := layout.Rect{X: bounds.X, Y: bounds.Y - 30, W: bounds.W, H: 30}
+	left := layout.Rect{X: bounds.X, Y: strip.Y, W: bounds.W / 4, H: strip.H}
+	right := layout.Rect{X: bounds.X + bounds.W*3/4, Y: strip.Y, W: bounds.W / 4, H: strip.H}
+
+	draw := func(cue *gdiplus.CueLook) *win32.DIB {
+		dib := newDIB(t, 1920, 1080)
+		look.Cue = cue
+		if err := r.Draw(dib, frame, look); err != nil {
+			t.Fatal(err)
+		}
+		return dib
+	}
+	half := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0.5})
+	if colored(half, left, previewGrey) == 0 || colored(half, right, previewGrey) != 0 {
+		t.Fatalf("half way: left %d, right %d preview pixels; want the bar on the left half only",
+			colored(half, left, previewGrey), colored(half, right, previewGrey))
+	}
+	if done := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0}); colored(done, strip, previewGrey) != 0 {
+		t.Fatal("a bar at the line's start")
+	}
+	// The text itself is in the preview color, not the style's.
+	if colored(half, bounds, previewGrey) == 0 || colored(half, bounds, look.Primary.Color) > colored(half, bounds, previewGrey) {
+		t.Fatal("the preview text is not in the preview color")
+	}
+	count := draw(&gdiplus.CueLook{Indicator: study.IndicatorCountdown, Seconds: 3})
+	centre := layout.Rect{X: bounds.X + bounds.W/2 - 40, Y: bounds.Y - 80, W: 80, H: 80}
+	if colored(count, centre, previewGrey) == 0 || colored(count, left, previewGrey) != 0 {
+		t.Fatal("the countdown is not a number centered above the line")
+	}
+}
+
+func TestFillPaintsTheSpokenPart(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	line := frame.Primary.Lines[0]
+	look.FillWidths = layout.FillWidths(frame.Primary, 0.5, r)
+	dib := newDIB(t, 1920, 1080)
+	if err := r.Draw(dib, frame, look); err != nil {
+		t.Fatal(err)
+	}
+	spoken := layout.Rect{X: line.X, Y: line.Y, W: look.FillWidths[0], H: line.Height}
+	ahead := layout.Rect{X: line.X + look.FillWidths[0] + 4, Y: line.Y, W: line.Width - look.FillWidths[0] - 4, H: line.Height}
+	if colored(dib, spoken, fillYellow) == 0 || colored(dib, ahead, fillYellow) != 0 {
+		t.Fatalf("fill: %d yellow pixels spoken, %d ahead", colored(dib, spoken, fillYellow), colored(dib, ahead, fillYellow))
+	}
+	if colored(dib, ahead, look.Primary.Color) == 0 {
+		t.Fatal("the part ahead lost its own color")
+	}
+}
+
+func TestHiddenPrimaryDrawsNothing(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	look.PrimaryHidden = true
+	dib := newDIB(t, 1920, 1080)
+	if err := r.Draw(dib, frame, look); err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range dib.Pixels {
+		if b != 0 {
+			t.Fatal("a hidden primary was drawn")
+		}
+	}
+}
+
+// M12: a karaoke frame at 1080p (clear, text, fill) must fit well inside
+// the 40 ms between frames; the plan's target is 8 ms. Wall time is noisy
+// under the race detector, so the test fails only past a whole frame and
+// reports the measure.
+func TestKaraokeFrameCost(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	dib := newDIB(t, 1920, 1080)
+	const frames = 50
+	start := time.Now()
+	for i := range frames {
+		dib.Clear()
+		look.FillWidths = layout.FillWidths(frame.Primary, float64(i)/frames, r)
+		if err := r.Draw(dib, frame, look); err != nil {
+			t.Fatal(err)
+		}
+	}
+	each := time.Since(start) / frames
+	t.Logf("karaoke frame at 1080p: %v", each)
+	if each > 40*time.Millisecond {
+		t.Fatalf("a karaoke frame takes %v, more than the 40 ms between frames", each)
+	}
+}

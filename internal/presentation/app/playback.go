@@ -8,6 +8,7 @@ import (
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/presentation/ptbr"
 )
@@ -67,7 +68,12 @@ func (a *API) Watch(request WatchRequest) error {
 
 	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
 	names := ptbr.NewLineNames(video.Info, tracks.Primary, tracks.Translation)
-	watchRequest := watch.Request{Analysis: *video, Tracks: tracks, Player: installation, Steps: profile.Sync.Nudge()}
+	karaoke := profile.Study.Karaoke
+	watchRequest := watch.Request{
+		Analysis: *video, Tracks: tracks, Player: installation, Steps: profile.Sync.Nudge(),
+		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
+		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
+	}
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
 	}
@@ -87,11 +93,16 @@ func (a *API) Watch(request WatchRequest) error {
 
 // preferPlayer makes a player the active profile's preferred one.
 func (a *API) preferPlayer(id string) error {
+	return a.updateProfile(func(profile *settings.Profile) { profile.PreferredPlayer = id })
+}
+
+// updateProfile changes the active profile and saves the profiles.
+func (a *API) updateProfile(change func(*settings.Profile)) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for i := range a.profiles.Items {
 		if a.profiles.Items[i].Name == a.profile().Name {
-			a.profiles.Items[i].PreferredPlayer = id
+			change(&a.profiles.Items[i])
 			return a.saveProfiles()
 		}
 	}
@@ -138,6 +149,8 @@ func (a *API) describe(current *watching) Playback {
 		TranslationVisible: current.session.TranslationVisible(),
 		Capabilities:       Capabilities{Pause: capabilities.Pause, Seek: capabilities.Seek, Speed: capabilities.Speed},
 		Lines:              LineNames{Primary: current.names[session.LinePrimary], Translation: current.names[session.LineTranslation]},
+		Karaoke:            describeKaraoke(current.session),
+		Passage:            describePassage(current.session.Passage()),
 	}
 }
 

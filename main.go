@@ -72,7 +72,8 @@ func run() error {
 	files := settingsfile.Open(dir)
 	look := func() overlay.Look {
 		profile := activeProfile(files)
-		return overlay.Look{Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation}
+		return overlay.Look{Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation,
+			PreviewColor: profile.Study.Karaoke.PreviewColor, FillColor: profile.Study.Karaoke.FillColor}
 	}
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	deps := app.Deps{
@@ -85,7 +86,8 @@ func run() error {
 			OpenWindow: playerwindow.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTip, Item: ptbr.BarItem, Time: ptbr.BarTime,
 			}, ptbr.WindowTitle, logger),
-			OpenDisplay: overlay.Opener(look, logger),
+			OpenDisplay:    overlay.Opener(look, logger),
+			PracticeNotice: ptbr.PracticeNotice,
 			StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
 				return hotkeys.StartSync(target, logger)
 			},

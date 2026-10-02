@@ -87,6 +87,48 @@ type Playback struct {
 	TranslationVisible bool         `json:"translationVisible"`
 	Capabilities       Capabilities `json:"capabilities"`
 	Lines              LineNames    `json:"lines"`
+	Karaoke            Karaoke      `json:"karaoke"`
+	Passage            Passage      `json:"passage"`
+}
+
+// Karaoke is the Modo Karaokê of the session.
+type Karaoke struct {
+	Enabled bool `json:"enabled"`
+	// Indicator is "bar" or "countdown".
+	Indicator string `json:"indicator"`
+	// Repeat is how many times each line plays again; 0 is off.
+	Repeat int `json:"repeat"`
+}
+
+// Passage is the passage being studied ("Estudar trecho").
+type Passage struct {
+	Active    bool   `json:"active"`
+	Start     string `json:"start"`
+	End       string `json:"end"`
+	Lap       int    `json:"lap"`
+	Goal      int    `json:"goal"`
+	Suspended bool   `json:"suspended"`
+	AtEnd     bool   `json:"atEnd"`
+}
+
+// PassageRequest starts a passage. Times are typed by the user ("1:10:23").
+type PassageRequest struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+	// Snap widens the passage so no line is cut ("Ajustar às falas").
+	Snap bool `json:"snap"`
+	// Loop goes back by itself after Gap seconds; otherwise it pauses.
+	Loop        bool    `json:"loop"`
+	Gap         float64 `json:"gap"`
+	Progressive bool    `json:"progressive"`
+	Ladder      bool    `json:"ladder"`
+	Goal        int     `json:"goal"`
+}
+
+// PassageTimes are a passage's times as the window shows them.
+type PassageTimes struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
 }
 
 // Capabilities tell which controls work with this player.

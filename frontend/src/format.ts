@@ -37,3 +37,19 @@ export function isTyping(target: EventTarget | null): boolean {
   const tag = target.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
+
+/**
+ * passageClock shows a time for the passage fields as the Go side reads it
+ * back: h:mm:ss or m:ss, with tenths when it is not a whole second.
+ */
+export function passageClock(seconds: number): string {
+  const tenthsTotal = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 10) : 0;
+  const whole = Math.floor(tenthsTotal / 10);
+  const tenths = tenthsTotal % 10;
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const rest = whole % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const clock = hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
+  return tenths > 0 ? `${clock},${tenths}` : clock;
+}
