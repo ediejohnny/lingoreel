@@ -10,7 +10,8 @@ import (
 // defaultLook draws the subtitles with the default profile's look.
 func defaultLook() overlay.Look {
 	profile := settings.DefaultProfile()
-	return overlay.Look{Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation}
+	return overlay.Look{Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation,
+		PreviewColor: profile.Study.Karaoke.PreviewColor, FillColor: profile.Study.Karaoke.FillColor}
 }
 
 // openOverlay puts the subtitle window over a player's own window; its

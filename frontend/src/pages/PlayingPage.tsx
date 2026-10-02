@@ -2,6 +2,7 @@ import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Square } from "lucide-re
 import { useEffect } from "react";
 import { SyncRow } from "../components/player/SyncRow";
 import { Timeline } from "../components/player/Timeline";
+import { TrainingCards } from "../components/player/TrainingCards";
 import { Button, IconButton } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
@@ -150,6 +151,8 @@ export function PlayingPage({ name, state, speeds, error, onDismissError, onComm
             </div>
           </Card>
         </div>
+
+        <TrainingCards state={state} onCommand={onCommand} />
 
         <div className="flex justify-end pb-2">
           <Button icon={Square} onClick={() => onCommand(commands.stop)}>

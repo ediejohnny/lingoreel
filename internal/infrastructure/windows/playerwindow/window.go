@@ -162,6 +162,7 @@ func Open(ctx context.Context, options Options) (*Window, error) {
 	w.overlay, err = overlay.Open(ctx, overlay.Options{
 		Target: uintptr(w.host), VideoWidth: options.VideoWidth, VideoHeight: options.VideoHeight,
 		Layout: look.Layout, Primary: look.Primary, Translation: look.Translation, Logger: logger,
+		PreviewColor: look.PreviewColor, FillColor: look.FillColor,
 	})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("opening the subtitles over the player window: %w", err), w.Close())

@@ -1,9 +1,11 @@
 package session
 
 import (
+	"math"
 	"sync"
 	"time"
 
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
 
@@ -25,11 +27,52 @@ type Track struct {
 type Visible struct {
 	Primary     []subtitle.Event
 	Translation []subtitle.Event
+	// Cue is set when the primary line is the next one, shown before its
+	// time by the Modo Karaokê; Primary and Translation then hold that line.
+	Cue *study.Cue
+	// Fill is the share of the primary line already spoken, for the Modo
+	// Karaokê's fill; zero when nothing is filled.
+	Fill float64
 }
 
-// Equal reports whether both snapshots show the same text.
+// Drawing steps: a preview's time left and a fill below them look the same
+// at 25 frames per second, so they do not count as changes.
+const (
+	cueStep  = KaraokeFrame
+	fillStep = 1.0 / 200
+)
+
+// Equal reports whether both snapshots show the same thing: the same text,
+// the same preview step and the same fill step.
 func (v Visible) Equal(other Visible) bool {
-	return sameEvents(v.Primary, other.Primary) && sameEvents(v.Translation, other.Translation)
+	if !sameEvents(v.Primary, other.Primary) || !sameEvents(v.Translation, other.Translation) {
+		return false
+	}
+	if (v.Cue == nil) != (other.Cue == nil) {
+		return false
+	}
+	if v.Cue != nil && (v.Cue.Event.ID != other.Cue.Event.ID || v.Cue.Remaining/cueStep != other.Cue.Remaining/cueStep) {
+		return false
+	}
+	return math.Round(v.Fill/fillStep) == math.Round(other.Fill/fillStep)
+}
+
+// Animating tells the screen changes by itself while the video plays: a
+// preview counting down or a line filling in.
+func (v Visible) Animating() bool {
+	return v.Cue != nil || (v.Fill > 0 && v.Fill < 1)
+}
+
+// KaraokeFrame is how often a preview or a fill is redrawn while the video
+// plays: 25 frames per second, and no polling otherwise.
+const KaraokeFrame = 40 * time.Millisecond
+
+// Karaoke is the session's Modo Karaokê.
+type Karaoke struct {
+	Enabled bool
+	Rules   study.CueRules
+	// Fill paints the primary line as it is spoken.
+	Fill bool
 }
 
 func sameEvents(a, b []subtitle.Event) bool {
@@ -53,6 +96,7 @@ const maxVisiblePerLine = 4
 type Subtitles struct {
 	mu      sync.RWMutex
 	lines   [2]*Track
+	karaoke Karaoke
 	changes chan struct{}
 }
 
@@ -78,14 +122,65 @@ func knownLine(line Line) bool {
 	return line >= LinePrimary && line <= LineTranslation
 }
 
-// At returns the events visible at a playback position.
+// SetKaraoke turns the Modo Karaokê on or off and changes its rules, and
+// signals the change.
+func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
+	s.mu.Lock()
+	s.karaoke = karaoke
+	s.mu.Unlock()
+	s.notify()
+}
+
+// Karaoke returns the Modo Karaokê's state.
+func (s *Subtitles) Karaoke() Karaoke {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.karaoke
+}
+
+// At returns the events visible at a playback position. With the Modo
+// Karaokê on, a silence before a line shows that line ahead of time, with
+// its translation, and a line being spoken carries its fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return Visible{
+	visible := Visible{
 		Primary:     activeAt(s.lines[LinePrimary], position),
 		Translation: activeAt(s.lines[LineTranslation], position),
 	}
+	primary := s.lines[LinePrimary]
+	if !s.karaoke.Enabled || primary == nil || primary.Timeline == nil {
+		return visible
+	}
+	if len(visible.Primary) == 0 {
+		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Offset, position, s.karaoke.Rules); upcoming {
+			visible.Cue = &cue
+			visible.Primary = []subtitle.Event{cue.Event}
+			if len(visible.Translation) == 0 {
+				visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
+			}
+		}
+		return visible
+	}
+	if s.karaoke.Fill && len(visible.Primary) == 1 {
+		visible.Fill = study.SpokenFraction(visible.Primary[0], primary.Offset.TrackTime(position))
+	}
+	return visible
+}
+
+// Track returns a line's track as it is now (offset included); nil for a
+// missing or unknown line.
+func (s *Subtitles) Track(line Line) *Track {
+	if !knownLine(line) {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if track := s.lines[line]; track != nil {
+		copied := *track
+		return &copied
+	}
+	return nil
 }
 
 func activeAt(track *Track, position time.Duration) []subtitle.Event {
@@ -114,6 +209,11 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 		}
 		if at := track.Offset.PlaybackTime(change); !found || at < next {
 			next, found = at, true
+		}
+	}
+	if primary := s.lines[LinePrimary]; s.karaoke.Enabled && primary != nil {
+		if begin, ok := study.NextCueStartAfter(primary.Timeline, primary.Offset, position, s.karaoke.Rules); ok && (!found || begin < next) {
+			next, found = begin, true
 		}
 	}
 	return next, found

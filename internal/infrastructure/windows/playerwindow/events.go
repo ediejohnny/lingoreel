@@ -21,6 +21,8 @@ const (
 	sizeMinimized = 1
 	vkShift       = 0x10
 	vkControl     = 0x11
+	// vkBack is Backspace: "Treinar de novo".
+	vkBack = 0x08
 )
 
 // dispatchHost is the window procedure of the player window.
@@ -289,6 +291,8 @@ func (w *Window) key(vk uint32) bool {
 		w.do(func(r watch.Remote) error { return r.Controls().ChangeVolume(-playback.VolumeStep) })
 	case win32.VK_M:
 		w.do(func(r watch.Remote) error { return r.Controls().ToggleMute() })
+	case vkBack:
+		w.do(func(r watch.Remote) error { return r.ReplayLine() })
 	case win32.VK_F:
 		w.setFullscreen(!w.fullscreen)
 	case win32.VK_ESCAPE:

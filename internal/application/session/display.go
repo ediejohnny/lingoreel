@@ -1,5 +1,7 @@
 package session
 
+import "lingoreel/internal/domain/study"
+
 // Screen is what the subtitle display shows at one moment.
 type Screen struct {
 	Primary     string
@@ -7,6 +9,22 @@ type Screen struct {
 	// TranslationVisible hides the translation without freeing its space,
 	// so the primary line never moves when it is revealed.
 	TranslationVisible bool
+	// PrimaryHidden hides the line on top, as the ladder of "Estudar
+	// trecho" does in its last laps.
+	PrimaryHidden bool
+	// Cue is set when the primary line is shown before its time.
+	Cue *CueScreen
+	// Fill is the share of the primary line's characters already spoken.
+	Fill float64
+}
+
+// CueScreen is how a preview shows the time left.
+type CueScreen struct {
+	Indicator study.Indicator
+	// Progress goes from 1 when the preview begins to 0 at the line.
+	Progress float64
+	// Seconds is the countdown, in whole seconds of real time.
+	Seconds int
 }
 
 // Display draws the subtitles over the video. The native overlay implements

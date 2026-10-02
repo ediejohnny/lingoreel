@@ -16,17 +16,29 @@ export function OpenDownloadPage(arg1:string):Promise<void>;
 
 export function OpenVideo(arg1:string):Promise<app.Video>;
 
+export function PassageOfLine():Promise<app.PassageTimes>;
+
 export function PlaybackState():Promise<app.Playback>;
 
 export function Players():Promise<app.Players>;
 
 export function Preferences():Promise<app.Preferences>;
 
+export function ReplayLine():Promise<void>;
+
 export function ResetSync(arg1:string):Promise<void>;
+
+export function ResumePassage():Promise<void>;
 
 export function SeekBy(arg1:number):Promise<void>;
 
 export function SeekTo(arg1:number):Promise<void>;
+
+export function SetKaraoke(arg1:boolean):Promise<void>;
+
+export function SetKaraokeIndicator(arg1:string):Promise<void>;
+
+export function SetLineRepeats(arg1:number):Promise<void>;
 
 export function SetSpeed(arg1:number):Promise<void>;
 
@@ -36,7 +48,11 @@ export function SetTranslationVisible(arg1:boolean):Promise<void>;
 
 export function ShowRecommendations():Promise<void>;
 
+export function StopPassage():Promise<void>;
+
 export function StopWatching():Promise<void>;
+
+export function StudyPassage(arg1:app.PassageRequest):Promise<void>;
 
 export function TogglePause():Promise<void>;
 

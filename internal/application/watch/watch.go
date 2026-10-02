@@ -5,6 +5,7 @@
 package watch
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
 
@@ -64,6 +66,8 @@ type Remote interface {
 	HasTranslation() bool
 	TranslationVisible() bool
 	SetTranslationVisible(visible bool)
+	// ReplayLine is "Treinar de novo" of the Modo Karaokê.
+	ReplayLine() error
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -101,6 +105,9 @@ type Ports struct {
 	// StartShortcuts listens to SyncShortcuts while the player is in the
 	// foreground; nil leaves the shortcuts off.
 	StartShortcuts func(target ShortcutTarget) (Shortcuts, error)
+	// PracticeNotice words what happens to a passage being studied for a
+	// notice on the video; nil shows none.
+	PracticeNotice func(session.PracticeEvent, session.PracticeStatus) string
 	Now            func() time.Time
 }
 
@@ -118,6 +125,11 @@ type Request struct {
 	Steps  subtitle.NudgeSteps
 	// TranslationHidden starts with the translation hidden (study mode on demand).
 	TranslationHidden bool
+	// Karaoke is the Modo Karaokê to start with, its indicator and how many
+	// times each line plays again (0 is off).
+	Karaoke     session.Karaoke
+	Indicator   study.Indicator
+	LineRepeats int
 }
 
 // Listener hears what happens in a session. Its methods run on the
@@ -146,6 +158,10 @@ type Session struct {
 
 	translationVisible atomic.Bool
 	lastVisible        atomic.Pointer[session.Visible]
+	practice           *session.Practice
+	indicator          atomic.Value // study.Indicator
+	// lap is how the current lap of a passage shows the lines (the ladder).
+	lap atomic.Pointer[study.Lap]
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -204,6 +220,14 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.subtitles = session.NewSubtitles(trackOf(loaded, request.Tracks.Primary), trackOf(loaded, request.Tracks.Translation))
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
+	s.subtitles.SetKaraoke(request.Karaoke)
+	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
+	s.practice = session.NewPractice(s.controls, s.subtitles, session.PracticeHooks{
+		Event: s.practiced(ports.PracticeNotice), Look: s.setLap,
+	}, now)
+	if err := s.practice.SetLineRepeats(request.LineRepeats); err != nil {
+		return nil, errors.Join(err, running.Close(), closeWindow(window))
+	}
 
 	target := ShortcutTarget{ProcessID: running.ProcessID()}
 	switch {
@@ -224,6 +248,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	runner := session.NewRunner(s.clock, s.subtitles, s.changed, session.NewRealTimer)
+	runner.Follow(s.practice)
 	go s.run(runCtx, runner)
 	if window != nil {
 		window.Attach(s)
@@ -299,7 +324,7 @@ func (s *Session) show(visible session.Visible) {
 		return
 	}
 	// The display only fails while its window goes away; the session ends then.
-	_ = s.display.Show(Screen(visible, s.translationVisible.Load()))
+	_ = s.display.Show(s.screen(visible))
 }
 
 func (s *Session) listenShortcuts() {

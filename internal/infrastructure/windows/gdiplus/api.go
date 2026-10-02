@@ -59,6 +59,8 @@ var (
 	procStartPathFigure          = dll.NewProc("GdipStartPathFigure")
 	procClosePathFigure          = dll.NewProc("GdipClosePathFigure")
 	procSetPenLineCap            = dll.NewProc("GdipSetPenLineCap197819")
+	procSetClipRect              = dll.NewProc("GdipSetClipRect")
+	procResetClip                = dll.NewProc("GdipResetClip")
 )
 
 const (
@@ -69,6 +71,7 @@ const (
 	lineJoinRound         = 2
 	lineCapRound          = 2
 	dashCapFlat           = 0
+	combineModeReplace    = 0
 	matrixOrderAppend     = 1
 
 	fontStyleBold   = 1

@@ -99,6 +99,8 @@ func (r *fakeRemote) SetTranslationVisible(visible bool) {
 	r.shown = visible
 }
 
+func (r *fakeRemote) ReplayLine() error { return r.controls.SeekTo(0) }
+
 var _ watch.Remote = (*fakeRemote)(nil)
 
 func open(t *testing.T) *playerwindow.Window {
@@ -227,6 +229,13 @@ func TestKeysDriveTheSession(t *testing.T) {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		return len(p.volume) > 0 && p.volume[len(p.volume)-1] == 0
+	})
+	// Backspace is "Treinar de novo" (the fake goes back to 0).
+	post(t, host, win32.WM_KEYDOWN, 0x08, 0)
+	eventually(t, "Backspace to train again", func() bool {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		return p.seek == 0
 	})
 	if p.saw("play") {
 		t.Fatal("the key pressed before the session reached the player")

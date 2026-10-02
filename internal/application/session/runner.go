@@ -35,6 +35,13 @@ type Runner struct {
 	onChange  func(position time.Duration, visible Visible)
 	newTimer  func(time.Duration) Timer
 	refresh   chan struct{}
+	practice  *Practice
+}
+
+// Follow makes the runner drive a practice: it ticks it on every turn and
+// wakes up when the practice needs it. Call it before Run.
+func (r *Runner) Follow(practice *Practice) {
+	r.practice = practice
 }
 
 // NewRunner creates a runner; once the clock knows the playback status (a
@@ -59,6 +66,10 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 	first := true
 	for {
 		state := r.clock.State()
+		if r.practice != nil && state.Status != playback.StatusUnknown {
+			r.practice.Tick(state)
+			state = r.clock.State() // the practice may have paused or sought
+		}
 		visible := r.subtitles.At(state.Position)
 		// Until the player reports, the position is a guess (zero), and showing
 		// its subtitles would flash the wrong line on a session that starts later.
@@ -68,7 +79,7 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 			last, first = visible, false
 		}
 
-		timer := r.newTimer(r.waitFor(state))
+		timer := r.newTimer(r.waitFor(state, visible))
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -91,10 +102,24 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 }
 
 // waitFor converts the distance to the next subtitle boundary into wall time
-// at the current speed.
-func (r *Runner) waitFor(state playback.Sample) time.Duration {
+// at the current speed; a preview or a fill on screen is redrawn every
+// KaraokeFrame while the video plays.
+func (r *Runner) waitFor(state playback.Sample, visible Visible) time.Duration {
+	wait := r.subtitleWait(state, visible)
+	if r.practice != nil {
+		if practice := r.practice.WakeIn(state); practice > 0 {
+			wait = min(wait, practice)
+		}
+	}
+	return wait
+}
+
+func (r *Runner) subtitleWait(state playback.Sample, visible Visible) time.Duration {
 	if state.Status != playback.StatusPlaying {
 		return maxIdleWait
+	}
+	if visible.Animating() {
+		return KaraokeFrame
 	}
 	next, found := r.subtitles.NextChangeAfter(state.Position)
 	if !found {

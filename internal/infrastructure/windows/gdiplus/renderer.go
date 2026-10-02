@@ -31,6 +31,15 @@ type Look struct {
 	Translation        appearance.SubtitleStyle
 	TranslationVisible bool
 	Notice             appearance.SubtitleStyle
+	// PrimaryHidden leaves the line on top out.
+	PrimaryHidden bool
+	// Cue draws the primary as a preview, in Preview, with its indicator.
+	Cue     *CueLook
+	Preview appearance.Color
+	// FillWidths paint each line of the primary in FillColor from its left
+	// edge, as the line is spoken; nil paints nothing.
+	FillWidths []float64
+	FillColor  appearance.Color
 }
 
 // Renderer measures and draws subtitle text. It is not safe for concurrent
@@ -194,8 +203,8 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 		return err
 	}
 	defer canvas.close()
-	if frame.Primary != nil {
-		if err := r.drawBlock(canvas, target, frame.Primary, look.Primary); err != nil {
+	if frame.Primary != nil && !look.PrimaryHidden {
+		if err := r.drawPrimary(canvas, target, frame.Primary, look); err != nil {
 			return err
 		}
 	}

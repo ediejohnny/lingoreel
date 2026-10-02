@@ -1,6 +1,7 @@
 package settingsfile_test
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -50,11 +51,63 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if err != nil || gotProfiles.Items[0].PreferredPlayer != "vlc" {
 		t.Fatalf("profiles after a round trip = %+v, %v", gotProfiles, err)
 	}
-	for _, name := range []string{"config.json", "profiles.json"} {
+	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 2`} {
 		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil || !strings.Contains(string(data), `"version": 1`) {
-			t.Fatalf("%s = %s, %v; want a versioned document", name, data, err)
+		if err != nil || !strings.Contains(string(data), version) {
+			t.Fatalf("%s = %s, %v; want %s", name, data, err, version)
 		}
+	}
+}
+
+// Profiles saved before the Modo Karaokê (version 1) get its defaults; the
+// rest of each profile stays as the user left it. Two profiles: decoding
+// over the default list, the first one would inherit the defaults anyway.
+func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
+	dir := t.TempDir()
+	profile := `{"name": "NAME", "preferredPlayer": "vlc",
+		"languages": {"audio": "fr", "primary": "fr", "translation": "pt-BR"},
+		"primaryStyle": PRIMARY, "translationStyle": TRANSLATION, "layout": LAYOUT,
+		"study": {"mode": "dual", "reveal": "hold"}, "speed": 0.75,
+		"sync": {"precisionSeekStep": "100ms", "offsetStep": "50ms", "offsetLargeStep": "500ms"}}`
+	old := `{"version": 1, "profiles": [` + strings.Replace(profile, "NAME", "Francês", 1) + `,` +
+		strings.Replace(profile, "NAME", "Espanhol", 1) + `]}`
+	defaults := settings.DefaultProfile()
+	for placeholder, value := range map[string]any{"PRIMARY": defaults.Primary, "TRANSLATION": defaults.Translation, "LAYOUT": defaults.Layout} {
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old = strings.ReplaceAll(old, placeholder, string(data))
+	}
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 1 file: %v", err)
+	}
+	if len(profiles.Items) != 2 {
+		t.Fatalf("%d profiles after the migration", len(profiles.Items))
+	}
+	for i, name := range []string{"Francês", "Espanhol"} {
+		got := profiles.Items[i]
+		if got.Name != name || got.Study.Mode != "dual" || got.Speed != 0.75 || got.PreferredPlayer != "vlc" {
+			t.Fatalf("the migration changed profile %d: %+v", i, got)
+		}
+		if got.Study.Karaoke != settings.DefaultKaraoke() {
+			t.Fatalf("profile %d karaoke = %+v, want the defaults %+v", i, got.Study.Karaoke, settings.DefaultKaraoke())
+		}
+	}
+}
+
+// A document without study preferences is refused, not silently patched.
+func TestBrokenOldProfilesAreRefused(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(`{"version": 1, "profiles": [{"name": "X"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := settingsfile.Open(dir).LoadProfiles(); err == nil {
+		t.Fatal("a profile without study preferences loaded")
 	}
 }
 
