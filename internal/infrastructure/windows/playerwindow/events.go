@@ -12,17 +12,15 @@ import (
 	"lingoreel/internal/domain/controlbar"
 	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/windows/gdiplus"
+	"lingoreel/internal/infrastructure/windows/keyboard"
 	"lingoreel/internal/infrastructure/windows/win32"
 )
 
 const (
 	wmCreate      = 0x0001
 	sizeMinimized = 1
-	vkShift       = 0x10
-	vkControl     = 0x11
-	// vkBack is Backspace: "Treinar de novo".
-	vkBack = 0x08
 )
 
 // dispatchHost is the window procedure of the player window.
@@ -71,10 +69,18 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 	case win32.WM_LBUTTONDBLCLK:
 		w.setFullscreen(!w.fullscreen)
 		return 0
-	case win32.WM_KEYDOWN:
-		if w.key(uint32(wparam)) {
+	case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
+		// Unknown keys and Alt combinations go on: Alt+F4 must still close.
+		if w.keyDown(lparam) {
 			return 0
 		}
+	case win32.WM_KEYUP, win32.WM_SYSKEYUP:
+		// Taking the right Alt's release also keeps the window menu away.
+		if w.keyUp(lparam) {
+			return 0
+		}
+	case win32.WM_KILLFOCUS:
+		w.releaseReveal()
 	case win32.WM_SETCURSOR:
 		if w.hideCursor && lparam&0xFFFF == win32.HTCLIENT {
 			win32.SetCursor(0)
@@ -272,39 +278,78 @@ func (w *Window) releaseDrag(x float64) {
 	w.pointer(w.cursorInZone())
 }
 
-// key runs the keys of the player window and reports whether it took one.
-// Combinations are left to the shortcuts of the app.
-func (w *Window) key(vk uint32) bool {
-	if win32.KeyDown(vkControl) || win32.KeyDown(vkShift) {
+// keyDown runs the command of a key going down, by the profile's
+// shortcuts, and reports whether the window took the key. The sync
+// shortcuts never get here: their system-wide hotkeys take them first.
+func (w *Window) keyDown(lparam uintptr) bool {
+	key, known := keyboard.KeyOfMessage(lparam)
+	if !known {
 		return false
 	}
-	switch vk {
-	case win32.VK_SPACE:
+	// Esc closes the speed list first, whatever its shortcut is.
+	if key == shortcut.KeyEscape && w.speedMenu {
+		w.speedMenu = false
+		w.pointer(w.cursorInZone())
+		return true
+	}
+	command, found := w.shortcuts().Find(keyboard.ChordOf(key, keyboard.HeldModifiers()))
+	if !found {
+		return false
+	}
+	if keyboard.Repeated(lparam) && !command.Repeats() {
+		return true // a held key: once is enough
+	}
+	return w.run(command, key)
+}
+
+// keyUp sends the translation key's release; the others need none.
+func (w *Window) keyUp(lparam uintptr) bool {
+	key, known := keyboard.KeyOfMessage(lparam)
+	if !known || key != w.revealKey {
+		return false
+	}
+	w.releaseReveal()
+	return true
+}
+
+// releaseReveal lets go of the translation key: on its release, or when
+// the window loses the keyboard with the key down.
+func (w *Window) releaseReveal() {
+	if w.revealKey == "" {
+		return
+	}
+	w.revealKey = ""
+	w.do(func(r watch.Remote) error { r.Reveal(false); return nil })
+}
+
+// run carries out a command of the player window and reports whether it
+// applied (leaving the fullscreen when not in it does not).
+func (w *Window) run(command shortcut.Command, key shortcut.Key) bool {
+	switch command {
+	case shortcut.PlayPause:
 		w.do(func(r watch.Remote) error { return r.Controls().TogglePause() })
-	case win32.VK_LEFT:
+	case shortcut.SeekBack:
 		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(-controlbar.JumpStep) })
-	case win32.VK_RIGHT:
+	case shortcut.SeekForward:
 		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(controlbar.JumpStep) })
-	case win32.VK_UP:
+	case shortcut.VolumeUp:
 		w.do(func(r watch.Remote) error { return r.Controls().ChangeVolume(playback.VolumeStep) })
-	case win32.VK_DOWN:
+	case shortcut.VolumeDown:
 		w.do(func(r watch.Remote) error { return r.Controls().ChangeVolume(-playback.VolumeStep) })
-	case win32.VK_M:
+	case shortcut.Mute:
 		w.do(func(r watch.Remote) error { return r.Controls().ToggleMute() })
-	case vkBack:
+	case shortcut.ReplayLine:
 		w.do(func(r watch.Remote) error { return r.ReplayLine() })
-	case win32.VK_F:
+	case shortcut.Translation:
+		w.revealKey = key
+		w.do(func(r watch.Remote) error { r.Reveal(true); return nil })
+	case shortcut.Fullscreen:
 		w.setFullscreen(!w.fullscreen)
-	case win32.VK_ESCAPE:
-		switch {
-		case w.speedMenu:
-			w.speedMenu = false
-			w.pointer(w.cursorInZone())
-		case w.fullscreen:
-			w.setFullscreen(false)
-		default:
+	case shortcut.ExitFullscreen:
+		if !w.fullscreen {
 			return false
 		}
+		w.setFullscreen(false)
 	default:
 		return false
 	}
@@ -453,7 +498,7 @@ func (w *Window) look(bar controlbar.Bar, state controlbar.State) gdiplus.BarLoo
 		look.Time = labels.Time(state.Position, state.Duration)
 	}
 	if labels.Tip != nil && w.hover.Action != controlbar.ActionNone && w.drag == controlbar.ActionNone {
-		look.Tip = labels.Tip(w.hover, state)
+		look.Tip = labels.Tip(w.hover, state, w.shortcuts())
 	}
 	look.Thumb = w.drag == controlbar.ActionTrack || w.hover.Action == controlbar.ActionTrack
 	// The hovered item's bounds follow the latest layout.

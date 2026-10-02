@@ -383,6 +383,21 @@ func (o *Overlay) ReserveBottom(pixels int) error {
 	})
 }
 
+// Restyle draws the subtitles with a new look from now on. Like Show, it
+// never waits for the drawing.
+func (o *Overlay) Restyle(look Look) error {
+	return o.thread.Post(func() {
+		o.options.Layout, o.options.Primary, o.options.Translation = look.Layout, look.Primary, look.Translation
+		o.options.PreviewColor, o.options.FillColor = look.PreviewColor, look.FillColor
+		if o.window == 0 {
+			return
+		}
+		if err := o.redraw(); err != nil {
+			o.logger.Warn("overlay could not draw the new look", "error", err)
+		}
+	})
+}
+
 // clearNotice runs on the UI thread when the notice's time is up.
 func (o *Overlay) clearNotice() {
 	win32.KillTimer(o.window, noticeTimer)

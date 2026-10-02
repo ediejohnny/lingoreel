@@ -2,12 +2,22 @@ package appearance
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
 // ErrInvalidStyle reports a subtitle style outside its allowed ranges.
 var ErrInvalidStyle = errors.New("invalid subtitle style")
+
+// FieldError names the field of a style or layout that is out of range; it
+// matches ErrInvalidStyle or ErrInvalidLayout with errors.Is.
+type FieldError struct {
+	Field string
+	kind  error
+}
+
+func (e *FieldError) Error() string { return e.kind.Error() + ": " + e.Field }
+
+func (e *FieldError) Unwrap() error { return e.kind }
 
 // Alignment is the horizontal alignment of a subtitle block.
 type Alignment string
@@ -110,7 +120,7 @@ func (s SubtitleStyle) Validate() error {
 	}
 	for _, check := range checks {
 		if !check.ok {
-			return fmt.Errorf("%w: %s", ErrInvalidStyle, check.field)
+			return &FieldError{Field: check.field, kind: ErrInvalidStyle}
 		}
 	}
 	return nil

@@ -11,10 +11,12 @@ import (
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/players"
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/presentation/ptbr"
 )
 
 // Events sent to the window.
@@ -31,7 +33,16 @@ type UI interface {
 	Emit(event string, data any)
 	// OpenVideoDialog asks for a video file; empty when cancelled.
 	OpenVideoDialog() (string, error)
+	// OpenProgramDialog asks for a program (.exe); empty when cancelled.
+	OpenProgramDialog(title string) (string, error)
 	OpenURL(url string)
+}
+
+// Previewer draws sample subtitles for the settings screen and lists the
+// fonts they may use.
+type Previewer interface {
+	Preview(look session.Look, width, height, dpi int, primary, translation string) ([]byte, error)
+	Fonts() ([]string, error)
 }
 
 // Settings stores the preferences.
@@ -63,6 +74,15 @@ type Deps struct {
 	// InitialVideo is the file the app was opened with, if any.
 	InitialVideo string
 	Logger       *slog.Logger
+	// Preview draws the settings screen's sample; nil shows none.
+	Preview Previewer
+	// KeyChar names the keys with the user's keyboard layout; nil uses the
+	// US characters.
+	KeyChar ptbr.KeyChar
+	// SettingsDir is where the settings live; OpenFolder shows a folder in
+	// the file explorer.
+	SettingsDir string
+	OpenFolder  func(path string) error
 }
 
 // API is bound to the window: every exported method is callable from the
@@ -142,6 +162,29 @@ func (l Lifecycle) Dropped(paths []string) {
 		return
 	}
 	l.api.emit(EventVideoDropped, paths[0])
+}
+
+// WindowBounds is where the app's window was when it last closed.
+func (l Lifecycle) WindowBounds() settings.WindowBounds {
+	l.api.mu.Lock()
+	defer l.api.mu.Unlock()
+	return l.api.config.Window
+}
+
+// SaveWindow keeps where the app's window is as it closes; a failure is
+// only logged, the window is closing.
+func (l Lifecycle) SaveWindow(bounds settings.WindowBounds) {
+	a := l.api
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.config.Window == bounds {
+		return
+	}
+	next := a.config
+	next.Window = bounds
+	if err := a.commitConfig(next); err != nil {
+		a.logger.Warn("the window's place was not saved", "error", err)
+	}
 }
 
 // Shutdown ends a running session when the window closes.

@@ -30,6 +30,13 @@ func (w wailsUI) OpenVideoDialog() (string, error) {
 	})
 }
 
+func (w wailsUI) OpenProgramDialog(title string) (string, error) {
+	return runtime.OpenFileDialog(w.ctx, runtime.OpenDialogOptions{
+		Title:   title,
+		Filters: []runtime.FileFilter{{DisplayName: "Programas", Pattern: "*.exe"}},
+	})
+}
+
 func (w wailsUI) OpenURL(url string) {
 	runtime.BrowserOpenURL(w.ctx, url)
 }

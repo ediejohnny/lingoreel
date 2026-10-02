@@ -21,6 +21,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
@@ -36,6 +37,21 @@ type SyncShortcut struct {
 var SyncShortcuts = []SyncShortcut{
 	{session.LinePrimary, false}, {session.LinePrimary, true},
 	{session.LineTranslation, false}, {session.LineTranslation, true},
+}
+
+// syncCommands are the commands of SyncShortcuts, in the same order.
+var syncCommands = []shortcut.Command{
+	shortcut.SyncPrimaryEarlier, shortcut.SyncPrimaryLater,
+	shortcut.SyncTranslationEarlier, shortcut.SyncTranslationLater,
+}
+
+// SyncChords are the chords of SyncShortcuts in a set of shortcuts.
+func SyncChords(keys shortcut.Map) []shortcut.Chord {
+	chords := make([]shortcut.Chord, len(syncCommands))
+	for i, command := range syncCommands {
+		chords[i] = keys.Of(command)
+	}
+	return chords
 }
 
 // Press is one press of SyncShortcuts[Index]; Repeat tells the key is held.
@@ -68,6 +84,9 @@ type Remote interface {
 	SetTranslationVisible(visible bool)
 	// ReplayLine is "Treinar de novo" of the Modo Karaokê.
 	ReplayLine() error
+	// Reveal is the translation key going down (pressed) or up; a held
+	// key's repeats are not presses.
+	Reveal(pressed bool)
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -82,6 +101,8 @@ type Window interface {
 	// Attach hands the window the session its controls drive, once the
 	// player shows the video.
 	Attach(remote Remote)
+	// SetShortcuts changes the keys the window takes.
+	SetShortcuts(keys shortcut.Map)
 }
 
 // WindowRequest describes the player window to open.
@@ -102,9 +123,9 @@ type Ports struct {
 	// OpenDisplay puts the subtitle display over a player's own window; nil
 	// shows nothing (the development tool prints instead).
 	OpenDisplay func(ctx context.Context, running players.Running, info media.Info) (session.Display, error)
-	// StartShortcuts listens to SyncShortcuts while the player is in the
-	// foreground; nil leaves the shortcuts off.
-	StartShortcuts func(target ShortcutTarget) (Shortcuts, error)
+	// StartShortcuts listens to SyncShortcuts, on the given chords, while
+	// the player is in the foreground; nil leaves the shortcuts off.
+	StartShortcuts func(target ShortcutTarget, chords []shortcut.Chord) (Shortcuts, error)
 	// PracticeNotice words what happens to a passage being studied for a
 	// notice on the video; nil shows none.
 	PracticeNotice func(session.PracticeEvent, session.PracticeStatus) string
@@ -130,6 +151,14 @@ type Request struct {
 	Karaoke     session.Karaoke
 	Indicator   study.Indicator
 	LineRepeats int
+	// Speed is the playback speed to start with; zero keeps the player's.
+	Speed playback.Speed
+	// Shortcuts are the keys of the commands; Reveal is how the translation
+	// key works.
+	Shortcuts shortcut.Map
+	Reveal    study.RevealBehavior
+	// NoSyncNotice leaves out the notice of a sync change on the video.
+	NoSyncNotice bool
 }
 
 // Listener hears what happens in a session. Its methods run on the
@@ -162,6 +191,17 @@ type Session struct {
 	indicator          atomic.Value // study.Indicator
 	// lap is how the current lap of a passage shows the lines (the ladder).
 	lap atomic.Pointer[study.Lap]
+	// keys are the shortcuts; reveal is how the translation key works;
+	// quiet leaves out the sync notice.
+	keys   atomic.Pointer[shortcut.Map]
+	reveal atomic.Value // study.RevealBehavior
+	quiet  atomic.Bool
+	// restart starts the sync shortcuts again on other chords; shortcutsMu
+	// guards shortcuts once the session runs, and ending, set when they
+	// close for good.
+	restart     func(chords []shortcut.Chord) (Shortcuts, error)
+	shortcutsMu sync.Mutex
+	ending      bool
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -228,21 +268,30 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	if err := s.practice.SetLineRepeats(request.LineRepeats); err != nil {
 		return nil, errors.Join(err, running.Close(), closeWindow(window))
 	}
+	if err := s.startSpeed(request.Speed); err != nil {
+		return nil, errors.Join(err, running.Close(), closeWindow(window))
+	}
+	keys := request.Shortcuts.Resolved()
+	s.keys.Store(&keys)
+	s.reveal.Store(cmp.Or(request.Reveal, study.RevealToggle))
+	s.quiet.Store(request.NoSyncNotice)
 
 	target := ShortcutTarget{ProcessID: running.ProcessID()}
 	switch {
 	case window != nil:
 		s.display, target.Window = window, window.Handle()
+		window.SetShortcuts(keys)
 	case ports.OpenDisplay != nil:
 		if s.display, err = ports.OpenDisplay(ctx, running, info); err != nil {
 			return nil, errors.Join(fmt.Errorf("opening the subtitle display: %w", err), running.Close())
 		}
 	}
 	if ports.StartShortcuts != nil {
-		if s.shortcuts, err = ports.StartShortcuts(target); err != nil {
+		s.restart = func(chords []shortcut.Chord) (Shortcuts, error) { return ports.StartShortcuts(target, chords) }
+		if s.shortcuts, err = s.restart(SyncChords(keys)); err != nil {
 			return nil, errors.Join(fmt.Errorf("starting the sync shortcuts: %w", err), running.Close(), s.closeDisplay())
 		}
-		go s.listenShortcuts()
+		go s.listenShortcuts(s.shortcuts)
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -302,9 +351,13 @@ func (s *Session) run(ctx context.Context, runner *session.Runner) {
 		err = lost
 	}
 	var shortcutsErr error
+	s.shortcutsMu.Lock()
+	s.ending = true
 	if s.shortcuts != nil {
 		shortcutsErr = s.shortcuts.Close()
+		s.shortcuts = nil
 	}
+	s.shortcutsMu.Unlock()
 	// The player first: it may draw into the display's window.
 	s.err = errors.Join(err, shortcutsErr, s.running.Close(), s.closeDisplay())
 	close(s.done)
@@ -327,8 +380,10 @@ func (s *Session) show(visible session.Visible) {
 	_ = s.display.Show(s.screen(visible))
 }
 
-func (s *Session) listenShortcuts() {
-	for press := range s.shortcuts.Presses() {
+// listenShortcuts runs the presses of one set of sync shortcuts until it is
+// closed: at the end of the session, or when the chords change.
+func (s *Session) listenShortcuts(shortcuts Shortcuts) {
+	for press := range shortcuts.Presses() {
 		if press.Index < 0 || press.Index >= len(SyncShortcuts) {
 			continue
 		}
@@ -340,7 +395,7 @@ func (s *Session) listenShortcuts() {
 }
 
 func (s *Session) synced(line session.Line, offset subtitle.Offset) {
-	if s.display != nil && s.notice != nil {
+	if s.display != nil && s.notice != nil && !s.quiet.Load() {
 		_ = s.display.Notify(s.notice(line, offset)) // a lost notice is cosmetic
 	}
 	if s.listener != nil {

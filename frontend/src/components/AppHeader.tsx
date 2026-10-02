@@ -11,10 +11,12 @@ interface AppHeaderProps {
   /** leading goes before the title, such as a back button. */
   leading?: ReactNode;
   subtitle?: string;
+  /** actions go before the theme button, such as the settings. */
+  actions?: ReactNode;
 }
 
 /** AppHeader is the one bar at the top: where you are and the theme. */
-export function AppHeader({ theme, onTheme, leading, subtitle }: AppHeaderProps) {
+export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHeaderProps) {
   const next = nextTheme(theme);
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
@@ -23,6 +25,7 @@ export function AppHeader({ theme, onTheme, leading, subtitle }: AppHeaderProps)
         <span className="font-semibold text-fg">LingoReel</span>
         {subtitle && <span className="truncate text-sm text-fg-muted">{subtitle}</span>}
       </div>
+      {actions}
       <IconButton
         icon={themeIcons[theme]}
         label={`${themeLabel(theme)}. Mudar para ${themeLabel(next).toLowerCase()}`}

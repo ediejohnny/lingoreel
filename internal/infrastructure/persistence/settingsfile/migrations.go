@@ -10,6 +10,11 @@ import (
 
 // profilesMigrations upgrade older profiles.json documents, one version at
 // a time.
+//
+// Fields added later need no migration when their zero value, or the
+// default a document is decoded over, already means what an older document
+// meant: the sync notice (config.json) and the shortcuts (a profile without
+// them uses the defaults, shortcut.Map).
 var profilesMigrations = map[int]jsonstore.Migration{
 	1: addKaraoke,
 }

@@ -3,25 +3,22 @@
 package hotkeys
 
 import (
+	"fmt"
 	"log/slog"
 
-	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/infrastructure/windows/keyboard"
 )
 
-// SyncBinding is the default key of a sync shortcut: Shift for the line on
-// top, Ctrl for the one below; comma moves it earlier and period later,
-// matching "<" and ">" on the same keys.
-func SyncBinding(shortcut watch.SyncShortcut) Binding {
-	binding := Binding{Modifiers: win32.MOD_SHIFT, Key: win32.VK_OEM_COMMA}
-	if shortcut.Line == session.LineTranslation {
-		binding.Modifiers = win32.MOD_CONTROL
+// BindingOf is the system-wide hotkey of a chord on the current keyboard
+// layout.
+func BindingOf(chord shortcut.Chord) (Binding, error) {
+	key := keyboard.VirtualKey(chord.Key)
+	if key == 0 {
+		return Binding{}, fmt.Errorf("%w: no key %s on this keyboard", ErrInvalidBinding, chord.Key)
 	}
-	if shortcut.Later {
-		binding.Key = win32.VK_OEM_PERIOD
-	}
-	return binding
+	return Binding{Modifiers: keyboard.Modifiers(chord.Modifiers), Key: key}, nil
 }
 
 // syncShortcuts adapts Hotkeys to the session's sync shortcuts.
@@ -30,12 +27,20 @@ type syncShortcuts struct {
 	presses chan watch.Press
 }
 
-// StartSync listens to watch.SyncShortcuts while the player is in the
-// foreground: its own window, or else any window of its process.
-func StartSync(target watch.ShortcutTarget, logger *slog.Logger) (watch.Shortcuts, error) {
-	bindings := make([]Binding, len(watch.SyncShortcuts))
-	for i, shortcut := range watch.SyncShortcuts {
-		bindings[i] = SyncBinding(shortcut)
+// StartSync listens to watch.SyncShortcuts, on the given chords, while the
+// player is in the foreground: its own window, or else any window of its
+// process.
+func StartSync(target watch.ShortcutTarget, chords []shortcut.Chord, logger *slog.Logger) (watch.Shortcuts, error) {
+	if len(chords) != len(watch.SyncShortcuts) {
+		return nil, fmt.Errorf("%w: %d chords for %d sync shortcuts", ErrInvalidBinding, len(chords), len(watch.SyncShortcuts))
+	}
+	bindings := make([]Binding, len(chords))
+	for i, chord := range chords {
+		binding, err := BindingOf(chord)
+		if err != nil {
+			return nil, err
+		}
+		bindings[i] = binding
 	}
 	keys, err := Start(Options{ProcessID: target.ProcessID, Window: target.Window, Bindings: bindings, Logger: logger})
 	if err != nil {

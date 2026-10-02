@@ -1,6 +1,9 @@
 package session
 
-import "lingoreel/internal/domain/study"
+import (
+	"lingoreel/internal/domain/appearance"
+	"lingoreel/internal/domain/study"
+)
 
 // Screen is what the subtitle display shows at one moment.
 type Screen struct {
@@ -25,6 +28,22 @@ type CueScreen struct {
 	Progress float64
 	// Seconds is the countdown, in whole seconds of real time.
 	Seconds int
+}
+
+// Look is how a display draws the subtitles.
+type Look struct {
+	Layout      appearance.Layout
+	Primary     appearance.SubtitleStyle
+	Translation appearance.SubtitleStyle
+	// PreviewColor and FillColor are the Modo Karaokê's colors: a line
+	// shown before its time, and the part of a line already spoken.
+	PreviewColor, FillColor appearance.Color
+}
+
+// Restyler is a display that can change its look while it shows, so a
+// change in the settings reaches the video at once.
+type Restyler interface {
+	Restyle(look Look) error
 }
 
 // Display draws the subtitles over the video. The native overlay implements

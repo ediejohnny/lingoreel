@@ -34,3 +34,17 @@ const (
 func (r RevealBehavior) Valid() bool {
 	return r == RevealToggle || r == RevealHold
 }
+
+// Revealed is whether the translation shows after the reveal key goes down
+// (pressed) or up, given whether it shows now. Toggling flips it on each
+// press and ignores the release; holding shows it only while pressed.
+// Repeats of a held key are not presses.
+func (r RevealBehavior) Revealed(visible, pressed bool) bool {
+	if r == RevealHold {
+		return pressed
+	}
+	if pressed {
+		return !visible
+	}
+	return visible
+}

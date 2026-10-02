@@ -3,12 +3,14 @@ package settingsfile_test
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/persistence/jsonstore"
 	"lingoreel/internal/infrastructure/persistence/settingsfile"
 )
@@ -97,7 +99,70 @@ func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
 		if got.Study.Karaoke != settings.DefaultKaraoke() {
 			t.Fatalf("profile %d karaoke = %+v, want the defaults %+v", i, got.Study.Karaoke, settings.DefaultKaraoke())
 		}
+		// Saved before the shortcuts could change: every one is the default.
+		if !maps.Equal(got.Shortcuts.Resolved(), shortcut.Defaults()) {
+			t.Fatalf("profile %d shortcuts = %+v", i, got.Shortcuts.Resolved())
+		}
 	}
+}
+
+// A config saved before the sync notice could be turned off keeps it on;
+// one that turned it off keeps it off, with the window where it was.
+func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	old := `{"version":1,"theme":"dark","activeProfile":"Inglês","playerPaths":{},"installRecommendations":{"dismissAll":false,"dismissed":[]}}`
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files := settingsfile.Open(dir)
+	config, err := files.LoadConfig()
+	if err != nil || !config.SyncNotice || config.Theme != settings.ThemeDark || config.Window.Saved() {
+		t.Fatalf("old config = %+v, %v", config, err)
+	}
+	config.SyncNotice = false
+	config.Window = settings.WindowBounds{X: -800, Y: 20, Width: 900, Height: 640, Maximized: true}
+	if err := files.SaveConfig(config); err != nil {
+		t.Fatal(err)
+	}
+	again, err := settingsfile.Open(dir).LoadConfig()
+	if err != nil || again.SyncNotice || again.Window != config.Window {
+		t.Fatalf("config after a round trip = %+v, %v", again, err)
+	}
+}
+
+func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	profiles := settings.DefaultProfiles()
+	profiles.Items[0].Shortcuts = shortcut.Map{shortcut.Mute: {Modifiers: shortcut.Ctrl, Key: "KeyU"}}
+	if err := settingsfile.Open(dir).SaveProfiles(profiles); err != nil {
+		t.Fatal(err)
+	}
+	got, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil || got.Items[0].Shortcuts.Of(shortcut.Mute).String() != "Ctrl+KeyU" || got.Items[0].Shortcuts.Of(shortcut.PlayPause).Key != shortcut.KeySpace {
+		t.Fatalf("profiles = %+v, %v", got.Items, err)
+	}
+	// A hand-edited conflict is refused: the defaults are used instead.
+	data := `{"version": 2, "profiles": [` + profileJSON(t, "Inglês", `{"mute": "Space"}`) + `]}`
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := settingsfile.Open(dir).LoadProfiles(); !errors.Is(err, jsonstore.ErrInvalid) {
+		t.Fatalf("a conflicting file = %v, want ErrInvalid", err)
+	}
+}
+
+// profileJSON is a default profile named name with the given shortcuts.
+func profileJSON(t *testing.T, name, shortcuts string) string {
+	t.Helper()
+	profile := settings.DefaultProfile()
+	profile.Name = name
+	profile.Shortcuts = nil
+	data, err := json.Marshal(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Replace(string(data), `"shortcuts":null`, `"shortcuts":`+shortcuts, 1)
 }
 
 // A document without study preferences is refused, not silently patched.

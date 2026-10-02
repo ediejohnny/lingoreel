@@ -2,7 +2,6 @@ package appearance
 
 import (
 	"errors"
-	"fmt"
 )
 
 // ErrInvalidLayout reports layout margins outside their allowed ranges.
@@ -30,18 +29,21 @@ func DefaultLayout() Layout {
 
 // Validate checks the margins and the maximum width.
 func (l Layout) Validate() error {
+	field := ""
 	switch {
 	case !inRange(l.MarginLeft, 0, MaxMarginFraction):
-		return fmt.Errorf("%w: marginLeft", ErrInvalidLayout)
+		field = "marginLeft"
 	case !inRange(l.MarginRight, 0, MaxMarginFraction):
-		return fmt.Errorf("%w: marginRight", ErrInvalidLayout)
+		field = "marginRight"
 	case !inRange(l.MarginTop, 0, MaxMarginFraction):
-		return fmt.Errorf("%w: marginTop", ErrInvalidLayout)
+		field = "marginTop"
 	case !inRange(l.MarginBottom, 0, MaxMarginFraction):
-		return fmt.Errorf("%w: marginBottom", ErrInvalidLayout)
+		field = "marginBottom"
 	// Written as "not inside" so NaN, which fails every comparison, is rejected.
 	case !(l.MaxWidth > 0 && l.MaxWidth <= 1):
-		return fmt.Errorf("%w: maxWidth", ErrInvalidLayout)
+		field = "maxWidth"
+	default:
+		return nil
 	}
-	return nil
+	return &FieldError{Field: field, kind: ErrInvalidLayout}
 }

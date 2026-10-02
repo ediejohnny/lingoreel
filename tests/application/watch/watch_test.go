@@ -14,6 +14,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
@@ -52,15 +53,23 @@ type fakeRunning struct {
 	// order records the closes of the player and the window, shared with
 	// fakeWindow.
 	order *[]string
+	// speeds are the speeds asked; speedErr is the answer.
+	speeds   []playback.Speed
+	speedErr error
 }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact}
 }
-func (r *fakeRunning) Play() error                     { return nil }
-func (r *fakeRunning) Pause() error                    { return nil }
-func (r *fakeRunning) SeekTo(time.Duration) error      { return nil }
-func (r *fakeRunning) SetSpeed(playback.Speed) error   { return nil }
+func (r *fakeRunning) Play() error                { return nil }
+func (r *fakeRunning) Pause() error               { return nil }
+func (r *fakeRunning) SeekTo(time.Duration) error { return nil }
+func (r *fakeRunning) SetSpeed(speed playback.Speed) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.speeds = append(r.speeds, speed)
+	return r.speedErr
+}
 func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no") }
 func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
@@ -109,12 +118,25 @@ type fakeWindow struct {
 	remote  watch.Remote
 	closes  int
 	request watch.WindowRequest
+	keys    shortcut.Map
+	looks   []session.Look
 }
 
 const fakeHandle = 777
 
 func (w *fakeWindow) Handle() uintptr         { return fakeHandle }
 func (w *fakeWindow) Closed() <-chan struct{} { return w.closed }
+func (w *fakeWindow) SetShortcuts(keys shortcut.Map) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.keys = keys
+}
+func (w *fakeWindow) Restyle(look session.Look) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.looks = append(w.looks, look)
+	return nil
+}
 func (w *fakeWindow) Attach(remote watch.Remote) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -206,7 +228,13 @@ type rig struct {
 	listener  *recordingListener
 	ports     watch.Ports
 	request   watch.Request
-	target    watch.ShortcutTarget
+
+	mu     sync.Mutex
+	target watch.ShortcutTarget
+	// chords are the chords of every start of the sync shortcuts; later
+	// are the shortcuts of the starts after the first.
+	chords [][]shortcut.Chord
+	later  []*fakeShortcuts
 }
 
 func newRig(t *testing.T) *rig {
@@ -232,9 +260,17 @@ func newRig(t *testing.T) *rig {
 		OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) {
 			return r.display, nil
 		},
-		StartShortcuts: func(target watch.ShortcutTarget) (watch.Shortcuts, error) {
+		StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
+			r.mu.Lock()
+			defer r.mu.Unlock()
 			r.target = target
-			return r.shortcuts, nil
+			r.chords = append(r.chords, chords)
+			if len(r.chords) == 1 {
+				return r.shortcuts, nil
+			}
+			next := &fakeShortcuts{presses: make(chan watch.Press, 4)}
+			r.later = append(r.later, next)
+			return next, nil
 		},
 	}
 	r.request = watch.Request{
@@ -399,7 +435,7 @@ func TestStartFailuresCleanUp(t *testing.T) {
 	})
 	t.Run("shortcuts fail", func(t *testing.T) {
 		r := newRig(t)
-		r.ports.StartShortcuts = func(watch.ShortcutTarget) (watch.Shortcuts, error) { return nil, errors.New("taken") }
+		r.ports.StartShortcuts = func(watch.ShortcutTarget, []shortcut.Chord) (watch.Shortcuts, error) { return nil, errors.New("taken") }
 		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
 			t.Fatal("Start succeeded")
 		}
@@ -532,7 +568,7 @@ func TestPlayerWindowFailuresCleanUp(t *testing.T) {
 	})
 	t.Run("shortcuts fail", func(t *testing.T) {
 		r, window, _ := hostedRig(t)
-		r.ports.StartShortcuts = func(watch.ShortcutTarget) (watch.Shortcuts, error) { return nil, errors.New("taken") }
+		r.ports.StartShortcuts = func(watch.ShortcutTarget, []shortcut.Chord) (watch.Shortcuts, error) { return nil, errors.New("taken") }
 		if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
 			t.Fatal("Start succeeded")
 		}
