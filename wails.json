@@ -12,6 +12,8 @@
   "info": {
     "companyName": "Edie Johnny",
     "productName": "LingoReel",
+    "productVersion": "0.0.0",
+    "copyright": "© 2026 Edie Johnny. Licença MIT.",
     "comments": "Duas legendas sincronizadas para estudar idiomas com filmes e séries."
   }
 }
