@@ -410,7 +410,9 @@ func (w *Window) setFullscreen(on bool) {
 		}
 		w.restore, w.style = placement, win32.Style(w.host)
 		win32.SetStyle(w.host, w.style&^win32.WS_OVERLAPPEDWINDOW)
-		_ = win32.SetWindowPos(w.host, 0, monitor, win32.SWP_NOOWNERZORDER|win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
+		// To the top with the windows it owns: the subtitles and the bar must stay
+		// above it (SWP_NOOWNERZORDER would leave them behind the video).
+		_ = win32.SetWindowPos(w.host, 0, monitor, win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
 		w.fullscreen = true
 		w.showCursor()
 	} else {
@@ -425,7 +427,7 @@ func (w *Window) setFullscreen(on bool) {
 			w.logger.Warn("player window could not leave fullscreen", "error", err)
 		}
 		_ = win32.SetWindowPos(w.host, 0, win32.Rect{},
-			win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOZORDER|win32.SWP_NOOWNERZORDER|win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
+			win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOZORDER|win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
 		w.fullscreen = false
 		win32.KillTimer(w.host, timerCursor)
 		w.showCursor()

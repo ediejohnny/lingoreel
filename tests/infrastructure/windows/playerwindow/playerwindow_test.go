@@ -26,6 +26,8 @@ import (
 var (
 	getWindowText = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowTextW")
 	sendMessage   = windows.NewLazySystemDLL("user32.dll").NewProc("SendMessageW")
+	getTopWindow  = windows.NewLazySystemDLL("user32.dll").NewProc("GetTopWindow")
+	getWindow     = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindow")
 )
 
 // Every window here opens off screen and never takes the focus: the user
@@ -444,6 +446,85 @@ func TestFullscreenAndBack(t *testing.T) {
 	}
 }
 
+// zOrder is a window's place among the screen's windows, from the top.
+func zOrder(hwnd windows.HWND) int {
+	const next = 2 // GW_HWNDNEXT
+	top, _, _ := getTopWindow.Call(0)
+	place := 0
+	for window := top; window != 0; window, _, _ = getWindow.Call(window, next) {
+		if windows.HWND(window) == hwnd {
+			return place
+		}
+		place++
+	}
+	return -1
+}
+
+// ownedWindow finds a window of a class that the player window owns.
+func ownedWindow(host windows.HWND, class string) windows.HWND {
+	var found windows.HWND
+	callback := windows.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+		name := make([]uint16, 64)
+		if n, err := windows.GetClassName(hwnd, &name[0], int32(len(name))); err == nil && windows.UTF16ToString(name[:n]) == class && hwnd != host && win32.RootOwner(hwnd) == host {
+			found = hwnd
+		}
+		return 1
+	})
+	_ = windows.EnumWindows(callback, nil)
+	return found
+}
+
+// TestFullscreenKeepsTheSubtitlesAndTheBarOnTop is the reported bug: a
+// double click into fullscreen raised the video window above the windows it
+// owns, so the subtitles and the bar stayed behind the video, even after
+// leaving. Paused, as at the end of a passage, the first click of the double
+// click picks the line under it first.
+func TestFullscreenKeepsTheSubtitlesAndTheBarOnTop(t *testing.T) {
+	w := open(t)
+	host := windows.HWND(w.Handle())
+	remote := newRemote(&recordingPlayer{})
+	remote.clock.Observe(playback.Sample{Position: 10 * time.Second, Duration: 100 * time.Second, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()})
+	w.Attach(remote)
+	// Hidden and on screen, as in TestFullscreenAndBack.
+	win32.ShowWindow(host, win32.SW_HIDE)
+	if err := win32.SetWindowPos(host, 0, win32.Rect{Left: 100, Top: 100, Right: 756, Bottom: 499}, win32.SWP_NOZORDER|win32.SWP_NOACTIVATE); err != nil {
+		t.Fatal(err)
+	}
+	before, err := win32.WindowRect(host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	monitor, err := win32.MonitorBounds(host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned := map[string]windows.HWND{"subtitles": ownedWindow(host, "LingoReelOverlay"), "bar": controlBar(host)}
+	onTop := func(when string) {
+		t.Helper()
+		for name, window := range owned {
+			if window == 0 {
+				t.Fatalf("no %s window", name)
+			}
+			if zOrder(window) > zOrder(host) {
+				t.Fatalf("%s: the %s (place %d) is behind the video window (place %d)", when, name, zOrder(window), zOrder(host))
+			}
+		}
+	}
+	doubleClick := func() {
+		const buttonUp = 0x0202 // WM_LBUTTONUP
+		post(t, host, win32.WM_LBUTTONDOWN, 1, at(320, 180))
+		post(t, host, buttonUp, 0, at(320, 180))
+		post(t, host, win32.WM_LBUTTONDBLCLK, 1, at(320, 180))
+		post(t, host, buttonUp, 0, at(320, 180))
+	}
+	onTop("windowed")
+	doubleClick()
+	eventually(t, "the window to cover its monitor", func() bool { r, err := win32.WindowRect(host); return err == nil && r == monitor })
+	onTop("fullscreen")
+	doubleClick()
+	eventually(t, "the window back", func() bool { r, err := win32.WindowRect(host); return err == nil && r == before })
+	onTop("back from fullscreen")
+}
 func (p *recordingPlayer) count(call string) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
