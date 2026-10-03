@@ -105,8 +105,9 @@ func run() error {
 			}, ptbr.WindowTitle, logger),
 			OpenDisplay:    overlay.Opener(look, logger),
 			PracticeNotice: ptbr.PracticeNotice,
+			MarkNotice:     ptbr.MarkNotice,
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
-				return hotkeys.StartSync(target, chords, logger)
+				return hotkeys.StartGlobal(target, chords, logger)
 			},
 		},
 		Settings:    files,

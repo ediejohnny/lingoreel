@@ -18,6 +18,7 @@ import (
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/player/discovery"
@@ -96,7 +97,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	ports := watch.Ports{
 		Service: service, Registry: registry,
 		StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
-			return hotkeys.StartSync(target, chords, stderrLogger())
+			return hotkeys.StartGlobal(target, chords, stderrLogger())
 		},
 	}
 	if withOverlay {
@@ -165,6 +166,12 @@ func (l *consoleListener) Synced(line session.Line, offset subtitle.Offset) {
 
 // Edited is never called: the development tool does not edit lines.
 func (l *consoleListener) Edited(session.Line, map[string]project.Edit) {}
+
+// PassageMarked prints a passage closed by the mark shortcut; the
+// development tool keeps no project to save it in.
+func (l *consoleListener) PassageMarked(segment study.Segment, _ study.PracticePlan) {
+	l.out.line("Trecho marcado: %s", ptbr.PassageName(segment.Start, segment.End))
+}
 
 func parsePlayOptions(args []string) (playOptions, error) {
 	options := playOptions{steps: subtitle.DefaultNudgeSteps()}

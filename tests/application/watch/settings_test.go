@@ -44,11 +44,16 @@ func TestTheVideoStartsAtTheProfileSpeed(t *testing.T) {
 	}
 }
 
-func TestTheSyncShortcutsUseTheProfileChords(t *testing.T) {
+// The system-wide shortcuts are the four sync steps and the two passage
+// marks, in that order, with the profile's chords.
+func TestTheGlobalShortcutsUseTheProfileChords(t *testing.T) {
 	r, window, _ := hostedRig(t)
-	r.request.Shortcuts = shortcut.Map{shortcut.SyncPrimaryEarlier: {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "KeyJ"}}
+	r.request.Shortcuts = shortcut.Map{
+		shortcut.SyncPrimaryEarlier: {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "KeyJ"},
+		shortcut.PassageMarkEnd:     {Modifiers: shortcut.Ctrl, Key: "F11"},
+	}
 	s := r.start(t)
-	want := []string{"Ctrl+Shift+KeyJ", "Shift+Period", "Ctrl+Comma", "Ctrl+Period"}
+	want := []string{"Ctrl+Shift+KeyJ", "Shift+Period", "Ctrl+Comma", "Ctrl+Period", "Ctrl+F9", "Ctrl+F11"}
 	if got := chordTexts(r.chords[0]); !slices.Equal(got, want) {
 		t.Fatalf("chords = %v, want %v", got, want)
 	}

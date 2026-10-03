@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"lingoreel/internal/application/session"
+	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/study"
 )
 
@@ -34,9 +35,10 @@ func PassageClock(d time.Duration) string {
 
 // PassageName is the name a passage gets when it is saved by its shortcut,
 // "Trecho 10:38–11:30": the user knows it in the list without opening it,
-// and renames it at will.
+// and renames it at will. It is in whole seconds: fitting a passage to the
+// lines moves its start half a second back, which a name needs not show.
 func PassageName(start, end time.Duration) string {
-	return "Trecho " + PassageClock(start) + "–" + PassageClock(end)
+	return "Trecho " + Clock(start.Round(time.Second)) + "–" + Clock(end.Round(time.Second))
 }
 
 // PassageMarkNotice words the notices of the passage shortcuts.
@@ -49,11 +51,18 @@ func PassageSavedNotice(name string) string {
 	return "Salvo: " + name
 }
 
-// PassageNoStartNotice asks for the start before the end.
-const PassageNoStartNotice = "Marque o início do trecho primeiro"
-
-// PassageTooShortNotice tells the end came too soon after the start.
-const PassageTooShortNotice = "O fim precisa vir pelo menos 1 s depois do início"
+// MarkNotice words what a passage mark did for the notice on the video.
+func MarkNotice(event watch.MarkEvent, segment study.Segment) string {
+	switch event {
+	case watch.MarkStarted:
+		return PassageMarkNotice(segment.Start)
+	case watch.MarkNoStart:
+		return "Marque o início do trecho primeiro"
+	case watch.MarkTooShort:
+		return "O fim precisa vir pelo menos 1 s depois do início"
+	}
+	return ""
+}
 
 // EditClock shows a line's time to the millisecond for the editor,
 // "1:02:03,456" or "2:03,456", which ParseClock reads back.

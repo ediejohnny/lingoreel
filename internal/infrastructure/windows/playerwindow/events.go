@@ -322,10 +322,20 @@ func (w *Window) keyDown(lparam uintptr) bool {
 	return w.run(command, key, repeat)
 }
 
-// keyUp sends the translation key's release; the others need none.
+// keyUp sends the translation key's release; the others need none. F10's
+// release is always taken: Windows turns it into the key that opens the
+// window's menu, which this window has none of, and the next key pressed
+// would be swallowed by that menu mode (Ctrl+F10 marks a passage, and its
+// press may reach the window or the system-wide hotkey).
 func (w *Window) keyUp(lparam uintptr) bool {
 	key, known := keyboard.KeyOfMessage(lparam)
-	if !known || key != w.revealKey {
+	if !known {
+		return false
+	}
+	if key == shortcut.KeyF10 {
+		return true
+	}
+	if key != w.revealKey {
 		return false
 	}
 	w.releaseReveal()

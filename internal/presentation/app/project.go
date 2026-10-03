@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/media"
@@ -229,6 +230,38 @@ func (a *API) SavePassage(name string) error {
 	a.mu.Unlock()
 	a.emit(EventPlayback, a.describe(current))
 	return err
+}
+
+// keepMarkedPassage saves a passage closed by the mark shortcut, named by its
+// times ("Trecho 10:38–11:30", with "(2)" when the name is taken), and says
+// so on the video. It runs on the session's shortcut goroutine.
+func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan study.PracticePlan) {
+	a.mu.Lock()
+	p := a.projectOf(current)
+	if p == nil {
+		a.mu.Unlock()
+		return
+	}
+	if len(p.value.Passages) >= project.MaxPassages {
+		a.mu.Unlock()
+		current.session.Notify(errTooManySaved.Error())
+		return
+	}
+	practice := project.PlanOf(plan)
+	passage := project.Passage{
+		Name:  project.UniqueName(p.value.Passages, ptbr.PassageName(segment.Start, segment.End)),
+		Start: project.MillisOf(segment.Start), End: project.MillisOf(segment.End), Plan: &practice,
+	}
+	p.value.Passages = append(p.value.Passages, passage)
+	err := a.saveProject()
+	a.mu.Unlock()
+	if err != nil {
+		current.problem.Store(err.Error())
+	} else {
+		a.logger.Info("passage saved", "start", segment.Start.Round(time.Millisecond), "end", segment.End.Round(time.Millisecond))
+		current.session.Notify(ptbr.PassageSavedNotice(passage.Name))
+	}
+	a.emit(EventPlayback, a.describe(current))
 }
 
 // DeletePassage forgets a saved passage.

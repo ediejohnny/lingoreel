@@ -114,7 +114,7 @@ func (s *Session) SetShortcuts(keys shortcut.Map) error {
 	if window, isWindow := s.display.(Window); isWindow {
 		window.SetShortcuts(resolved)
 	}
-	if s.restart == nil || slices.Equal(SyncChords(previous), SyncChords(resolved)) {
+	if s.restart == nil || slices.Equal(GlobalChords(previous), GlobalChords(resolved)) {
 		return nil
 	}
 	s.shortcutsMu.Lock()
@@ -126,10 +126,10 @@ func (s *Session) SetShortcuts(keys shortcut.Map) error {
 	if s.shortcuts != nil {
 		closeErr = s.shortcuts.Close()
 	}
-	next, err := s.restart(SyncChords(resolved))
+	next, err := s.restart(GlobalChords(resolved))
 	if err != nil {
 		s.shortcuts = nil
-		return errors.Join(closeErr, fmt.Errorf("starting the sync shortcuts again: %w", err))
+		return errors.Join(closeErr, fmt.Errorf("starting the global shortcuts again: %w", err))
 	}
 	s.shortcuts = next
 	go s.listenShortcuts(next)

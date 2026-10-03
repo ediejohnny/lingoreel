@@ -43,8 +43,13 @@ const (
 	RepeatLast3            Command = "repeat-last-3"
 	RepeatLast5            Command = "repeat-last-5"
 	RepeatLast10           Command = "repeat-last-10"
-	Undo                   Command = "undo"
-	Redo                   Command = "redo"
+	// PassageMarkStart marks where a passage begins; PassageMarkEnd marks
+	// where it ends, saves it and starts studying it; PassageStop leaves it.
+	PassageMarkStart Command = "passage-mark-start"
+	PassageMarkEnd   Command = "passage-mark-end"
+	PassageStop      Command = "passage-stop"
+	Undo             Command = "undo"
+	Redo             Command = "redo"
 )
 
 // Category groups the commands on the settings screen.
@@ -102,6 +107,9 @@ var commands = []entry{
 	{RepeatLast3, CategoryStudy, Chord{Key: KeyDigit3}},
 	{RepeatLast5, CategoryStudy, Chord{Key: KeyDigit5}},
 	{RepeatLast10, CategoryStudy, Chord{Key: KeyDigit0}},
+	{PassageMarkStart, CategoryStudy, Chord{Ctrl, KeyF9}},
+	{PassageMarkEnd, CategoryStudy, Chord{Ctrl, KeyF10}},
+	{PassageStop, CategoryStudy, Chord{}},
 	{Undo, CategoryEditor, Chord{Ctrl, KeyZ}},
 	{Redo, CategoryEditor, Chord{Ctrl, KeyY}},
 }

@@ -70,6 +70,19 @@ func (s *Session) Run(command shortcut.Command, repeat bool) error {
 		return s.ReplayLine()
 	case shortcut.RepeatPhrase:
 		return s.RepeatPhrase()
+	case shortcut.PassageMarkStart:
+		s.MarkPassageStart()
+		return nil
+	case shortcut.PassageMarkEnd:
+		_, err := s.MarkPassageEnd()
+		// A missing or too close start is told on the video, not an error.
+		if errors.Is(err, ErrNoPassageStart) || errors.Is(err, study.ErrInvalidSegment) {
+			return nil
+		}
+		return err
+	case shortcut.PassageStop:
+		s.StopPassage()
+		return nil
 	case shortcut.Undo:
 		_, err := s.Undo()
 		return err

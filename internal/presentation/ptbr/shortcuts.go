@@ -117,6 +117,12 @@ func CommandName(command shortcut.Command) string {
 		return "Repetir os últimos 5 s"
 	case shortcut.RepeatLast10:
 		return "Repetir os últimos 10 s"
+	case shortcut.PassageMarkStart:
+		return "Marcar o início do trecho"
+	case shortcut.PassageMarkEnd:
+		return "Marcar o fim e salvar o trecho"
+	case shortcut.PassageStop:
+		return "Sair do trecho"
 	case shortcut.Undo:
 		return "Desfazer a correção"
 	case shortcut.Redo:

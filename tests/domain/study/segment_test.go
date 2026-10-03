@@ -148,3 +148,31 @@ func TestPracticePlanValidate(t *testing.T) {
 		}
 	}
 }
+
+// Fitting to the lines may stretch a passage past the video, to a line of
+// the credits; FitTo brings it back inside, and an unknown duration (zero)
+// leaves the end alone.
+func TestSegmentFitTo(t *testing.T) {
+	s := func(start, end time.Duration) study.Segment { return study.Segment{Start: start, End: end} }
+	cases := []struct {
+		name     string
+		segment  study.Segment
+		duration time.Duration
+		want     study.Segment
+	}{
+		{"inside", s(10*time.Second, 20*time.Second), time.Minute, s(10*time.Second, 20*time.Second)},
+		{"past the end", s(50*time.Second, 70*time.Second), time.Minute, s(50*time.Second, time.Minute)},
+		{"ending at the end", s(50*time.Second, time.Minute), time.Minute, s(50*time.Second, time.Minute)},
+		{"before zero", s(-time.Second, 5*time.Second), time.Minute, s(0, 5*time.Second)},
+		{"unknown duration", s(50*time.Second, 70*time.Second), 0, s(50*time.Second, 70*time.Second)},
+	}
+	for _, c := range cases {
+		if got := c.segment.FitTo(c.duration); got != c.want {
+			t.Errorf("%s: FitTo = %+v, want %+v", c.name, got, c.want)
+		}
+	}
+	// Fitted, a passage that ran past the end validates against the video.
+	if err := s(55*time.Second, 61*time.Second).FitTo(time.Minute).Validate(time.Minute); err != nil {
+		t.Fatalf("a fitted passage is refused: %v", err)
+	}
+}

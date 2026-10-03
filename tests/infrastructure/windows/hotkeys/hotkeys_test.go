@@ -246,18 +246,24 @@ func TestBindingOfAChord(t *testing.T) {
 	if _, err := hotkeys.BindingOf(shortcut.Chord{Key: "Nope"}); !errors.Is(err, hotkeys.ErrInvalidBinding) {
 		t.Fatalf("BindingOf an unknown key = %v", err)
 	}
-	// StartSync needs one chord per sync shortcut.
-	if _, err := hotkeys.StartSync(watch.ShortcutTarget{ProcessID: os.Getpid()}, nil, nil); !errors.Is(err, hotkeys.ErrInvalidBinding) {
-		t.Fatalf("StartSync without chords = %v", err)
+	// StartGlobal needs one chord per global command: the four sync steps
+	// and the two passage marks.
+	if _, err := hotkeys.StartGlobal(watch.ShortcutTarget{ProcessID: os.Getpid()}, nil, nil); !errors.Is(err, hotkeys.ErrInvalidBinding) {
+		t.Fatalf("StartGlobal without chords = %v", err)
+	}
+	four := make([]shortcut.Chord, 4)
+	if _, err := hotkeys.StartGlobal(watch.ShortcutTarget{ProcessID: os.Getpid()}, four, nil); !errors.Is(err, hotkeys.ErrInvalidBinding) {
+		t.Fatalf("StartGlobal with the sync chords only = %v", err)
 	}
 }
 
-func TestStartSyncLeavesOutShortcutsWithoutAKey(t *testing.T) {
+func TestStartGlobalLeavesOutShortcutsWithoutAKey(t *testing.T) {
 	// This process is not in front: nothing is taken from the user. Only the
-	// last sync shortcut has a chord, and its presses keep its own index.
+	// last global command (the passage end) has a chord, and its presses keep
+	// its own index.
 	target := watch.ShortcutTarget{ProcessID: os.Getpid()}
-	chords := []shortcut.Chord{{}, {}, {}, {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "F11"}}
-	keys, err := hotkeys.StartSync(target, chords, nil)
+	chords := []shortcut.Chord{{}, {}, {}, {}, {}, {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "F11"}}
+	keys, err := hotkeys.StartGlobal(target, chords, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,15 +271,15 @@ func TestStartSyncLeavesOutShortcutsWithoutAKey(t *testing.T) {
 	press(t, messageWindow(t), 0)
 	select {
 	case got := <-keys.Presses():
-		if got.Index != 3 {
-			t.Fatalf("press of the only chord = %+v, want index 3", got)
+		if got.Index != 5 {
+			t.Fatalf("press of the only chord = %+v, want index 5", got)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no press delivered")
 	}
 
 	// None has a chord: nothing to register, and Close still ends the presses.
-	none, err := hotkeys.StartSync(target, []shortcut.Chord{{}, {}, {}, {}}, nil)
+	none, err := hotkeys.StartGlobal(target, make([]shortcut.Chord, len(watch.GlobalCommands())), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

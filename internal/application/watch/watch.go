@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -46,23 +47,35 @@ var syncCommands = []shortcut.Command{
 	shortcut.SyncTranslationEarlier, shortcut.SyncTranslationLater,
 }
 
-// SyncChords are the chords of SyncShortcuts in a set of shortcuts.
-func SyncChords(keys shortcut.Map) []shortcut.Chord {
-	chords := make([]shortcut.Chord, len(syncCommands))
-	for i, command := range syncCommands {
+// globalCommands are the commands registered system-wide while the player is
+// in the foreground: the sync steps and the passage marks, which must work
+// with a player that owns its window (PotPlayer) as well as with the app's.
+var globalCommands = append(slices.Clone(syncCommands), shortcut.PassageMarkStart, shortcut.PassageMarkEnd)
+
+// GlobalCommands lists the system-wide commands, in the order their presses
+// refer to.
+func GlobalCommands() []shortcut.Command {
+	return slices.Clone(globalCommands)
+}
+
+// GlobalChords are the chords of GlobalCommands in a set of shortcuts.
+func GlobalChords(keys shortcut.Map) []shortcut.Chord {
+	chords := make([]shortcut.Chord, len(globalCommands))
+	for i, command := range globalCommands {
 		chords[i] = keys.Of(command)
 	}
 	return chords
 }
 
-// Press is one press of SyncShortcuts[Index]; Repeat tells the key is held.
+// Press is one press of GlobalCommands()[Index]; Repeat tells the key is
+// held.
 type Press struct {
 	Index  int
 	Repeat bool
 }
 
-// Shortcuts delivers the presses of the sync shortcuts while the player is in
-// the foreground. The Windows hotkeys adapter implements it.
+// Shortcuts delivers the presses of the global shortcuts while the player is
+// in the foreground. The Windows hotkeys adapter implements it.
 type Shortcuts interface {
 	Presses() <-chan Press
 	Close() error
@@ -129,13 +142,16 @@ type Ports struct {
 	// OpenDisplay puts the subtitle display over a player's own window; nil
 	// shows nothing (the development tool prints instead).
 	OpenDisplay func(ctx context.Context, running players.Running, info media.Info) (session.Display, error)
-	// StartShortcuts listens to SyncShortcuts, on the given chords, while
+	// StartShortcuts listens to GlobalCommands, on the given chords, while
 	// the player is in the foreground; nil leaves the shortcuts off.
 	StartShortcuts func(target ShortcutTarget, chords []shortcut.Chord) (Shortcuts, error)
 	// PracticeNotice words what happens to a passage being studied for a
 	// notice on the video; nil shows none.
 	PracticeNotice func(session.PracticeEvent, session.PracticeStatus) string
-	Now            func() time.Time
+	// MarkNotice words what a passage mark did for a notice on the video;
+	// nil shows none.
+	MarkNotice func(MarkEvent, study.Segment) string
+	Now        func() time.Time
 }
 
 // Request is what to watch and how.
@@ -172,6 +188,18 @@ type Request struct {
 	Reveal    study.RevealBehavior
 	// NoSyncNotice leaves out the notice of a sync change on the video.
 	NoSyncNotice bool
+	// Passage, when set, is studied as soon as the player shows the video:
+	// the session opens at its start. Start is then ignored.
+	Passage *PassageStart
+	// PassagePlan is how a passage closed by the mark shortcut is studied,
+	// until the user picks other options; the zero plan pauses at the end.
+	PassagePlan study.PracticePlan
+}
+
+// PassageStart is a passage to study from the start of a session.
+type PassageStart struct {
+	Segment study.Segment
+	Plan    study.PracticePlan
 }
 
 // Listener hears what happens in a session. Its methods run on the
@@ -184,6 +212,9 @@ type Listener interface {
 	// Edited reports a line's edits, as the project keeps them, after an
 	// edit, an undo or a redo.
 	Edited(line session.Line, edits map[string]project.Edit)
+	// PassageMarked reports a passage closed by the mark shortcut, already
+	// being studied with plan, so it can be saved.
+	PassageMarked(segment study.Segment, plan study.PracticePlan)
 }
 
 // Session is a video being watched.
@@ -222,6 +253,11 @@ type Session struct {
 	ending      bool
 
 	editor editing
+
+	// marks is the passage start the mark shortcut set, and the plan a
+	// passage it closes is studied with.
+	marks      marking
+	markNotice func(MarkEvent, study.Segment) string
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -270,6 +306,21 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 		return nil, fmt.Errorf("%w: %w", ErrSubtitles, err)
 	}
 
+	if request.Passage != nil {
+		if err := request.Passage.Plan.Validate(); err != nil {
+			return nil, err
+		}
+		// The video opens where the passage starts, so the first lap is not
+		// a seek away from what the player shows first.
+		request.Start = request.Passage.Segment.Start
+	}
+	markPlan := request.PassagePlan
+	if markPlan.Mode == "" {
+		markPlan.Mode = study.EndPause
+	}
+	if err := markPlan.Validate(); err != nil {
+		return nil, err
+	}
 	launch := player.LaunchRequest{
 		File: request.Analysis.Path, AudioIndex: audioIndex(info, request.Tracks.Audio),
 		StartPaused: request.Paused, Start: request.Start, Window: request.Window,
@@ -321,6 +372,8 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.keys.Store(&keys)
 	s.reveal.Store(cmp.Or(request.Reveal, study.RevealToggle))
 	s.quiet.Store(request.NoSyncNotice)
+	s.markNotice = ports.MarkNotice
+	s.marks.plan, s.marks.snap = markPlan, true
 
 	target := ShortcutTarget{ProcessID: running.ProcessID()}
 	switch {
@@ -334,8 +387,8 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	}
 	if ports.StartShortcuts != nil {
 		s.restart = func(chords []shortcut.Chord) (Shortcuts, error) { return ports.StartShortcuts(target, chords) }
-		if s.shortcuts, err = s.restart(SyncChords(keys)); err != nil {
-			return nil, errors.Join(fmt.Errorf("starting the sync shortcuts: %w", err), running.Close(), s.closeDisplay())
+		if s.shortcuts, err = s.restart(GlobalChords(keys)); err != nil {
+			return nil, errors.Join(fmt.Errorf("starting the global shortcuts: %w", err), running.Close(), s.closeDisplay())
 		}
 		go s.listenShortcuts(s.shortcuts)
 	}
@@ -348,6 +401,12 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	if window != nil {
 		window.Attach(s)
 		go s.endWhenClosed(window.Closed())
+	}
+	if passage := request.Passage; passage != nil {
+		// Saved passages were fitted to the lines when they were studied.
+		if err := s.practice.Start(passage.Segment.FitTo(info.Duration), passage.Plan); err != nil {
+			return nil, errors.Join(fmt.Errorf("studying the passage: %w", err), s.Stop())
+		}
 	}
 	return s, nil
 }
@@ -426,13 +485,20 @@ func (s *Session) show(visible session.Visible) {
 	_ = s.display.Show(s.screen(visible))
 }
 
-// listenShortcuts runs the presses of one set of sync shortcuts until it is
-// closed: at the end of the session, or when the chords change.
+// listenShortcuts runs the presses of one set of global shortcuts until it
+// is closed: at the end of the session, or when the chords change. A held
+// key repeats only the commands made to repeat: holding Ctrl+F10 saves one
+// passage, not one per repeat.
 func (s *Session) listenShortcuts(shortcuts Shortcuts) {
 	for press := range shortcuts.Presses() {
-		if press.Index >= 0 && press.Index < len(syncCommands) {
-			_ = s.Run(syncCommands[press.Index], press.Repeat) // a sync step cannot fail
+		if press.Index < 0 || press.Index >= len(globalCommands) {
+			continue
 		}
+		command := globalCommands[press.Index]
+		if press.Repeat && !command.Repeats() {
+			continue
+		}
+		_ = s.Run(command, press.Repeat) // told on the video when it goes wrong
 	}
 }
 

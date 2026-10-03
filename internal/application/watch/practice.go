@@ -106,14 +106,19 @@ func (s *Session) ReplayLine() error {
 }
 
 // StudyPassage starts "Estudar trecho"; snap widens the passage so no line
-// is cut.
+// is cut, never past the end of the video. The plan and snap become the
+// options of the next passage closed by the mark shortcut.
 func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, snap bool) error {
 	if snap {
 		if track := s.subtitles.Track(session.LinePrimary); track != nil {
 			segment = study.SnapToLines(segment, track.Timeline, track.Offset)
 		}
 	}
-	return s.practice.Start(segment, plan)
+	segment = segment.FitTo(s.clock.State().Duration)
+	if err := s.practice.Start(segment, plan); err != nil {
+		return err
+	}
+	return s.SetPassageOptions(plan, snap)
 }
 
 // LinePassage is the passage of the line on top being spoken, or the last

@@ -291,6 +291,10 @@ func (l sessionListener) Edited(line session.Line, edits map[string]project.Edit
 	l.api.keepEdits(l.current, line, edits)
 }
 
+func (l sessionListener) PassageMarked(segment study.Segment, plan study.PracticePlan) {
+	l.api.keepMarkedPassage(l.current, segment, plan)
+}
+
 func (a *API) current() *watching {
 	a.mu.Lock()
 	defer a.mu.Unlock()
