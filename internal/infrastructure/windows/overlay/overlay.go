@@ -677,10 +677,21 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 	return win32.DefWindowProc(hwnd, message, wparam, lparam)
 }
 
+// concerns reports a window whose changes move the overlay: the player's
+// window, the one being covered, and — for a plugin that names a picture
+// inside the player's window — any window within it, because the picture
+// may be hidden, shown or replaced while the session runs.
+func (o *Overlay) concerns(hwnd windows.HWND) bool {
+	if hwnd == o.target || hwnd == o.area {
+		return true
+	}
+	return o.options.Area != nil && win32.RootOwner(hwnd) == o.target
+}
+
 // dispatchWinEvent receives the player window's changes on the UI thread.
 func dispatchWinEvent(hook windows.Handle, event uint32, hwnd windows.HWND, object, child int32, _ uint32, _ uint32) uintptr {
 	o := callbacks.hook(hook)
-	if o == nil || (hwnd != o.target && hwnd != o.area) || object != win32.OBJID_WINDOW || child != win32.CHILDID_SELF {
+	if o == nil || object != win32.OBJID_WINDOW || child != win32.CHILDID_SELF || !o.concerns(hwnd) {
 		return 0
 	}
 	if event == win32.EVENT_OBJECT_DESTROY && hwnd == o.target {

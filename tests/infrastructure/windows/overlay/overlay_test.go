@@ -51,10 +51,16 @@ var (
 
 const (
 	visibleVariable = "LINGOREEL_FAKE_PLAYER_VISIBLE"
-	blackBrush      = 4
-	hwndTopmost     = ^uintptr(0) // (HWND)-1
-	srcCopy         = 0x00CC0020
-	captureBlt      = 0x40000000
+	// areaVariable gives the fake player a child window holding the
+	// "picture", like PotPlayer's, next to the rest of its window.
+	areaVariable  = "LINGOREEL_FAKE_PLAYER_AREA"
+	fakeAreaClass = "LingoReelFakeArea"
+	// areaShare is how much of the player's width the picture takes.
+	areaShare   = 0.6
+	blackBrush  = 4
+	hwndTopmost = ^uintptr(0) // (HWND)-1
+	srcCopy     = 0x00CC0020
+	captureBlt  = 0x40000000
 )
 
 const (
@@ -105,6 +111,13 @@ const offscreenX = -12000
 // hangMessage makes the fake player stop pumping messages, like a hung app.
 const hangMessage = win32.WM_APP + 7
 
+// The fake player hides and shows its picture, like a player whose list
+// takes the whole window.
+const (
+	hideAreaMessage = win32.WM_APP + 8
+	showAreaMessage = win32.WM_APP + 9
+)
+
 // TestFakePlayerWindow is not a test: run as a child process, it shows a
 // plain resizable window that obeys every size, standing in for a player.
 // Writing "hang" to its input makes it stop responding.
@@ -116,11 +129,23 @@ func TestFakePlayerWindow(t *testing.T) {
 	// thread can pump its messages.
 	runtime.LockOSThread()
 	name, _ := windows.UTF16PtrFromString("LingoReelFakePlayer")
+	// area stands for the child window a player draws its picture in; it
+	// only exists when the test asks for one.
+	var area windows.HWND
 	proc := syscall.NewCallback(func(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uintptr {
 		switch message {
 		case win32.WM_DESTROY:
 			win32.PostQuitMessage()
 			return 0
+		case win32.WM_SIZE:
+			if area != 0 {
+				width, height := int32(lparam&0xFFFF), int32(lparam>>16&0xFFFF)
+				procSetWindowPos.Call(uintptr(area), 0, 0, 0, uintptr(int32(float64(width)*areaShare)), uintptr(height), swpNoZOrder|swpNoActivate)
+			}
+		case hideAreaMessage:
+			procShowWindow.Call(uintptr(area), swHide)
+		case showAreaMessage:
+			procShowWindow.Call(uintptr(area), swShowNA)
 		case hangMessage:
 			select {} // never returns: the window stops responding
 		}
@@ -134,6 +159,11 @@ func TestFakePlayerWindow(t *testing.T) {
 	hwnd, err := win32.CreateWindow(0, wsOverlapped, name, 0, win32.ModuleHandle())
 	if err != nil {
 		t.Fatal(err)
+	}
+	if os.Getenv(areaVariable) == "1" {
+		if area, err = createFakeArea(hwnd); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if os.Getenv(visibleVariable) == "1" {
 		// On screen, in the corner, so its pixels can be captured; never
@@ -149,8 +179,13 @@ func TestFakePlayerWindow(t *testing.T) {
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
-			if scanner.Text() == "hang" {
+			switch scanner.Text() {
+			case "hang":
 				procPostMessage.Call(uintptr(hwnd), hangMessage, 0, 0)
+			case "hide-area":
+				procPostMessage.Call(uintptr(hwnd), hideAreaMessage, 0, 0)
+			case "show-area":
+				procPostMessage.Call(uintptr(hwnd), showAreaMessage, 0, 0)
 			}
 		}
 	}()
@@ -161,6 +196,27 @@ func TestFakePlayerWindow(t *testing.T) {
 		}
 		win32.DispatchMessage(&msg)
 	}
+}
+
+// wsChild marks a window drawn inside another one.
+const wsChild = 0x40000000
+
+// createFakeArea gives the fake player the child window a plugin would name
+// as its picture: the left part of the client area, like PotPlayer's.
+func createFakeArea(parent windows.HWND) (windows.HWND, error) {
+	name, _ := windows.UTF16PtrFromString(fakeAreaClass)
+	white, _, _ := procGetStockObject.Call(0) // WHITE_BRUSH: tells it apart
+	class := win32.WndClassEx{WndProc: syscall.NewCallback(win32.DefWindowProc),
+		Instance: win32.ModuleHandle(), ClassName: name, Background: windows.Handle(white)}
+	if _, err := win32.RegisterClass(&class); err != nil {
+		return 0, err
+	}
+	client, err := win32.ClientRectOnScreen(parent)
+	if err != nil {
+		return 0, err
+	}
+	bounds := win32.Rect{Right: int32(float64(client.Right-client.Left) * areaShare), Bottom: client.Bottom - client.Top}
+	return win32.CreateTitledWindow(0, wsChild|win32.WS_VISIBLE, name, nil, bounds, parent, win32.ModuleHandle())
 }
 
 // fakePlayer is the helper window running in a child process; the overlay
@@ -175,10 +231,11 @@ func startFakePlayer(t *testing.T) *fakePlayer {
 	return launchFakePlayer(t, false)
 }
 
-func launchFakePlayer(t *testing.T, visible bool) *fakePlayer {
+func launchFakePlayer(t *testing.T, visible bool, extraEnv ...string) *fakePlayer {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], "-test.run=^TestFakePlayerWindow$")
 	cmd.Env = append(os.Environ(), helperVariable+"=1")
+	cmd.Env = append(cmd.Env, extraEnv...)
 	if visible {
 		cmd.Env = append(cmd.Env, visibleVariable+"=1")
 	}
@@ -200,7 +257,12 @@ func (p *fakePlayer) pid() int { return p.cmd.Process.Pid }
 
 func (p *fakePlayer) hang(t *testing.T) {
 	t.Helper()
-	if _, err := io.WriteString(p.input, "hang\n"); err != nil {
+	p.send(t, "hang")
+}
+
+func (p *fakePlayer) send(t *testing.T, command string) {
+	t.Helper()
+	if _, err := io.WriteString(p.input, command+"\n"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -331,6 +393,115 @@ func (s *scene) waitForEnd() {
 	if err := s.screen.Close(); err != nil {
 		s.t.Fatalf("Close after the player ended: %v", err)
 	}
+}
+
+// A plugin that knows its player's windows (PotPlayer, F9) names the main
+// window and the one holding the picture: the subtitles cover only the
+// picture, so the player's own list and buttons stay free.
+func TestOverlayCoversTheVideoAreaThePluginNames(t *testing.T) {
+	fake := launchFakePlayer(t, false, areaVariable+"=1")
+	main := waitForWindowOf(t, fake.pid())
+	area := waitForChildOf(t, main, fakeAreaClass)
+
+	screen, err := overlay.Open(t.Context(), overlay.Options{
+		ProcessID:  fake.pid(),
+		Window:     func() uintptr { return uintptr(main) },
+		Area:       func() uintptr { return uintptr(area) },
+		VideoWidth: 320, VideoHeight: 180, Layout: appearance.DefaultLayout(),
+		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { screen.Close() })
+	if err := screen.Show(session.Screen{Primary: "That's sick!"}); err != nil {
+		t.Fatalf("Show: %v", err)
+	}
+	found := overlayWindows()
+	if len(found) != 1 {
+		t.Fatalf("found %d overlay windows, want 1", len(found))
+	}
+	// The overlay is still owned by the main window, so it stays above the
+	// whole player, but it covers only the picture.
+	owner, _, _ := procGetWindow.Call(uintptr(found[0]), gwOwner)
+	if windows.HWND(owner) != main {
+		t.Fatalf("overlay owner %#x, want the main window %#x", owner, main)
+	}
+	covers := func(target windows.HWND) func() bool {
+		return func() bool {
+			a, errA := win32.ClientRectOnScreen(found[0])
+			b, errB := win32.ClientRectOnScreen(target)
+			return errA == nil && errB == nil && a == b && windows.IsWindowVisible(found[0])
+		}
+	}
+	s := &scene{t: t, screen: screen, window: found[0], target: main}
+	s.waitUntil("the overlay to cover the picture", covers(area))
+	if covers(main)() {
+		t.Fatal("the overlay covers the whole player window, not only the picture")
+	}
+
+	// Resizing the player resizes the picture; the overlay follows it.
+	s.place(offscreenX+40, 80, 1000, 600)
+	s.waitUntil("the overlay to follow the picture on a resize", covers(area))
+
+	// A picture window that goes away leaves the whole window to cover.
+	fake.send(t, "hide-area")
+	s.waitUntil("the overlay to cover the whole window without a picture", covers(main))
+	fake.send(t, "show-area")
+	s.waitUntil("the overlay to go back to the picture", covers(area))
+
+	fake.cmd.Process.Kill()
+	s.waitForEnd()
+}
+
+// waitForWindowOf returns the process's visible top-level window.
+func waitForWindowOf(t *testing.T, pid int) windows.HWND {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		var found windows.HWND
+		callback := syscall.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+			var owner uint32
+			windows.GetWindowThreadProcessId(hwnd, &owner)
+			if int(owner) == pid && windows.IsWindowVisible(hwnd) {
+				found = hwnd
+				return 0
+			}
+			return 1
+		})
+		windows.EnumWindows(callback, unsafe.Pointer(nil))
+		if found != 0 {
+			return found
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("process %d showed no window", pid)
+	return 0
+}
+
+// waitForChildOf returns the child window of a class inside parent.
+func waitForChildOf(t *testing.T, parent windows.HWND, class string) windows.HWND {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		var found windows.HWND
+		callback := syscall.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+			name := make([]uint16, 64)
+			n, _ := windows.GetClassName(hwnd, &name[0], int32(len(name)))
+			if windows.UTF16ToString(name[:n]) == class {
+				found = hwnd
+				return 0
+			}
+			return 1
+		})
+		windows.EnumChildWindows(parent, callback, unsafe.Pointer(nil))
+		if found != 0 {
+			return found
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("window %#x has no %s child", parent, class)
+	return 0
 }
 
 // TestOverlayFollowsAPlayerWindow drives a window that obeys every change,
