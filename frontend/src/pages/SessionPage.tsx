@@ -1,12 +1,15 @@
-import { Play, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { Eraser, Play, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { SavedPassages } from "../components/player/SavedPassages";
 import { InstallCards } from "../components/session/InstallCards";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Segmented } from "../components/ui/Inputs";
 import { Select, type Option } from "../components/ui/Select";
-import type { PlayerInstall, Players, Track, Video, WatchRequest } from "../services/backend";
+import { keyLabel } from "../keys";
+import { backend, messageOf } from "../services/backend";
+import type { PlayerInstall, Players, SavedPassage, ShortcutSetting, Track, Video, WatchRequest } from "../services/backend";
 
 const none = "0";
 
@@ -20,6 +23,8 @@ interface SessionPageProps {
   installing: string;
   installError: string;
   onWatch: (request: WatchRequest) => void;
+  /** onReset forgets everything kept about the video and opens it as new. */
+  onReset: () => Promise<void>;
   onDismissError: () => void;
   onInstall: (id: string) => void;
   onDownload: (id: string) => void;
@@ -47,6 +52,26 @@ export function SessionPage(props: SessionPageProps) {
   const [player, setPlayer] = useState(players.choice);
   const [alwaysUse, setAlwaysUse] = useState(false);
   const [mode, setMode] = useState(video.mode);
+  // continueFrom goes on where the video was left; on by default when offered.
+  const [continueFrom, setContinueFrom] = useState(video.resume.offered);
+  const [passages, setPassages] = useState<SavedPassage[]>(video.savedPassages);
+  const [keys, setKeys] = useState<ShortcutSetting[]>([]);
+  const [resetting, setResetting] = useState(false);
+  const [listError, setListError] = useState("");
+
+  useEffect(() => {
+    let current = true;
+    backend
+      .shortcuts()
+      .then((list) => current && setKeys(list))
+      .catch(() => current && setKeys([]));
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  const startKey = keyLabel(keys, "passage-mark-start");
+  const endKey = keyLabel(keys, "passage-mark-end");
 
   const supported = players.installed.filter((item) => item.supported);
   const playerOptions: Option[] = players.installed.map((item) => ({
@@ -60,7 +85,9 @@ export function SessionPage(props: SessionPageProps) {
   const fixedAudio = chosen?.fixedAudio ?? false;
   const chosenName = chosen?.name ?? "player";
 
-  const watch = (resume = false) =>
+  // A lost player's place, or where the video was left when asked; a saved
+  // passage opens the video at its own start.
+  const watch = (resume = false, passage = "") =>
     props.onWatch({
       audio: fixedAudio ? 0 : Number(audio),
       primary: Number(primary),
@@ -68,9 +95,20 @@ export function SessionPage(props: SessionPageProps) {
       player,
       alwaysUse,
       mode,
-      resume,
-      passage: "",
+      resume: resume || (video.resume.offered && continueFrom),
+      passage,
     });
+
+  const refresh = async () => setPassages(await backend.savedPassages());
+  const listCommand = async (run: () => Promise<void>) => {
+    try {
+      await run();
+      setListError("");
+    } catch (failure) {
+      setListError(messageOf(failure));
+    }
+    await refresh();
+  };
 
   return (
     <main className="flex flex-1 justify-center overflow-y-auto px-6 pt-6">
@@ -155,6 +193,39 @@ export function SessionPage(props: SessionPageProps) {
           />
         </Card>
 
+        <Card
+          title="Trechos salvos"
+          aside={
+            <HelpTip topic="trechos salvos">
+              {`Trechos do filme guardados para estudar de novo, no arquivo ao lado do vídeo. Durante o vídeo, ${startKey || "o atalho de início"} marca o começo de um trecho e ${endKey || "o atalho de fim"} marca o fim: o trecho é salvo com os tempos no nome e começa a repetir.`}
+            </HelpTip>
+          }
+        >
+          {listError && (
+            <Banner tone="error" onClose={() => setListError("")}>
+              {listError}
+            </Banner>
+          )}
+          {passages.length === 0 ? (
+            <p className="text-sm text-fg-muted">
+              Nenhum trecho salvo ainda. Durante o vídeo, {startKey ? <kbd>{startKey}</kbd> : "o atalho de início"} marca o começo e{" "}
+              {endKey ? <kbd>{endKey}</kbd> : "o atalho de fim"} marca o fim e salva.
+            </p>
+          ) : (
+            <SavedPassages
+              passages={passages}
+              studyLabel="Estudar este trecho"
+              studyDisabled={canWatch ? undefined : "Escolha uma legenda e um player para assistir"}
+              onStudy={(name) => watch(false, name)}
+              onRename={async (from, to) => {
+                await backend.renamePassage(from, to);
+                await refresh();
+              }}
+              onDelete={(name) => listCommand(() => backend.deletePassage(name))}
+            />
+          )}
+        </Card>
+
         <Card title="Player">
           {players.choice === "" ? (
             <InstallCards
@@ -187,8 +258,53 @@ export function SessionPage(props: SessionPageProps) {
           )}
         </Card>
 
+        <Card
+          title="Este vídeo"
+          aside={
+            <HelpTip topic="esquecer tudo deste vídeo">
+              O LingoReel guarda, para cada vídeo, as legendas e o modo escolhidos, a sincronia, as correções, os trechos salvos, a
+              velocidade, o Modo Karaokê e onde você parou. Esquecer apaga tudo isso deste vídeo; o vídeo e as legendas não são tocados.
+            </HelpTip>
+          }
+        >
+          {resetting ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-fg">
+              <span>Apagar as correções, a sincronia, os trechos salvos e onde você parou neste vídeo?</span>
+              <Button
+                variant="secondary"
+                icon={Eraser}
+                onClick={() =>
+                  void props.onReset().finally(() => {
+                    setResetting(false);
+                  })
+                }
+              >
+                Sim, esquecer tudo
+              </Button>
+              <Button variant="ghost" onClick={() => setResetting(false)}>
+                Não
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" icon={Eraser} onClick={() => setResetting(true)}>
+              Esquecer tudo deste vídeo
+            </Button>
+          )}
+        </Card>
+
         {/* Always in view, however tall the window's content. */}
-        <div className="sticky bottom-0 -mx-6 flex justify-end border-t border-line bg-bg/95 px-6 py-3 backdrop-blur">
+        <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-end gap-4 border-t border-line bg-bg/95 px-6 py-3 backdrop-blur">
+          {video.resume.offered && (
+            <label className="flex items-center gap-2 text-sm text-fg">
+              <input
+                type="checkbox"
+                checked={continueFrom}
+                onChange={(event) => setContinueFrom(event.target.checked)}
+                className="size-4 accent-[var(--sp-accent)]"
+              />
+              Continuar de {video.resume.text}
+            </label>
+          )}
           <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={() => watch()}>
             {props.starting ? "Iniciando o player…" : "Assistir"}
           </Button>

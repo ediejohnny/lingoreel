@@ -1,0 +1,136 @@
+import { BookOpenCheck, Check, Pencil, Trash2, X } from "lucide-react";
+import { useState } from "react";
+import { messageOf, type SavedPassage } from "../../services/backend";
+import { Button, IconButton } from "../ui/Button";
+
+interface SavedPassagesProps {
+  passages: SavedPassage[];
+  /** studyLabel is the study button's text: "Estudar" or "Estudar este trecho". */
+  studyLabel: string;
+  /** studyDisabled turns every study button off, with the reason in its tip. */
+  studyDisabled?: string;
+  onStudy: (name: string) => void;
+  onRename: (from: string, to: string) => Promise<void>;
+  onDelete: (name: string) => Promise<void>;
+}
+
+/**
+ * SavedPassages lists a video's saved passages: each one studied, renamed in
+ * place or deleted after a confirmation. A passage past the end of this
+ * video (a file of another cut) shows why it cannot be studied.
+ */
+export function SavedPassages({ passages, studyLabel, studyDisabled, onStudy, onRename, onDelete }: SavedPassagesProps) {
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {passages.map((passage) => (
+        <PassageRow
+          key={passage.name}
+          passage={passage}
+          studyLabel={studyLabel}
+          studyDisabled={studyDisabled}
+          onStudy={onStudy}
+          onRename={onRename}
+          onDelete={onDelete}
+        />
+      ))}
+    </ul>
+  );
+}
+
+type RowProps = Omit<SavedPassagesProps, "passages"> & { passage: SavedPassage };
+
+function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onDelete }: RowProps) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(passage.name);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
+
+  const rename = async () => {
+    if (name.trim() === passage.name) {
+      setEditing(false);
+      return;
+    }
+    try {
+      await onRename(passage.name, name);
+      setEditing(false);
+      setError("");
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+  };
+  const cancel = () => {
+    setName(passage.name);
+    setEditing(false);
+    setError("");
+  };
+  const blocked = studyDisabled || (passage.outside ? "Este trecho começa depois do fim deste vídeo" : "");
+
+  return (
+    <li className="flex flex-col gap-1 rounded-control border border-line px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        {editing ? (
+          <input
+            aria-label="Novo nome do trecho"
+            className="h-8 min-w-0 flex-1 rounded-control border border-line-strong bg-surface px-2 text-sm text-fg"
+            value={name}
+            maxLength={80}
+            autoFocus
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void rename();
+              } else if (event.key === "Escape") {
+                cancel();
+              }
+            }}
+          />
+        ) : (
+          <span className="min-w-0 flex-1 truncate font-medium text-fg" title={passage.name}>
+            {passage.name}
+          </span>
+        )}
+        <span className="text-fg-muted tabular-nums">
+          {passage.start}–{passage.end}
+        </span>
+        {editing ? (
+          <>
+            <IconButton icon={Check} label="Salvar o nome" onClick={() => void rename()} />
+            <IconButton icon={X} label="Cancelar" onClick={cancel} />
+          </>
+        ) : confirming ? (
+          <>
+            <span className="text-fg">Excluir?</span>
+            <Button variant="secondary" onClick={() => void onDelete(passage.name).finally(() => setConfirming(false))}>
+              Sim, excluir
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirming(false)}>
+              Não
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="ghost"
+              icon={BookOpenCheck}
+              disabled={blocked !== ""}
+              title={blocked || undefined}
+              onClick={() => onStudy(passage.name)}
+            >
+              {studyLabel}
+            </Button>
+            <IconButton icon={Pencil} label={`Renomear o trecho "${passage.name}"`} onClick={() => setEditing(true)} />
+            <IconButton icon={Trash2} label={`Excluir o trecho "${passage.name}"`} onClick={() => setConfirming(true)} />
+          </>
+        )}
+      </div>
+      <p className={`text-xs ${passage.outside ? "text-warning" : "text-fg-muted"}`}>
+        {passage.outside ? "Começa depois do fim deste vídeo: pode ser de outra versão do filme." : passage.summary}
+      </p>
+      {error && (
+        <p role="alert" className="text-xs text-warning">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
