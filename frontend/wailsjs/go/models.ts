@@ -263,6 +263,59 @@ export namespace app {
 	        this.atEnd = source["atEnd"];
 	    }
 	}
+	export class PassagePlan {
+	    loop: boolean;
+	    gap: number;
+	    progressive: boolean;
+	    ladder: boolean;
+	    goal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PassagePlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.loop = source["loop"];
+	        this.gap = source["gap"];
+	        this.progressive = source["progressive"];
+	        this.ladder = source["ladder"];
+	        this.goal = source["goal"];
+	    }
+	}
+	export class PassageOptions {
+	    snap: boolean;
+	    plan: PassagePlan;
+	
+	    static createFrom(source: any = {}) {
+	        return new PassageOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.snap = source["snap"];
+	        this.plan = this.convertValues(source["plan"], PassagePlan);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class PassageRequest {
 	    start: string;
 	    end: string;
@@ -307,6 +360,9 @@ export namespace app {
 	    name: string;
 	    start: string;
 	    end: string;
+	    plan: PassagePlan;
+	    summary: string;
+	    outside: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SavedPassage(source);
@@ -317,7 +373,28 @@ export namespace app {
 	        this.name = source["name"];
 	        this.start = source["start"];
 	        this.end = source["end"];
+	        this.plan = this.convertValues(source["plan"], PassagePlan);
+	        this.summary = source["summary"];
+	        this.outside = source["outside"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class Playback {
 	    active: boolean;
@@ -337,6 +414,8 @@ export namespace app {
 	    passage: Passage;
 	    editing: Editing;
 	    savedPassages: SavedPassage[];
+	    markedStart: string;
+	    passageOptions: PassageOptions;
 	    projectNote: string;
 	    health: string;
 	
@@ -363,6 +442,8 @@ export namespace app {
 	        this.passage = this.convertValues(source["passage"], Passage);
 	        this.editing = this.convertValues(source["editing"], Editing);
 	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
+	        this.markedStart = source["markedStart"];
+	        this.passageOptions = this.convertValues(source["passageOptions"], PassageOptions);
 	        this.projectNote = source["projectNote"];
 	        this.health = source["health"];
 	    }
@@ -663,6 +744,22 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class Resume {
+	    offered: boolean;
+	    position: number;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Resume(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.offered = source["offered"];
+	        this.position = source["position"];
+	        this.text = source["text"];
+	    }
+	}
 	
 	export class Selection {
 	    audio: number;
@@ -862,6 +959,8 @@ export namespace app {
 	    modes: Option[];
 	    projectNote: string;
 	    languageNote: string;
+	    savedPassages: SavedPassage[];
+	    resume: Resume;
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -880,6 +979,8 @@ export namespace app {
 	        this.modes = this.convertValues(source["modes"], Option);
 	        this.projectNote = source["projectNote"];
 	        this.languageNote = source["languageNote"];
+	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
+	        this.resume = this.convertValues(source["resume"], Resume);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -908,6 +1009,7 @@ export namespace app {
 	    alwaysUse: boolean;
 	    mode: string;
 	    resume: boolean;
+	    passage: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchRequest(source);
@@ -922,6 +1024,7 @@ export namespace app {
 	        this.alwaysUse = source["alwaysUse"];
 	        this.mode = source["mode"];
 	        this.resume = source["resume"];
+	        this.passage = source["passage"];
 	    }
 	}
 

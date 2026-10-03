@@ -69,6 +69,7 @@ export function SessionPage(props: SessionPageProps) {
       alwaysUse,
       mode,
       resume,
+      passage: "",
     });
 
   return (

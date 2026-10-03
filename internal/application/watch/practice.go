@@ -121,6 +121,13 @@ func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, s
 	return s.SetPassageOptions(plan, snap)
 }
 
+// StudySaved studies a saved passage as it was kept: its times (already
+// fitted to the lines when it was studied) and its plan. The options of
+// the next marked passage stay as they are.
+func (s *Session) StudySaved(segment study.Segment, plan study.PracticePlan) error {
+	return s.practice.Start(segment.FitTo(s.clock.State().Duration), plan)
+}
+
 // LinePassage is the passage of the line on top being spoken, or the last
 // one, fitted to the lines ("Esta fala").
 func (s *Session) LinePassage() (study.Segment, error) {

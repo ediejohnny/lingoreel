@@ -21,6 +21,19 @@ type Video struct {
 	// LanguageNote tells when no subtitle is in a language the profile
 	// asks for.
 	LanguageNote string `json:"languageNote"`
+	// SavedPassages are the video's passages kept for study, which the
+	// session screen can start from.
+	SavedPassages []SavedPassage `json:"savedPassages"`
+	// Resume offers to go on where the video was left.
+	Resume Resume `json:"resume"`
+}
+
+// Resume is where the video was left, when it is worth going back to.
+type Resume struct {
+	Offered bool `json:"offered"`
+	// Position is in seconds; Text is "10:38".
+	Position float64 `json:"position"`
+	Text     string  `json:"text"`
 }
 
 // Track is one audio or subtitle choice.
@@ -84,8 +97,12 @@ type WatchRequest struct {
 	AlwaysUse bool `json:"alwaysUse"`
 	// Mode is the study mode to watch in; empty is the profile's.
 	Mode string `json:"mode"`
-	// Resume starts where a session the player lost had reached.
+	// Resume starts where the video was left, or where a session the player
+	// lost had reached.
 	Resume bool `json:"resume"`
+	// Passage names a saved passage to open the video studying it; Resume
+	// is then ignored.
+	Passage string `json:"passage"`
 }
 
 // Playback is the state of the session, sent a few times per second.
@@ -110,11 +127,33 @@ type Playback struct {
 	Editing      Editing      `json:"editing"`
 	// SavedPassages are the video's passages kept for study.
 	SavedPassages []SavedPassage `json:"savedPassages"`
+	// MarkedStart is the passage start marked by its key ("10:38"), empty
+	// when none is.
+	MarkedStart string `json:"markedStart"`
+	// PassageOptions are how the next passage is studied.
+	PassageOptions PassageOptions `json:"passageOptions"`
 	// ProjectNote tells of a problem with the video's corrections file.
 	ProjectNote string `json:"projectNote"`
 	// Health tells of a player being reconnected or frozen; empty when it
 	// answers.
 	Health string `json:"health"`
+}
+
+// PassageOptions are how a passage is studied: fitted to the lines or not,
+// and the plan.
+type PassageOptions struct {
+	Snap bool        `json:"snap"`
+	Plan PassagePlan `json:"plan"`
+}
+
+// PassagePlan is how a passage is studied: pausing or looping at the end
+// (after Gap seconds), with the helps and a goal of laps (0 is none).
+type PassagePlan struct {
+	Loop        bool    `json:"loop"`
+	Gap         float64 `json:"gap"`
+	Progressive bool    `json:"progressive"`
+	Ladder      bool    `json:"ladder"`
+	Goal        int     `json:"goal"`
 }
 
 // Editing is the line being corrected and what the editor can do. Times are
@@ -150,6 +189,12 @@ type SavedPassage struct {
 	Name  string `json:"name"`
 	Start string `json:"start"`
 	End   string `json:"end"`
+	// Plan is how it is studied; Summary says it in words.
+	Plan    PassagePlan `json:"plan"`
+	Summary string      `json:"summary"`
+	// Outside tells the passage starts after the end of this video (a file
+	// of another cut): it cannot be studied.
+	Outside bool `json:"outside"`
 }
 
 // Karaoke is the Modo Karaokê of the session.

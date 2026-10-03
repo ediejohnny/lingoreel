@@ -2,6 +2,8 @@ package ptbr
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"lingoreel/internal/application/session"
@@ -49,6 +51,38 @@ func PassageMarkNotice(start time.Duration) string {
 // PassageSavedNotice tells a passage was saved under a name.
 func PassageSavedNotice(name string) string {
 	return "Salvo: " + name
+}
+
+// PlanSummary says how a passage is studied: "Pausa no fim", or "Repete sem
+// parar · intervalo de 2 s · velocidade progressiva · escada de legendas ·
+// meta de 5 voltas".
+func PlanSummary(plan study.PracticePlan) string {
+	parts := []string{"Pausa no fim"}
+	if plan.Mode == study.EndLoop {
+		parts = []string{"Repete sem parar"}
+		if plan.Gap > 0 {
+			parts = append(parts, "intervalo de "+Seconds(plan.Gap))
+		}
+	}
+	if plan.Progressive {
+		parts = append(parts, "velocidade progressiva")
+	}
+	if plan.Ladder {
+		parts = append(parts, "escada de legendas")
+	}
+	switch {
+	case plan.Goal == 1:
+		parts = append(parts, "meta de 1 volta")
+	case plan.Goal > 1:
+		parts = append(parts, fmt.Sprintf("meta de %d voltas", plan.Goal))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// Seconds says a short time in seconds the Brazilian way: "2 s", "1,5 s".
+func Seconds(d time.Duration) string {
+	text := strconv.FormatFloat(d.Seconds(), 'f', -1, 64)
+	return strings.Replace(text, ".", ",", 1) + " s"
 }
 
 // MarkNotice words what a passage mark did for the notice on the video.

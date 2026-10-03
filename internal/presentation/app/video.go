@@ -82,6 +82,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		Players:   a.players(),
 		Audio:     []Track{}, Subtitles: []Track{},
 		Mode: string(mode), Modes: modeOptions(), ProjectNote: opened.note,
+		SavedPassages: passagesOf(opened, result.Info.Duration), Resume: resumeOf(opened, result.Info.Duration),
 	}
 	for _, track := range result.Info.TracksOf(media.TrackAudio) {
 		video.Audio = append(video.Audio, audioTrack(track))

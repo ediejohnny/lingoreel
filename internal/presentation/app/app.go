@@ -51,6 +51,8 @@ type UI interface {
 type Projects interface {
 	Load(video string) (project.Project, error)
 	Save(video string, p project.Project) error
+	// Remove forgets a video's project wherever it is kept.
+	Remove(video string) error
 	TrackKey(video string, track media.Track) string
 }
 
@@ -100,7 +102,10 @@ type Deps struct {
 	SettingsDir string
 	OpenFolder  func(path string) error
 	// Projects keeps each video's project; nil keeps nothing between runs.
-	Projects Projects
+	// SaveDelay is how long after a change the waiting saves happen (the
+	// offsets, the position, the speed); zero is 2 s.
+	Projects  Projects
+	SaveDelay time.Duration
 	// About is the app's and the system's version, for the diagnostics;
 	// Monitors lists the screens (nil lists none); LogDir holds the logs.
 	About    About

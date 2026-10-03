@@ -106,6 +106,10 @@ export function RedoEdit() {
   return window['go']['app']['API']['RedoEdit']();
 }
 
+export function RenamePassage(arg1, arg2) {
+  return window['go']['app']['API']['RenamePassage'](arg1, arg2);
+}
+
 export function RenameProfile(arg1, arg2) {
   return window['go']['app']['API']['RenameProfile'](arg1, arg2);
 }
@@ -116,6 +120,10 @@ export function ReplayLine() {
 
 export function ResetProfile() {
   return window['go']['app']['API']['ResetProfile']();
+}
+
+export function ResetProject() {
+  return window['go']['app']['API']['ResetProject']();
 }
 
 export function ResetSync(arg1) {
@@ -146,6 +154,10 @@ export function SaveProfile(arg1) {
   return window['go']['app']['API']['SaveProfile'](arg1);
 }
 
+export function SavedPassages() {
+  return window['go']['app']['API']['SavedPassages']();
+}
+
 export function SeekBy(arg1) {
   return window['go']['app']['API']['SeekBy'](arg1);
 }
@@ -172,6 +184,10 @@ export function SetKaraokeIndicator(arg1) {
 
 export function SetLineRepeats(arg1) {
   return window['go']['app']['API']['SetLineRepeats'](arg1);
+}
+
+export function SetPassageOptions(arg1) {
+  return window['go']['app']['API']['SetPassageOptions'](arg1);
 }
 
 export function SetPlayerPath(arg1, arg2) {
@@ -220,6 +236,10 @@ export function StopWatching() {
 
 export function StudyPassage(arg1) {
   return window['go']['app']['API']['StudyPassage'](arg1);
+}
+
+export function StudySavedPassage(arg1) {
+  return window['go']['app']['API']['StudySavedPassage'](arg1);
 }
 
 export function SwitchProfile(arg1) {

@@ -54,11 +54,15 @@ export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 
 export function RedoEdit():Promise<void>;
 
+export function RenamePassage(arg1:string,arg2:string):Promise<void>;
+
 export function RenameProfile(arg1:string,arg2:string):Promise<void>;
 
 export function ReplayLine():Promise<void>;
 
 export function ResetProfile():Promise<void>;
+
+export function ResetProject():Promise<app.Video>;
 
 export function ResetSync(arg1:string):Promise<void>;
 
@@ -74,6 +78,8 @@ export function SavePassage(arg1:string):Promise<void>;
 
 export function SaveProfile(arg1:app.ProfileSettings):Promise<void>;
 
+export function SavedPassages():Promise<Array<app.SavedPassage>>;
+
 export function SeekBy(arg1:number):Promise<void>;
 
 export function SeekTo(arg1:number):Promise<void>;
@@ -87,6 +93,8 @@ export function SetKaraoke(arg1:boolean):Promise<void>;
 export function SetKaraokeIndicator(arg1:string):Promise<void>;
 
 export function SetLineRepeats(arg1:number):Promise<void>;
+
+export function SetPassageOptions(arg1:app.PassageOptions):Promise<void>;
 
 export function SetPlayerPath(arg1:string,arg2:string):Promise<void>;
 
@@ -111,6 +119,8 @@ export function StopPassage():Promise<void>;
 export function StopWatching():Promise<void>;
 
 export function StudyPassage(arg1:app.PassageRequest):Promise<void>;
+
+export function StudySavedPassage(arg1:string):Promise<void>;
 
 export function SwitchProfile(arg1:string):Promise<void>;
 

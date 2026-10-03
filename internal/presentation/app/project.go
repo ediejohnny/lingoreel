@@ -2,11 +2,14 @@ package app
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"lingoreel/internal/application/session"
+	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
+	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
@@ -23,17 +26,39 @@ type videoProject struct {
 	// newer version, or damaged) from being overwritten; note tells why.
 	readOnly bool
 	note     string
-	// offsetsChanged tells offsets moved since the last save; they are
-	// saved when the session ends, not at every step of a held shortcut.
-	offsetsChanged bool
+	// dirty tells something changed that is saved a moment later rather
+	// than at once: the offsets of a held shortcut, the position, the speed,
+	// the Modo Karaokê, the mode. flush is that pending save.
+	dirty bool
+	flush *time.Timer
+	// positionAt is when the position was last kept.
+	positionAt time.Time
 }
 
+// Timing of the saves that wait.
+const (
+	// defaultSaveDelay is how long after the last change a waiting save
+	// happens: a held sync key saves once, not at every step.
+	defaultSaveDelay = 2 * time.Second
+	// positionEvery is how often the position is kept while playing; the
+	// end of the session keeps the last one.
+	positionEvery = 10 * time.Second
+	// resumeLead and resumeTail bound where "Continuar de" is offered: not
+	// in the first seconds, not in the credits.
+	resumeLead = 30 * time.Second
+	resumeTail = 60 * time.Second
+)
+
 var (
-	errNoPassageToSave = errors.New("Comece a estudar um trecho antes de salvá-lo.")
-	errPassageName     = errors.New("Dê um nome ao trecho, com até 80 letras.")
-	errTooManySaved    = errors.New("Já há trechos salvos demais neste vídeo. Exclua algum antes.")
-	errUnknownPassage  = errors.New("Trecho salvo não encontrado.")
-	errNotKept         = errors.New("Não foi possível gravar no arquivo de correções deste vídeo.")
+	errNoPassageToSave  = errors.New("Comece a estudar um trecho antes de salvá-lo.")
+	errPassageName      = errors.New("Dê um nome ao trecho, com até 80 letras.")
+	errTooManySaved     = errors.New("Já há trechos salvos demais neste vídeo. Exclua algum antes.")
+	errUnknownPassage   = errors.New("Trecho salvo não encontrado.")
+	errDuplicatePassage = errors.New("Já existe um trecho com esse nome.")
+	errPassageOutside   = errors.New("Este trecho começa depois do fim do vídeo. Exclua-o ou salve-o de novo.")
+	errNotKept          = errors.New("Não foi possível gravar no arquivo de correções deste vídeo.")
+	errResetWatching    = errors.New("Encerre o vídeo antes de esquecer o que foi guardado dele.")
+	errResetFailed      = errors.New("Não foi possível apagar o arquivo de correções deste vídeo. Confira se ele está aberto em outro programa.")
 )
 
 // loadProject reads the project of a video just analyzed; a file the app
@@ -125,8 +150,45 @@ func (a *API) saveProject() error {
 		a.logger.Warn("the video's project was not saved", "video", p.video, "error", err)
 		return errNotKept
 	}
-	p.offsetsChanged = false
+	p.dirty = false
 	return nil
+}
+
+// markDirty schedules a save of the project a moment from now, if none is
+// pending; changes until then go in the same save. Called with a.mu held.
+func (a *API) markDirty(p *videoProject) {
+	if p.readOnly {
+		return
+	}
+	p.dirty = true
+	if p.flush != nil {
+		return
+	}
+	delay := a.deps.SaveDelay
+	if delay <= 0 {
+		delay = defaultSaveDelay
+	}
+	p.flush = time.AfterFunc(delay, func() { a.flushProject(p) })
+}
+
+// flushProject runs the pending save, unless the project is no longer the
+// open one (another video, or forgotten in the meantime).
+func (a *API) flushProject(p *videoProject) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p.flush = nil
+	if a.project != p || !p.dirty {
+		return
+	}
+	_ = a.saveProject() // logged; the next change tries again
+}
+
+// cancelFlush drops a pending save. Called with a.mu held.
+func (p *videoProject) cancelFlush() {
+	if p.flush != nil {
+		p.flush.Stop()
+		p.flush = nil
+	}
 }
 
 // projectOf is the open project when it belongs to the session's video.
@@ -154,8 +216,8 @@ func (a *API) keepEdits(current *watching, line session.Line, edits map[string]p
 	}
 }
 
-// keepOffset takes a line's offset into the project, saved when the
-// session ends.
+// keepOffset takes a line's offset into the project, saved a moment after
+// the last step: a held sync key saves once.
 func (a *API) keepOffset(current *watching, line session.Line, offset subtitle.Offset) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -166,7 +228,7 @@ func (a *API) keepOffset(current *watching, line session.Line, offset subtitle.O
 	track := p.track(current.keys[line])
 	track.Offset = project.MillisOf(offset.Duration())
 	p.value.Tracks[current.keys[line]] = track
-	p.offsetsChanged = true
+	a.markDirty(p)
 }
 
 // keepChoice remembers what the user chose to watch with, and saves.
@@ -185,17 +247,91 @@ func (a *API) keepChoice(current *watching, tracks media.Selection, mode study.M
 	}
 }
 
-// saveOffsets writes the offsets moved during a session, as it ends.
-func (a *API) saveOffsets(current *watching) {
+// keepSession takes into the project how the video is being watched, at
+// every state report: where it is (every positionEvery while playing),
+// the speed, the Modo Karaokê and the study mode, saved a moment after they
+// change. Values the session started with are not written: a video only
+// remembers what the user changed on it. It reads the session before
+// taking a.mu, which the session's listener calls take too.
+func (a *API) keepSession(current *watching, final bool) {
+	if current.session == nil {
+		return
+	}
+	state := current.session.State()
+	status := current.session.Passage()
+	karaoke := karaokeOf(current.session)
+	mode := current.session.Mode()
+	now := time.Now()
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if p := a.projectOf(current); p != nil && p.offsetsChanged {
-		_ = a.saveProject() // logged; the session is over
+	p := a.projectOf(current)
+	if p == nil || p.readOnly {
+		return
+	}
+	last := &p.value.Last
+	if (final || state.Status == playback.StatusPlaying && now.Sub(p.positionAt) >= positionEvery) && state.Duration > 0 {
+		if position := project.MillisOf(state.Position); position != last.Position {
+			last.Position = position
+			a.markDirty(p)
+		}
+		p.positionAt = now
+	}
+	// The slower laps of a progressive passage are not the video's speed.
+	progressive := status.Active && status.Plan.Progressive
+	if speed := float64(state.Speed); !progressive && state.Speed.Valid() && speed != last.Speed && (last.Speed != 0 || state.Speed != current.startSpeed) {
+		last.Speed = speed
+		a.markDirty(p)
+	}
+	if (last.Karaoke != nil && *last.Karaoke != karaoke) || (last.Karaoke == nil && karaoke != current.startKaraoke) {
+		last.Karaoke = &karaoke
+		a.markDirty(p)
+	}
+	if mode.Valid() && mode != p.value.Choice.Mode {
+		p.value.Choice.Mode = mode
+		a.markDirty(p)
 	}
 }
 
-// SavePassage keeps the passage being studied under a name; a passage of
-// the same name is replaced.
+// flushSession keeps how the session ended (the last position included)
+// and saves at once what waits, as the session ends.
+func (a *API) flushSession(current *watching) {
+	a.keepSession(current, true)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if p := a.projectOf(current); p != nil {
+		p.cancelFlush()
+		if p.dirty {
+			_ = a.saveProject() // logged; the session is over
+		}
+	}
+}
+
+// karaokeOf is the session's Modo Karaokê in the project's form.
+func karaokeOf(s *watch.Session) project.Karaoke {
+	karaoke := s.Karaoke()
+	return project.Karaoke{
+		Enabled: karaoke.Enabled, MinGap: project.MillisOf(karaoke.Rules.MinGap), Lead: project.MillisOf(karaoke.Rules.Lead),
+		Indicator: s.Indicator(), Fill: karaoke.Fill, Repeat: s.LineRepeats(),
+	}
+}
+
+// resumeOf offers to go on where the video was left, when that is past its
+// first seconds and before its credits.
+func resumeOf(p *videoProject, duration time.Duration) Resume {
+	if p == nil {
+		return Resume{}
+	}
+	position := p.value.Last.Position.Duration()
+	if position < resumeLead || (duration > 0 && position > duration-resumeTail) {
+		return Resume{}
+	}
+	return Resume{Offered: true, Position: position.Seconds(), Text: ptbr.Clock(position)}
+}
+
+// SavePassage keeps the passage being studied under a name, with how it is
+// studied; a passage of the same name is replaced. An empty name is the
+// passage's times, as the end key names it.
 func (a *API) SavePassage(name string) error {
 	current := a.current()
 	if current == nil || current.session == nil {
@@ -205,11 +341,10 @@ func (a *API) SavePassage(name string) error {
 	if !status.Active {
 		return errNoPassageToSave
 	}
+	plan := project.PlanOf(status.Plan)
 	passage := project.Passage{
 		Name: strings.TrimSpace(name), Start: project.MillisOf(status.Segment.Start), End: project.MillisOf(status.Segment.End),
-	}
-	if passage.Validate() != nil {
-		return errPassageName
+		Plan: &plan,
 	}
 	a.mu.Lock()
 	p := a.projectOf(current)
@@ -217,8 +352,15 @@ func (a *API) SavePassage(name string) error {
 		a.mu.Unlock()
 		return errNotWatching
 	}
+	if passage.Name == "" {
+		passage.Name = project.UniqueName(p.value.Passages, ptbr.PassageName(status.Segment.Start, status.Segment.End))
+	}
+	if passage.Validate() != nil {
+		a.mu.Unlock()
+		return errPassageName
+	}
 	passages := p.value.Passages
-	if i := indexOfPassage(passages, passage.Name); i >= 0 {
+	if i := project.IndexOf(passages, passage.Name); i >= 0 {
 		passages[i] = passage
 	} else if len(passages) >= project.MaxPassages {
 		a.mu.Unlock()
@@ -264,49 +406,140 @@ func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan s
 	a.emit(EventPlayback, a.describe(current))
 }
 
-// DeletePassage forgets a saved passage.
+// DeletePassage forgets a saved passage, while watching or on the session
+// screen.
 func (a *API) DeletePassage(name string) error {
+	return a.editPassages(func(passages []project.Passage) ([]project.Passage, error) {
+		i := project.IndexOf(passages, name)
+		if i < 0 {
+			return nil, errUnknownPassage
+		}
+		return append(passages[:i:i], passages[i+1:]...), nil
+	})
+}
+
+// RenamePassage gives a saved passage another name, unique in the video
+// whatever the case; the same name in another case is allowed.
+func (a *API) RenamePassage(from, to string) error {
+	name := strings.TrimSpace(to)
+	return a.editPassages(func(passages []project.Passage) ([]project.Passage, error) {
+		i := project.IndexOf(passages, from)
+		if i < 0 {
+			return nil, errUnknownPassage
+		}
+		renamed := passages[i]
+		renamed.Name = name
+		if renamed.Validate() != nil {
+			return nil, errPassageName
+		}
+		if other := project.IndexOf(passages, name); other >= 0 && other != i {
+			return nil, errDuplicatePassage
+		}
+		changed := append([]project.Passage(nil), passages...)
+		changed[i] = renamed
+		return changed, nil
+	})
+}
+
+// editPassages changes the open video's passages and saves them, then
+// shows the change on the panel when a session runs.
+func (a *API) editPassages(change func([]project.Passage) ([]project.Passage, error)) error {
 	current := a.current()
 	a.mu.Lock()
-	p := a.projectOf(current)
+	p := a.project
 	if p == nil {
 		a.mu.Unlock()
-		return errNotWatching
+		return errNoVideo
 	}
-	i := indexOfPassage(p.value.Passages, name)
-	if i < 0 {
+	passages, err := change(p.value.Passages)
+	if err != nil {
 		a.mu.Unlock()
-		return errUnknownPassage
+		return err
 	}
-	p.value.Passages = append(p.value.Passages[:i:i], p.value.Passages[i+1:]...)
-	err := a.saveProject()
+	p.value.Passages = passages
+	err = a.saveProject()
 	a.mu.Unlock()
-	a.emit(EventPlayback, a.describe(current))
+	if current != nil {
+		a.emit(EventPlayback, a.describe(current))
+	}
 	return err
 }
 
-func indexOfPassage(passages []project.Passage, name string) int {
-	for i, passage := range passages {
-		if strings.EqualFold(passage.Name, strings.TrimSpace(name)) {
-			return i
-		}
+// SavedPassages lists the open video's passages, for the session screen.
+func (a *API) SavedPassages() []SavedPassage {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.video == nil {
+		return []SavedPassage{}
 	}
-	return -1
+	return passagesOf(a.project, a.video.Info.Duration)
 }
 
 // savedPassages lists the open video's passages for the panel.
 func (a *API) savedPassages(current *watching) ([]SavedPassage, string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	list := []SavedPassage{}
 	p := a.projectOf(current)
 	if p == nil {
-		return list, ""
+		return []SavedPassage{}, ""
+	}
+	return passagesOf(p, current.duration), p.note
+}
+
+// passagesOf describes a project's passages; duration (zero when unknown)
+// tells which ones lie past the end of the video.
+func passagesOf(p *videoProject, duration time.Duration) []SavedPassage {
+	list := []SavedPassage{}
+	if p == nil {
+		return list
 	}
 	for _, passage := range p.value.Passages {
+		plan := passage.Practice()
 		list = append(list, SavedPassage{
 			Name: passage.Name, Start: ptbr.PassageClock(passage.Start.Duration()), End: ptbr.PassageClock(passage.End.Duration()),
+			Plan: planOf(plan), Summary: ptbr.PlanSummary(plan), Outside: outside(passage, duration),
 		})
 	}
-	return list, p.note
+	return list
+}
+
+// outside tells a passage starts at or after the end of the video, or
+// leaves less than a lap of it (a file of another cut).
+func outside(passage project.Passage, duration time.Duration) bool {
+	return duration > 0 && passage.Start.Duration() > duration-study.MinSegment
+}
+
+// planOf describes a practice plan for the window.
+func planOf(plan study.PracticePlan) PassagePlan {
+	return PassagePlan{Loop: plan.Mode == study.EndLoop, Gap: plan.Gap.Seconds(), Progressive: plan.Progressive, Ladder: plan.Ladder, Goal: plan.Goal}
+}
+
+// ResetProject forgets everything the app kept about the open video: its
+// corrections, sync, saved passages, choices and where it was left. Only
+// with no video playing; the video then opens again, as new.
+func (a *API) ResetProject() (Video, error) {
+	if a.current() != nil {
+		return Video{}, errResetWatching
+	}
+	a.mu.Lock()
+	video, p := a.video, a.project
+	if video == nil {
+		a.mu.Unlock()
+		return Video{}, errNoVideo
+	}
+	if p != nil {
+		// Nothing pending may write the old project back after it is gone.
+		p.cancelFlush()
+		p.readOnly = true
+	}
+	a.resume = nil
+	a.mu.Unlock()
+	if a.deps.Projects != nil {
+		if err := a.deps.Projects.Remove(video.Path); err != nil {
+			a.logger.Warn("the video's project was not removed", "video", video.Path, "error", err)
+			return Video{}, errResetFailed
+		}
+	}
+	a.logger.Info("video's project forgotten", "name", filepath.Base(video.Path))
+	return a.OpenVideo(video.Path)
 }

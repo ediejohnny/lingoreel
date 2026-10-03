@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -54,6 +55,10 @@ type watching struct {
 	player    player.Installation
 	frameRate float64
 	duration  time.Duration
+	// startSpeed and startKaraoke are what the session started with: the
+	// video keeps only what the user changed from them.
+	startSpeed   playback.Speed
+	startKaraoke project.Karaoke
 }
 
 // Watch opens the video in the chosen player with the chosen tracks. A
@@ -89,9 +94,15 @@ func (a *API) Watch(request WatchRequest) error {
 	syncNotice := a.config.SyncNotice
 	var saved map[session.Line]project.Track
 	var keys [2]string
-	if opened := a.project; opened != nil && opened.video == video.Path {
+	var last project.Last
+	var passages []project.Passage
+	opened := a.project
+	if opened != nil && opened.video == video.Path {
 		saved = opened.saved(tracks)
 		keys = [2]string{opened.keys[tracks.Primary], opened.keys[tracks.Translation]}
+		last, passages = opened.value.Last, opened.value.Passages
+	} else {
+		opened = nil
 	}
 	a.mu.Unlock()
 
@@ -108,18 +119,42 @@ func (a *API) Watch(request WatchRequest) error {
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
 		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
 	}
+	// What the user changed on this video comes back over the profile.
+	if last.Speed != 0 {
+		watchRequest.Speed = playback.Speed(last.Speed)
+	}
+	if k := last.Karaoke; k != nil {
+		watchRequest.Karaoke = session.Karaoke{Enabled: k.Enabled, Rules: k.Rules(), Fill: k.Fill}
+		watchRequest.Indicator, watchRequest.LineRepeats = k.Indicator, k.Repeat
+	}
+	if request.Passage != "" {
+		i := project.IndexOf(passages, request.Passage)
+		if i < 0 {
+			return errUnknownPassage
+		}
+		passage := passages[i]
+		if outside(passage, video.Info.Duration) {
+			return errPassageOutside
+		}
+		watchRequest.Passage = &watch.PassageStart{Segment: passage.Segment(), Plan: passage.Practice()}
+	}
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
 	}
 	a.mu.Lock()
+	// A session the player lost goes back to where it was; else, asked to,
+	// where the video was left.
 	if resume := a.resume; request.Resume && resume != nil && resume.video == video.Path {
 		watchRequest.Start = resume.at
+	} else if offer := resumeOf(opened, video.Info.Duration); request.Resume && offer.Offered {
+		watchRequest.Start = last.Position.Duration()
 	}
 	a.resume = nil
 	a.mu.Unlock()
 	current := &watching{
 		names: names, stop: make(chan struct{}), video: video.Path, keys: keys,
 		player: installation, frameRate: frameRateOf(video.Info), duration: video.Info.Duration,
+		startSpeed: cmp.Or(watchRequest.Speed, playback.NormalSpeed),
 	}
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
@@ -127,6 +162,7 @@ func (a *API) Watch(request WatchRequest) error {
 		return a.startFailure(err, installation)
 	}
 	current.session = started
+	current.startKaraoke = karaokeOf(started)
 	a.mu.Lock()
 	a.watching = current
 	a.mu.Unlock()
@@ -214,13 +250,14 @@ func (a *API) report(current *watching) {
 				}
 			}
 			a.emit(EventPlayback, state)
+			a.keepSession(current, false)
 		case <-current.session.Done():
 			a.mu.Lock()
 			if a.watching == current {
 				a.watching = nil
 			}
 			a.mu.Unlock()
-			a.saveOffsets(current)
+			a.flushSession(current)
 			ended := Ended{}
 			switch err := current.session.Err(); {
 			case errors.Is(err, playback.ErrPlayerLost):
@@ -252,8 +289,15 @@ func (a *API) describe(current *watching) Playback {
 	if problem, _ := current.problem.Load().(string); problem != "" {
 		note = problem
 	}
+	markedStart := ""
+	if start, set := current.session.MarkedStart(); set {
+		markedStart = ptbr.PassageClock(start)
+	}
+	plan, snap := current.session.PassageOptions()
 	return Playback{
-		Active: true, Status: string(state.Status),
+		MarkedStart:    markedStart,
+		PassageOptions: PassageOptions{Snap: snap, Plan: planOf(plan)},
+		Active:         true, Status: string(state.Status),
 		Position: state.Position.Seconds(), Duration: state.Duration.Seconds(), Speed: float64(state.Speed),
 		PositionText: ptbr.Clock(state.Position), DurationText: ptbr.Clock(state.Duration),
 		PrimaryOffset:      ptbr.Offset(current.session.Offset(session.LinePrimary)),
@@ -402,7 +446,7 @@ func (a *API) stop(tell bool) bool {
 		a.logger.Warn("the session did not end cleanly", "error", err)
 	}
 	a.logger.Info("session ended", "by", "the app")
-	a.saveOffsets(current)
+	a.flushSession(current)
 	if tell {
 		a.emit(EventPlayback, Playback{})
 		a.emit(EventEnded, Ended{})

@@ -273,6 +273,9 @@ type memoryProjects struct {
 	saves   int
 	loadErr error
 	saveErr error
+	// removed lists the videos forgotten; removeErr fails the removal.
+	removed   []string
+	removeErr error
 }
 
 func (m *memoryProjects) Load(video string) (project.Project, error) {
@@ -305,6 +308,17 @@ func (m *memoryProjects) Save(video string, p project.Project) error {
 		m.files = map[string][]byte{}
 	}
 	m.files[video] = data
+	return nil
+}
+
+func (m *memoryProjects) Remove(video string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.removed = append(m.removed, video)
+	if m.removeErr != nil {
+		return m.removeErr
+	}
+	delete(m.files, video)
 	return nil
 }
 
@@ -371,6 +385,12 @@ func (b *lockedBuffer) String() string {
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
+	return newRigWith(t, nil)
+}
+
+// newRigWith lets a test change the dependencies before the API is made.
+func newRigWith(t *testing.T, change func(*app.Deps)) *rig {
+	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
 		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{}, log: &lockedBuffer{}, associations: &fakeAssociations{},
@@ -381,7 +401,7 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	service := analysis.NewService(fakeReader{}, nil)
-	r.api, r.lifecycle = app.New(app.Deps{
+	deps := app.Deps{
 		Service: service, Registry: registry,
 		Detect: func(map[player.ID]string) []player.Installation { return r.installed },
 		Ports: watch.Ports{Service: service, Registry: registry,
@@ -404,7 +424,11 @@ func newRig(t *testing.T) *rig {
 			r.ui.urls = append(r.ui.urls, "folder:"+path)
 			return nil
 		},
-	})
+	}
+	if change != nil {
+		change(&deps)
+	}
+	r.api, r.lifecycle = app.New(deps)
 	t.Cleanup(r.lifecycle.Shutdown)
 	return r
 }

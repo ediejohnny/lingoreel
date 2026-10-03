@@ -197,22 +197,32 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	if err := r.api.StudyPassage(app.PassageRequest{Start: "0:10", End: "0:20"}); err != nil {
 		t.Fatal(err)
 	}
-	wantMessage(t, "SavePassage without a name", r.api.SavePassage("   "), "Dê um nome")
-	if err := r.api.SavePassage("Rua"); err != nil {
+	// Without a name, the passage is named by its times, as the end key does.
+	if err := r.api.SavePassage("   "); err != nil {
 		t.Fatal(err)
 	}
-	// The same name, in any case, replaces the passage.
-	if err := errors.Join(r.api.StudyPassage(app.PassageRequest{Start: "0:30", End: "0:40"}), r.api.SavePassage("RUA ")); err != nil {
+	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0].Name != "Trecho 0:10–0:20" || saved[0].Summary != "Pausa no fim" {
+		t.Fatalf("saved without a name = %+v", saved)
+	}
+	wantMessage(t, "SavePassage with a long name", r.api.SavePassage(strings.Repeat("a", project.MaxPassageNameLen+1)), "Dê um nome")
+	if err := errors.Join(r.api.DeletePassage("Trecho 0:10–0:20"), r.api.SavePassage("Rua")); err != nil {
 		t.Fatal(err)
 	}
-	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0] != (app.SavedPassage{Name: "RUA", Start: "0:30", End: "0:40"}) {
+	// The same name, in any case, replaces the passage, with its plan.
+	if err := errors.Join(r.api.StudyPassage(app.PassageRequest{Start: "0:30", End: "0:40", Loop: true, Gap: 1.5, Goal: 3}), r.api.SavePassage("RUA ")); err != nil {
+		t.Fatal(err)
+	}
+	saved := r.api.PlaybackState().SavedPassages
+	if len(saved) != 1 || saved[0].Name != "RUA" || saved[0].Start != "0:30" || saved[0].End != "0:40" ||
+		saved[0].Plan != (app.PassagePlan{Loop: true, Gap: 1.5, Goal: 3}) || saved[0].Summary != "Repete sem parar · intervalo de 1,5 s · meta de 3 voltas" {
 		t.Fatalf("saved passages = %+v, want Rua replaced", saved)
 	}
 	if err := errors.Join(r.api.DeletePassage("rua"), r.api.StudyPassage(app.PassageRequest{Start: "0:10", End: "0:20"}), r.api.SavePassage("Loja")); err != nil {
 		t.Fatal(err)
 	}
 
-	// Offsets wait for the end of the session, not every step of a held key.
+	// Offsets wait a moment after the last step (or the end of the session),
+	// not every step of a held key.
 	if err := r.api.Nudge("translation", true); err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +251,8 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	t.Cleanup(func() { r.api.StopWatching() })
 	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	state := r.api.PlaybackState()
-	if state.TranslationOffset != offset || len(state.SavedPassages) != 1 || state.SavedPassages[0] != (app.SavedPassage{Name: "Loja", Start: "0:10", End: "0:20"}) {
+	if state.TranslationOffset != offset || len(state.SavedPassages) != 1 || state.SavedPassages[0].Name != "Loja" ||
+		state.SavedPassages[0].Start != "0:10" || state.SavedPassages[0].End != "0:20" {
 		t.Fatalf("reopened: offset %q (want %q), passages %+v", state.TranslationOffset, offset, state.SavedPassages)
 	}
 	onTheLine(t, r)
