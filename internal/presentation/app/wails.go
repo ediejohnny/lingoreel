@@ -37,6 +37,17 @@ func (w wailsUI) OpenProgramDialog(title string) (string, error) {
 	})
 }
 
+func (w wailsUI) SaveSubtitleDialog(name string) (string, error) {
+	return runtime.SaveFileDialog(w.ctx, runtime.SaveDialogOptions{
+		Title:           "Exportar legenda",
+		DefaultFilename: name,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Legenda SubRip (*.srt)", Pattern: "*.srt"},
+			{DisplayName: "Legenda Advanced SubStation (*.ass)", Pattern: "*.ass"},
+		},
+	})
+}
+
 func (w wailsUI) OpenURL(url string) {
 	runtime.BrowserOpenURL(w.ctx, url)
 }

@@ -57,16 +57,18 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
 		return Video{}, errors.New("Não foi possível ler este vídeo. Confira se o arquivo existe e não está corrompido.")
 	}
+	opened := a.loadProject(path, result.Info)
+	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()
-	a.video = &result
+	a.video, a.project = &result, opened
 	a.mu.Unlock()
 
 	video := Video{
 		Path: path, Name: filepath.Base(path), Duration: result.Info.Duration.Seconds(),
-		Suggested: Selection{Audio: result.Suggested.Audio, Primary: result.Suggested.Primary, Translation: result.Suggested.Translation},
+		Suggested: Selection{Audio: suggested.Audio, Primary: suggested.Primary, Translation: suggested.Translation},
 		Players:   a.players(),
 		Audio:     []Track{}, Subtitles: []Track{},
-		Mode: string(mode), Modes: modeOptions(),
+		Mode: string(mode), Modes: modeOptions(), ProjectNote: opened.note,
 	}
 	for _, track := range result.Info.TracksOf(media.TrackAudio) {
 		video.Audio = append(video.Audio, audioTrack(track))

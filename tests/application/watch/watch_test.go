@@ -15,6 +15,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
@@ -243,6 +244,8 @@ type recordingListener struct {
 }
 
 func (l *recordingListener) SubtitlesChanged(time.Duration, session.Visible) {}
+func (l *recordingListener) Edited(session.Line, map[string]project.Edit)    {}
+
 func (l *recordingListener) Synced(_ session.Line, offset subtitle.Offset) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

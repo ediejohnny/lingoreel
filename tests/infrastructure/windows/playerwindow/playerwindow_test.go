@@ -122,6 +122,8 @@ func (r *fakeRemote) Run(command shortcut.Command, repeat bool) error {
 	return nil
 }
 
+func (r *fakeRemote) Select(session.Line) (watch.Selection, error) { return watch.Selection{}, nil }
+
 func (r *fakeRemote) ran() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()

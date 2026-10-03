@@ -132,8 +132,10 @@ func (u *fakeUI) Emit(name string, data any) {
 	defer u.mu.Unlock()
 	u.events = append(u.events, event{name, data})
 }
-func (u *fakeUI) OpenVideoDialog() (string, error)         { return u.choose, nil }
-func (u *fakeUI) OpenProgramDialog(string) (string, error) { return u.program, nil }
+func (u *fakeUI) OpenVideoDialog() (string, error)          { return u.choose, nil }
+func (u *fakeUI) OpenProgramDialog(string) (string, error)  { return u.program, nil }
+func (u *fakeUI) SaveSubtitleDialog(string) (string, error) { return "", nil }
+
 func (u *fakeUI) OpenURL(url string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()

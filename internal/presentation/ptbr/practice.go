@@ -32,6 +32,13 @@ func PassageClock(d time.Duration) string {
 	return whole
 }
 
+// EditClock shows a line's time to the millisecond for the editor,
+// "1:02:03,456" or "2:03,456", which ParseClock reads back.
+func EditClock(d time.Duration) string {
+	d = max(d, 0).Round(time.Millisecond)
+	return fmt.Sprintf("%s,%03d", Clock(d.Truncate(time.Second)), d%time.Second/time.Millisecond)
+}
+
 // PracticeNotice words what happens to a passage for the notice on the
 // video: "Trecho 1:10:23–1:11:04 · repetição 3".
 func PracticeNotice(event session.PracticeEvent, status session.PracticeStatus) string {

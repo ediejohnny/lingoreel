@@ -253,6 +253,25 @@ func (s *Subtitles) ShiftOffset(line Line, delta time.Duration) (subtitle.Offset
 	return updated.Offset, true
 }
 
+// SetTimeline replaces a line's events, keeping its offset, and signals the
+// change; it has no effect on a missing or unknown line.
+func (s *Subtitles) SetTimeline(line Line, timeline *subtitle.Timeline) {
+	if !knownLine(line) || timeline == nil {
+		return
+	}
+	s.mu.Lock()
+	track := s.lines[line]
+	if track != nil {
+		updated := *track
+		updated.Timeline = timeline
+		s.lines[line] = &updated
+	}
+	s.mu.Unlock()
+	if track != nil {
+		s.notify()
+	}
+}
+
 // SetOffset changes the offset of a line and signals the change; it has no
 // effect on a missing or unknown line.
 func (s *Subtitles) SetOffset(line Line, offset subtitle.Offset) {

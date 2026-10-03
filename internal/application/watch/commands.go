@@ -70,6 +70,12 @@ func (s *Session) Run(command shortcut.Command, repeat bool) error {
 		return s.ReplayLine()
 	case shortcut.RepeatPhrase:
 		return s.RepeatPhrase()
+	case shortcut.Undo:
+		_, err := s.Undo()
+		return err
+	case shortcut.Redo:
+		_, err := s.Redo()
+		return err
 	case shortcut.Fullscreen, shortcut.ExitFullscreen, shortcut.Translation:
 		return fmt.Errorf("%w: %s", ErrNotRunnable, command)
 	}

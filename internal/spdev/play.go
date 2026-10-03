@@ -16,6 +16,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/media/matroska"
@@ -161,6 +162,9 @@ func (l *consoleListener) SubtitlesChanged(position time.Duration, visible sessi
 func (l *consoleListener) Synced(line session.Line, offset subtitle.Offset) {
 	l.out.line("Sincronia: %s", l.names.Notice(line, offset))
 }
+
+// Edited is never called: the development tool does not edit lines.
+func (l *consoleListener) Edited(session.Line, map[string]project.Edit) {}
 
 func parsePlayOptions(args []string) (playOptions, error) {
 	options := playOptions{steps: subtitle.DefaultNudgeSteps()}

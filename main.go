@@ -24,6 +24,7 @@ import (
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/media/matroska"
+	"lingoreel/internal/infrastructure/persistence/projectfile"
 	"lingoreel/internal/infrastructure/persistence/settingsfile"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/install"
@@ -103,6 +104,7 @@ func run() error {
 		KeyChar:     keyboard.Char,
 		SettingsDir: dir,
 		OpenFolder:  openFolder,
+		Projects:    projectfile.Open(dir),
 	}
 	if len(os.Args) > 1 {
 		deps.InitialVideo = os.Args[1]
