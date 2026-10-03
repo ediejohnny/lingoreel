@@ -26,8 +26,9 @@ tradução em português, que pode ficar sempre visível ou aparecer só quando 
 - Suporte a VLC e PotPlayer, com o player preferido escolhido por você. Outros players entram como
   plugins (veja o guia em `docs/plugins-de-player.md`).
 - Janela, tela cheia, vários monitores e escalas de DPI de 100% a 200%.
-- Correção de legendas com o vídeo pausado: clique na fala para corrigir o texto ou os tempos,
-  com desfazer/refazer (Ctrl+Z/Ctrl+Y). O texto original nunca se perde.
+- Correção de legendas com o vídeo pausado: dois cliques na fala abrem uma caixa ali mesmo, sobre o
+  vídeo, para corrigir o texto; os tempos se ajustam no painel do app. Com desfazer/refazer
+  (Ctrl+Z/Ctrl+Y), e o texto original nunca se perde.
 - Um arquivo de correções por vídeo (`Filme.dualsub.json`, ao lado do vídeo), que guarda as
   correções, a sincronização, as faixas e o modo escolhidos e os trechos salvos para estudo.
 - Exportação da legenda corrigida e sincronizada em `.srt` ou `.ass`, para usar em outro player.
