@@ -49,6 +49,11 @@ type watching struct {
 	keys  [2]string
 	// problem is the last project file failure, for the panel.
 	problem atomic.Value // string
+	// player, frameRate and duration (from the analysis) are for the
+	// diagnostics.
+	player    player.Installation
+	frameRate float64
+	duration  time.Duration
 }
 
 // Watch opens the video in the chosen player with the chosen tracks. A
@@ -112,7 +117,10 @@ func (a *API) Watch(request WatchRequest) error {
 	}
 	a.resume = nil
 	a.mu.Unlock()
-	current := &watching{names: names, stop: make(chan struct{}), video: video.Path, keys: keys}
+	current := &watching{
+		names: names, stop: make(chan struct{}), video: video.Path, keys: keys,
+		player: installation, frameRate: frameRateOf(video.Info), duration: video.Info.Duration,
+	}
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)

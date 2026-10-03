@@ -101,6 +101,24 @@ type Deps struct {
 	OpenFolder  func(path string) error
 	// Projects keeps each video's project; nil keeps nothing between runs.
 	Projects Projects
+	// About is the app's and the system's version, for the diagnostics;
+	// Monitors lists the screens (nil lists none); LogDir holds the logs.
+	About    About
+	Monitors func() ([]Monitor, error)
+	LogDir   string
+}
+
+// About names the versions the diagnostics show.
+type About struct {
+	Version string
+	Windows string
+}
+
+// Monitor is a screen as the diagnostics show it.
+type Monitor struct {
+	Width, Height, X, Y int
+	DPI                 int
+	Primary             bool
 }
 
 // API is bound to the window: every exported method is callable from the

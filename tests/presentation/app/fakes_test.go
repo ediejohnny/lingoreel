@@ -342,6 +342,9 @@ type rig struct {
 	preview    *fakePreview
 	projects   *memoryProjects
 	log        *lockedBuffer
+	// monitors and monitorsErr are what the monitor list answers.
+	monitors    []app.Monitor
+	monitorsErr error
 }
 
 // lockedBuffer is the log's destination in the tests.
@@ -384,6 +387,9 @@ func newRig(t *testing.T) *rig {
 		},
 		Settings: r.settings, Installer: r.installer, Projects: r.projects,
 		Logger:       slog.New(slog.NewTextHandler(r.log, nil)),
+		About:        app.About{Version: "0.13.0-test", Windows: "10.0.19045"},
+		Monitors:     func() ([]app.Monitor, error) { return r.monitors, r.monitorsErr },
+		LogDir:       `C:\Users\x\AppData\Roaming\LingoReel\logs`,
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,

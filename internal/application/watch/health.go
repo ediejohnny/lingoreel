@@ -1,6 +1,9 @@
 package watch
 
-import "lingoreel/internal/application/players"
+import (
+	"lingoreel/internal/application/players"
+	"lingoreel/internal/application/session"
+)
 
 // Health is how the player is doing during a session.
 type Health int
@@ -22,6 +25,16 @@ func (s *Session) Notify(text string) {
 	if s.display != nil && text != "" {
 		_ = s.display.Notify(text)
 	}
+}
+
+// Shown is what each line shows at the current position, for diagnostics.
+func (s *Session) Shown() session.Visible {
+	return s.subtitles.At(s.clock.Position())
+}
+
+// HasDisplay tells the subtitles have somewhere to be drawn.
+func (s *Session) HasDisplay() bool {
+	return s.display != nil
 }
 
 // Health reports the player's state for the panel.

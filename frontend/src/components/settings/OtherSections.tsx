@@ -9,6 +9,7 @@ import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { DiagnosticsCard } from "./DiagnosticsCard";
 import { change, type SectionProps } from "./section";
 
 /** PlaybackSection holds how a video starts, its speed and its audio, and the precision step. */
@@ -83,7 +84,7 @@ export function AppearanceSection({ theme, onTheme }: AppearanceSectionProps) {
   );
 }
 
-/** AdvancedSection holds the settings folder and the reset of the profile. */
+/** AdvancedSection holds the settings folder, the diagnostics and the reset of the profile. */
 export function AdvancedSection({ view, dirty, run }: SectionProps) {
   const [confirming, setConfirming] = useState(false);
   return (
@@ -97,6 +98,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
           Abrir a pasta
         </Button>
       </Card>
+      <DiagnosticsCard />
       <Card title="Restaurar o perfil">
         <p className="mb-3 text-sm text-fg-secondary">
           Volta todas as escolhas do perfil “{view.general.activeProfile}” ao padrão: legendas, cores, atalhos, Modo Karaokê e player. O

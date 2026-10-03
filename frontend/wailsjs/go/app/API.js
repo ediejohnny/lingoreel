@@ -38,6 +38,10 @@ export function DeleteProfile(arg1) {
   return window['go']['app']['API']['DeleteProfile'](arg1);
 }
 
+export function Diagnostics() {
+  return window['go']['app']['API']['Diagnostics']();
+}
+
 export function DismissRecommendation(arg1) {
   return window['go']['app']['API']['DismissRecommendation'](arg1);
 }

@@ -41,6 +41,7 @@ import (
 	"lingoreel/internal/infrastructure/windows/placement"
 	"lingoreel/internal/infrastructure/windows/playerwindow"
 	"lingoreel/internal/infrastructure/windows/preview"
+	"lingoreel/internal/infrastructure/windows/win32"
 	"lingoreel/internal/presentation/app"
 	"lingoreel/internal/presentation/ptbr"
 )
@@ -115,6 +116,9 @@ func run() error {
 		SettingsDir: dir,
 		OpenFolder:  openFolder,
 		Projects:    projectfile.Open(dir),
+		About:       app.About{Version: buildinfo.Version, Windows: windowsVersion()},
+		Monitors:    monitors,
+		LogDir:      filepath.Join(dir, logFolder),
 	}
 	if workingDir, err := os.Getwd(); err == nil {
 		deps.InitialVideo, _ = app.VideoArgument(os.Args[1:], workingDir)
@@ -216,6 +220,22 @@ func openLog(dir string) (*slog.Logger, func()) {
 		return slog.New(slog.DiscardHandler), func() {}
 	}
 	return slog.New(slog.NewTextHandler(file, nil)), func() { file.Close() }
+}
+
+// monitors lists the screens for the diagnostics.
+func monitors() ([]app.Monitor, error) {
+	found, err := win32.Monitors()
+	if err != nil {
+		return nil, err
+	}
+	list := make([]app.Monitor, len(found))
+	for i, m := range found {
+		list[i] = app.Monitor{
+			Width: int(m.Bounds.Right - m.Bounds.Left), Height: int(m.Bounds.Bottom - m.Bounds.Top),
+			X: int(m.Bounds.Left), Y: int(m.Bounds.Top), DPI: int(m.DPI), Primary: m.Primary,
+		}
+	}
+	return list, nil
 }
 
 // windowsVersion is "10.0.19045" for the log.

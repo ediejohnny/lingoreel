@@ -20,6 +20,8 @@ export function DeletePassage(arg1:string):Promise<void>;
 
 export function DeleteProfile(arg1:string):Promise<void>;
 
+export function Diagnostics():Promise<app.Diagnostics>;
+
 export function DismissRecommendation(arg1:string):Promise<void>;
 
 export function EditLine(arg1:app.EditRequest):Promise<void>;
