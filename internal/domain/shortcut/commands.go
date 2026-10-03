@@ -4,27 +4,45 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 )
 
 // Command is something a shortcut runs.
 type Command string
 
-// The commands with a shortcut. More arrive with the study shortcuts.
+// The commands with a shortcut.
 const (
 	PlayPause              Command = "play-pause"
-	SeekBack               Command = "seek-back"
-	SeekForward            Command = "seek-forward"
 	VolumeUp               Command = "volume-up"
 	VolumeDown             Command = "volume-down"
 	Mute                   Command = "mute"
 	Fullscreen             Command = "fullscreen"
 	ExitFullscreen         Command = "exit-fullscreen"
-	Translation            Command = "translation"
-	ReplayLine             Command = "replay-line"
+	SeekBack               Command = "seek-back"
+	SeekForward            Command = "seek-forward"
+	SeekBack10             Command = "seek-back-10"
+	SeekForward10          Command = "seek-forward-10"
+	SeekBack30             Command = "seek-back-30"
+	SeekForward30          Command = "seek-forward-30"
+	PrecisionBack          Command = "precision-back"
+	PrecisionForward       Command = "precision-forward"
+	FrameBack              Command = "frame-back"
+	FrameForward           Command = "frame-forward"
+	SpeedDown              Command = "speed-down"
+	SpeedUp                Command = "speed-up"
+	SpeedNormal            Command = "speed-normal"
 	SyncPrimaryEarlier     Command = "sync-primary-earlier"
 	SyncPrimaryLater       Command = "sync-primary-later"
 	SyncTranslationEarlier Command = "sync-translation-earlier"
 	SyncTranslationLater   Command = "sync-translation-later"
+	Translation            Command = "translation"
+	ShowBoth               Command = "show-both"
+	PrimaryOnly            Command = "primary-only"
+	ReplayLine             Command = "replay-line"
+	RepeatPhrase           Command = "repeat-phrase"
+	RepeatLast3            Command = "repeat-last-3"
+	RepeatLast5            Command = "repeat-last-5"
+	RepeatLast10           Command = "repeat-last-10"
 )
 
 // Category groups the commands on the settings screen.
@@ -32,12 +50,16 @@ type Category string
 
 const (
 	CategoryPlayback    Category = "playback"
+	CategorySeek        Category = "seek"
+	CategoryFrame       Category = "frame"
+	CategorySpeed       Category = "speed"
 	CategorySubtitle    Category = "subtitle"
 	CategoryTranslation Category = "translation"
 	CategoryStudy       Category = "study"
 )
 
-// entry is a command with its category and default chord.
+// entry is a command with its category and default chord; a zero chord
+// leaves the command without a shortcut until the user gives it one.
 type entry struct {
 	command  Command
 	category Category
@@ -47,19 +69,36 @@ type entry struct {
 // commands are the commands in display order.
 var commands = []entry{
 	{PlayPause, CategoryPlayback, Chord{Key: KeySpace}},
-	{SeekBack, CategoryPlayback, Chord{Key: KeyArrowLeft}},
-	{SeekForward, CategoryPlayback, Chord{Key: KeyArrowRight}},
 	{VolumeUp, CategoryPlayback, Chord{Key: KeyArrowUp}},
 	{VolumeDown, CategoryPlayback, Chord{Key: KeyArrowDown}},
 	{Mute, CategoryPlayback, Chord{Key: KeyM}},
 	{Fullscreen, CategoryPlayback, Chord{Key: KeyF}},
 	{ExitFullscreen, CategoryPlayback, Chord{Key: KeyEscape}},
+	{SeekBack, CategorySeek, Chord{Key: KeyArrowLeft}},
+	{SeekForward, CategorySeek, Chord{Key: KeyArrowRight}},
+	{SeekBack10, CategorySeek, Chord{Shift, KeyArrowLeft}},
+	{SeekForward10, CategorySeek, Chord{Shift, KeyArrowRight}},
+	{SeekBack30, CategorySeek, Chord{Ctrl, KeyArrowLeft}},
+	{SeekForward30, CategorySeek, Chord{Ctrl, KeyArrowRight}},
+	{PrecisionBack, CategorySeek, Chord{Alt, KeyArrowLeft}},
+	{PrecisionForward, CategorySeek, Chord{Alt, KeyArrowRight}},
+	{FrameBack, CategoryFrame, Chord{Key: KeyComma}},
+	{FrameForward, CategoryFrame, Chord{Key: KeyPeriod}},
+	{SpeedDown, CategorySpeed, Chord{Ctrl, KeyArrowDown}},
+	{SpeedUp, CategorySpeed, Chord{Ctrl, KeyArrowUp}},
+	{SpeedNormal, CategorySpeed, Chord{Ctrl, KeyDigit0}},
 	{SyncPrimaryEarlier, CategorySubtitle, Chord{Shift, KeyComma}},
 	{SyncPrimaryLater, CategorySubtitle, Chord{Shift, KeyPeriod}},
 	{SyncTranslationEarlier, CategorySubtitle, Chord{Ctrl, KeyComma}},
 	{SyncTranslationLater, CategorySubtitle, Chord{Ctrl, KeyPeriod}},
 	{Translation, CategoryTranslation, Chord{Key: KeyAltRight}},
+	{ShowBoth, CategoryTranslation, Chord{}},
+	{PrimaryOnly, CategoryTranslation, Chord{}},
 	{ReplayLine, CategoryStudy, Chord{Key: KeyBackspace}},
+	{RepeatPhrase, CategoryStudy, Chord{Key: KeyF9}},
+	{RepeatLast3, CategoryStudy, Chord{Key: KeyDigit3}},
+	{RepeatLast5, CategoryStudy, Chord{Key: KeyDigit5}},
+	{RepeatLast10, CategoryStudy, Chord{Key: KeyDigit0}},
 }
 
 // Commands lists every command in display order.
@@ -87,14 +126,51 @@ func (c Command) Category() Category {
 }
 
 // Repeats tells whether holding the shortcut repeats the command, as the
-// keyboard repeats a held key: moving through the video and the volume do,
-// switching something on and off does not.
+// keyboard repeats a held key: moving through the video, the volume and the
+// sync steps do (a held sync key takes the large step); switching something
+// on and off does not.
 func (c Command) Repeats() bool {
+	if _, jumps := c.Jump(); jumps {
+		return true
+	}
 	switch c {
-	case SeekBack, SeekForward, VolumeUp, VolumeDown:
+	case PrecisionBack, PrecisionForward, FrameBack, FrameForward, VolumeUp, VolumeDown,
+		SyncPrimaryEarlier, SyncPrimaryLater, SyncTranslationEarlier, SyncTranslationLater:
 		return true
 	}
 	return false
+}
+
+// Jump is how far a seek command moves, backward when negative.
+func (c Command) Jump() (time.Duration, bool) {
+	switch c {
+	case SeekBack:
+		return -5 * time.Second, true
+	case SeekForward:
+		return 5 * time.Second, true
+	case SeekBack10:
+		return -10 * time.Second, true
+	case SeekForward10:
+		return 10 * time.Second, true
+	case SeekBack30:
+		return -30 * time.Second, true
+	case SeekForward30:
+		return 30 * time.Second, true
+	}
+	return 0, false
+}
+
+// Rewind is how much a "repeat the last seconds" command plays again.
+func (c Command) Rewind() (time.Duration, bool) {
+	switch c {
+	case RepeatLast3:
+		return 3 * time.Second, true
+	case RepeatLast5:
+		return 5 * time.Second, true
+	case RepeatLast10:
+		return 10 * time.Second, true
+	}
+	return 0, false
 }
 
 // ErrUnknownCommand reports a command outside Commands.
@@ -110,8 +186,9 @@ func (e *ConflictError) Error() string {
 	return fmt.Sprintf("%s and %s share the shortcut %s", e.First, e.Second, e.Chord)
 }
 
-// Map gives each command its chord. Commands left out keep their default,
-// so a profile saved before a command existed still gets it.
+// Map gives each command its chord; a zero chord is a command without a
+// shortcut. Commands left out keep their default, so a profile saved before
+// a command existed still gets it.
 type Map map[Command]Chord
 
 // Defaults are the shortcuts of a new profile.
@@ -134,7 +211,7 @@ func (m Map) Resolved() Map {
 	return resolved
 }
 
-// Of is a command's chord.
+// Of is a command's chord, zero when it has no shortcut.
 func (m Map) Of(command Command) Chord {
 	if chord, found := m[command]; found {
 		return chord
@@ -142,8 +219,12 @@ func (m Map) Of(command Command) Chord {
 	return Defaults()[command]
 }
 
-// Find is the command a chord runs.
+// Find is the command a chord runs; no chord runs a command without a
+// shortcut.
 func (m Map) Find(chord Chord) (Command, bool) {
+	if chord.IsZero() {
+		return "", false
+	}
 	for _, command := range Commands() {
 		if m.Of(command) == chord {
 			return command, true
@@ -153,12 +234,15 @@ func (m Map) Find(chord Chord) (Command, bool) {
 }
 
 // Validate checks every chord and that no two commands share one, defaults
-// included. A conflict is reported as a *ConflictError naming the commands
-// in display order.
+// included; commands without a shortcut share nothing. A conflict is
+// reported as a *ConflictError naming the commands in display order.
 func (m Map) Validate() error {
 	for command, chord := range m {
 		if !command.Known() {
 			return fmt.Errorf("%w: %q", ErrUnknownCommand, command)
+		}
+		if chord.IsZero() {
+			continue
 		}
 		if err := chord.Validate(); err != nil {
 			return fmt.Errorf("%s: %w", command, err)
@@ -167,6 +251,9 @@ func (m Map) Validate() error {
 	owner := map[Chord]Command{}
 	for _, command := range Commands() {
 		chord := m.Of(command)
+		if chord.IsZero() {
+			continue
+		}
 		if first, taken := owner[chord]; taken {
 			return &ConflictError{First: first, Second: command, Chord: chord}
 		}

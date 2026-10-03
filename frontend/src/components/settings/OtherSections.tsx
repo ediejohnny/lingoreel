@@ -1,41 +1,64 @@
 import { FolderOpen, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { speedLabel } from "../../format";
+import { keyLabel } from "../../keys";
 import { backend } from "../../services/backend";
 import { themeLabel, type Theme } from "../../stores/theme";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
-import { Segmented } from "../ui/Inputs";
+import { NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { change, type SectionProps } from "./section";
 
-/** PlaybackSection holds how a video starts: its speed and its audio. */
+/** PlaybackSection holds how a video starts, its speed and its audio, and the precision step. */
 export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
   const options = view.options;
+  const precisionKeys = [keyLabel(draft.shortcuts, "precision-back"), keyLabel(draft.shortcuts, "precision-forward")]
+    .filter((label) => label !== "")
+    .join(" e ");
   return (
-    <Card title="Ao abrir um vídeo">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Select
-          label="Velocidade inicial"
-          value={String(draft.speed)}
-          options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
-          onChange={(speed) => change(setDraft, "speed")(Number(speed))}
+    <>
+      <Card title="Ao abrir um vídeo">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Velocidade inicial"
+            value={String(draft.speed)}
+            options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
+            onChange={(speed) => change(setDraft, "speed")(Number(speed))}
+            help={
+              <HelpTip topic="Velocidade inicial">
+                A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.
+              </HelpTip>
+            }
+          />
+          <Select
+            label="Idioma do áudio preferido"
+            value={draft.languages.audio}
+            options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
+            onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
+            help={<HelpTip topic="Idioma do áudio">O áudio que o app escolhe sozinho quando o vídeo tem mais de um.</HelpTip>}
+          />
+        </div>
+      </Card>
+      <Card title="Avançar e voltar">
+        <NumberField
+          label="Passo de precisão"
+          value={draft.precisionStep}
+          min={options.limits.precisionStepMin}
+          max={options.limits.precisionStepMax}
+          step={10}
+          unit="ms"
+          onChange={(step) => change(setDraft, "precisionStep")(Math.round(step))}
           help={
-            <HelpTip topic="Velocidade inicial">
-              A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.
+            <HelpTip topic="Passo de precisão">
+              {`Quanto os atalhos de precisão${precisionKeys ? ` (${precisionKeys})` : ""} andam no vídeo, para achar o começo exato ` +
+                "de uma fala. Os outros saltos são de 5, 10 e 30 segundos."}
             </HelpTip>
           }
         />
-        <Select
-          label="Idioma do áudio preferido"
-          value={draft.languages.audio}
-          options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
-          onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
-          help={<HelpTip topic="Idioma do áudio">O áudio que o app escolhe sozinho quando o vídeo tem mais de um.</HelpTip>}
-        />
-      </div>
-    </Card>
+      </Card>
+    </>
   );
 }
 

@@ -22,6 +22,21 @@ export function StudySection(props: SectionProps) {
 
   return (
     <>
+      <Card title="Modo de estudo">
+        <Segmented
+          label="Ao abrir um vídeo"
+          value={draft.mode}
+          options={view.options.modes.map((option) => ({ value: option.value, label: option.label }))}
+          onChange={change(setDraft, "mode")}
+          help={
+            <HelpTip topic="Modo de estudo">
+              Dupla mostra as duas legendas, e a tecla da tradução esconde e mostra a de baixo. Tradução sob demanda, o modo recomendado
+              para estudar, começa só com a legenda de cima: a tecla mostra a tradução quando você precisar. Tradução sempre visível nunca
+              esconde a de baixo. Na tela da sessão e no painel dá para trocar o modo de um vídeo só.
+            </HelpTip>
+          }
+        />
+      </Card>
       <Card
         title="Modo Karaokê"
         aside={
@@ -106,8 +121,9 @@ export function StudySection(props: SectionProps) {
         title="Tecla da tradução"
         aside={
           <HelpTip topic="Tecla da tradução">
-            Na janela do filme, esta tecla mostra e esconde a legenda de baixo. Desmarcada a caixa, cada toque alterna: aperta e mostra,
-            aperta de novo e esconde. Marcada, a tradução aparece só enquanto a tecla está pressionada.
+            Na janela do filme e no painel, esta tecla mostra e esconde a legenda de baixo. Desmarcada a caixa, cada toque alterna: aperta e
+            mostra, aperta de novo e esconde. Marcada, na Tradução sob demanda, a tradução aparece só enquanto a tecla está pressionada. Na
+            Tradução sempre visível a tecla não faz nada.
           </HelpTip>
         }
       >
@@ -120,6 +136,7 @@ export function StudySection(props: SectionProps) {
                 label={translationKey.label}
                 taken={taken("translation")}
                 onChange={(chord, label) => setShortcut("translation", chord, label)}
+                onClear={translationKey.chord !== "" ? () => setShortcut("translation", "", "") : undefined}
                 onDefault={
                   standardKey && standardKey.chord !== translationKey.chord && !taken("translation")(standardKey.chord)
                     ? () => setShortcut("translation", standardKey.chord, standardKey.label)

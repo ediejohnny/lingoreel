@@ -17,6 +17,7 @@ import (
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/infrastructure/windows/playerwindow"
 	"lingoreel/internal/infrastructure/windows/win32"
 	"lingoreel/internal/presentation/ptbr"
@@ -72,13 +73,16 @@ func (p *recordingPlayer) saw(call string) bool {
 	return slices.Contains(p.calls, call)
 }
 
-// fakeRemote is the session the window's controls drive.
+// fakeRemote is the session the window's controls drive; the commands it
+// runs are recorded (the session's own tests check what each one does).
 type fakeRemote struct {
 	controls *session.Controls
 	clock    *session.Clock
 	mu       sync.Mutex
 	shown    bool
+	mode     study.Mode
 	reveals  []bool
+	runs     []string
 }
 
 func newRemote(p *recordingPlayer) *fakeRemote {
@@ -101,7 +105,28 @@ func (r *fakeRemote) SetTranslationVisible(visible bool) {
 	r.shown = visible
 }
 
-func (r *fakeRemote) ReplayLine() error { return r.controls.SeekTo(0) }
+func (r *fakeRemote) Mode() study.Mode {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.mode
+}
+
+func (r *fakeRemote) Run(command shortcut.Command, repeat bool) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	run := string(command)
+	if repeat {
+		run += " (held)"
+	}
+	r.runs = append(r.runs, run)
+	return nil
+}
+
+func (r *fakeRemote) ran() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.runs)
+}
 
 func (r *fakeRemote) Reveal(pressed bool) {
 	r.mu.Lock()
@@ -154,12 +179,17 @@ func at(x, y int) uintptr { return uintptr(uint16(x)) | uintptr(uint16(y))<<16 }
 // Scan codes (set 1) of the keys the tests press.
 const (
 	scanEscape     = 0x01
+	scanDigit3     = 0x04
+	scanDigit0     = 0x0B
 	scanBackspace  = 0x0E
 	scanP          = 0x19
 	scanF          = 0x21
 	scanM          = 0x32
+	scanComma      = 0x33
+	scanPeriod     = 0x34
 	scanAlt        = 0x38 // the right Alt when extended
 	scanSpace      = 0x39
+	scanF9         = 0x43
 	scanArrowRight = 0x4D // extended
 )
 
@@ -250,34 +280,52 @@ func TestKeysDriveTheSession(t *testing.T) {
 	// Before the session is attached a key does nothing; sent, not posted,
 	// so it is handled before the session comes.
 	sendMessage.Call(uintptr(host), win32.WM_KEYDOWN, 0, key(scanSpace, false, false))
-	p := &recordingPlayer{}
-	w.Attach(newRemote(p))
-	post(t, host, win32.WM_KEYDOWN, 0, key(scanSpace, false, false))
-	eventually(t, "Space to pause", func() bool { return p.saw("pause") })
-	post(t, host, win32.WM_KEYDOWN, 0, key(scanArrowRight, true, false))
-	eventually(t, "Right to seek", func() bool { return p.saw("seek") })
-	p.mu.Lock()
-	seek := p.seek
-	p.mu.Unlock()
-	// Paused at about 10 s (the clock ran a moment before the pause): +5 s.
-	if seek < 15*time.Second || seek > 16*time.Second {
-		t.Fatalf("seek to %v, want 5 s after about 10 s", seek)
+	remote := newRemote(&recordingPlayer{})
+	w.Attach(remote)
+	// The default keys of the session's commands, without modifiers (a
+	// posted message leaves the keyboard state alone).
+	presses := []struct {
+		scan     uintptr
+		extended bool
+	}{
+		{scanSpace, false}, {scanArrowRight, true}, {scanM, false}, {scanBackspace, false},
+		{scanComma, false}, {scanPeriod, false}, {scanF9, false}, {scanDigit3, false}, {scanDigit0, false},
 	}
-	post(t, host, win32.WM_KEYDOWN, 0, key(scanM, false, false))
-	eventually(t, "M to mute", func() bool {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		return len(p.volume) > 0 && p.volume[len(p.volume)-1] == 0
-	})
-	// Backspace is "Treinar de novo" (the fake goes back to 0).
-	post(t, host, win32.WM_KEYDOWN, 0, key(scanBackspace, false, false))
-	eventually(t, "Backspace to train again", func() bool {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		return p.seek == 0
-	})
-	if p.saw("play") {
-		t.Fatal("the key pressed before the session reached the player")
+	for _, press := range presses {
+		post(t, host, win32.WM_KEYDOWN, 0, key(press.scan, press.extended, false))
+	}
+	want := []string{
+		"play-pause", "seek-forward", "mute", "replay-line",
+		"frame-back", "frame-forward", "repeat-phrase", "repeat-last-3", "repeat-last-10",
+	}
+	eventually(t, "every key to run its command", func() bool { return len(remote.ran()) >= len(want) })
+	if got := remote.ran(); !slices.Equal(got, want) {
+		t.Fatalf("ran %q, want %q (the key before the session ran nothing)", got, want)
+	}
+}
+
+func TestTheBarJumpsAndTheLockedTranslation(t *testing.T) {
+	w := open(t)
+	host := windows.HWND(w.Handle())
+	remote := newRemote(&recordingPlayer{})
+	remote.mode = study.ModeAlwaysTranslated
+	w.Attach(remote)
+	bar := controlBar(host)
+	post(t, host, win32.WM_MOUSEMOVE, 0, at(320, 340))
+	eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	// From the left padding of 12: play 12..52, a gap of 4, back 56..96,
+	// forward 100..140 (the bar starts at client x 0). The translation
+	// (x 480..520) is off in the mode that always shows it.
+	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(76, 60))
+	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(120, 60))
+	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(490, 60))
+	eventually(t, "the jumps", func() bool { return len(remote.ran()) >= 2 })
+	time.Sleep(100 * time.Millisecond)
+	if got := remote.ran(); !slices.Equal(got, []string{"seek-back", "seek-forward"}) {
+		t.Fatalf("ran %q", got)
+	}
+	if !remote.TranslationVisible() {
+		t.Fatal("the locked translation button hid the translation")
 	}
 }
 
@@ -390,19 +438,20 @@ func TestTheProfileKeysDriveTheWindow(t *testing.T) {
 	w.Attach(remote)
 	w.SetShortcuts(shortcut.Map{shortcut.PlayPause: {Key: "KeyP"}})
 
-	// Space is no longer Play/Pause; P is.
+	// Space is no longer Play/Pause; P is. Held, P switches nothing more:
+	// only moves through the video repeat, and say they are held.
 	send(host, win32.WM_KEYDOWN, key(scanSpace, false, false))
 	send(host, win32.WM_KEYDOWN, key(scanP, false, false))
-	eventually(t, "P to pause", func() bool { return p.saw("pause") })
-	// Held, P switches nothing more: only moves through the video repeat.
 	for range 3 {
 		send(host, win32.WM_KEYDOWN, key(scanP, false, true))
 	}
 	send(host, win32.WM_KEYDOWN, key(scanArrowRight, true, false))
 	send(host, win32.WM_KEYDOWN, key(scanArrowRight, true, true))
-	eventually(t, "the held arrow to seek twice", func() bool { return p.count("seek") == 2 })
-	if n := p.count("pause") + p.count("play"); n != 1 {
-		t.Fatalf("play/pause ran %d times, want once (Space and the repeats did nothing)", n)
+	want := []string{"play-pause", "seek-forward", "seek-forward (held)"}
+	eventually(t, "P and the held arrow", func() bool { return len(remote.ran()) >= len(want) })
+	time.Sleep(50 * time.Millisecond)
+	if got := remote.ran(); !slices.Equal(got, want) {
+		t.Fatalf("ran %q, want %q (Space and the repeats of P did nothing)", got, want)
 	}
 
 	// The translation key (the right Alt, a system key): down shows, a

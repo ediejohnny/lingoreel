@@ -215,6 +215,7 @@ export namespace app {
 	    primaryOffset: string;
 	    translationOffset: string;
 	    translationVisible: boolean;
+	    mode: string;
 	    capabilities: Capabilities;
 	    lines: LineNames;
 	    karaoke: Karaoke;
@@ -236,6 +237,7 @@ export namespace app {
 	        this.primaryOffset = source["primaryOffset"];
 	        this.translationOffset = source["translationOffset"];
 	        this.translationVisible = source["translationVisible"];
+	        this.mode = source["mode"];
 	        this.capabilities = this.convertValues(source["capabilities"], Capabilities);
 	        this.lines = this.convertValues(source["lines"], LineNames);
 	        this.karaoke = this.convertValues(source["karaoke"], Karaoke);
@@ -490,7 +492,9 @@ export namespace app {
 	    speed: number;
 	    syncStep: number;
 	    syncFastStep: number;
+	    precisionStep: number;
 	    karaoke: KaraokeSettings;
+	    mode: string;
 	    reveal: string;
 	    shortcuts: ShortcutSetting[];
 	
@@ -509,7 +513,9 @@ export namespace app {
 	        this.speed = source["speed"];
 	        this.syncStep = source["syncStep"];
 	        this.syncFastStep = source["syncFastStep"];
+	        this.precisionStep = source["precisionStep"];
 	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
+	        this.mode = source["mode"];
 	        this.reveal = source["reveal"];
 	        this.shortcuts = this.convertValues(source["shortcuts"], ShortcutSetting);
 	    }
@@ -567,6 +573,8 @@ export namespace app {
 	    syncStepMax: number;
 	    syncFastStepMax: number;
 	    profileNameMax: number;
+	    precisionStepMin: number;
+	    precisionStepMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -592,6 +600,8 @@ export namespace app {
 	        this.syncStepMax = source["syncStepMax"];
 	        this.syncFastStepMax = source["syncFastStepMax"];
 	        this.profileNameMax = source["profileNameMax"];
+	        this.precisionStepMin = source["precisionStepMin"];
+	        this.precisionStepMax = source["precisionStepMax"];
 	    }
 	}
 	export class SettingsOptions {
@@ -599,6 +609,7 @@ export namespace app {
 	    presets: Option[];
 	    languages: Option[];
 	    speeds: number[];
+	    modes: Option[];
 	    limits: SettingsLimits;
 	    defaults: ProfileSettings;
 	
@@ -612,6 +623,7 @@ export namespace app {
 	        this.presets = this.convertValues(source["presets"], Option);
 	        this.languages = this.convertValues(source["languages"], Option);
 	        this.speeds = source["speeds"];
+	        this.modes = this.convertValues(source["modes"], Option);
 	        this.limits = this.convertValues(source["limits"], SettingsLimits);
 	        this.defaults = this.convertValues(source["defaults"], ProfileSettings);
 	    }
@@ -720,6 +732,8 @@ export namespace app {
 	    subtitles: Track[];
 	    suggested: Selection;
 	    players: Players;
+	    mode: string;
+	    modes: Option[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -734,6 +748,8 @@ export namespace app {
 	        this.subtitles = this.convertValues(source["subtitles"], Track);
 	        this.suggested = this.convertValues(source["suggested"], Selection);
 	        this.players = this.convertValues(source["players"], Players);
+	        this.mode = source["mode"];
+	        this.modes = this.convertValues(source["modes"], Option);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -760,6 +776,7 @@ export namespace app {
 	    translation: number;
 	    player: string;
 	    alwaysUse: boolean;
+	    mode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchRequest(source);
@@ -772,6 +789,7 @@ export namespace app {
 	        this.translation = source["translation"];
 	        this.player = source["player"];
 	        this.alwaysUse = source["alwaysUse"];
+	        this.mode = source["mode"];
 	    }
 	}
 

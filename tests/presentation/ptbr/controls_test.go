@@ -119,3 +119,31 @@ func TestBarTipsShowTheProfileKeys(t *testing.T) {
 		t.Errorf("tip without the layout = %q", got)
 	}
 }
+
+func TestBarTipsWithoutAKey(t *testing.T) {
+	// Commands without a shortcut leave the parentheses out.
+	keys := shortcut.Map{shortcut.PlayPause: {}, shortcut.VolumeUp: {}, shortcut.Translation: {}}
+	play := controlbar.Item{Action: controlbar.ActionPlayPause, Enabled: true}
+	if got := ptbr.BarTip(play, controlbar.State{}, keys, nil); got != "Pausar" {
+		t.Errorf("tip = %q", got)
+	}
+	volume := controlbar.Item{Action: controlbar.ActionVolume, Enabled: true}
+	if got := ptbr.BarTip(volume, controlbar.State{Volume: 0.5}, keys, nil); got != "Volume: 50% (↓)" {
+		t.Errorf("tip with one volume key = %q", got)
+	}
+	keys[shortcut.VolumeDown] = shortcut.Chord{}
+	if got := ptbr.BarTip(volume, controlbar.State{Volume: 0.5}, keys, nil); got != "Volume: 50%" {
+		t.Errorf("tip without volume keys = %q", got)
+	}
+	translation := controlbar.Item{Action: controlbar.ActionTranslation, Enabled: true}
+	if got := ptbr.BarTip(translation, controlbar.State{HasTranslation: true}, keys, nil); got != "Mostrar a tradução" {
+		t.Errorf("tip = %q", got)
+	}
+	// A mode that always shows the translation explains the off button,
+	// without blaming the player.
+	locked := controlbar.Item{Action: controlbar.ActionTranslation}
+	state := controlbar.State{HasTranslation: true, TranslationVisible: true, TranslationLocked: true}
+	if got := ptbr.BarTip(locked, state, nil, nil); got != "A tradução fica sempre visível neste modo de estudo" {
+		t.Errorf("locked tip = %q", got)
+	}
+}

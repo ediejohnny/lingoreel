@@ -30,9 +30,6 @@ const (
 	ActionFullscreen
 )
 
-// JumpStep is how far the jump buttons move.
-const JumpStep = 5 * time.Second
-
 // Sizes at 100% scaling (96 DPI), in pixels.
 const (
 	panelHeight   = 58.0
@@ -69,8 +66,11 @@ type State struct {
 	Muted              bool
 	HasTranslation     bool
 	TranslationVisible bool
-	Fullscreen         bool
-	Capabilities       playback.Capabilities
+	// TranslationLocked tells the study mode always shows the translation:
+	// its button cannot hide it.
+	TranslationLocked bool
+	Fullscreen        bool
+	Capabilities      playback.Capabilities
 	// SpeedMenuOpen shows the list of speeds above the speed button.
 	SpeedMenuOpen bool
 }
@@ -197,7 +197,7 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 		speed = place(Item{Action: ActionSpeed, Speed: state.Speed, Enabled: caps.Speed, Active: state.SpeedMenuOpen}, speedWidth)
 	}
 	if parts.translation {
-		place(Item{Action: ActionTranslation, Enabled: state.HasTranslation, Active: state.TranslationVisible && state.HasTranslation}, button)
+		place(Item{Action: ActionTranslation, Enabled: state.HasTranslation && !state.TranslationLocked, Active: state.TranslationVisible && state.HasTranslation}, button)
 	}
 
 	if state.SpeedMenuOpen && parts.speed && caps.Speed {

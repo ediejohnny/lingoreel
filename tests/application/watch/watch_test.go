@@ -3,6 +3,7 @@ package watch_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -56,21 +57,51 @@ type fakeRunning struct {
 	// speeds are the speeds asked; speedErr is the answer.
 	speeds   []playback.Speed
 	speedErr error
+	// frames makes the player step frames; calls records what it was asked.
+	frames bool
+	calls  []string
 }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
-	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact}
+	return playback.Capabilities{
+		Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact,
+		FrameStepForward: r.frames, FrameStepBackward: r.frames,
+	}
 }
-func (r *fakeRunning) Play() error                { return nil }
-func (r *fakeRunning) Pause() error               { return nil }
-func (r *fakeRunning) SeekTo(time.Duration) error { return nil }
+func (r *fakeRunning) Play() error  { r.record("play"); return nil }
+func (r *fakeRunning) Pause() error { r.record("pause"); return nil }
+func (r *fakeRunning) SeekTo(position time.Duration) error {
+	r.record("seek " + position.String())
+	return nil
+}
 func (r *fakeRunning) SetSpeed(speed playback.Speed) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.speeds = append(r.speeds, speed)
+	r.calls = append(r.calls, fmt.Sprintf("speed %v", speed))
 	return r.speedErr
 }
-func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no") }
+func (r *fakeRunning) StepFrame(forward bool) error {
+	if !r.frames {
+		return errors.New("no")
+	}
+	r.record(map[bool]string{true: "frame forward", false: "frame back"}[forward])
+	return nil
+}
+func (r *fakeRunning) record(call string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, call)
+}
+
+// took returns the calls since the last time and forgets them.
+func (r *fakeRunning) took() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	calls := r.calls
+	r.calls = nil
+	return calls
+}
 func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
 func (r *fakeRunning) ProcessID() int                  { return 4242 }

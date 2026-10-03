@@ -82,8 +82,11 @@ type Remote interface {
 	HasTranslation() bool
 	TranslationVisible() bool
 	SetTranslationVisible(visible bool)
-	// ReplayLine is "Treinar de novo" of the Modo Karaokê.
-	ReplayLine() error
+	// Mode is the study mode; when it always shows the translation, the
+	// translation cannot be hidden.
+	Mode() study.Mode
+	// Run carries out a shortcut's command; repeat tells the key is held.
+	Run(command shortcut.Command, repeat bool) error
 	// Reveal is the translation key going down (pressed) or up; a held
 	// key's repeats are not presses.
 	Reveal(pressed bool)
@@ -144,8 +147,12 @@ type Request struct {
 	// Window is where the player's window opens; zero leaves it to the player.
 	Window player.Placement
 	Steps  subtitle.NudgeSteps
-	// TranslationHidden starts with the translation hidden (study mode on demand).
-	TranslationHidden bool
+	// Mode is the study mode, which decides whether the translation starts
+	// hidden; empty is ModeDual.
+	Mode study.Mode
+	// PrecisionStep is the jump of the precision shortcuts; zero is
+	// DefaultPrecisionStep.
+	PrecisionStep time.Duration
 	// Karaoke is the Modo Karaokê to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke
@@ -186,6 +193,8 @@ type Session struct {
 	hasTranslation bool
 
 	translationVisible atomic.Bool
+	mode               atomic.Value // study.Mode
+	precision          atomic.Int64 // time.Duration
 	lastVisible        atomic.Pointer[session.Visible]
 	practice           *session.Practice
 	indicator          atomic.Value // study.Indicator
@@ -222,6 +231,13 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	if !ports.Registry.Supported(request.Player.ID) {
 		return nil, fmt.Errorf("%w: %s", ErrNoPlugin, request.Player.ID)
 	}
+	mode := cmp.Or(request.Mode, study.ModeDual)
+	if !mode.Valid() {
+		return nil, fmt.Errorf("unknown study mode %q", mode)
+	}
+	if request.PrecisionStep < 0 {
+		return nil, fmt.Errorf("negative precision step %v", request.PrecisionStep)
+	}
 	now := ports.Now
 	if now == nil {
 		now = time.Now
@@ -256,7 +272,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 		hasTranslation: request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil,
 		done:           make(chan struct{}),
 	}
-	s.translationVisible.Store(!request.TranslationHidden)
+	s.mode.Store(mode)
+	s.translationVisible.Store(mode.StartsRevealed())
+	s.precision.Store(int64(cmp.Or(request.PrecisionStep, DefaultPrecisionStep)))
 	s.subtitles = session.NewSubtitles(trackOf(loaded, request.Tracks.Primary), trackOf(loaded, request.Tracks.Translation))
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
@@ -384,12 +402,8 @@ func (s *Session) show(visible session.Visible) {
 // closed: at the end of the session, or when the chords change.
 func (s *Session) listenShortcuts(shortcuts Shortcuts) {
 	for press := range shortcuts.Presses() {
-		if press.Index < 0 || press.Index >= len(SyncShortcuts) {
-			continue
-		}
-		shortcut := SyncShortcuts[press.Index]
-		if offset, ok := s.sync.Nudge(shortcut.Line, shortcut.Later, press.Repeat); ok {
-			s.synced(shortcut.Line, offset)
+		if press.Index >= 0 && press.Index < len(syncCommands) {
+			_ = s.Run(syncCommands[press.Index], press.Repeat) // a sync step cannot fail
 		}
 	}
 }
@@ -424,8 +438,11 @@ func (s *Session) Offset(line session.Line) subtitle.Offset {
 }
 
 // SetTranslationVisible shows or hides the translation; the primary line
-// never moves either way.
+// never moves either way. A mode that always shows it keeps it shown.
 func (s *Session) SetTranslationVisible(visible bool) {
+	if !visible && !s.Mode().Hideable() {
+		return
+	}
 	s.translationVisible.Store(visible)
 	if last := s.lastVisible.Load(); last != nil {
 		s.show(*last)

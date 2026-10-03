@@ -251,3 +251,36 @@ func TestBindingOfAChord(t *testing.T) {
 		t.Fatalf("StartSync without chords = %v", err)
 	}
 }
+
+func TestStartSyncLeavesOutShortcutsWithoutAKey(t *testing.T) {
+	// This process is not in front: nothing is taken from the user. Only the
+	// last sync shortcut has a chord, and its presses keep its own index.
+	target := watch.ShortcutTarget{ProcessID: os.Getpid()}
+	chords := []shortcut.Chord{{}, {}, {}, {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "F11"}}
+	keys, err := hotkeys.StartSync(target, chords, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer keys.Close()
+	press(t, messageWindow(t), 0)
+	select {
+	case got := <-keys.Presses():
+		if got.Index != 3 {
+			t.Fatalf("press of the only chord = %+v, want index 3", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no press delivered")
+	}
+
+	// None has a chord: nothing to register, and Close still ends the presses.
+	none, err := hotkeys.StartSync(target, []shortcut.Chord{{}, {}, {}, {}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := errors.Join(none.Close(), none.Close()); err != nil {
+		t.Fatal(err)
+	}
+	if _, open := <-none.Presses(); open {
+		t.Fatal("Presses still open after Close")
+	}
+}

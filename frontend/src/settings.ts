@@ -1,44 +1,21 @@
 // Pure helpers of the settings screen: capturing a shortcut, colors with
 // transparency and telling unsaved changes.
+import { chordOf, isModifier, type KeyPress } from "./keys";
 
-/** The key codes of the modifiers: alone they make no shortcut yet. */
-const modifierCodes = new Set([
-  "ControlLeft",
-  "ControlRight",
-  "ShiftLeft",
-  "ShiftRight",
-  "AltLeft",
-  "MetaLeft",
-  "MetaRight",
-  "OSLeft",
-  "OSRight",
-  "CapsLock",
-  "NumLock",
-  "ScrollLock",
-]);
-
-export interface KeyPress {
-  code: string;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-  altKey: boolean;
-  metaKey: boolean;
-}
+export type { KeyPress } from "./keys";
 
 export type Capture = { kind: "wait" } | { kind: "cancel" } | { kind: "unsupported" } | { kind: "chord"; chord: string };
 
 /**
- * captureOf reads a key going down while a shortcut is captured, as the Go
- * side writes chords ("Ctrl+Shift+Comma"): keys by their place (code), so
- * Shift+, stays Shift+Comma on ABNT2. Modifiers alone wait for a key; Esc
- * alone cancels; the Windows key is not allowed. The right Alt is a key of
- * its own: AltGr adds a Ctrl to it, which is dropped.
+ * captureOf reads a key going down while a shortcut is captured, as chordOf
+ * does. Modifiers alone wait for a key; Esc alone cancels; the Windows key
+ * is not allowed.
  */
 export function captureOf(press: KeyPress): Capture {
   if (press.code === "AltRight") {
     return { kind: "chord", chord: "AltRight" };
   }
-  if (press.code === "" || modifierCodes.has(press.code)) {
+  if (isModifier(press.code)) {
     return press.metaKey ? { kind: "unsupported" } : { kind: "wait" };
   }
   if (press.metaKey) {
@@ -47,12 +24,7 @@ export function captureOf(press: KeyPress): Capture {
   if (press.code === "Escape" && !press.ctrlKey && !press.shiftKey && !press.altKey) {
     return { kind: "cancel" };
   }
-  const parts: string[] = [];
-  if (press.ctrlKey) parts.push("Ctrl");
-  if (press.altKey) parts.push("Alt");
-  if (press.shiftKey) parts.push("Shift");
-  parts.push(press.code);
-  return { kind: "chord", chord: parts.join("+") };
+  return { kind: "chord", chord: chordOf(press) };
 }
 
 /** splitColor separates "#RRGGBB[AA]" into its color and its opacity (0 to 1). */

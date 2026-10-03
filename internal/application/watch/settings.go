@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/playback"
@@ -33,15 +34,49 @@ func (s *Session) startSpeed(speed playback.Speed) error {
 }
 
 // Reveal is the translation key going down (pressed) or up: it shows or
-// hides the translation as the reveal behavior says.
+// hides the translation as the study mode and the reveal behavior say.
 func (s *Session) Reveal(pressed bool) {
 	if !s.hasTranslation {
 		return
 	}
 	visible := s.TranslationVisible()
-	if revealed := s.RevealBehavior().Revealed(visible, pressed); revealed != visible {
+	if revealed := s.Mode().Reveal(s.RevealBehavior(), visible, pressed); revealed != visible {
 		s.SetTranslationVisible(revealed)
 	}
+}
+
+// Mode is the study mode.
+func (s *Session) Mode() study.Mode {
+	mode, _ := s.mode.Load().(study.Mode)
+	return mode
+}
+
+// SetMode changes the study mode while the video plays: the translation
+// shows or hides as the mode starts.
+func (s *Session) SetMode(mode study.Mode) error {
+	if !mode.Valid() {
+		return fmt.Errorf("unknown study mode %q", mode)
+	}
+	s.mode.Store(mode)
+	s.translationVisible.Store(mode.StartsRevealed())
+	if last := s.lastVisible.Load(); last != nil {
+		s.show(*last)
+	}
+	return nil
+}
+
+// PrecisionStep is the jump of the precision shortcuts.
+func (s *Session) PrecisionStep() time.Duration {
+	return time.Duration(s.precision.Load())
+}
+
+// SetPrecisionStep changes the jump of the precision shortcuts.
+func (s *Session) SetPrecisionStep(step time.Duration) error {
+	if step <= 0 {
+		return fmt.Errorf("precision step %v is not positive", step)
+	}
+	s.precision.Store(int64(step))
+	return nil
 }
 
 // RevealBehavior is how the translation key works.

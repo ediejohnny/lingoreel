@@ -46,6 +46,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	}
 	a.mu.Lock()
 	languages := a.profile().Languages
+	mode := a.profile().Study.Mode
 	a.mu.Unlock()
 	preferences := media.Preferences{
 		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
@@ -65,6 +66,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		Suggested: Selection{Audio: result.Suggested.Audio, Primary: result.Suggested.Primary, Translation: result.Suggested.Translation},
 		Players:   a.players(),
 		Audio:     []Track{}, Subtitles: []Track{},
+		Mode: string(mode), Modes: modeOptions(),
 	}
 	for _, track := range result.Info.TracksOf(media.TrackAudio) {
 		video.Audio = append(video.Audio, audioTrack(track))

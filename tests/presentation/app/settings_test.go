@@ -71,6 +71,12 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.Reveal = "hold"
 	view.Speed = 0.75
 	view.Shortcuts[0].Chord = "KeyP"
+	view.Shortcuts[shortcutAt(t, view, shortcut.Mute)].Chord = "" // no shortcut
+	view.PrecisionStep = 250
+	if view.Mode != "on-demand" {
+		t.Fatalf("mode = %q, want the default on-demand", view.Mode)
+	}
+	view.Mode = "dual"
 	if err := r.api.SaveProfile(view); err != nil {
 		t.Fatal(err)
 	}
@@ -78,12 +84,13 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	if saved.Primary.FontSize != 40 || saved.Primary.Color.String() != "#FFE600" || !saved.Translation.Background.Enabled ||
 		saved.Translation.Background.Color.A != 0xC8 || saved.Layout.MarginBottom != 0.1 || saved.Study.Karaoke.Lead.Std().Seconds() != 3 ||
 		saved.Sync.OffsetStep.Std().Milliseconds() != 100 || saved.Study.Reveal != "hold" || saved.Speed != 0.75 ||
-		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" {
+		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" || !saved.Shortcuts.Of(shortcut.Mute).IsZero() ||
+		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 {
 		t.Fatalf("saved = %+v", saved)
 	}
-	// What the screen does not show stays.
-	if saved.Study.Mode != settings.DefaultProfile().Study.Mode || saved.Sync.PrecisionSeekStep != settings.DefaultProfile().Sync.PrecisionSeekStep {
-		t.Fatalf("hidden choices changed: %+v", saved)
+	// The video took the changed mode.
+	if state := r.api.PlaybackState(); state.Mode != "dual" || !state.TranslationVisible {
+		t.Fatalf("playback mode %q, translation visible %v", state.Mode, state.TranslationVisible)
 	}
 	// The video being watched took the new look at once.
 	look, looks := r.display.lastLook()
@@ -91,9 +98,20 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 		t.Fatalf("display looks %d, last %+v", looks, look)
 	}
 	again := settingsOf(t, r).Profile
-	if again.Shortcuts[0].Label != "P" || again.Primary.Color != "#FFE600" {
-		t.Fatalf("settings after saving = %+v", again.Shortcuts[0])
+	mute := again.Shortcuts[shortcutAt(t, again, shortcut.Mute)]
+	if again.Shortcuts[0].Label != "P" || again.Primary.Color != "#FFE600" || mute.Chord != "" || mute.Label != "" {
+		t.Fatalf("settings after saving = %+v, mute %+v", again.Shortcuts[0], mute)
 	}
+}
+
+// shortcutAt is where a command is on the settings screen.
+func shortcutAt(t *testing.T, p app.ProfileSettings, command shortcut.Command) int {
+	t.Helper()
+	i := slices.IndexFunc(p.Shortcuts, func(s app.ShortcutSetting) bool { return s.Command == string(command) })
+	if i < 0 {
+		t.Fatalf("no %s on the screen", command)
+	}
+	return i
 }
 
 func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
@@ -121,8 +139,17 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"fast below step", func(p *app.ProfileSettings) { p.SyncStep, p.SyncFastStep = 200, 100 }, "Passos da sincronização"},
 		{"reveal", func(p *app.ProfileSettings) { p.Reveal = "wink" }, "tecla da tradução"},
 		{"language", func(p *app.ProfileSettings) { p.Languages.Primary = "english!" }, "Confira os idiomas"},
-		{"Alt+Shift", func(p *app.ProfileSettings) { p.Shortcuts[1].Chord = "Alt+Shift+KeyA" }, "Atalho de “Voltar 5 s”: Alt+Shift troca o idioma"},
-		{"conflict", func(p *app.ProfileSettings) { p.Shortcuts[5].Chord = "Space" }, "“Espaço” já é o atalho de “Reproduzir / pausar”"},
+		{"Alt+Shift", func(p *app.ProfileSettings) {
+			p.Shortcuts[shortcutAt(t, *p, shortcut.SeekBack)].Chord = "Alt+Shift+KeyA"
+		}, "Atalho de “Voltar 5 s”: Alt+Shift troca o idioma"},
+		{"conflict", func(p *app.ProfileSettings) {
+			p.Shortcuts[shortcutAt(t, *p, shortcut.Fullscreen)].Chord = "Space"
+		}, "“Espaço” já é o atalho de “Reproduzir / pausar”"},
+		{"modifiers alone", func(p *app.ProfileSettings) { p.Shortcuts[0].Chord = "Ctrl+" }, "Falta a tecla principal"},
+		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
+		{"no mode", func(p *app.ProfileSettings) { p.Mode = "" }, "Escolha um modo de estudo."},
+		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão: vai de 10 a 10000 ms."},
+		{"precision too big", func(p *app.ProfileSettings) { p.PrecisionStep = 10001 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
 	}
 	for _, c := range cases {

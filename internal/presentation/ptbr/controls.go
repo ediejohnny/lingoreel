@@ -67,8 +67,15 @@ func BarTip(item controlbar.Item, state controlbar.State, keys shortcut.Map, cha
 }
 
 func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Command) string) string {
-	with := func(text string, command shortcut.Command) string { return text + " (" + key(command) + ")" }
-	jump := int(controlbar.JumpStep / time.Second)
+	with := func(text string, command shortcut.Command) string {
+		if label := key(command); label != "" {
+			return text + " (" + label + ")"
+		}
+		return text
+	}
+	// The jump buttons run the 5 s seek commands.
+	back, _ := shortcut.SeekBack.Jump()
+	forward, _ := shortcut.SeekForward.Jump()
 	switch item.Action {
 	case controlbar.ActionPlayPause:
 		if state.Paused {
@@ -76,9 +83,9 @@ func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Comm
 		}
 		return with("Pausar", shortcut.PlayPause)
 	case controlbar.ActionBack:
-		return with(fmt.Sprintf("Voltar %d s", jump), shortcut.SeekBack)
+		return with(fmt.Sprintf("Voltar %d s", int(-back/time.Second)), shortcut.SeekBack)
 	case controlbar.ActionForward:
-		return with(fmt.Sprintf("Avançar %d s", jump), shortcut.SeekForward)
+		return with(fmt.Sprintf("Avançar %d s", int(forward/time.Second)), shortcut.SeekForward)
 	case controlbar.ActionMute:
 		if state.Muted {
 			return with("Ativar o som", shortcut.Mute)
@@ -89,13 +96,19 @@ func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Comm
 		if state.Muted {
 			level = 0
 		}
-		return fmt.Sprintf("Volume: %d%% (%s %s)", int(math.Round(float64(level)*100)), key(shortcut.VolumeUp), key(shortcut.VolumeDown))
+		volume := fmt.Sprintf("Volume: %d%%", int(math.Round(float64(level)*100)))
+		if keys := strings.TrimSpace(key(shortcut.VolumeUp) + " " + key(shortcut.VolumeDown)); keys != "" {
+			volume += " (" + keys + ")"
+		}
+		return volume
 	case controlbar.ActionTrack:
 		return "Clique ou arraste para ir a outro ponto"
 	case controlbar.ActionTranslation:
 		switch {
 		case !state.HasTranslation:
 			return "Nenhuma tradução escolhida"
+		case state.TranslationLocked:
+			return "A tradução fica sempre visível neste modo de estudo"
 		case state.TranslationVisible:
 			return with("Ocultar a tradução", shortcut.Translation)
 		}

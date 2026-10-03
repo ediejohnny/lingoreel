@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"lingoreel/internal/domain/shortcut"
 )
@@ -101,13 +102,92 @@ func TestChordJSONRefusesInvalidText(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"a":"Ctrl+Comma"}`), &chords); err != nil || chords["a"] != (shortcut.Chord{Modifiers: shortcut.Ctrl, Key: shortcut.KeyComma}) {
 		t.Fatalf("decode = %v %+v", err, chords)
 	}
-	for _, bad := range []string{`{"a":"Alt+Shift+KeyP"}`, `{"a":""}`, `{"a":"Alt+F4"}`, `{"a":3}`} {
+	for _, bad := range []string{`{"a":"Alt+Shift+KeyP"}`, `{"a":" "}`, `{"a":"Ctrl+"}`, `{"a":"Alt+F4"}`, `{"a":3}`} {
 		if err := json.Unmarshal([]byte(bad), &chords); err == nil {
 			t.Errorf("decoded %s", bad)
 		}
 	}
 	if _, err := json.Marshal(shortcut.Chord{Key: "Nope"}); err == nil {
 		t.Fatal("an invalid chord was written")
+	}
+	if _, err := json.Marshal(shortcut.Chord{Modifiers: shortcut.Ctrl}); err == nil {
+		t.Fatal("modifiers without a key were written")
+	}
+}
+
+func TestNoShortcutIsTheEmptyChord(t *testing.T) {
+	// Written and read back as an empty text.
+	text, err := json.Marshal(map[string]shortcut.Chord{"a": {}})
+	if err != nil || string(text) != `{"a":""}` {
+		t.Fatalf("Marshal = %s %v", text, err)
+	}
+	chords := map[string]shortcut.Chord{"a": {Key: shortcut.KeyM}}
+	if err := json.Unmarshal([]byte(`{"a":""}`), &chords); err != nil || !chords["a"].IsZero() {
+		t.Fatalf("Unmarshal = %+v %v", chords, err)
+	}
+	if (shortcut.Chord{Key: shortcut.KeyM}).IsZero() || (shortcut.Chord{Modifiers: shortcut.Ctrl}).IsZero() {
+		t.Fatal("a chord with a key or a modifier counted as none")
+	}
+	// The chord itself still needs a key; only a map takes none.
+	if err := (shortcut.Chord{}).Validate(); !errors.Is(err, shortcut.ErrNoKey) {
+		t.Fatalf("Validate() = %v", err)
+	}
+
+	// Two commands without a shortcut share nothing, and nothing finds them.
+	m := shortcut.Map{shortcut.Mute: {}, shortcut.Fullscreen: {}}
+	if err := m.Validate(); err != nil {
+		t.Fatalf("Validate = %v", err)
+	}
+	if !m.Of(shortcut.Mute).IsZero() || !m.Resolved()[shortcut.Mute].IsZero() {
+		t.Fatal("the empty chord fell back to the default")
+	}
+	if _, found := m.Find(shortcut.Chord{}); found {
+		t.Fatal("Find(none) found a command")
+	}
+	if _, found := m.Find(shortcut.Chord{Key: shortcut.KeyM}); found {
+		t.Fatal("M still runs the command that has no shortcut")
+	}
+	// Its old key is free for another command.
+	if err := (shortcut.Map{shortcut.Mute: {}, shortcut.PlayPause: {Key: shortcut.KeyM}}).Validate(); err != nil {
+		t.Fatalf("the freed key = %v", err)
+	}
+}
+
+func TestJumpsRewindsAndRepeats(t *testing.T) {
+	jumps := map[shortcut.Command]time.Duration{
+		shortcut.SeekBack: -5 * time.Second, shortcut.SeekForward: 5 * time.Second,
+		shortcut.SeekBack10: -10 * time.Second, shortcut.SeekForward10: 10 * time.Second,
+		shortcut.SeekBack30: -30 * time.Second, shortcut.SeekForward30: 30 * time.Second,
+	}
+	rewinds := map[shortcut.Command]time.Duration{
+		shortcut.RepeatLast3: 3 * time.Second, shortcut.RepeatLast5: 5 * time.Second, shortcut.RepeatLast10: 10 * time.Second,
+	}
+	// Holding moves on through the video, the volume and the sync; nothing
+	// that switches, replays or changes the speed repeats.
+	repeats := map[shortcut.Command]bool{
+		shortcut.PrecisionBack: true, shortcut.PrecisionForward: true, shortcut.FrameBack: true, shortcut.FrameForward: true,
+		shortcut.VolumeUp: true, shortcut.VolumeDown: true,
+		shortcut.SyncPrimaryEarlier: true, shortcut.SyncPrimaryLater: true,
+		shortcut.SyncTranslationEarlier: true, shortcut.SyncTranslationLater: true,
+	}
+	for command := range jumps {
+		repeats[command] = true
+	}
+	for _, command := range shortcut.Commands() {
+		jump, isJump := command.Jump()
+		if want, is := jumps[command]; isJump != is || jump != want {
+			t.Errorf("%s.Jump() = %v %v, want %v %v", command, jump, isJump, want, is)
+		}
+		rewind, isRewind := command.Rewind()
+		if want, is := rewinds[command]; isRewind != is || rewind != want {
+			t.Errorf("%s.Rewind() = %v %v, want %v %v", command, rewind, isRewind, want, is)
+		}
+		if command.Repeats() != repeats[command] {
+			t.Errorf("%s.Repeats() = %v", command, command.Repeats())
+		}
+	}
+	if _, jumps := shortcut.Command("nope").Jump(); jumps {
+		t.Fatal("an unknown command jumps")
 	}
 }
 
@@ -119,6 +199,8 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 	if len(defaults) != len(shortcut.Commands()) {
 		t.Fatalf("%d defaults for %d commands", len(defaults), len(shortcut.Commands()))
 	}
+	// The consolidated map of the plan; the explicit translation choices
+	// start without a shortcut.
 	want := map[shortcut.Command]string{
 		shortcut.PlayPause: "Space", shortcut.SeekBack: "ArrowLeft", shortcut.SeekForward: "ArrowRight",
 		shortcut.VolumeUp: "ArrowUp", shortcut.VolumeDown: "ArrowDown", shortcut.Mute: "KeyM",
@@ -126,6 +208,16 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 		shortcut.Translation:        "AltRight",
 		shortcut.SyncPrimaryEarlier: "Shift+Comma", shortcut.SyncPrimaryLater: "Shift+Period",
 		shortcut.SyncTranslationEarlier: "Ctrl+Comma", shortcut.SyncTranslationLater: "Ctrl+Period",
+		shortcut.SeekBack10: "Shift+ArrowLeft", shortcut.SeekForward10: "Shift+ArrowRight",
+		shortcut.SeekBack30: "Ctrl+ArrowLeft", shortcut.SeekForward30: "Ctrl+ArrowRight",
+		shortcut.PrecisionBack: "Alt+ArrowLeft", shortcut.PrecisionForward: "Alt+ArrowRight",
+		shortcut.FrameBack: "Comma", shortcut.FrameForward: "Period",
+		shortcut.SpeedDown: "Ctrl+ArrowDown", shortcut.SpeedUp: "Ctrl+ArrowUp", shortcut.SpeedNormal: "Ctrl+Digit0",
+		shortcut.RepeatPhrase: "F9", shortcut.RepeatLast3: "Digit3", shortcut.RepeatLast5: "Digit5", shortcut.RepeatLast10: "Digit0",
+		shortcut.ShowBoth: "", shortcut.PrimaryOnly: "",
+	}
+	if len(want) != len(shortcut.Commands()) {
+		t.Fatalf("the test knows %d commands of %d", len(want), len(shortcut.Commands()))
 	}
 	for command, text := range want {
 		if got := defaults[command].String(); got != text {
@@ -173,8 +265,8 @@ func TestValidateRefusesUnknownCommandsAndBadChords(t *testing.T) {
 	if err := (shortcut.Map{shortcut.Mute: {Modifiers: shortcut.Alt | shortcut.Shift, Key: "KeyM"}}).Validate(); !errors.Is(err, shortcut.ErrAltShift) {
 		t.Fatalf("Alt+Shift in a map = %v", err)
 	}
-	if err := (shortcut.Map{shortcut.Mute: {}}).Validate(); !errors.Is(err, shortcut.ErrNoKey) {
-		t.Fatalf("empty chord in a map = %v", err)
+	if err := (shortcut.Map{shortcut.Mute: {Modifiers: shortcut.Ctrl}}).Validate(); !errors.Is(err, shortcut.ErrNoKey) {
+		t.Fatalf("modifiers without a key in a map = %v", err)
 	}
 }
 

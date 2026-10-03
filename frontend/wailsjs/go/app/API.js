@@ -98,6 +98,14 @@ export function ResumePassage() {
   return window['go']['app']['API']['ResumePassage']();
 }
 
+export function Reveal(arg1) {
+  return window['go']['app']['API']['Reveal'](arg1);
+}
+
+export function RunShortcut(arg1, arg2) {
+  return window['go']['app']['API']['RunShortcut'](arg1, arg2);
+}
+
 export function SaveProfile(arg1) {
   return window['go']['app']['API']['SaveProfile'](arg1);
 }
@@ -130,6 +138,10 @@ export function SetSpeed(arg1) {
   return window['go']['app']['API']['SetSpeed'](arg1);
 }
 
+export function SetStudyMode(arg1) {
+  return window['go']['app']['API']['SetStudyMode'](arg1);
+}
+
 export function SetSyncNotice(arg1) {
   return window['go']['app']['API']['SetSyncNotice'](arg1);
 }
@@ -144,6 +156,10 @@ export function SetTranslationVisible(arg1) {
 
 export function Settings() {
   return window['go']['app']['API']['Settings']();
+}
+
+export function Shortcuts() {
+  return window['go']['app']['API']['Shortcuts']();
 }
 
 export function ShowRecommendations() {

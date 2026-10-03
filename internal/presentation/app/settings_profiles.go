@@ -126,8 +126,9 @@ func (a *API) activeName() string {
 // name, and applies them to the video being watched.
 func (a *API) ResetProfile() error {
 	a.mu.Lock()
+	previous := a.profile()
 	profile := settings.DefaultProfile()
-	profile.Name = a.profile().Name
+	profile.Name = previous.Name
 	next, err := a.profiles.Replace(profile)
 	if err == nil {
 		err = a.commitProfiles(next)
@@ -136,7 +137,7 @@ func (a *API) ResetProfile() error {
 	if err != nil {
 		return profileError(err)
 	}
-	a.applyToSession(profile)
+	a.applyToSession(previous, profile)
 	return nil
 }
 
