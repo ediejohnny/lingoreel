@@ -16,8 +16,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 
 	appsession "lingoreel/internal/application/session"
 	"lingoreel/internal/domain/playback"
@@ -500,6 +503,80 @@ func TestVLCCrashIsReportedAsLost(t *testing.T) {
 	}
 	if err := session.Err(); !errors.Is(err, playback.ErrPlayerLost) {
 		t.Fatalf("Err after a crash = %v, want ErrPlayerLost", err)
+	}
+}
+
+// freeze stops every thread of a process until the returned function runs.
+func freeze(t *testing.T, pid int) (thaw func()) {
+	t.Helper()
+	const processSuspendResume = 0x0800
+	ntdll := windows.NewLazySystemDLL("ntdll.dll")
+	handle, err := windows.OpenProcess(processSuspendResume, false, uint32(pid))
+	if err != nil {
+		t.Fatalf("OpenProcess: %v", err)
+	}
+	if status, _, _ := ntdll.NewProc("NtSuspendProcess").Call(uintptr(handle)); status != 0 {
+		windows.CloseHandle(handle)
+		t.Fatalf("NtSuspendProcess: status %#x", status)
+	}
+	var once sync.Once
+	thaw = func() {
+		once.Do(func() {
+			ntdll.NewProc("NtResumeProcess").Call(uintptr(handle))
+			windows.CloseHandle(handle)
+		})
+	}
+	t.Cleanup(thaw)
+	return thaw
+}
+
+// A VLC that stops answering for a while is waited for, and the session goes
+// on; one that stays silent past the limit is lost (RNF-013).
+func TestAFrozenVLCIsWaitedForThenLost(t *testing.T) {
+	executable, video := realVLC(t)
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	drain := func(until time.Duration) (open bool) {
+		deadline := time.After(until)
+		for {
+			select {
+			case _, open = <-session.Samples():
+				if !open {
+					return false
+				}
+			case <-deadline:
+				return true
+			}
+		}
+	}
+
+	// Frozen for 4 s: longer than a request may take, shorter than the limit.
+	thaw := freeze(t, session.ProcessID())
+	seen := false
+	for deadline := time.Now().Add(4 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		seen = seen || session.Reconnecting()
+	}
+	thaw()
+	if !seen {
+		t.Fatal("a silent VLC was never reported as reconnecting")
+	}
+	if !drain(3 * time.Second) {
+		t.Fatalf("the session ended after a short freeze: %v", session.Err())
+	}
+	if session.Reconnecting() || session.Err() != nil {
+		t.Fatalf("after VLC answered again: reconnecting %v, err %v", session.Reconnecting(), session.Err())
+	}
+
+	// Frozen past the limit: the samples end and the session is lost.
+	freeze(t, session.ProcessID())
+	if drain(20 * time.Second) {
+		t.Fatal("the samples still run 20 s into a freeze")
+	}
+	if err := session.Err(); !errors.Is(err, playback.ErrPlayerLost) {
+		t.Fatalf("Err after a long freeze = %v, want ErrPlayerLost", err)
 	}
 }
 

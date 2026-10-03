@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -53,7 +54,11 @@ type fakeRunning struct {
 	mu      sync.Mutex
 	seeks   []time.Duration
 	speeds  []playback.Speed
+	// reconnecting is what Reconnecting answers.
+	reconnecting atomic.Bool
 }
+
+func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
 
 func (r *fakeRunning) lastSeek() (time.Duration, bool) {
 	r.mu.Lock()

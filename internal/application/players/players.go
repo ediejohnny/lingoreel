@@ -49,6 +49,12 @@ type Running interface {
 	Close() error
 }
 
+// Reconnector is what a Running may also offer: whether it is trying again
+// to reach a player that stopped answering, before the session is lost.
+type Reconnector interface {
+	Reconnecting() bool
+}
+
 // Registry holds the plugins the app ships with.
 type Registry struct {
 	plugins []Plugin

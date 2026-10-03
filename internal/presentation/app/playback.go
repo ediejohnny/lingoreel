@@ -120,6 +120,17 @@ func (a *API) Watch(request WatchRequest) error {
 	return nil
 }
 
+// healthText words the player's health for the panel and the video.
+func healthText(health watch.Health) string {
+	switch health {
+	case watch.HealthReconnecting:
+		return "O player não está respondendo. Reconectando…"
+	case watch.HealthStalled:
+		return "O player parece travado: as legendas esperam por ele."
+	}
+	return ""
+}
+
 // trackOf describes a track for the log: "4 en S_TEXT/UTF8", or "none".
 func trackOf(info media.Info, number uint64) string {
 	for _, track := range info.Tracks {
@@ -152,10 +163,20 @@ func (a *API) updateProfile(change func(*settings.Profile)) error {
 func (a *API) report(current *watching) {
 	ticker := time.NewTicker(stateInterval)
 	defer ticker.Stop()
+	health := ""
 	for {
 		select {
 		case <-ticker.C:
-			a.emit(EventPlayback, a.describe(current))
+			state := a.describe(current)
+			if state.Health != health {
+				// A change of health also shows on the video, where the user looks.
+				health = state.Health
+				current.session.Notify(health)
+				if health != "" {
+					a.logger.Warn("player health", "state", health)
+				}
+			}
+			a.emit(EventPlayback, state)
 		case <-current.session.Done():
 			a.mu.Lock()
 			if a.watching == current {
@@ -205,6 +226,7 @@ func (a *API) describe(current *watching) Playback {
 		Editing:            describeEditing(current),
 		SavedPassages:      saved,
 		ProjectNote:        note,
+		Health:             healthText(current.session.Health()),
 	}
 }
 

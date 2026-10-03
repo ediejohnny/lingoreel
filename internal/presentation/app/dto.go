@@ -104,6 +104,9 @@ type Playback struct {
 	SavedPassages []SavedPassage `json:"savedPassages"`
 	// ProjectNote tells of a problem with the video's corrections file.
 	ProjectNote string `json:"projectNote"`
+	// Health tells of a player being reconnected or frozen; empty when it
+	// answers.
+	Health string `json:"health"`
 }
 
 // Editing is the line being corrected and what the editor can do. Times are

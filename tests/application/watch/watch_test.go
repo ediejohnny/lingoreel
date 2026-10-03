@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,7 +62,11 @@ type fakeRunning struct {
 	// frames makes the player step frames; calls records what it was asked.
 	frames bool
 	calls  []string
+	// reconnecting is what Reconnecting answers.
+	reconnecting atomic.Bool
 }
+
+func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{

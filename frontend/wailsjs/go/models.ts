@@ -291,6 +291,7 @@ export namespace app {
 	    editing: Editing;
 	    savedPassages: SavedPassage[];
 	    projectNote: string;
+	    health: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Playback(source);
@@ -316,6 +317,7 @@ export namespace app {
 	        this.editing = this.convertValues(source["editing"], Editing);
 	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
 	        this.projectNote = source["projectNote"];
+	        this.health = source["health"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
