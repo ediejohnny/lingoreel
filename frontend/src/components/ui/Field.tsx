@@ -54,16 +54,17 @@ export function TextField({ label, value, onChange, placeholder, help, action, i
         </label>
         {help}
       </div>
-      <div className="flex gap-2">
+      {/* The action keeps its whole label: the field takes what is left and, when both do not fit, the action goes below. */}
+      <div className="flex flex-wrap gap-2">
         <input
           id={id}
           value={value}
           placeholder={placeholder}
           inputMode={inputMode}
           onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-full min-w-0 rounded-control border border-line-strong bg-surface px-3 text-sm text-fg"
+          className="h-10 min-w-32 flex-1 rounded-control border border-line-strong bg-surface px-3 text-sm text-fg"
         />
-        {action}
+        {action && <div className="flex shrink-0 items-center">{action}</div>}
       </div>
     </div>
   );
