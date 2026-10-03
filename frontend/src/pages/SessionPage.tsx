@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Play, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { InstallCards } from "../components/session/InstallCards";
 import { Button } from "../components/ui/Button";
@@ -15,6 +15,8 @@ interface SessionPageProps {
   players: Players;
   starting: boolean;
   error: string;
+  /** resumable offers to watch again from where the lost player was. */
+  resumable: boolean;
   installing: string;
   installError: string;
   onWatch: (request: WatchRequest) => void;
@@ -54,7 +56,7 @@ export function SessionPage(props: SessionPageProps) {
   }));
   const canWatch = supported.some((item) => item.id === player) && (primary !== none || translation !== none);
 
-  const watch = () =>
+  const watch = (resume = false) =>
     props.onWatch({
       audio: Number(audio),
       primary: Number(primary),
@@ -62,17 +64,29 @@ export function SessionPage(props: SessionPageProps) {
       player,
       alwaysUse,
       mode,
+      resume,
     });
 
   return (
     <main className="flex flex-1 justify-center overflow-y-auto px-6 pt-6">
       <div className="flex w-full max-w-3xl flex-col gap-5">
         {props.error && (
-          <Banner tone="error" onClose={props.onDismissError}>
+          <Banner
+            tone="error"
+            onClose={props.onDismissError}
+            action={
+              props.resumable && canWatch ? (
+                <Button icon={RotateCcw} loading={props.starting} onClick={() => watch(true)}>
+                  Assistir de novo
+                </Button>
+              ) : undefined
+            }
+          >
             {props.error}
           </Banner>
         )}
         {video.projectNote && <Banner tone="warning">{video.projectNote}</Banner>}
+        {video.languageNote && <Banner tone="info">{video.languageNote}</Banner>}
         <Card
           title="Legendas"
           aside={
@@ -168,7 +182,7 @@ export function SessionPage(props: SessionPageProps) {
 
         {/* Always in view, however tall the window's content. */}
         <div className="sticky bottom-0 -mx-6 flex justify-end border-t border-line bg-bg/95 px-6 py-3 backdrop-blur">
-          <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={watch}>
+          <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={() => watch()}>
             {props.starting ? "Iniciando o player…" : "Assistir"}
           </Button>
         </div>

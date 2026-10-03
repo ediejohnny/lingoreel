@@ -27,6 +27,11 @@ const (
 	maxSlowdown  = 0.5
 )
 
+// stallLimit is how long a playing player may report the same position
+// before the clock takes it as frozen: it then stops estimating, so the
+// subtitles wait for the player instead of running ahead.
+const stallLimit = 3 * time.Second
+
 // Clock turns player samples into a continuous playback position.
 // It is safe for concurrent use.
 type Clock struct {
@@ -38,7 +43,11 @@ type Clock struct {
 	// lastReported is the last position the player reported; estimated
 	// players repeat stale values, which must not move the anchor.
 	lastReported time.Duration
-	graceUntil   time.Time
+	// reportedSince is when the reported position or state last changed;
+	// stalled holds the clock at the reported position.
+	reportedSince time.Time
+	stalled       bool
+	graceUntil    time.Time
 	// slewFactor scales the speed from the anchor until slewUntil.
 	slewFactor float64
 	slewUntil  time.Time
@@ -72,6 +81,17 @@ func (c *Clock) Observe(sample playback.Sample) {
 	}
 	valueChanged := sample.Position != c.lastReported
 	c.lastReported = sample.Position
+	switch {
+	case stateChanged || valueChanged:
+		c.reportedSince = sample.ObservedAt
+		c.stalled = false
+	case !c.stalled && sample.Status == playback.StatusPlaying && sample.ObservedAt.Sub(c.reportedSince) >= stallLimit:
+		c.stalled = true
+		c.anchor = sample
+		c.slewUntil = time.Time{}
+		c.signal()
+		return
+	}
 	if !stateChanged && !valueChanged && c.precision != playback.PrecisionExact {
 		return
 	}
@@ -130,6 +150,13 @@ func (c *Clock) State() playback.Sample {
 	return state
 }
 
+// Stalled reports a playing player whose position stopped moving.
+func (c *Clock) Stalled() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stalled
+}
+
 // SetPosition moves the clock after the session itself moved the player.
 func (c *Clock) SetPosition(position time.Duration) {
 	c.reanchor(func(sample *playback.Sample) { sample.Position = position })
@@ -160,6 +187,7 @@ func (c *Clock) reanchor(change func(*playback.Sample)) {
 	c.anchored = true
 	c.slewUntil = time.Time{}
 	c.graceUntil = now.Add(seekGracePeriod)
+	c.reportedSince, c.stalled = now, false
 	c.signal()
 }
 
@@ -169,7 +197,7 @@ func (c *Clock) extrapolate(at time.Time) time.Duration {
 		return 0
 	}
 	position := c.anchor.Position
-	if c.anchor.Status == playback.StatusPlaying {
+	if c.anchor.Status == playback.StatusPlaying && !c.stalled {
 		if elapsed := at.Sub(c.anchor.ObservedAt); elapsed > 0 {
 			speed := float64(c.anchor.Speed)
 			slowed := min(elapsed, max(c.slewUntil.Sub(c.anchor.ObservedAt), 0))

@@ -16,6 +16,52 @@ export namespace app {
 	        this.speed = source["speed"];
 	    }
 	}
+	export class Fact {
+	    label: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Fact(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.value = source["value"];
+	    }
+	}
+	export class Diagnostics {
+	    items: Fact[];
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Diagnostics(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], Fact);
+	        this.text = source["text"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class EditRequest {
 	    text: string;
 	    start: string;
@@ -68,6 +114,7 @@ export namespace app {
 	        this.staleEdits = source["staleEdits"];
 	    }
 	}
+	
 	export class GeneralSettings {
 	    theme: string;
 	    syncNotice: boolean;
@@ -291,6 +338,7 @@ export namespace app {
 	    editing: Editing;
 	    savedPassages: SavedPassage[];
 	    projectNote: string;
+	    health: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Playback(source);
@@ -316,6 +364,7 @@ export namespace app {
 	        this.editing = this.convertValues(source["editing"], Editing);
 	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
 	        this.projectNote = source["projectNote"];
+	        this.health = source["health"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -810,6 +859,7 @@ export namespace app {
 	    mode: string;
 	    modes: Option[];
 	    projectNote: string;
+	    languageNote: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -827,6 +877,7 @@ export namespace app {
 	        this.mode = source["mode"];
 	        this.modes = this.convertValues(source["modes"], Option);
 	        this.projectNote = source["projectNote"];
+	        this.languageNote = source["languageNote"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -854,6 +905,7 @@ export namespace app {
 	    player: string;
 	    alwaysUse: boolean;
 	    mode: string;
+	    resume: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchRequest(source);
@@ -867,6 +919,7 @@ export namespace app {
 	        this.player = source["player"];
 	        this.alwaysUse = source["alwaysUse"];
 	        this.mode = source["mode"];
+	        this.resume = source["resume"];
 	    }
 	}
 

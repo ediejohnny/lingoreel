@@ -9,6 +9,8 @@ import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { AssociationCard } from "./AssociationCard";
+import { DiagnosticsCard } from "./DiagnosticsCard";
 import { change, type SectionProps } from "./section";
 
 /** PlaybackSection holds how a video starts, its speed and its audio, and the precision step. */
@@ -83,18 +85,22 @@ export function AppearanceSection({ theme, onTheme }: AppearanceSectionProps) {
   );
 }
 
-/** AdvancedSection holds the settings folder and the reset of the profile. */
+/** AdvancedSection holds the settings folder, the Windows association, the diagnostics and the reset of the profile. */
 export function AdvancedSection({ view, dirty, run }: SectionProps) {
   const [confirming, setConfirming] = useState(false);
   return (
     <>
       <Card title="Pasta das configurações">
         <p className="mb-3 text-sm break-all text-fg-secondary">{view.folder}</p>
-        <p className="mb-3 text-xs text-fg-muted">Ali ficam os perfis e o registro da última sessão, útil para relatar um problema.</p>
+        <p className="mb-3 text-xs text-fg-muted">
+          Ali ficam os perfis e, na pasta "logs", os registros dos últimos 14 dias, úteis para relatar um problema.
+        </p>
         <Button icon={FolderOpen} onClick={() => void run(() => backend.openSettingsFolder())}>
           Abrir a pasta
         </Button>
       </Card>
+      <AssociationCard />
+      <DiagnosticsCard />
       <Card title="Restaurar o perfil">
         <p className="mb-3 text-sm text-fg-secondary">
           Volta todas as escolhas do perfil “{view.general.activeProfile}” ao padrão: legendas, cores, atalhos, Modo Karaokê e player. O

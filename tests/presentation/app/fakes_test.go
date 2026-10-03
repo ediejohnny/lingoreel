@@ -1,11 +1,15 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,7 +30,27 @@ import (
 
 type fakeReader struct{}
 
-func (fakeReader) Analyze(string) (media.Info, error) {
+// Videos the fake reader treats apart, by name.
+const (
+	missingVideo      = `D:\Filmes\Sumiu.mkv`
+	brokenVideo       = `D:\Filmes\Quebrado.mkv`
+	portugueseVideo   = `D:\Filmes\SoPortugues.mkv`
+	badSubtitlesVideo = `D:\Filmes\LegendaRuim.mkv`
+)
+
+func (fakeReader) Analyze(path string) (media.Info, error) {
+	switch path {
+	case missingVideo:
+		return media.Info{}, fmt.Errorf("opening %s: %w", path, fs.ErrNotExist)
+	case brokenVideo:
+		return media.Info{}, errors.New("analyzing: not an EBML file")
+	case portugueseVideo:
+		return media.Info{Duration: time.Hour, Tracks: []media.Track{
+			{Number: 1, Type: media.TrackVideo, Width: 1280, Height: 720},
+			{Number: 2, Type: media.TrackAudio, Language: "pt"},
+			{Number: 3, Type: media.TrackSubtitle, Language: "pt-BR", Readable: true},
+		}}, nil
+	}
 	return media.Info{Duration: 90 * time.Minute, Tracks: []media.Track{
 		{Number: 1, Type: media.TrackVideo, Width: 1920, Height: 1080, FrameRate: 24},
 		{Number: 2, Type: media.TrackAudio, Language: "pt", Codec: "A_AC3", Default: true},
@@ -37,7 +61,10 @@ func (fakeReader) Analyze(string) (media.Info, error) {
 	}}, nil
 }
 func (fakeReader) Check(string) error { return nil }
-func (fakeReader) ReadSubtitles(context.Context, string, []uint64, func(int64, int64)) (map[uint64]media.SubtitleContent, error) {
+func (fakeReader) ReadSubtitles(_ context.Context, path string, _ []uint64, _ func(int64, int64)) (map[uint64]media.SubtitleContent, error) {
+	if path == badSubtitlesVideo {
+		return nil, errors.New("reading subtitles: broken block")
+	}
 	line := subtitle.Event{ID: "1", Start: time.Second, End: 2 * time.Second, OriginalText: "Hi."}
 	return map[uint64]media.SubtitleContent{4: {Events: []subtitle.Event{line}}, 5: {Events: []subtitle.Event{line}}}, nil
 }
@@ -51,7 +78,12 @@ type fakeRunning struct {
 	mu      sync.Mutex
 	seeks   []time.Duration
 	speeds  []playback.Speed
+	// reconnecting is what Reconnecting answers; lost makes Err report a lost player.
+	reconnecting atomic.Bool
+	lost         atomic.Bool
 }
+
+func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
 
 func (r *fakeRunning) lastSeek() (time.Duration, bool) {
 	r.mu.Lock()
@@ -83,7 +115,12 @@ func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no")
 func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
 func (r *fakeRunning) ProcessID() int                  { return 1 }
-func (r *fakeRunning) Err() error                      { return nil }
+func (r *fakeRunning) Err() error {
+	if r.lost.Load() {
+		return playback.ErrPlayerLost
+	}
+	return nil
+}
 func (r *fakeRunning) Close() error {
 	r.once.Do(func() { close(r.samples) })
 	return nil
@@ -93,6 +130,8 @@ type fakePlugin struct {
 	mu       sync.Mutex
 	launched []player.LaunchRequest
 	running  *fakeRunning
+	// launchErr is what Launch answers when set.
+	launchErr error
 }
 
 func (p *fakePlugin) Descriptor() player.Descriptor {
@@ -104,6 +143,9 @@ func (p *fakePlugin) Launch(_ context.Context, _ string, request player.LaunchRe
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.launched = append(p.launched, request)
+	if p.launchErr != nil {
+		return nil, p.launchErr
+	}
 	p.running = &fakeRunning{samples: make(chan playback.Sample, 1)}
 	p.running.samples <- playback.Sample{Position: 30 * time.Second, Duration: 90 * time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
 	return p.running, nil
@@ -295,15 +337,41 @@ type rig struct {
 	installer *fakeInstaller
 	installed []player.Installation
 	display   *recordingDisplay
-	preview   *fakePreview
-	projects  *memoryProjects
+	// displayErr fails the opening of the subtitle display when set.
+	displayErr error
+	preview    *fakePreview
+	projects   *memoryProjects
+	log        *lockedBuffer
+	// monitors and monitorsErr are what the monitor list answers.
+	monitors    []app.Monitor
+	monitorsErr error
+	// associations stands for the Windows registry.
+	associations *fakeAssociations
+}
+
+// lockedBuffer is the log's destination in the tests.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
-		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{},
+		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{}, log: &lockedBuffer{}, associations: &fakeAssociations{},
 		installed: []player.Installation{{ID: "fake", Path: `C:\fake\fake.exe`}, {ID: "potplayer", Path: `C:\pot\PotPlayerMini64.exe`}},
 	}
 	registry, err := players.NewRegistry(r.plugin)
@@ -315,9 +383,16 @@ func newRig(t *testing.T) *rig {
 		Service: service, Registry: registry,
 		Detect: func(map[player.ID]string) []player.Installation { return r.installed },
 		Ports: watch.Ports{Service: service, Registry: registry,
-			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) { return r.display, nil },
+			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) {
+				return r.display, r.displayErr
+			},
 		},
 		Settings: r.settings, Installer: r.installer, Projects: r.projects,
+		Logger:       slog.New(slog.NewTextHandler(r.log, nil)),
+		About:        app.About{Version: "0.13.0-test", Windows: "10.0.19045"},
+		Monitors:     func() ([]app.Monitor, error) { return r.monitors, r.monitorsErr },
+		LogDir:       `C:\Users\x\AppData\Roaming\LingoReel\logs`,
+		Associations: r.associations,
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,

@@ -232,6 +232,16 @@ type Session struct {
 // ErrNoPlugin reports a player the registry cannot drive.
 var ErrNoPlugin = errors.New("player not supported")
 
+// Why a session did not start, for the app to word it (PRD §52).
+var (
+	// ErrSubtitles: the chosen subtitles could not be read.
+	ErrSubtitles = errors.New("the subtitles could not be loaded")
+	// ErrDisplay: the app's player window or the subtitle display did not open.
+	ErrDisplay = errors.New("the subtitle display could not be opened")
+	// ErrLaunch: the player did not start or did not answer in time.
+	ErrLaunch = errors.New("the player did not start")
+)
+
 // Start opens the video and begins the session. It returns once the player
 // shows the video; the session then runs until the player closes or Stop.
 // notice words a sync change for the notice on the video; nil shows none.
@@ -257,7 +267,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	lines := []uint64{request.Tracks.Primary, request.Tracks.Translation}
 	loaded, err := ports.Service.LoadSubtitles(ctx, request.Analysis, lines, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrSubtitles, err)
 	}
 
 	launch := player.LaunchRequest{
@@ -274,7 +284,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	}
 	running, err := ports.Registry.Launch(ctx, request.Player, launch)
 	if err != nil {
-		return nil, errors.Join(err, closeWindow(window))
+		return nil, errors.Join(fmt.Errorf("%w: %w", ErrLaunch, err), closeWindow(window))
 	}
 
 	s := &Session{
@@ -319,7 +329,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 		window.SetShortcuts(keys)
 	case ports.OpenDisplay != nil:
 		if s.display, err = ports.OpenDisplay(ctx, running, info); err != nil {
-			return nil, errors.Join(fmt.Errorf("opening the subtitle display: %w", err), running.Close())
+			return nil, errors.Join(fmt.Errorf("%w: %w", ErrDisplay, err), running.Close())
 		}
 	}
 	if ports.StartShortcuts != nil {
@@ -352,7 +362,7 @@ func openWindow(ctx context.Context, ports Ports, request Request) (Window, erro
 		Title: filepath.Base(request.Analysis.Path), Placement: request.Window, Info: request.Analysis.Info,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("opening the player window: %w", err)
+		return nil, fmt.Errorf("%w: opening the player window: %w", ErrDisplay, err)
 	}
 	return window, nil
 }

@@ -2,7 +2,7 @@
 // what they carry. Screens import from here, never from wailsjs directly.
 import * as api from "../../wailsjs/go/app/API";
 import type { app } from "../../wailsjs/go/models";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { ClipboardSetText, EventsOn } from "../../wailsjs/runtime/runtime";
 
 export type Video = app.Video;
 export type Track = app.Track;
@@ -17,6 +17,7 @@ export type Choice = app.Option;
 export type Editing = app.Editing;
 export type SavedPassage = app.SavedPassage;
 export type EditRequest = Plain<app.EditRequest>;
+export type Diagnostics = Plain<app.Diagnostics>;
 
 /** Plain is a generated class's data without its methods, as the screens build it. */
 type Plain<T> = T extends (infer U)[]
@@ -38,6 +39,8 @@ export type Line = "primary" | "translation";
 
 export interface Ended {
   error: string;
+  /** resume tells the session can start again where it was. */
+  resume: boolean;
 }
 
 export interface InstallProgress {
@@ -122,6 +125,10 @@ export const backend = {
   choosePlayerProgram: (id: string) => api.ChoosePlayerProgram(id),
   clearPlayerPath: (id: string) => api.ClearPlayerPath(id),
   openSettingsFolder: () => api.OpenSettingsFolder(),
+  diagnostics: (): Promise<Diagnostics> => api.Diagnostics(),
+  fileAssociation: () => api.FileAssociation(),
+  setFileAssociation: (on: boolean) => api.SetFileAssociation(on),
+  copyText: (text: string) => ClipboardSetText(text),
 
   onDropped: (listener: (path: string) => void) => EventsOn(events.dropped, listener),
   onPlayback: (listener: (state: Playback) => void) => EventsOn(events.playback, listener),

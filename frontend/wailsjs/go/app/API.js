@@ -38,6 +38,10 @@ export function DeleteProfile(arg1) {
   return window['go']['app']['API']['DeleteProfile'](arg1);
 }
 
+export function Diagnostics() {
+  return window['go']['app']['API']['Diagnostics']();
+}
+
 export function DismissRecommendation(arg1) {
   return window['go']['app']['API']['DismissRecommendation'](arg1);
 }
@@ -48,6 +52,10 @@ export function EditLine(arg1) {
 
 export function ExportSubtitle(arg1) {
   return window['go']['app']['API']['ExportSubtitle'](arg1);
+}
+
+export function FileAssociation() {
+  return window['go']['app']['API']['FileAssociation']();
 }
 
 export function InitialVideo() {
@@ -148,6 +156,10 @@ export function SeekTo(arg1) {
 
 export function SelectLine(arg1) {
   return window['go']['app']['API']['SelectLine'](arg1);
+}
+
+export function SetFileAssociation(arg1) {
+  return window['go']['app']['API']['SetFileAssociation'](arg1);
 }
 
 export function SetKaraoke(arg1) {

@@ -18,6 +18,9 @@ type Video struct {
 	Modes []Option `json:"modes"`
 	// ProjectNote tells of a problem with the video's corrections file.
 	ProjectNote string `json:"projectNote"`
+	// LanguageNote tells when no subtitle is in a language the profile
+	// asks for.
+	LanguageNote string `json:"languageNote"`
 }
 
 // Track is one audio or subtitle choice.
@@ -78,6 +81,8 @@ type WatchRequest struct {
 	AlwaysUse bool `json:"alwaysUse"`
 	// Mode is the study mode to watch in; empty is the profile's.
 	Mode string `json:"mode"`
+	// Resume starts where a session the player lost had reached.
+	Resume bool `json:"resume"`
 }
 
 // Playback is the state of the session, sent a few times per second.
@@ -104,6 +109,9 @@ type Playback struct {
 	SavedPassages []SavedPassage `json:"savedPassages"`
 	// ProjectNote tells of a problem with the video's corrections file.
 	ProjectNote string `json:"projectNote"`
+	// Health tells of a player being reconnected or frozen; empty when it
+	// answers.
+	Health string `json:"health"`
 }
 
 // Editing is the line being corrected and what the editor can do. Times are
@@ -197,6 +205,8 @@ type LineNames struct {
 // Ended tells why the session ended; Error is empty for a normal end.
 type Ended struct {
 	Error string `json:"error"`
+	// Resume tells the session can start again where it was.
+	Resume bool `json:"resume"`
 }
 
 // Preferences are the settings the window shows.

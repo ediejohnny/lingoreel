@@ -141,6 +141,7 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
             {error}
           </Banner>
         )}
+        {state.health && <Banner tone="warning">{state.health}</Banner>}
         {state.projectNote && <Banner tone="warning">{state.projectNote}</Banner>}
         <Card>
           <p className="mb-1 truncate text-sm text-fg-muted">Tocando no player</p>

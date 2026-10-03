@@ -26,6 +26,8 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  // resumable offers "Assistir de novo" after the player was lost.
+  const [resumable, setResumable] = useState(false);
   const [installing, setInstalling] = useState("");
   const [installError, setInstallError] = useState("");
 
@@ -42,7 +44,8 @@ export function App() {
       setScreen("session");
     } catch (failure) {
       setError(messageOf(failure));
-      setScreen("home");
+      // A video refused while another plays leaves the playback panel open.
+      setScreen((current) => (current === "playing" ? current : "home"));
     } finally {
       setLoading(false);
     }
@@ -68,6 +71,7 @@ export function App() {
       if (ended.error) {
         setError(ended.error);
       }
+      setResumable(ended.resume);
     });
     const offInstall = backend.onInstall(async (progress) => {
       setInstalling("");
@@ -101,6 +105,7 @@ export function App() {
   const watch = async (request: WatchRequest) => {
     setStarting(true);
     setError("");
+    setResumable(false);
     try {
       await backend.watch(request);
       setState(await backend.playbackState());
@@ -197,10 +202,14 @@ export function App() {
           players={players}
           starting={starting}
           error={error}
+          resumable={resumable}
           installing={installing}
           installError={installError}
           onWatch={watch}
-          onDismissError={() => setError("")}
+          onDismissError={() => {
+            setError("");
+            setResumable(false);
+          }}
           onInstall={install}
           onDownload={(id) => command(() => backend.openDownloadPage(id))}
           onDismissRecommendation={dismissRecommendation}

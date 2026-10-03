@@ -24,11 +24,14 @@ var ErrNotSupported = errors.New("not supported by VLC")
 
 const (
 	pollInterval = 100 * time.Millisecond
-	// unreachableLimit is how long the endpoint may fail before the session
-	// is considered lost.
-	unreachableLimit = 3 * time.Second
-	quitTimeout      = time.Second
-	exitWait         = 2 * time.Second
+	// While VLC runs but stops answering, the poller tries again after
+	// firstRetry, doubling up to maxRetry; after reconnectLimit without an
+	// answer the session is lost (RNF-013).
+	firstRetry     = 250 * time.Millisecond
+	maxRetry       = 2 * time.Second
+	reconnectLimit = 10 * time.Second
+	quitTimeout    = time.Second
+	exitWait       = 2 * time.Second
 	// startTolerance absorbs the estimate error of VLC's first position.
 	startTolerance = 500 * time.Millisecond
 	// startSeekGrace is how long an open video may sit at 0 s before Launch
@@ -50,8 +53,10 @@ type Session struct {
 	exited  chan struct{}
 	// waitErr is the process exit error, set before exited is closed.
 	waitErr error
-	// lost is set when VLC stops answering while its process still runs.
-	lost atomic.Bool
+	// lost is set when VLC stops answering while its process still runs;
+	// reconnecting while it is being tried again.
+	lost         atomic.Bool
+	reconnecting atomic.Bool
 	// closing is set by Close, so a VLC ended on purpose is not a crash.
 	closing   atomic.Bool
 	polling   atomic.Bool
@@ -237,14 +242,24 @@ func (s *Session) startPolling() {
 	go s.poll()
 }
 
+// Reconnecting reports VLC running but not answering, while the poller
+// tries again.
+func (s *Session) Reconnecting() bool {
+	return s.reconnecting.Load()
+}
+
 // poll reads the status on a fixed interval and publishes it as a sample,
-// replacing a sample the consumer has not read yet.
+// replacing a sample the consumer has not read yet. When VLC stops
+// answering it tries again with growing waits before giving the session up;
+// a VLC that exited ends the polling at once.
 func (s *Session) poll() {
 	defer close(s.pollDone)
 	defer close(s.samples)
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
+	defer s.reconnecting.Store(false)
+	timer := time.NewTimer(pollInterval)
+	defer timer.Stop()
 	lastSuccess := time.Now()
+	retry := time.Duration(0) // zero while VLC answers
 
 	for {
 		select {
@@ -252,7 +267,7 @@ func (s *Session) poll() {
 			return
 		case <-s.exited:
 			return
-		case <-ticker.C:
+		case <-timer.C:
 		}
 		started := time.Now()
 		ctx, cancel := context.WithTimeout(s.pollCtx, requestTimeout)
@@ -260,15 +275,32 @@ func (s *Session) poll() {
 		cancel()
 		finished := time.Now()
 		if err != nil {
-			if finished.Sub(lastSuccess) > unreachableLimit && s.pollCtx.Err() == nil {
+			if s.pollCtx.Err() != nil {
+				return
+			}
+			if finished.Sub(lastSuccess) > reconnectLimit {
 				s.logger.Warn("VLC stopped answering", "error", err)
 				s.lost.Store(true)
 				return
 			}
+			if retry == 0 {
+				retry = firstRetry
+				s.reconnecting.Store(true)
+				s.logger.Warn("VLC is not answering; reconnecting", "error", err)
+			} else {
+				retry = min(2*retry, maxRetry)
+			}
+			timer.Reset(retry)
 			continue
+		}
+		if retry != 0 {
+			s.logger.Info("VLC answered again", "after", finished.Sub(lastSuccess).Round(time.Millisecond))
+			retry = 0
+			s.reconnecting.Store(false)
 		}
 		lastSuccess = finished
 		s.publish(toSample(current, started.Add(finished.Sub(started)/2)))
+		timer.Reset(pollInterval)
 	}
 }
 

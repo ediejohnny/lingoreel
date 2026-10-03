@@ -2,6 +2,9 @@ package app
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
 	"sync/atomic"
 	"time"
 
@@ -9,6 +12,7 @@ import (
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/study"
@@ -45,6 +49,11 @@ type watching struct {
 	keys  [2]string
 	// problem is the last project file failure, for the panel.
 	problem atomic.Value // string
+	// player, frameRate and duration (from the analysis) are for the
+	// diagnostics.
+	player    player.Installation
+	frameRate float64
+	duration  time.Duration
 }
 
 // Watch opens the video in the chosen player with the chosen tracks. A
@@ -102,19 +111,71 @@ func (a *API) Watch(request WatchRequest) error {
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
 	}
-	current := &watching{names: names, stop: make(chan struct{}), video: video.Path, keys: keys}
+	a.mu.Lock()
+	if resume := a.resume; request.Resume && resume != nil && resume.video == video.Path {
+		watchRequest.Start = resume.at
+	}
+	a.resume = nil
+	a.mu.Unlock()
+	current := &watching{
+		names: names, stop: make(chan struct{}), video: video.Path, keys: keys,
+		player: installation, frameRate: frameRateOf(video.Info), duration: video.Info.Duration,
+	}
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
-		return errors.New("Não foi possível iniciar o player. Confira se ele está instalado e tente de novo.")
+		return a.startFailure(err, installation)
 	}
 	current.session = started
 	a.mu.Lock()
 	a.watching = current
 	a.mu.Unlock()
+	a.logger.Info("session started", "player", installation.ID, "audio", trackOf(video.Info, tracks.Audio),
+		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode)
 	a.keepChoice(current, tracks, mode)
 	go a.report(current)
 	return nil
+}
+
+// startFailure words why a session did not start (PRD §52), with what the
+// user can do.
+func (a *API) startFailure(err error, installation player.Installation) error {
+	name := string(installation.ID)
+	if plugin, found := a.deps.Registry.Plugin(installation.ID); found {
+		name = plugin.Descriptor().Name
+	}
+	switch {
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound):
+		return fmt.Errorf("O %s não foi encontrado em %s. Confira o caminho em Configurações › Player, ou instale-o de novo.", name, installation.Path)
+	case errors.Is(err, watch.ErrSubtitles):
+		return errors.New("Não foi possível ler as legendas escolhidas. Escolha outra legenda ou confira o arquivo dela.")
+	case errors.Is(err, watch.ErrDisplay):
+		return errors.New("Não foi possível abrir a janela do vídeo com as legendas. Tente de novo; se continuar, reinicie o LingoReel.")
+	case errors.Is(err, watch.ErrLaunch):
+		return fmt.Errorf("O %s não abriu a tempo. Clique em Assistir para tentar de novo; se continuar, feche outras janelas do %s.", name, name)
+	}
+	return errors.New("Não foi possível começar a sessão. Tente de novo.")
+}
+
+// healthText words the player's health for the panel and the video.
+func healthText(health watch.Health) string {
+	switch health {
+	case watch.HealthReconnecting:
+		return "O player não está respondendo. Reconectando…"
+	case watch.HealthStalled:
+		return "O player parece travado: as legendas esperam por ele."
+	}
+	return ""
+}
+
+// trackOf describes a track for the log: "4 en S_TEXT/UTF8", or "none".
+func trackOf(info media.Info, number uint64) string {
+	for _, track := range info.Tracks {
+		if track.Number == number {
+			return fmt.Sprintf("%d %s %s", track.Number, track.Language, track.Codec)
+		}
+	}
+	return "none"
 }
 
 // preferPlayer makes a player the active profile's preferred one.
@@ -139,10 +200,20 @@ func (a *API) updateProfile(change func(*settings.Profile)) error {
 func (a *API) report(current *watching) {
 	ticker := time.NewTicker(stateInterval)
 	defer ticker.Stop()
+	health := ""
 	for {
 		select {
 		case <-ticker.C:
-			a.emit(EventPlayback, a.describe(current))
+			state := a.describe(current)
+			if state.Health != health {
+				// A change of health also shows on the video, where the user looks.
+				health = state.Health
+				current.session.Notify(health)
+				if health != "" {
+					a.logger.Warn("player health", "state", health)
+				}
+			}
+			a.emit(EventPlayback, state)
 		case <-current.session.Done():
 			a.mu.Lock()
 			if a.watching == current {
@@ -151,8 +222,18 @@ func (a *API) report(current *watching) {
 			a.mu.Unlock()
 			a.saveOffsets(current)
 			ended := Ended{}
-			if errors.Is(current.session.Err(), playback.ErrPlayerLost) {
-				ended.Error = "O player parou de responder e a sessão foi encerrada."
+			switch err := current.session.Err(); {
+			case errors.Is(err, playback.ErrPlayerLost):
+				a.logger.Warn("session ended: the player was lost", "error", err)
+				a.mu.Lock()
+				a.resume = &resumePoint{video: current.video, at: current.session.State().Position}
+				a.mu.Unlock()
+				ended.Error = "O player fechou ou parou de responder, e a sessão foi encerrada."
+				ended.Resume = true
+			case err != nil:
+				a.logger.Warn("session ended with an error", "error", err)
+			default:
+				a.logger.Info("session ended")
 			}
 			a.emit(EventPlayback, Playback{})
 			a.emit(EventEnded, ended)
@@ -186,6 +267,7 @@ func (a *API) describe(current *watching) Playback {
 		Editing:            describeEditing(current),
 		SavedPassages:      saved,
 		ProjectNote:        note,
+		Health:             healthText(current.session.Health()),
 	}
 }
 
@@ -315,6 +397,7 @@ func (a *API) stop(tell bool) bool {
 	if err := current.session.Stop(); err != nil && !errors.Is(err, playback.ErrPlayerLost) {
 		a.logger.Warn("the session did not end cleanly", "error", err)
 	}
+	a.logger.Info("session ended", "by", "the app")
 	a.saveOffsets(current)
 	if tell {
 		a.emit(EventPlayback, Playback{})

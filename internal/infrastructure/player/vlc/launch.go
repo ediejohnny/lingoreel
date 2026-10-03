@@ -194,6 +194,7 @@ func launchOnce(ctx context.Context, executable string, request player.LaunchReq
 			logger.Warn("VLC did not show the first picture", "error", err)
 		}
 	}
+	logger.Info("VLC connected", "pid", cmd.Process.Pid, "port", port)
 	session.startPolling()
 	return session, nil
 }

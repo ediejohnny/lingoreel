@@ -7,7 +7,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/players"
@@ -98,6 +101,34 @@ type Deps struct {
 	OpenFolder  func(path string) error
 	// Projects keeps each video's project; nil keeps nothing between runs.
 	Projects Projects
+	// About is the app's and the system's version, for the diagnostics;
+	// Monitors lists the screens (nil lists none); LogDir holds the logs.
+	About    About
+	Monitors func() ([]Monitor, error)
+	LogDir   string
+	// Associations lets Windows open videos with the app; nil offers none.
+	Associations Associations
+}
+
+// Associations writes and removes the app's place in Windows' "Abrir com"
+// and in the videos' context menu.
+type Associations interface {
+	Enabled() (bool, error)
+	Enable() error
+	Disable() error
+}
+
+// About names the versions the diagnostics show.
+type About struct {
+	Version string
+	Windows string
+}
+
+// Monitor is a screen as the diagnostics show it.
+type Monitor struct {
+	Width, Height, X, Y int
+	DPI                 int
+	Primary             bool
 }
 
 // API is bound to the window: every exported method is callable from the
@@ -115,6 +146,14 @@ type API struct {
 	project  *videoProject
 	watching *watching
 	initial  string
+	// resume is where a session the player lost had reached, for
+	// "Assistir de novo".
+	resume *resumePoint
+}
+
+type resumePoint struct {
+	video string
+	at    time.Duration
 }
 
 // Lifecycle connects the API to the window. It is kept apart from the API so
@@ -124,7 +163,7 @@ type Lifecycle struct {
 }
 
 // ErrNotReady reports a call before the window started.
-var ErrNotReady = errors.New("the app window is not ready")
+var ErrNotReady = errors.New("A janela do app ainda está abrindo. Tente de novo em instantes.")
 
 // New creates the API and its lifecycle.
 func New(deps Deps) (*API, Lifecycle) {
@@ -178,6 +217,24 @@ func (l Lifecycle) Dropped(paths []string) {
 		return
 	}
 	l.api.emit(EventVideoDropped, paths[0])
+}
+
+// VideoArgument finds the video in a command line's arguments (without the
+// program): the first one that is not an option, made absolute against dir.
+// Windows passes the file of a double click, "Abrir com" or the context menu
+// this way.
+func VideoArgument(args []string, dir string) (string, bool) {
+	for _, arg := range args {
+		arg = strings.Trim(strings.TrimSpace(arg), `"`)
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if !filepath.IsAbs(arg) {
+			arg = filepath.Join(dir, arg)
+		}
+		return filepath.Clean(arg), true
+	}
+	return "", false
 }
 
 // WindowBounds is where the app's window was when it last closed.

@@ -6,23 +6,27 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	sys "golang.org/x/sys/windows"
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/watch"
+	"lingoreel/internal/buildinfo"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/infrastructure/logfile"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/persistence/projectfile"
 	"lingoreel/internal/infrastructure/persistence/settingsfile"
@@ -31,12 +35,14 @@ import (
 	"lingoreel/internal/infrastructure/player/plugins"
 	"lingoreel/internal/infrastructure/subtitlefile"
 	"lingoreel/internal/infrastructure/windows/appwindow"
+	"lingoreel/internal/infrastructure/windows/association"
 	"lingoreel/internal/infrastructure/windows/hotkeys"
 	"lingoreel/internal/infrastructure/windows/keyboard"
 	"lingoreel/internal/infrastructure/windows/overlay"
 	"lingoreel/internal/infrastructure/windows/placement"
 	"lingoreel/internal/infrastructure/windows/playerwindow"
 	"lingoreel/internal/infrastructure/windows/preview"
+	"lingoreel/internal/infrastructure/windows/win32"
 	"lingoreel/internal/presentation/app"
 	"lingoreel/internal/presentation/ptbr"
 )
@@ -55,9 +61,13 @@ const (
 	windowMinHeight = 540
 )
 
-// logFileName keeps the last session's log next to the settings, for
-// problem reports; it never holds subtitle text.
-const logFileName = "lingoreel.log"
+// singleInstanceID names the app for Windows, so a second launch finds the
+// first one.
+const singleInstanceID = "lingoreel-edie-johnny"
+
+// logFolder holds the daily logs next to the settings, for problem reports;
+// they never hold subtitle text.
+const logFolder = "logs"
 
 func main() {
 	if err := run(); err != nil {
@@ -71,8 +81,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	logger, closeLog := openLog(dir)
+	logger, closeLog := openLog(filepath.Join(dir, logFolder))
 	defer closeLog()
+	logger.Info("starting", "version", buildinfo.Version, "windows", windowsVersion())
+	defer logger.Info("closed")
 
 	registry, hints, err := plugins.Registry(logger)
 	if err != nil {
@@ -105,9 +117,17 @@ func run() error {
 		SettingsDir: dir,
 		OpenFolder:  openFolder,
 		Projects:    projectfile.Open(dir),
+		About:       app.About{Version: buildinfo.Version, Windows: windowsVersion()},
+		Monitors:    monitors,
+		LogDir:      filepath.Join(dir, logFolder),
 	}
-	if len(os.Args) > 1 {
-		deps.InitialVideo = os.Args[1]
+	if executable, err := os.Executable(); err == nil {
+		deps.Associations = association.Registrar{
+			Base: `Software\Classes`, Executable: executable, Extensions: analysis.VideoExtensions(),
+		}
+	}
+	if workingDir, err := os.Getwd(); err == nil {
+		deps.InitialVideo, _ = app.VideoArgument(os.Args[1:], workingDir)
 	}
 	samples, err := preview.Start()
 	if err != nil {
@@ -117,6 +137,8 @@ func run() error {
 		defer samples.Close()
 	}
 	api, lifecycle := app.New(deps)
+	// started is the window's context, for a second launch to reach it.
+	var started atomic.Pointer[context.Context]
 
 	return wails.Run(&options.App{
 		Title: windowTitle, Width: windowWidth, Height: windowHeight,
@@ -124,7 +146,23 @@ func run() error {
 		// Hidden until it is back where the user left it.
 		StartHidden: true,
 		AssetServer: &assetserver.Options{Assets: assets},
+		// Opening a video with the app already open brings this window up and
+		// opens the video here, instead of a second app.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: singleInstanceID,
+			OnSecondInstanceLaunch: func(second options.SecondInstanceData) {
+				logger.Info("opened again", "args", len(second.Args))
+				if ctx := started.Load(); ctx != nil {
+					runtime.WindowUnminimise(*ctx)
+					runtime.WindowShow(*ctx)
+				}
+				if video, found := app.VideoArgument(second.Args, second.WorkingDirectory); found {
+					lifecycle.Dropped([]string{video})
+				}
+			},
+		},
 		OnStartup: func(ctx context.Context) {
+			started.Store(&ctx)
 			lifecycle.Attach(ctx, app.NewWailsUI(ctx))
 			runtime.OnFileDrop(ctx, func(_, _ int, paths []string) { lifecycle.Dropped(paths) })
 			restoreWindow(ctx, lifecycle, logger)
@@ -181,15 +219,33 @@ func activeProfile(files *settingsfile.Files) settings.Profile {
 	return settings.DefaultProfile()
 }
 
-// openLog writes the log of this run to the settings folder; without it,
-// the app runs with no log.
+// openLog writes the day's log in dir; without it, the app runs with no log.
 func openLog(dir string) (*slog.Logger, func()) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
-	}
-	file, err := os.Create(filepath.Join(dir, logFileName))
+	file, err := logfile.Open(dir, time.Now)
 	if err != nil {
-		return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		return slog.New(slog.DiscardHandler), func() {}
 	}
 	return slog.New(slog.NewTextHandler(file, nil)), func() { file.Close() }
+}
+
+// monitors lists the screens for the diagnostics.
+func monitors() ([]app.Monitor, error) {
+	found, err := win32.Monitors()
+	if err != nil {
+		return nil, err
+	}
+	list := make([]app.Monitor, len(found))
+	for i, m := range found {
+		list[i] = app.Monitor{
+			Width: int(m.Bounds.Right - m.Bounds.Left), Height: int(m.Bounds.Bottom - m.Bounds.Top),
+			X: int(m.Bounds.Left), Y: int(m.Bounds.Top), DPI: int(m.DPI), Primary: m.Primary,
+		}
+	}
+	return list, nil
+}
+
+// windowsVersion is "10.0.19045" for the log.
+func windowsVersion() string {
+	v := sys.RtlGetVersion()
+	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
 }
