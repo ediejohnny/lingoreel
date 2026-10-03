@@ -76,17 +76,6 @@ var known = []Hints{
 		UninstallName: regexp.MustCompile(`(?i)^mpv\b`),
 	},
 	{
-		ID:          player.PotPlayer,
-		Executables: []string{"PotPlayerMini64.exe", "PotPlayerMini.exe"},
-		Registry: []RegistryValue{
-			{CurrentUser, `SOFTWARE\DAUM\PotPlayer64`, "ProgramPath", false},
-			{CurrentUser, `SOFTWARE\DAUM\PotPlayer`, "ProgramPath", false},
-			{LocalMachine, AppPathsKey + "PotPlayerMini64.exe", "", false},
-		},
-		ProgramFiles:  []string{`DAUM\PotPlayer\PotPlayerMini64.exe`, `PotPlayer\PotPlayerMini64.exe`, `DAUM\PotPlayer\PotPlayerMini.exe`},
-		UninstallName: regexp.MustCompile(`(?i)^PotPlayer`),
-	},
-	{
 		ID:            player.MPCHC,
 		Executables:   []string{"mpc-hc64.exe", "mpc-hc.exe"},
 		Registry:      []RegistryValue{{CurrentUser, `SOFTWARE\MPC-HC\MPC-HC`, "ExePath", false}},

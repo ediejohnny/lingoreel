@@ -408,6 +408,7 @@ export namespace app {
 	    name: string;
 	    path: string;
 	    supported: boolean;
+	    fixedAudio: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PlayerOption(source);
@@ -419,6 +420,7 @@ export namespace app {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.supported = source["supported"];
+	        this.fixedAudio = source["fixedAudio"];
 	    }
 	}
 	export class PlayerSetting {

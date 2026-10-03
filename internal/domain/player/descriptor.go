@@ -35,6 +35,9 @@ type Descriptor struct {
 	// the app (LaunchRequest.Host). The app then owns the window: closing,
 	// fullscreen, the keys and its own controls over the video.
 	DrawsInHost bool
+	// FixedAudioTrack tells the player cannot be told which audio track to
+	// play, so the session screen says the choice stays with the player.
+	FixedAudioTrack bool
 }
 
 // Install tells how the user can get a player.

@@ -61,6 +61,9 @@ type PlayerOption struct {
 	Name      string `json:"name"`
 	Path      string `json:"path"`
 	Supported bool   `json:"supported"`
+	// FixedAudio tells this player keeps its own audio track: the session
+	// screen offers no choice and says why.
+	FixedAudio bool `json:"fixedAudio"`
 }
 
 // PlayerInstall is a player the user can install.

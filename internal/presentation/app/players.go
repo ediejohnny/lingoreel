@@ -47,10 +47,14 @@ func (a *API) players() Players {
 		result.Choice = string(choice.Installation.ID)
 	}
 	for _, installation := range installed {
-		result.Installed = append(result.Installed, PlayerOption{
+		option := PlayerOption{
 			ID: string(installation.ID), Name: a.playerName(installation.ID), Path: installation.Path,
 			Supported: a.deps.Registry.Supported(installation.ID),
-		})
+		}
+		if plugin, ok := a.deps.Registry.Plugin(installation.ID); ok {
+			option.FixedAudio = plugin.Descriptor().FixedAudioTrack
+		}
+		result.Installed = append(result.Installed, option)
 	}
 	if found {
 		return result

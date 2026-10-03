@@ -55,10 +55,14 @@ export function SessionPage(props: SessionPageProps) {
     disabled: !item.supported,
   }));
   const canWatch = supported.some((item) => item.id === player) && (primary !== none || translation !== none);
+  // A player that keeps its own audio track: the choice is hidden, never sent.
+  const chosen = players.installed.find((item) => item.id === player);
+  const fixedAudio = chosen?.fixedAudio ?? false;
+  const chosenName = chosen?.name ?? "player";
 
   const watch = (resume = false) =>
     props.onWatch({
-      audio: Number(audio),
+      audio: fixedAudio ? 0 : Number(audio),
       primary: Number(primary),
       translation: Number(translation),
       player,
@@ -139,12 +143,14 @@ export function SessionPage(props: SessionPageProps) {
         <Card title="Áudio">
           <Select
             label="Faixa de áudio"
-            value={audio}
+            value={fixedAudio ? none : audio}
             options={[
               { value: none, label: "Escolha do player" },
               ...video.audio.map((track) => ({ value: String(track.number), label: track.label })),
             ]}
             onChange={setAudio}
+            disabled={fixedAudio}
+            note={fixedAudio ? `O ${chosenName} não aceita trocar a faixa de áudio pelo app; escolha no menu dele.` : undefined}
           />
         </Card>
 
