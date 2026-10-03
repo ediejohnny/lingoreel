@@ -13,8 +13,16 @@ func TestTheShippedPluginsRegister(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Registry: %v", err)
 	}
-	if !registry.Supported(player.VLC) {
-		t.Fatal("VLC is not supported")
+	for _, id := range []player.ID{player.VLC, player.PotPlayer} {
+		if !registry.Supported(id) {
+			t.Fatalf("%s is not supported", id)
+		}
+		// A player with a plugin is no longer one of the "coming soon".
+		for _, hints := range discovery.Known() {
+			if hints.ID == id {
+				t.Fatalf("%s has a plugin; its hints belong to the plugin", id)
+			}
+		}
 	}
 	// Every plugin brings its hints, before the players without a plugin.
 	if len(hints) != len(plugins.All(nil))+len(discovery.Known()) || hints[0].ID != player.VLC {

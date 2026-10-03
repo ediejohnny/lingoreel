@@ -7,6 +7,7 @@ import (
 
 	"lingoreel/internal/application/players"
 	"lingoreel/internal/infrastructure/player/discovery"
+	"lingoreel/internal/infrastructure/player/potplayer"
 	"lingoreel/internal/infrastructure/player/vlc"
 )
 
@@ -22,6 +23,7 @@ type Plugin interface {
 func All(logger *slog.Logger) []Plugin {
 	return []Plugin{
 		vlc.Plugin{Logger: logger},
+		potplayer.Plugin{Logger: logger},
 	}
 }
 

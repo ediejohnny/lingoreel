@@ -99,9 +99,14 @@ type scene struct {
 
 func draw(t *testing.T, r *gdiplus.Renderer, primary, translation appearance.SubtitleStyle, visible bool) scene {
 	t.Helper()
-	dib := newDIB(t, 640, 360)
+	return drawAt(t, r, primary, translation, visible, 640, 360)
+}
+
+func drawAt(t *testing.T, r *gdiplus.Renderer, primary, translation appearance.SubtitleStyle, visible bool, width, height int) scene {
+	t.Helper()
+	dib := newDIB(t, width, height)
 	in := layout.Input{
-		Video: layout.Rect{W: 640, H: 360}, DPI: 96, Layout: appearance.DefaultLayout(),
+		Video: layout.Rect{W: float64(width), H: float64(height)}, DPI: 96, Layout: appearance.DefaultLayout(),
 		Primary:     layout.Text{Style: primary, Content: "That's sick!"},
 		Translation: layout.Text{Style: translation, Content: "Que loucura!"},
 	}
@@ -130,15 +135,17 @@ func rectOf(r layout.Rect) image.Rectangle {
 	return image.Rect(int(math.Floor(r.X)), int(math.Floor(r.Y)), int(math.Ceil(r.Right())), int(math.Ceil(r.Bottom())))
 }
 
+// Drawn at a real video size: at 360 px the default font's stems are about
+// one pixel wide, all of it antialiased, and no pixel is solid white.
 func TestDrawPaintsOnlyAroundTheText(t *testing.T) {
 	r := newRenderer(t)
-	s := draw(t, r, appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle(), true)
+	s := drawAt(t, r, appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle(), true, 1280, 720)
 	whole := image.Rect(0, 0, s.dib.Width, s.dib.Height)
 	ink := inkBounds(s.dib, whole)
 	if ink.Empty() {
 		t.Fatal("nothing was drawn")
 	}
-	// Outline (3 px) and shadow (2 px) scale with the 360 px video: under 2 px
+	// Outline (3 px) and shadow (2 px) scale with the video: a few pixels
 	// each, so 6 px of slack covers them.
 	allowed := rectOf(s.frame.Primary.Bounds).Union(rectOf(s.frame.Translation.Bounds)).Inset(-6)
 	if !ink.In(allowed) {

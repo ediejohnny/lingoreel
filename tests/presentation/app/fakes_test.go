@@ -132,10 +132,12 @@ type fakePlugin struct {
 	running  *fakeRunning
 	// launchErr is what Launch answers when set.
 	launchErr error
+	// fixedAudio makes the player keep its own audio track, like PotPlayer.
+	fixedAudio bool
 }
 
 func (p *fakePlugin) Descriptor() player.Descriptor {
-	return player.Descriptor{ID: "fake", Name: "Fake Player", Install: player.Install{
+	return player.Descriptor{ID: "fake", Name: "Fake Player", FixedAudioTrack: p.fixedAudio, Install: player.Install{
 		WingetID: "Fake.Player", DownloadURL: "https://example.org/fake", Benefit: "Um player de teste.",
 	}}
 }

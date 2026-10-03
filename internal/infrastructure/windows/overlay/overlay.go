@@ -51,6 +51,13 @@ type Options struct {
 	// Target is a window of this process to cover instead, such as the
 	// window a player draws into; when set, ProcessID is not used.
 	Target uintptr
+	// Window, when set, names the player's main window as its plugin knows
+	// it, instead of the largest window of the process; zero means not yet.
+	Window func() uintptr
+	// Area, when set, names the window inside the player's where the
+	// picture is (its list and buttons stay uncovered); zero, or a window
+	// gone or hidden, covers the whole player window.
+	Area func() uintptr
 	// VideoWidth and VideoHeight give the picture's aspect ratio, to keep the
 	// text inside the picture when the window has black bars; zero fills the
 	// window.
@@ -78,8 +85,10 @@ type Overlay struct {
 	options  Options
 	logger   *slog.Logger
 
-	// Owned by the UI thread.
+	// Owned by the UI thread. area is the window last covered inside the
+	// target (the target itself without Options.Area).
 	target  windows.HWND
+	area    windows.HWND
 	window  windows.HWND
 	hooks   []windows.Handle
 	dib     *win32.DIB
@@ -182,7 +191,11 @@ func Open(ctx context.Context, options Options) (*Overlay, error) {
 		if options.ProcessID <= 0 {
 			return nil, fmt.Errorf("invalid player process id %d", options.ProcessID)
 		}
-		found, err := waitForTarget(ctx, uint32(options.ProcessID), cmp.Or(options.FindTimeout, defaultFindFor))
+		find := func() (windows.HWND, bool) { return findTarget(uint32(options.ProcessID)) }
+		if options.Window != nil {
+			find = func() (windows.HWND, bool) { hwnd := windows.HWND(options.Window()); return hwnd, hwnd != 0 }
+		}
+		found, err := waitForTarget(ctx, find, cmp.Or(options.FindTimeout, defaultFindFor))
 		if err != nil {
 			return nil, fmt.Errorf("finding the player window: %w", err)
 		}
@@ -225,11 +238,11 @@ func (o *Overlay) onUIThread(fn func() error) error {
 	}
 }
 
-func waitForTarget(ctx context.Context, processID uint32, timeout time.Duration) (windows.HWND, error) {
+func waitForTarget(ctx context.Context, find func() (windows.HWND, bool), timeout time.Duration) (windows.HWND, error) {
 	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
 	for {
-		if target, found := findTarget(processID); found {
+		if target, found := find(); found {
 			return target, nil
 		}
 		select {
@@ -480,7 +493,13 @@ func (o *Overlay) follow() error {
 		o.hide()
 		return nil
 	}
-	bounds, err := win32.ClientRectOnScreen(o.target)
+	o.area = o.target
+	if o.options.Area != nil {
+		if area := windows.HWND(o.options.Area()); area != 0 && windows.IsWindow(area) && windows.IsWindowVisible(area) {
+			o.area = area
+		}
+	}
+	bounds, err := win32.ClientRectOnScreen(o.area)
 	if err != nil {
 		return fmt.Errorf("reading the player window: %w", err)
 	}
@@ -658,13 +677,24 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 	return win32.DefWindowProc(hwnd, message, wparam, lparam)
 }
 
+// concerns reports a window whose changes move the overlay: the player's
+// window, the one being covered, and — for a plugin that names a picture
+// inside the player's window — any window within it, because the picture
+// may be hidden, shown or replaced while the session runs.
+func (o *Overlay) concerns(hwnd windows.HWND) bool {
+	if hwnd == o.target || hwnd == o.area {
+		return true
+	}
+	return o.options.Area != nil && win32.RootOwner(hwnd) == o.target
+}
+
 // dispatchWinEvent receives the player window's changes on the UI thread.
 func dispatchWinEvent(hook windows.Handle, event uint32, hwnd windows.HWND, object, child int32, _ uint32, _ uint32) uintptr {
 	o := callbacks.hook(hook)
-	if o == nil || hwnd != o.target || object != win32.OBJID_WINDOW || child != win32.CHILDID_SELF {
+	if o == nil || object != win32.OBJID_WINDOW || child != win32.CHILDID_SELF || !o.concerns(hwnd) {
 		return 0
 	}
-	if event == win32.EVENT_OBJECT_DESTROY {
+	if event == win32.EVENT_OBJECT_DESTROY && hwnd == o.target {
 		o.teardown()
 		return 0
 	}

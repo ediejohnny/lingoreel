@@ -55,6 +55,18 @@ type Reconnector interface {
 	Reconnecting() bool
 }
 
+// Windowed is what a Running that draws in its own window may also offer:
+// the windows as its plugin knows them, so the subtitles need not be put
+// over the largest window of the process. Both may be zero at any moment,
+// for a player that has not opened them yet or has closed them.
+type Windowed interface {
+	// Window is the player's main window, the one the subtitles follow.
+	Window() uintptr
+	// VideoArea is the window inside Window that holds the picture, so the
+	// player's own list and buttons stay uncovered; zero covers it whole.
+	VideoArea() uintptr
+}
+
 // Registry holds the plugins the app ships with.
 type Registry struct {
 	plugins []Plugin

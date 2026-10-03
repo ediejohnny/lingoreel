@@ -76,13 +76,14 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 	}
 	// The primary line's bottom is at 82% (590 px), the translation's at 91%
 	// (655 px); at 720 px the fonts are 32 and 28 × 720/1080 = 21 and 19 px:
-	// white text in both bands.
-	if got := count(picture, 560, 592, 0xFF, 0xFF, 0xFF); got < 300 {
+	// white text in both bands. The counts are low because the default font
+	// (Segoe UI, the app's own) has thinner strokes than Arial had.
+	if got := count(picture, 560, 592, 0xFF, 0xFF, 0xFF); got < 150 {
 		t.Fatalf("only %d white pixels where the primary line goes", got)
 	}
 	// The translation is 90% opaque: white over the ground (2A 2D 33) is
 	// 0.9 × 255 + 0.1 × 42..51 = 234..235, about EA.
-	if got := count(picture, 628, 657, 0xEA, 0xEA, 0xEA); got < 150 {
+	if got := count(picture, 628, 657, 0xEA, 0xEA, 0xEA); got < 100 {
 		t.Fatalf("only %d light pixels where the translation goes", got)
 	}
 
@@ -93,7 +94,7 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 		t.Fatal(err)
 	}
 	yellow := decode(t, data)
-	if got := count(yellow, 560, 592, 0xFF, 0xE6, 0x00); got < 300 {
+	if got := count(yellow, 560, 592, 0xFF, 0xE6, 0x00); got < 150 {
 		t.Fatalf("only %d yellow pixels in the primary band", got)
 	}
 	if got := count(yellow, 600, 720, 0xFF, 0xE6, 0x00); got != 0 {

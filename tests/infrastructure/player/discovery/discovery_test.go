@@ -8,6 +8,7 @@ import (
 
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/player/discovery"
+	"lingoreel/internal/infrastructure/player/potplayer"
 	"lingoreel/internal/infrastructure/player/vlc"
 )
 
@@ -70,7 +71,8 @@ func (f *fakeEnvironment) Glob(pattern string) []string {
 // allHints are the hints of every known player: VLC's from its plugin and
 // the others' from the discovery list.
 func allHints() []discovery.Hints {
-	return append([]discovery.Hints{vlc.Plugin{}.Hints()}, discovery.Known()...)
+	withPlugins := []discovery.Hints{vlc.Plugin{}.Hints(), potplayer.Plugin{}.Hints()}
+	return append(withPlugins, discovery.Known()...)
 }
 
 func found(t *testing.T, installations []player.Installation) map[player.ID]string {

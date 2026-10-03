@@ -15,8 +15,9 @@ const (
 	appFolder = "LingoReel"
 	// configVersion and profilesVersion are the current document versions.
 	configVersion = 1
-	// profilesVersion 2 added the Modo Karaokê (migrations.go).
-	profilesVersion = 2
+	// profilesVersion 2 added the Modo Karaokê and 3 moved the subtitles to
+	// the app's own font (migrations.go).
+	profilesVersion = 3
 )
 
 // Dir is where the app keeps its settings: %APPDATA%\LingoReel.

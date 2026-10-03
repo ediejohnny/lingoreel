@@ -166,6 +166,24 @@ func TestThePlayerClosingEndsTheSession(t *testing.T) {
 	})
 }
 
+// A player that keeps its own audio track (PotPlayer) says so to the
+// session screen, which then offers no choice.
+func TestAPlayerThatKeepsItsAudioTrackSaysSo(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	players, err := r.api.Players()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if players.Installed[0].ID != "fake" || players.Installed[0].FixedAudio {
+		t.Fatalf("players = %+v; the plugin takes an audio track", players.Installed)
+	}
+	r.plugin.fixedAudio = true
+	if players, _ := r.api.Players(); !players.Installed[0].FixedAudio {
+		t.Fatalf("players = %+v; the plugin keeps its own audio track", players.Installed)
+	}
+}
+
 func TestWithoutAPlayerTheCardsOfferOne(t *testing.T) {
 	r := newRig(t)
 	r.attach(t)

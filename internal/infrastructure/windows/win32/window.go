@@ -26,6 +26,7 @@ var (
 	procLoadCursorW         = user32.NewProc("LoadCursorW")
 	procSetCursor           = user32.NewProc("SetCursor")
 	procPostMessageW        = user32.NewProc("PostMessageW")
+	procSendMessageTimeoutW = user32.NewProc("SendMessageTimeoutW")
 	procEnableWindow        = user32.NewProc("EnableWindow")
 	procSetFocus            = user32.NewProc("SetFocus")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
@@ -77,6 +78,13 @@ const (
 	SWP_SHOWWINDOW    = 0x0040
 
 	MONITOR_DEFAULTTONEAREST = 0x00000002
+
+	// WM_USER starts the messages a program gives its own meaning; players
+	// driven by messages answer on it.
+	WM_USER = 0x0400
+	// SMTO_ABORTIFHUNG gives up at once on a window that stopped reading
+	// its messages, instead of waiting for the timeout.
+	SMTO_ABORTIFHUNG = 0x0002
 
 	HTCLIENT = 1
 
@@ -227,6 +235,17 @@ func PostMessage(hwnd windows.HWND, message uint32, wparam, lparam uintptr) erro
 		return callErr(err)
 	}
 	return nil
+}
+
+// SendMessageTimeout sends a message to a window of another process and
+// waits at most milliseconds for the answer, giving up at once on a window
+// that stopped reading its messages. It reports false when no answer came,
+// which is how a player that hung or closed is told from one that answered.
+func SendMessageTimeout(hwnd windows.HWND, message uint32, wparam, lparam uintptr, milliseconds uint32) (uintptr, bool) {
+	var answer uintptr
+	ok, _, _ := procSendMessageTimeoutW.Call(uintptr(hwnd), uintptr(message), wparam, lparam,
+		SMTO_ABORTIFHUNG, uintptr(milliseconds), uintptr(unsafe.Pointer(&answer)))
+	return answer, ok != 0
 }
 
 // EnableWindow lets a window take input or not; a disabled child lets

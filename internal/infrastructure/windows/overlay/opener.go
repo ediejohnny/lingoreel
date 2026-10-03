@@ -29,6 +29,11 @@ func Opener(look func() Look, logger *slog.Logger) func(context.Context, players
 			PreviewColor: current.PreviewColor, FillColor: current.FillColor,
 		}
 		options.VideoWidth, options.VideoHeight = placement.VideoSize(info)
+		// A plugin that knows its player's windows names them itself; the
+		// others leave the largest window of the process to be found.
+		if windowed, ok := running.(players.Windowed); ok {
+			options.Window, options.Area = windowed.Window, windowed.VideoArea
+		}
 		screen, err := Open(ctx, options)
 		if err != nil {
 			return nil, err // never a nil *Overlay inside a non-nil Display
