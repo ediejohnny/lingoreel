@@ -259,3 +259,10 @@ func BarStatus(s controlbar.StudyState) string {
 	}
 	return ""
 }
+
+// The box that corrects a line over the video: the hint under it, and what
+// is told when Enter would leave the line empty.
+const (
+	EditHint  = "Enter salva · Esc cancela · Shift+Enter quebra a linha"
+	EditEmpty = "A legenda não pode ficar vazia. Escreva algo ou use Esc para cancelar."
+)

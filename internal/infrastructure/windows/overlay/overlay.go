@@ -116,9 +116,18 @@ type Overlay struct {
 	drawErr   error
 
 	// boxes are where each line was last drawn, in the covered window's
-	// client pixels, for LineAt; a zero box was not drawn.
+	// client pixels, for LineAt; a zero box was not drawn. fonts are the
+	// fonts they were drawn in.
 	boxesMu sync.Mutex
 	boxes   [2]layout.Rect
+	fonts   [2]layout.Font
+}
+
+// Spot is where a line was drawn and in which font: the place of a box that
+// corrects the line where it shows.
+type Spot struct {
+	Box  layout.Rect
+	Font layout.Font
 }
 
 // callbackTable routes Win32 callbacks to their overlay. Window procedures
@@ -585,8 +594,15 @@ func (o *Overlay) redraw() error {
 		look.FillWidths = layout.FillWidths(frame.Primary, o.content.Fill, o.renderer)
 	}
 	boxes := drawnBoxes(frame, o.content)
+	var fonts [2]layout.Font
+	if frame.Primary != nil {
+		fonts[session.LinePrimary] = frame.Primary.Font
+	}
+	if frame.Translation != nil {
+		fonts[session.LineTranslation] = frame.Translation.Font
+	}
 	o.boxesMu.Lock()
-	o.boxes = boxes
+	o.boxes, o.fonts = boxes, fonts
 	o.boxesMu.Unlock()
 	if o.content.Highlighted {
 		look.Highlight = outlineOf(boxes[o.content.Highlight], o.dpi)
@@ -615,6 +631,21 @@ func (o *Overlay) LineAt(x, y float64) (session.Line, bool) {
 		}
 	}
 	return 0, false
+}
+
+// SpotOf is where a line was last drawn and in which font, in the covered
+// window's client pixels; false when the line is not on screen.
+func (o *Overlay) SpotOf(line session.Line) (Spot, bool) {
+	if line != session.LinePrimary && line != session.LineTranslation {
+		return Spot{}, false
+	}
+	o.boxesMu.Lock()
+	defer o.boxesMu.Unlock()
+	box := o.boxes[line]
+	if box.W <= 0 || box.H <= 0 {
+		return Spot{}, false
+	}
+	return Spot{Box: box, Font: o.fonts[line]}, true
 }
 
 // drawnBoxes are the boxes of the lines a frame draws: a hidden line or one
