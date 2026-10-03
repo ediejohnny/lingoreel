@@ -65,22 +65,14 @@ func storeAt(path string) *jsonstore.Store[project.Project] {
 
 // migrations upgrade older project files, one version at a time.
 var migrations = map[int]jsonstore.Migration{
-	1: checkPassages,
+	1: fromVersion1,
 }
 
-// checkPassages (version 1 to 2) needs no new value: a passage without a
+// fromVersion1 (version 1 to 2) needs no new value: a passage without a
 // plan pauses at the end with no helps, and a video without "last" starts
-// from the beginning with the profile's speed and Modo Karaokê. It only
-// refuses passages that are not objects, as a hand-edited file may have.
-func checkPassages(document map[string]any) error {
-	items, _ := document["passages"].([]any)
-	for i, item := range items {
-		if _, ok := item.(map[string]any); !ok {
-			return fmt.Errorf("passage %d is not an object", i)
-		}
-	}
-	return nil
-}
+// from the beginning with the profile's speed and Modo Karaokê. A passage
+// that is not an object is still refused when the file is decoded.
+func fromVersion1(map[string]any) error { return nil }
 
 // Remove forgets a video's project: the file beside it and the one in the
 // app's folder. A file that is not there is no error; a folder of that name

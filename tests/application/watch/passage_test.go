@@ -334,3 +334,51 @@ func TestOpenEditorPausesPicksAndShowsThePanel(t *testing.T) {
 	default:
 	}
 }
+
+// Fitted to its lines, a passage can reach past the end of a short video:
+// it is cut at the end and studied, not refused.
+func TestAMarkedPassageIsCutAtTheEndOfTheVideo(t *testing.T) {
+	r, s := markingRig(t)
+	sample := func(position time.Duration) {
+		r.running.samples <- playback.Sample{Position: position, Duration: 2500 * time.Millisecond, Status: playback.StatusPaused, Speed: 1, ObservedAt: time.Now()}
+		eventually(t, "the position", func() bool { return s.State().Position == position })
+	}
+	sample(1200 * time.Millisecond)
+	s.MarkPassageStart()
+	sample(2 * time.Second)
+	segment, err := s.MarkPassageEnd()
+	// The line runs 1 s to 3 s: half a second of lead-in before it, and its
+	// end cut at the video's 2.5 s.
+	want := study.Segment{Start: 500 * time.Millisecond, End: 2500 * time.Millisecond}
+	if err != nil || segment != want {
+		t.Fatalf("MarkPassageEnd = %+v, %v; want %+v", segment, err, want)
+	}
+	if status := s.Passage(); !status.Active || status.Segment != want {
+		t.Fatalf("studying %+v", status)
+	}
+}
+
+// A saved passage from a longer cut of the film is studied up to the end of
+// this video.
+func TestASavedPassagePastTheEndIsCut(t *testing.T) {
+	_, s := markingRig(t)
+	s.SetSavedPassages([]watch.SavedPassage{
+		{Name: "Final", Segment: study.Segment{Start: 50 * time.Second, End: 70 * time.Second}, Plan: study.PracticePlan{Mode: study.EndPause}},
+	})
+	if err := s.StudySavedAt(0); err != nil {
+		t.Fatal(err)
+	}
+	if status := s.Passage(); !status.Active || status.Segment != (study.Segment{Start: 50 * time.Second, End: time.Minute}) {
+		t.Fatalf("studying %+v", status)
+	}
+}
+
+// Without a line on top there is nothing to fit a passage to or to preview.
+func TestASessionWithoutTheLineOnTop(t *testing.T) {
+	r := newRig(t)
+	r.request.Tracks.Primary = 0
+	s := r.start(t)
+	if s.HasPrimary() {
+		t.Fatal("a session without a line on top says it has one")
+	}
+}

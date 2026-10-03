@@ -317,6 +317,20 @@ func TestUniqueNameKeepsEveryPassage(t *testing.T) {
 	if err := (project.Passage{Name: got, Start: 0, End: 1000}).Validate(); err != nil {
 		t.Fatalf("the long unique name is not valid: %v", err)
 	}
+	// Each length near the limit: cut only as much as the suffix needs.
+	room := project.MaxPassageNameLen - len([]rune(" (2)"))
+	for n := room - 2; n <= project.MaxPassageNameLen; n++ {
+		name := strings.Repeat("a", n)
+		want := strings.Repeat("a", min(n, room)) + " (2)"
+		if got := project.UniqueName(passages(name), name); got != want {
+			t.Errorf("UniqueName of %d letters = %d letters %q, want %d", n, len([]rune(got)), got, len([]rune(want)))
+		}
+	}
+	// A cut that ends on a space leaves no double space before the suffix.
+	spaced := strings.Repeat("a", room-1) + " bbbb"
+	if got, want := project.UniqueName(passages(spaced), spaced), strings.Repeat("a", room-1)+" (2)"; got != want {
+		t.Errorf("UniqueName cut on a space = %q, want %q", got, want)
+	}
 }
 
 func TestIndexOfIgnoresCaseAndSpaces(t *testing.T) {

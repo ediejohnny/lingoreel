@@ -1,6 +1,7 @@
 package playerwindow_test
 
 import (
+	"fmt"
 	"math"
 	"slices"
 	"strings"
@@ -29,6 +30,9 @@ type menuRig struct {
 	host   windows.HWND
 	bar    windows.HWND
 	remote *fakeRemote
+	// adjust changes the study state the tests lay the bar out with, to match
+	// values given to the fake session.
+	adjust func(*controlbar.StudyState)
 }
 
 func newMenuRig(t *testing.T) *menuRig {
@@ -100,7 +104,21 @@ func (r *menuRig) layout(open controlbar.Menu) controlbar.Bar {
 			Mode: study.ModeOnDemand, HasPrimary: true, HasTranslation: true,
 		},
 	}
+	if r.adjust != nil {
+		r.adjust(&state.Study)
+	}
 	return controlbar.Layout(area, controlbar.Scale(win32.DpiForWindow(r.host)), state)
+}
+
+// closeMenu closes the open menu with Esc and brings the bar back.
+func (r *menuRig) closeMenu() {
+	r.t.Helper()
+	closed := r.layout(controlbar.MenuNone)
+	post(r.t, r.host, win32.WM_KEYDOWN, 0, key(scanEscape, false, false))
+	eventually(r.t, "the menu to close", func() bool {
+		return !windows.IsWindowVisible(r.bar) || r.barHeight() <= math.Ceil(closed.Band.H)
+	})
+	r.hover()
 }
 
 // click presses the bar at the center of a rectangle of the host's client
@@ -282,4 +300,51 @@ func TestTheFrameButtonsStepFrames(t *testing.T) {
 	if got := r.remote.ran(); !slices.Equal(got, []string{"frame-back", "frame-forward"}) {
 		t.Fatalf("ran %q", got)
 	}
+}
+
+// A menu row changes only what it names, inside its limits; a saved passage
+// of a longer cut is listed but cannot be studied.
+func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
+	r := newMenuRig(t)
+	r.remote.mu.Lock()
+	r.remote.repeats = 3
+	r.remote.plan = study.PracticePlan{} // no end mode yet
+	r.remote.saved = append(r.remote.saved, watch.SavedPassage{Name: "Créditos", Segment: study.Segment{Start: 200 * time.Second, End: 210 * time.Second}})
+	r.remote.mu.Unlock()
+	r.adjust = func(s *controlbar.StudyState) { s.Repeat = 3 }
+	rules := study.DefaultCueRules()
+
+	bar := r.open(controlbar.MenuKaraoke)
+	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldRepeat && e.Delta < 0 }))
+	waitFor(t, "one repeat less", r.remote.changed, "repeats 2")
+	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldFill }))
+	waitFor(t, "the fill off and nothing else", r.remote.changed, fmt.Sprintf("karaoke on=false gap=%v lead=%v fill=false", rules.MinGap, rules.Lead))
+
+	// The passage past the end does nothing and the menu stays; an option set
+	// on a plan with no end mode gives it the one that pauses.
+	r.closeMenu()
+	bar = r.open(controlbar.MenuPassage)
+	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Kind == controlbar.EntryPassage && e.Index == 2 }))
+	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldProgressive }))
+	eventually(t, "progressive on", func() bool {
+		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.HasPrefix(c, "options pause gap=0s goal=0 progressive=true") })
+	})
+	if slices.Contains(r.remote.changed(), "study saved 2") {
+		t.Fatal("a saved passage past the end of the video was studied")
+	}
+
+	// Half a step below its maximum, the gap goes up to it, not past it.
+	r.closeMenu()
+	near := study.PracticePlan{Mode: study.EndLoop, Gap: study.MaxLoopGap - 500*time.Millisecond}
+	r.remote.mu.Lock()
+	r.remote.plan = near
+	r.remote.mu.Unlock()
+	r.adjust = func(s *controlbar.StudyState) { s.Repeat, s.Options = 3, near }
+	bar = r.open(controlbar.MenuPassage)
+	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldGap && e.Delta > 0 }))
+	eventually(t, "the gap at its maximum", func() bool {
+		return slices.ContainsFunc(r.remote.changed(), func(c string) bool {
+			return strings.HasPrefix(c, fmt.Sprintf("options loop gap=%v ", study.MaxLoopGap))
+		})
+	})
 }

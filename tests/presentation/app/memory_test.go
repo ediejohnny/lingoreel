@@ -316,3 +316,51 @@ func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
 	_, err = r.api.ResetProject()
 	wantMessage(t, "ResetProject of a file in use", err, "Não foi possível apagar")
 }
+
+// The slower laps of a progressive passage are the passage's, not the
+// video's: they are not kept as the speed to come back to.
+func TestAProgressivePassageLeavesTheVideosSpeed(t *testing.T) {
+	r := startWatching(t)
+	seekTo(t, r, 20)
+	if err := r.api.StudyPassage(app.PassageRequest{Start: "0:20", End: "0:35", Progressive: true}); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the first lap's slower speed", func() bool { return r.api.PlaybackState().Speed < 1 })
+	time.Sleep(600 * time.Millisecond) // a few state reports
+	r.api.StopWatching()
+	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	if stored, _ := r.projects.stored(t, movie); stored.Last.Speed != 0 {
+		t.Fatalf("kept speed %v, want none", stored.Last.Speed)
+	}
+}
+
+// Steps that go on for longer than the delay are saved about once per
+// delay, not once per step.
+func TestALongRunOfStepsIsSavedOncePerDelay(t *testing.T) {
+	const delay = 200 * time.Millisecond
+	r := newRigWith(t, func(deps *app.Deps) { deps.SaveDelay = delay })
+	r.attach(t)
+	openMovie(t, r)
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.api.StopWatching() })
+	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	_, before := r.projects.stored(t, movie)
+	const steps = 20
+	for range steps {
+		if err := r.api.Nudge("translation", true); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	eventually(t, "the last step saved", func() bool {
+		stored, _ := r.projects.stored(t, movie)
+		return stored.Tracks["track:5"].Offset == project.MillisOf(steps*50*time.Millisecond)
+	})
+	time.Sleep(2 * delay)
+	// 20 steps over half a second: a save at most every 200 ms.
+	if _, after := r.projects.stored(t, movie); after-before > 5 {
+		t.Fatalf("%d saves for %d steps over %v", after-before, steps, steps*25*time.Millisecond)
+	}
+}

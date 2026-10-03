@@ -107,6 +107,11 @@ func TestThePassageMenu(t *testing.T) {
 	if len(indexes) != 6 || indexes[0] != 2 || indexes[5] != 7 {
 		t.Fatalf("saved passages listed %v, want the latest six (2..7)", indexes)
 	}
+	// Without a line on top there is nothing to fit the passage to.
+	s.HasPrimary = false
+	if snap, _ := find(controlbar.Entries(controlbar.MenuPassage, s), func(e controlbar.Entry) bool { return e.Field == controlbar.FieldSnap }); snap.Enabled {
+		t.Error("snap on without a line on top")
+	}
 }
 
 func TestTheKaraokeMenu(t *testing.T) {
@@ -141,6 +146,13 @@ func TestTheKaraokeMenu(t *testing.T) {
 	}
 	if stepButton(entries, controlbar.FieldRepeat, +1).Enabled {
 		t.Error("repeats at their maximum")
+	}
+	// One step inside the limits, the step toward them is still there.
+	step, _ := controlbar.Step(controlbar.FieldMinGap)
+	s.MinGap, s.Lead = study.MinCueGap+step, study.MaxCueLead-step
+	entries = controlbar.Entries(controlbar.MenuKaraoke, s)
+	if !stepButton(entries, controlbar.FieldMinGap, -1).Enabled || !stepButton(entries, controlbar.FieldLead, +1).Enabled {
+		t.Error("one step inside the limits the timing cannot reach them")
 	}
 	// Without a line on top there is nothing to preview or repeat.
 	s.HasPrimary = false

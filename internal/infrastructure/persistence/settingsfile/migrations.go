@@ -48,10 +48,10 @@ func freeThePassageMarks(document map[string]any) error {
 			if _, own := keys[string(command)]; own {
 				continue
 			}
-			for other, value := range keys {
+			for _, value := range keys {
 				text, _ := value.(string)
 				chord, err := shortcut.Parse(text)
-				if err == nil && other != string(command) && chord == defaults[command] {
+				if err == nil && chord == defaults[command] {
 					keys[string(command)] = ""
 					break
 				}
