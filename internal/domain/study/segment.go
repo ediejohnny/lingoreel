@@ -49,6 +49,17 @@ func (s Segment) Validate(duration time.Duration) error {
 	return nil
 }
 
+// FitTo keeps a passage inside the video: it never starts before 0 nor ends
+// after duration (zero when unknown leaves the end alone). Fitting to the
+// lines can stretch the end past the video, to a line of the credits.
+func (s Segment) FitTo(duration time.Duration) Segment {
+	s.Start = max(s.Start, 0)
+	if duration > 0 {
+		s.End = min(s.End, duration)
+	}
+	return s
+}
+
 // Contains reports a position inside the passage, its end included.
 func (s Segment) Contains(position time.Duration) bool {
 	return position >= s.Start && position <= s.End

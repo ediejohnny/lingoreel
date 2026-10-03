@@ -42,8 +42,11 @@ func (s *Session) setLap(lap study.Lap) {
 }
 
 // redraw shows the last visible events again, after a change of how they
-// show.
+// show. It holds showMu as the runner does, so a change the runner draws
+// meanwhile is never painted over with the lines from before it.
 func (s *Session) redraw() {
+	s.showMu.Lock()
+	defer s.showMu.Unlock()
 	if last := s.lastVisible.Load(); last != nil {
 		s.show(*last)
 	}
@@ -66,6 +69,38 @@ func (s *Session) SetKaraoke(enabled bool) {
 	karaoke := s.subtitles.Karaoke()
 	karaoke.Enabled = enabled
 	s.subtitles.SetKaraoke(karaoke)
+}
+
+// SetKaraokeSettings changes the Modo Karaokê as a whole: on or off, its
+// timing and the fill, refusing timing the rules refuse.
+func (s *Session) SetKaraokeSettings(karaoke session.Karaoke) error {
+	if err := karaoke.Rules.Validate(); err != nil {
+		return err
+	}
+	s.subtitles.SetKaraoke(karaoke)
+	return nil
+}
+
+// HasPrimary tells a line on top is loaded: without it there is nothing to
+// preview, repeat or fit a passage to.
+func (s *Session) HasPrimary() bool {
+	return s.subtitles.Track(session.LinePrimary) != nil
+}
+
+// OpenEditor starts correcting a line from the player window: it pauses,
+// picks the line on screen and brings the app's panel, where the editor
+// is, to the front.
+func (s *Session) OpenEditor(line session.Line) error {
+	if err := s.controls.Pause(); err != nil {
+		return err
+	}
+	if _, err := s.Select(line); err != nil {
+		return err
+	}
+	if s.showPanel != nil {
+		s.showPanel()
+	}
+	return nil
 }
 
 // Karaoke is the Modo Karaokê as it is now.
@@ -106,14 +141,26 @@ func (s *Session) ReplayLine() error {
 }
 
 // StudyPassage starts "Estudar trecho"; snap widens the passage so no line
-// is cut.
+// is cut, never past the end of the video. The plan and snap become the
+// options of the next passage closed by the mark shortcut.
 func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, snap bool) error {
 	if snap {
 		if track := s.subtitles.Track(session.LinePrimary); track != nil {
 			segment = study.SnapToLines(segment, track.Timeline, track.Offset)
 		}
 	}
-	return s.practice.Start(segment, plan)
+	segment = segment.FitTo(s.clock.State().Duration)
+	if err := s.practice.Start(segment, plan); err != nil {
+		return err
+	}
+	return s.SetPassageOptions(plan, snap)
+}
+
+// StudySaved studies a saved passage as it was kept: its times (already
+// fitted to the lines when it was studied) and its plan. The options of
+// the next marked passage stay as they are.
+func (s *Session) StudySaved(segment study.Segment, plan study.PracticePlan) error {
+	return s.practice.Start(segment.FitTo(s.clock.State().Duration), plan)
 }
 
 // LinePassage is the passage of the line on top being spoken, or the last

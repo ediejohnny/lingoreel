@@ -22,23 +22,23 @@ func BindingOf(chord shortcut.Chord) (Binding, error) {
 	return Binding{Modifiers: keyboard.Modifiers(chord.Modifiers), Key: key}, nil
 }
 
-// syncShortcuts adapts Hotkeys to the session's sync shortcuts; keys is nil
-// when none of them has a chord.
-type syncShortcuts struct {
+// globalShortcuts adapts Hotkeys to the session's global shortcuts: the sync
+// steps and the passage marks. keys is nil when none of them has a chord.
+type globalShortcuts struct {
 	keys      *Hotkeys
 	presses   chan watch.Press
 	closeOnce sync.Once
 }
 
-// StartSync listens to watch.SyncShortcuts, on the given chords, while the
-// player is in the foreground: its own window, or else any window of its
+// StartGlobal listens to watch.GlobalCommands, on the given chords, while
+// the player is in the foreground: its own window, or else any window of its
 // process. A shortcut without a chord is left out.
-func StartSync(target watch.ShortcutTarget, chords []shortcut.Chord, logger *slog.Logger) (watch.Shortcuts, error) {
-	if len(chords) != len(watch.SyncShortcuts) {
-		return nil, fmt.Errorf("%w: %d chords for %d sync shortcuts", ErrInvalidBinding, len(chords), len(watch.SyncShortcuts))
+func StartGlobal(target watch.ShortcutTarget, chords []shortcut.Chord, logger *slog.Logger) (watch.Shortcuts, error) {
+	if commands := len(watch.GlobalCommands()); len(chords) != commands {
+		return nil, fmt.Errorf("%w: %d chords for %d global shortcuts", ErrInvalidBinding, len(chords), commands)
 	}
 	var bindings []Binding
-	var indices []int // the sync shortcut of each binding
+	var indices []int // the global command of each binding
 	for i, chord := range chords {
 		if chord.IsZero() {
 			continue
@@ -49,7 +49,7 @@ func StartSync(target watch.ShortcutTarget, chords []shortcut.Chord, logger *slo
 		}
 		bindings, indices = append(bindings, binding), append(indices, i)
 	}
-	s := &syncShortcuts{presses: make(chan watch.Press, pressBuffer)}
+	s := &globalShortcuts{presses: make(chan watch.Press, pressBuffer)}
 	if len(bindings) == 0 {
 		return s, nil
 	}
@@ -68,9 +68,9 @@ func StartSync(target watch.ShortcutTarget, chords []shortcut.Chord, logger *slo
 	return s, nil
 }
 
-func (s *syncShortcuts) Presses() <-chan watch.Press { return s.presses }
+func (s *globalShortcuts) Presses() <-chan watch.Press { return s.presses }
 
-func (s *syncShortcuts) Close() error {
+func (s *globalShortcuts) Close() error {
 	if s.keys == nil {
 		s.closeOnce.Do(func() { close(s.presses) })
 		return nil

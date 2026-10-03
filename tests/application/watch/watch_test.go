@@ -247,6 +247,25 @@ type recordingListener struct {
 	mu     sync.Mutex
 	synced []subtitle.Offset
 	edited []editedLine
+	marked []markedPassage
+}
+
+// markedPassage is one call of PassageMarked.
+type markedPassage struct {
+	segment study.Segment
+	plan    study.PracticePlan
+}
+
+func (l *recordingListener) PassageMarked(segment study.Segment, plan study.PracticePlan) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.marked = append(l.marked, markedPassage{segment, plan})
+}
+
+func (l *recordingListener) passages() []markedPassage {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]markedPassage(nil), l.marked...)
 }
 
 // editedLine is one call of Edited.

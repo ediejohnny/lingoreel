@@ -31,6 +31,7 @@ const (
 	KeyDigit5     Key = "Digit5"
 	KeyF4         Key = "F4"
 	KeyF9         Key = "F9"
+	KeyF10        Key = "F10"
 	KeyF12        Key = "F12"
 	// KeyAltRight is the right Alt (AltGr on some layouts), a key of its
 	// own for the translation, used alone.

@@ -30,6 +30,9 @@ export function App() {
   const [resumable, setResumable] = useState(false);
   const [installing, setInstalling] = useState("");
   const [installError, setInstallError] = useState("");
+  // resets counts the times the video was forgotten: the session screen
+  // starts over with what the video has become.
+  const [resets, setResets] = useState(0);
 
   const open = useCallback(async (path: string) => {
     if (!path) {
@@ -117,6 +120,18 @@ export function App() {
     }
   };
 
+  const reset = async () => {
+    try {
+      const fresh = await backend.resetProject();
+      setVideo(fresh);
+      setPlayers(fresh.players);
+      setResets((count) => count + 1);
+      setError("");
+    } catch (failure) {
+      setError(messageOf(failure));
+    }
+  };
+
   const command = useCallback((run: () => Promise<void>) => {
     run().catch((failure) => setError(messageOf(failure)));
   }, []);
@@ -197,7 +212,7 @@ export function App() {
         />
       ) : screen === "session" && video && players ? (
         <SessionPage
-          key={video.path}
+          key={`${video.path}#${resets}`}
           video={video}
           players={players}
           starting={starting}
@@ -206,6 +221,7 @@ export function App() {
           installing={installing}
           installError={installError}
           onWatch={watch}
+          onReset={reset}
           onDismissError={() => {
             setError("");
             setResumable(false);

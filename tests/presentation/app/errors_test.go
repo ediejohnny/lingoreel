@@ -102,13 +102,14 @@ func TestAPlayerLostCanBeWatchedAgainFromThere(t *testing.T) {
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start < 49*time.Second || start > 51*time.Second {
 		t.Fatalf("watched again from %v, want about 50 s", start)
 	}
-	// The place is used once: the next start begins as usual.
+	// The place is used once: the next start begins as usual, unless asked
+	// to go on where the video was left.
 	r.api.StopWatching()
 	eventually(t, "the stop", func() bool { return !r.api.PlaybackState().Active })
-	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5, Resume: true}); err != nil {
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 0 {
-		t.Fatalf("a second resume started at %v", start)
+		t.Fatalf("a start without resume began at %v", start)
 	}
 }

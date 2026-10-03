@@ -15,17 +15,20 @@ import (
 //	panel: y 720-58 = 662, height 58; inner: x 12, width 1280-2*12 = 1256
 //	track: y 662+(16-4)/2 = 668, height 4; its hit area: y 662, height 16
 //	buttons row: y 662+16 = 678, height 40
-//	left: play 12, back 12+44 = 56, forward 100, mute 144, volume 188 (72
-//	      wide, line 192..256), time 188+76 = 264 (124 wide)
+//	left: play 12, back 12+44 = 56, forward 100, frame back 144, frame forward
+//	      188, mute 232, volume 276 (72 wide, line 280..344), time 276+76 =
+//	      352 (124 wide)
 //	right: fullscreen 1268-40 = 1228, speed 1224-60 = 1164, translation
-//	       1160-40 = 1120
+//	       1160-40 = 1120, then the menus: subtitles 1076, karaoke 1032,
+//	       passage 988
+//	study text: from 352+128 = 480 to 988-4 = 984
 var wide = layout.Rect{W: 1280, H: 720}
 
 func fullState() controlbar.State {
 	return controlbar.State{
 		Position: 25 * time.Second, Duration: 100 * time.Second, Speed: 1, Volume: 0.5,
 		HasTranslation: true, TranslationVisible: true,
-		Capabilities: playback.Capabilities{Pause: true, Seek: true, Speed: true, Volume: true},
+		Capabilities: playback.Capabilities{Pause: true, Seek: true, Speed: true, Volume: true, FrameStepForward: true, FrameStepBackwardEmulated: true},
 	}
 }
 
@@ -59,7 +62,7 @@ func TestLayoutPlacesEveryPart(t *testing.T) {
 	}
 	want := map[controlbar.Action]float64{
 		controlbar.ActionPlayPause: 12, controlbar.ActionBack: 56, controlbar.ActionForward: 100,
-		controlbar.ActionMute: 144, controlbar.ActionVolume: 188,
+		controlbar.ActionFrameBack: 144, controlbar.ActionFrameForward: 188, controlbar.ActionMute: 232, controlbar.ActionVolume: 276,
 		controlbar.ActionFullscreen: 1228, controlbar.ActionSpeed: 1164, controlbar.ActionTranslation: 1120,
 	}
 	for action, x := range want {
@@ -67,10 +70,25 @@ func TestLayoutPlacesEveryPart(t *testing.T) {
 			t.Errorf("item %d at %+v, want x %v, y 678, height 40", action, got, x)
 		}
 	}
-	if bar.Time != (layout.Rect{X: 264, Y: 678, W: 124, H: 40}) {
+	if bar.Time != (layout.Rect{X: 352, Y: 678, W: 124, H: 40}) {
 		t.Fatalf("time = %+v", bar.Time)
 	}
-	if bar.VolumeTrack != (layout.Rect{X: 192, Y: 678 + 18, W: 64, H: 4}) || bar.VolumeLevel != 0.5 {
+	if bar.Status != (layout.Rect{X: 480, Y: 678, W: 504, H: 40}) {
+		t.Fatalf("study text = %+v", bar.Status)
+	}
+	menus := map[controlbar.Menu]float64{controlbar.MenuPassage: 988, controlbar.MenuKaraoke: 1032, controlbar.MenuSubtitles: 1076}
+	for _, it := range bar.Items {
+		if it.Action == controlbar.ActionMenu {
+			if x, ok := menus[it.Menu]; !ok || it.Bounds.X != x || !it.Enabled || it.Active {
+				t.Errorf("menu button %+v", it)
+			}
+			delete(menus, it.Menu)
+		}
+	}
+	if len(menus) != 0 {
+		t.Errorf("menu buttons missing: %v", menus)
+	}
+	if bar.VolumeTrack != (layout.Rect{X: 280, Y: 678 + 18, W: 64, H: 4}) || bar.VolumeLevel != 0.5 {
 		t.Fatalf("volume line = %+v level %v", bar.VolumeTrack, bar.VolumeLevel)
 	}
 	// The band starts 34 pixels above the panel, for the tips.
@@ -108,23 +126,26 @@ func TestHitTestEdges(t *testing.T) {
 }
 
 func TestNarrowWindowsDropPartsInOrder(t *testing.T) {
-	// Widths needed at scale 1 (inner width = window - 24): everything 528;
-	// without the volume line 528-76 = 452; without the jumps 452-88 = 364;
-	// without the time 364-128 = 236; without the speed 236-64 = 172; without
-	// the translation 172-44 = 128; play and fullscreen alone 84.
+	// Widths needed at scale 1 (inner width = window - 24): everything 872;
+	// without the study text 872-124 = 748; without the volume line 748-76 =
+	// 672; without the frame steps 672-88 = 584; without the jumps 584-88 =
+	// 496; without the time 496-128 = 368; without the speed 368-64 = 304;
+	// without the translation 304-44 = 260; without the mute 260-44 = 216;
+	// without the menus, play and fullscreen alone 216-132 = 84.
 	steps := []struct {
 		inner   float64
 		dropped []controlbar.Action
 		kept    []controlbar.Action
 	}{
-		{528, nil, []controlbar.Action{controlbar.ActionVolume, controlbar.ActionBack}},
-		{527, []controlbar.Action{controlbar.ActionVolume}, []controlbar.Action{controlbar.ActionBack, controlbar.ActionForward}},
-		{452, []controlbar.Action{controlbar.ActionVolume}, []controlbar.Action{controlbar.ActionBack}},
-		{451, []controlbar.Action{controlbar.ActionBack, controlbar.ActionForward}, []controlbar.Action{controlbar.ActionSpeed}},
-		{235, []controlbar.Action{controlbar.ActionSpeed}, []controlbar.Action{controlbar.ActionTranslation, controlbar.ActionMute}},
-		{171, []controlbar.Action{controlbar.ActionTranslation}, []controlbar.Action{controlbar.ActionMute}},
-		{127, []controlbar.Action{controlbar.ActionMute}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen, controlbar.ActionTrack}},
-		{10, []controlbar.Action{controlbar.ActionMute}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen}},
+		{872, nil, []controlbar.Action{controlbar.ActionVolume, controlbar.ActionFrameBack, controlbar.ActionMenu}},
+		{747, []controlbar.Action{controlbar.ActionVolume}, []controlbar.Action{controlbar.ActionFrameBack, controlbar.ActionBack}},
+		{671, []controlbar.Action{controlbar.ActionFrameBack, controlbar.ActionFrameForward}, []controlbar.Action{controlbar.ActionBack}},
+		{583, []controlbar.Action{controlbar.ActionBack, controlbar.ActionForward}, []controlbar.Action{controlbar.ActionSpeed, controlbar.ActionMenu}},
+		{367, []controlbar.Action{controlbar.ActionSpeed}, []controlbar.Action{controlbar.ActionTranslation, controlbar.ActionMute, controlbar.ActionMenu}},
+		{303, []controlbar.Action{controlbar.ActionTranslation}, []controlbar.Action{controlbar.ActionMute, controlbar.ActionMenu}},
+		{259, []controlbar.Action{controlbar.ActionMute}, []controlbar.Action{controlbar.ActionMenu}},
+		{215, []controlbar.Action{controlbar.ActionMenu}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen, controlbar.ActionTrack}},
+		{10, []controlbar.Action{controlbar.ActionMenu}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen}},
 	}
 	for _, step := range steps {
 		bar := controlbar.Layout(layout.Rect{W: step.inner + 24, H: 400}, 1, fullState())
@@ -139,12 +160,36 @@ func TestNarrowWindowsDropPartsInOrder(t *testing.T) {
 			}
 		}
 	}
-	// The time goes between 364 and 363.
-	if bar := controlbar.Layout(layout.Rect{W: 364 + 24, H: 400}, 1, fullState()); !bar.Time.Valid() {
-		t.Error("inner width 364 dropped the time")
+	// The study text goes first, between 872 and 871; the time between 496
+	// and 495.
+	for _, c := range []struct {
+		inner  float64
+		status bool
+		time   bool
+	}{{872, true, true}, {871, false, true}, {496, false, true}, {495, false, false}} {
+		bar := controlbar.Layout(layout.Rect{W: c.inner + 24, H: 400}, 1, fullState())
+		if bar.Status.Valid() != c.status || bar.Time.Valid() != c.time {
+			t.Errorf("inner width %v: study text %v (want %v), time %v (want %v)", c.inner, bar.Status.Valid(), c.status, bar.Time.Valid(), c.time)
+		}
 	}
-	if bar := controlbar.Layout(layout.Rect{W: 363 + 24, H: 400}, 1, fullState()); bar.Time.Valid() {
-		t.Error("inner width 363 kept the time")
+}
+
+// The frame buttons follow the player: one forward, and one back when the
+// player steps back or the session emulates it with an exact seek.
+func TestFrameButtonsFollowThePlayer(t *testing.T) {
+	state := fullState()
+	bar := controlbar.Layout(wide, 1, state)
+	if !item(t, bar, controlbar.ActionFrameBack).Enabled || !item(t, bar, controlbar.ActionFrameForward).Enabled {
+		t.Fatal("frame buttons off with the capabilities")
+	}
+	state.Capabilities.FrameStepForward, state.Capabilities.FrameStepBackwardEmulated = false, false
+	bar = controlbar.Layout(wide, 1, state)
+	if item(t, bar, controlbar.ActionFrameBack).Enabled || item(t, bar, controlbar.ActionFrameForward).Enabled {
+		t.Fatal("frame buttons on without the capabilities")
+	}
+	state.Capabilities.FrameStepBackward = true
+	if !item(t, controlbar.Layout(wide, 1, state), controlbar.ActionFrameBack).Enabled {
+		t.Fatal("a player stepping back did not turn the button on")
 	}
 }
 
@@ -277,8 +322,8 @@ func TestTrackPosition(t *testing.T) {
 
 func TestVolumeAt(t *testing.T) {
 	bar := controlbar.Layout(wide, 1, fullState())
-	// Volume line from 192, 64 wide.
-	for x, want := range map[float64]playback.Volume{192: 0, 224: 0.5, 256: 1, 100: 0, 400: 1} {
+	// Volume line from 280, 64 wide.
+	for x, want := range map[float64]playback.Volume{280: 0, 312: 0.5, 344: 1, 100: 0, 500: 1} {
 		if got := bar.VolumeAt(x); got != want {
 			t.Errorf("VolumeAt(%v) = %v, want %v", x, got, want)
 		}

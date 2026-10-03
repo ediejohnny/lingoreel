@@ -14,12 +14,14 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 )
 
-// Version is the current version of the project file.
-const Version = 1
+// Version is the current version of the project file. Version 2 added how
+// the video was left (Last) and each passage's study plan.
+const Version = 2
 
 // Limits of a project read from disk, which is not trusted: a hand-edited or
 // hostile file cannot make the app hold more than this.
@@ -65,6 +67,58 @@ type Project struct {
 	Tracks   map[string]Track `json:"tracks"`
 	Choice   Choice           `json:"choice"`
 	Passages []Passage        `json:"passages"`
+	Last     Last             `json:"last"`
+}
+
+// Last is how the video was left: where, at what speed and with which Modo
+// Karaokê. Zero values keep the profile's, and a zero position starts from
+// the beginning.
+type Last struct {
+	Position Millis   `json:"position"`
+	Speed    float64  `json:"speed,omitempty"`
+	Karaoke  *Karaoke `json:"karaoke,omitempty"`
+}
+
+// Karaoke is the Modo Karaokê as last used on the video: on or off, its
+// timing, the indicator, the fill and the repeats. The colors stay with the
+// profile, which owns the look.
+type Karaoke struct {
+	Enabled   bool            `json:"enabled"`
+	MinGap    Millis          `json:"minGap"`
+	Lead      Millis          `json:"lead"`
+	Indicator study.Indicator `json:"indicator"`
+	Fill      bool            `json:"fill"`
+	Repeat    int             `json:"repeat"`
+}
+
+// Rules are the preview's timing rules.
+func (k Karaoke) Rules() study.CueRules {
+	return study.CueRules{MinGap: k.MinGap.Duration(), Lead: k.Lead.Duration()}
+}
+
+// PassagePlan is how a saved passage is studied, so "Estudar" plays it the
+// way it was set up: pausing or looping at the end, and the helps.
+type PassagePlan struct {
+	Loop        bool   `json:"loop"`
+	Gap         Millis `json:"gap"`
+	Progressive bool   `json:"progressive"`
+	Ladder      bool   `json:"ladder"`
+	Goal        int    `json:"goal"`
+}
+
+// PlanOf keeps a practice plan in the file's form.
+func PlanOf(plan study.PracticePlan) PassagePlan {
+	return PassagePlan{Loop: plan.Mode == study.EndLoop, Gap: MillisOf(plan.Gap),
+		Progressive: plan.Progressive, Ladder: plan.Ladder, Goal: plan.Goal}
+}
+
+// Practice is the plan as the study rules take it.
+func (p PassagePlan) Practice() study.PracticePlan {
+	mode := study.EndPause
+	if p.Loop {
+		mode = study.EndLoop
+	}
+	return study.PracticePlan{Mode: mode, Gap: p.Gap.Duration(), Progressive: p.Progressive, Ladder: p.Ladder, Goal: p.Goal}
 }
 
 // New is an empty project.
@@ -99,15 +153,60 @@ type Edit struct {
 }
 
 // Passage is a passage saved for "Estudar trecho", on the playback clock.
+// Its times are the ones studied, already fitted to the lines.
 type Passage struct {
 	Name  string `json:"name"`
 	Start Millis `json:"start"`
 	End   Millis `json:"end"`
+	// Plan is how it is studied; nil (a passage saved before version 2)
+	// pauses at the end, with no helps.
+	Plan *PassagePlan `json:"plan,omitempty"`
 }
 
 // Segment is the passage as the study rules see it.
 func (p Passage) Segment() study.Segment {
 	return study.Segment{Start: p.Start.Duration(), End: p.End.Duration()}
+}
+
+// Practice is how the passage is studied.
+func (p Passage) Practice() study.PracticePlan {
+	if p.Plan == nil {
+		return study.PracticePlan{Mode: study.EndPause}
+	}
+	return p.Plan.Practice()
+}
+
+// IndexOf finds a passage by name, whatever the case and the spaces around
+// it; -1 when there is none.
+func IndexOf(passages []Passage, name string) int {
+	name = strings.TrimSpace(name)
+	for i, passage := range passages {
+		if strings.EqualFold(passage.Name, name) {
+			return i
+		}
+	}
+	return -1
+}
+
+// UniqueName returns name, or name with " (2)", " (3)"… when a passage
+// already has it, so saving the same span twice keeps both. It never goes
+// past MaxPassageNameLen: the suffix takes the end of a long name.
+func UniqueName(passages []Passage, name string) string {
+	name = strings.TrimSpace(name)
+	if IndexOf(passages, name) < 0 {
+		return name
+	}
+	for n := 2; ; n++ {
+		suffix := fmt.Sprintf(" (%d)", n)
+		base := []rune(name)
+		if room := MaxPassageNameLen - utf8.RuneCountInString(suffix); len(base) > room {
+			base = base[:room]
+		}
+		candidate := strings.TrimSpace(string(base)) + suffix
+		if IndexOf(passages, candidate) < 0 {
+			return candidate
+		}
+	}
 }
 
 // HashOf identifies a line's original text: 16 hex digits of its SHA-256.
@@ -209,6 +308,34 @@ func (p Project) Validate() error {
 			return err
 		}
 	}
+	return p.Last.validate()
+}
+
+// validate checks how the video was left. A speed of zero is "the
+// profile's"; any other must be a speed the app plays.
+func (l Last) validate() error {
+	switch {
+	case !validTime(l.Position):
+		return fmt.Errorf("%w: last position %d ms", ErrInvalid, l.Position)
+	case l.Speed != 0 && !playback.Speed(l.Speed).Valid():
+		return fmt.Errorf("%w: last speed %v", ErrInvalid, l.Speed)
+	}
+	if l.Karaoke != nil {
+		return l.Karaoke.Validate()
+	}
+	return nil
+}
+
+// Validate checks the Modo Karaokê's values against the study rules.
+func (k Karaoke) Validate() error {
+	switch {
+	case k.Rules().Validate() != nil:
+		return fmt.Errorf("%w: karaoke timing %d/%d ms", ErrInvalid, k.MinGap, k.Lead)
+	case !k.Indicator.Valid():
+		return fmt.Errorf("%w: karaoke indicator %q", ErrInvalid, k.Indicator)
+	case k.Repeat < 0 || k.Repeat > study.MaxRepeats:
+		return fmt.Errorf("%w: karaoke repeat %d", ErrInvalid, k.Repeat)
+	}
 	return nil
 }
 
@@ -220,6 +347,8 @@ func (p Passage) Validate() error {
 		return fmt.Errorf("%w: passage name %q", ErrInvalid, p.Name)
 	case !validTime(p.Start) || !validTime(p.End) || p.End <= p.Start:
 		return fmt.Errorf("%w: passage %q from %d to %d ms", ErrInvalid, p.Name, p.Start, p.End)
+	case p.Plan != nil && p.Plan.Practice().Validate() != nil:
+		return fmt.Errorf("%w: passage %q plan %+v", ErrInvalid, p.Name, *p.Plan)
 	}
 	return nil
 }

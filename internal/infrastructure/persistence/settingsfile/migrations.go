@@ -6,6 +6,7 @@ import (
 
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
@@ -19,6 +20,45 @@ import (
 var profilesMigrations = map[int]jsonstore.Migration{
 	1: addKaraoke,
 	2: useTheAppFont,
+	3: freeThePassageMarks,
+}
+
+// newDefaults are the commands whose default chord came in a later version:
+// a profile that already gave that chord to another command keeps it there,
+// and the new command starts without a shortcut. Otherwise the two would
+// conflict, the whole profile would be refused and, saved again, replaced
+// by the defaults.
+var newDefaults = []shortcut.Command{shortcut.PassageMarkStart, shortcut.PassageMarkEnd}
+
+// freeThePassageMarks (version 3 to 4) leaves Ctrl+F9 and Ctrl+F10 with the
+// command a profile gave them, if any.
+func freeThePassageMarks(document map[string]any) error {
+	defaults := shortcut.Defaults()
+	items, _ := document["profiles"].([]any)
+	for i, item := range items {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d is not an object", i)
+		}
+		keys, _ := profile["shortcuts"].(map[string]any)
+		if keys == nil {
+			continue
+		}
+		for _, command := range newDefaults {
+			if _, own := keys[string(command)]; own {
+				continue
+			}
+			for _, value := range keys {
+				text, _ := value.(string)
+				chord, err := shortcut.Parse(text)
+				if err == nil && chord == defaults[command] {
+					keys[string(command)] = ""
+					break
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // useTheAppFont (version 2 to 3) moves the subtitles of a profile still on

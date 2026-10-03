@@ -234,7 +234,7 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
 
         <EditorCard state={state} label={label} onCommand={onCommand} />
 
-        <TrainingCards state={state} onCommand={onCommand} />
+        <TrainingCards state={state} label={label} onCommand={onCommand} />
 
         <div className="flex justify-end pb-2">
           <Button icon={Square} onClick={() => onCommand(commands.stop)}>

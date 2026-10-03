@@ -9,6 +9,7 @@ import (
 	"lingoreel/internal/domain/controlbar"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/domain/study"
 )
 
 // unavailable ends the tip of a control the player lacks.
@@ -120,6 +121,141 @@ func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Comm
 			return with("Sair da tela cheia", shortcut.ExitFullscreen)
 		}
 		return with("Tela cheia", shortcut.Fullscreen)
+	case controlbar.ActionFrameBack:
+		return with("Quadro anterior", shortcut.FrameBack)
+	case controlbar.ActionFrameForward:
+		return with("Próximo quadro", shortcut.FrameForward)
+	case controlbar.ActionMenu:
+		switch item.Menu {
+		case controlbar.MenuPassage:
+			return "Estudar trecho"
+		case controlbar.MenuKaraoke:
+			return "Modo Karaokê"
+		case controlbar.MenuSubtitles:
+			return "Legendas"
+		}
+	}
+	return ""
+}
+
+// BarEntries word the bar's menu entries, with keys named by char.
+func BarEntries(char KeyChar) func(controlbar.Entry, controlbar.State, shortcut.Map) controlbar.EntryText {
+	return func(entry controlbar.Entry, state controlbar.State, keys shortcut.Map) controlbar.EntryText {
+		return BarEntry(entry, state, keys, char)
+	}
+}
+
+// BarEntry words one entry of the bar's menus: its text, the value a
+// stepper shows, and the key of a command.
+func BarEntry(entry controlbar.Entry, state controlbar.State, keys shortcut.Map, char KeyChar) controlbar.EntryText {
+	s := state.Study
+	switch entry.Kind {
+	case controlbar.EntryCommand:
+		text := CommandName(entry.Command)
+		switch entry.Command {
+		case shortcut.PassageMarkStart:
+			if s.MarkSet {
+				text = "Marcar o início de novo (agora em " + PassageClock(s.MarkStart) + ")"
+			}
+		case shortcut.PassageMarkEnd:
+			if !s.MarkSet {
+				text = "Marcar o fim e salvar (marque o início antes)"
+			}
+		}
+		return controlbar.EntryText{Text: text, Key: ShortcutLabel(keys.Of(entry.Command), char)}
+	case controlbar.EntryPassage:
+		if entry.Index < 0 || entry.Index >= len(s.Saved) {
+			return controlbar.EntryText{}
+		}
+		saved := s.Saved[entry.Index]
+		text := PassageName(saved.Start, saved.End)
+		if saved.Outside {
+			text += " (fora deste vídeo)"
+		}
+		return controlbar.EntryText{Text: text}
+	case controlbar.EntryLabel:
+		return controlbar.EntryText{Text: map[controlbar.Field]string{
+			controlbar.FieldOptions: "OPÇÕES DO TRECHO", controlbar.FieldSaved: "TRECHOS SALVOS", controlbar.FieldSync: "SINCRONIA",
+		}[entry.Field]}
+	case controlbar.EntryStepper:
+		return stepperText(entry.Field, s)
+	}
+	return controlbar.EntryText{Text: optionText(entry, state)}
+}
+
+func stepperText(field controlbar.Field, s controlbar.StudyState) controlbar.EntryText {
+	switch field {
+	case controlbar.FieldGap:
+		return controlbar.EntryText{Text: "Intervalo entre as voltas", Value: Seconds(s.Options.Gap)}
+	case controlbar.FieldGoal:
+		value := "sem meta"
+		if s.Options.Goal > 0 {
+			value = fmt.Sprintf("%d voltas", s.Options.Goal)
+		}
+		return controlbar.EntryText{Text: "Meta", Value: value}
+	case controlbar.FieldMinGap:
+		return controlbar.EntryText{Text: "Pausa mínima antes da fala", Value: Seconds(s.MinGap)}
+	case controlbar.FieldLead:
+		return controlbar.EntryText{Text: "Antecedência da prévia", Value: Seconds(s.Lead)}
+	case controlbar.FieldRepeat:
+		value := "desligado"
+		if s.Repeat > 0 {
+			value = fmt.Sprintf("%d×", s.Repeat)
+		}
+		return controlbar.EntryText{Text: "Repetir cada fala", Value: value}
+	}
+	return controlbar.EntryText{}
+}
+
+func optionText(entry controlbar.Entry, state controlbar.State) string {
+	switch entry.Field {
+	case controlbar.FieldSnap:
+		return "Ajustar às falas"
+	case controlbar.FieldLoop:
+		return "Repetir sem parar"
+	case controlbar.FieldProgressive:
+		return "Velocidade progressiva"
+	case controlbar.FieldLadder:
+		return "Escada de legendas"
+	case controlbar.FieldKaraoke:
+		return "Ligar o Modo Karaokê"
+	case controlbar.FieldIndicator:
+		if entry.Value == "countdown" {
+			return "Contagem regressiva"
+		}
+		return "Barra até a fala"
+	case controlbar.FieldFill:
+		return "Pintar a fala enquanto é dita"
+	case controlbar.FieldMode:
+		return "Modo: " + ModeName(study.Mode(entry.Value))
+	case controlbar.FieldTranslation:
+		return "Mostrar a tradução"
+	case controlbar.FieldResetSync:
+		return "Zerar a sincronia das duas legendas"
+	case controlbar.FieldEdit:
+		if entry.Value == "translation" {
+			return "Corrigir a legenda de baixo…"
+		}
+		return "Corrigir a legenda de cima…"
+	}
+	return ""
+}
+
+// BarStatus is the study text on the bar: the start marked, the passage
+// being studied, or nothing.
+func BarStatus(s controlbar.StudyState) string {
+	span := func() string { return PassageClock(s.Passage.Start) + "–" + PassageClock(s.Passage.End) }
+	switch {
+	case s.Active && s.Suspended:
+		return "Trecho " + span() + " · fora do intervalo"
+	case s.Active && s.AtEnd:
+		return "Trecho " + span() + " · fim: Reproduzir repete"
+	case s.Active && s.Goal > 0:
+		return fmt.Sprintf("Trecho %s · volta %d de %d", span(), s.Lap, s.Goal)
+	case s.Active:
+		return fmt.Sprintf("Trecho %s · volta %d", span(), s.Lap)
+	case s.MarkSet:
+		return "Início do trecho: " + PassageClock(s.MarkStart)
 	}
 	return ""
 }

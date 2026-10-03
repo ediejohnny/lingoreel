@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,7 +55,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if err != nil || gotProfiles.Items[0].PreferredPlayer != "vlc" {
 		t.Fatalf("profiles after a round trip = %+v, %v", gotProfiles, err)
 	}
-	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 3`} {
+	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 4`} {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil || !strings.Contains(string(data), version) {
 			t.Fatalf("%s = %s, %v; want %s", name, data, err, version)
@@ -150,6 +151,50 @@ func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
 	}
 	if _, err := settingsfile.Open(dir).LoadProfiles(); !errors.Is(err, jsonstore.ErrInvalid) {
 		t.Fatalf("a conflicting file = %v, want ErrInvalid", err)
+	}
+}
+
+// A profile that gave Ctrl+F9 or Ctrl+F10 to a command of its own before
+// those keys marked passages keeps them there: the marks start without a
+// shortcut (or with the other key), and the profile still loads. Without the
+// migration the whole profile would be refused and replaced by the defaults.
+func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
+	dir := t.TempDir()
+	data := `{"version": 3, "profiles": [` +
+		profileJSON(t, "Meu", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "Só um", `{"mute": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "Sem atalhos", `{}`) + `,` +
+		profileJSON(t, "Já tinha", `{"undo": "Ctrl+F9", "passage-mark-start": "Ctrl+KeyB"}`) + `]}`
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 3 file: %v", err)
+	}
+	want := []struct {
+		name                                 string
+		undo, redo, mute, markStart, markEnd string
+	}{
+		{"Meu", "Ctrl+F9", "Ctrl+F10", "KeyM", "", ""},
+		{"Só um", "Ctrl+KeyZ", "Ctrl+KeyY", "Ctrl+F10", "Ctrl+F9", ""},
+		{"Sem atalhos", "Ctrl+KeyZ", "Ctrl+KeyY", "KeyM", "Ctrl+F9", "Ctrl+F10"},
+		{"Já tinha", "Ctrl+F9", "Ctrl+KeyY", "KeyM", "Ctrl+KeyB", "Ctrl+F10"},
+	}
+	if len(profiles.Items) != len(want) {
+		t.Fatalf("%d profiles after the migration", len(profiles.Items))
+	}
+	for i, w := range want {
+		keys := profiles.Items[i].Shortcuts
+		got := []string{keys.Of(shortcut.Undo).String(), keys.Of(shortcut.Redo).String(), keys.Of(shortcut.Mute).String(),
+			keys.Of(shortcut.PassageMarkStart).String(), keys.Of(shortcut.PassageMarkEnd).String()}
+		expected := []string{w.undo, w.redo, w.mute, w.markStart, w.markEnd}
+		if profiles.Items[i].Name != w.name || !slices.Equal(got, expected) {
+			t.Errorf("profile %q: undo, redo, mute, marks = %q, want %q", profiles.Items[i].Name, got, expected)
+		}
+		if err := keys.Validate(); err != nil {
+			t.Errorf("profile %q conflicts after the migration: %v", w.name, err)
+		}
 	}
 }
 

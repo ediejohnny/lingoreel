@@ -2,6 +2,7 @@ package project_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -173,6 +174,33 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 		{"passage name too long", func(p *project.Project) { p.Passages[0].Name = strings.Repeat("a", project.MaxPassageNameLen+1) }, false},
 		{"passage ending at its start", func(p *project.Project) { p.Passages[0].End = p.Passages[0].Start }, false},
 		{"passage before zero", func(p *project.Project) { p.Passages[0].Start = -5 }, false},
+		{"plan at the limits", func(p *project.Project) {
+			p.Passages[0].Plan = &project.PassagePlan{Loop: true, Gap: 5000, Goal: 99}
+		}, true},
+		{"plan gap too long", func(p *project.Project) { p.Passages[0].Plan = &project.PassagePlan{Loop: true, Gap: 5001} }, false},
+		{"plan gap negative", func(p *project.Project) { p.Passages[0].Plan = &project.PassagePlan{Gap: -1} }, false},
+		{"plan goal too high", func(p *project.Project) { p.Passages[0].Plan = &project.PassagePlan{Goal: 100} }, false},
+		{"plan goal negative", func(p *project.Project) { p.Passages[0].Plan = &project.PassagePlan{Goal: -1} }, false},
+		{"last position at the limit", func(p *project.Project) { p.Last.Position = project.MillisOf(project.MaxTime) }, true},
+		{"last position past the limit", func(p *project.Project) { p.Last.Position = project.MillisOf(project.MaxTime) + 1 }, false},
+		{"last position negative", func(p *project.Project) { p.Last.Position = -1 }, false},
+		{"last speed of the profile", func(p *project.Project) { p.Last.Speed = 0 }, true},
+		{"last speed at the limits", func(p *project.Project) { p.Last.Speed = 2 }, true},
+		{"last speed too fast", func(p *project.Project) { p.Last.Speed = 2.5 }, false},
+		{"last speed negative", func(p *project.Project) { p.Last.Speed = -1 }, false},
+		{"last speed not a number", func(p *project.Project) { p.Last.Speed = math.NaN() }, false},
+		{"karaoke at the limits", func(p *project.Project) {
+			p.Last.Karaoke = &project.Karaoke{MinGap: 3000, Lead: 2000, Indicator: "bar", Repeat: 10}
+		}, true},
+		{"karaoke without an indicator", func(p *project.Project) {
+			p.Last.Karaoke = &project.Karaoke{MinGap: 10000, Lead: 5000}
+		}, false},
+		{"karaoke gap too short", func(p *project.Project) {
+			p.Last.Karaoke = &project.Karaoke{MinGap: 100, Lead: 5000, Indicator: "bar"}
+		}, false},
+		{"karaoke repeats too many", func(p *project.Project) {
+			p.Last.Karaoke = &project.Karaoke{MinGap: 10000, Lead: 5000, Indicator: "bar", Repeat: 11}
+		}, false},
 		{"too many passages", func(p *project.Project) {
 			p.Passages = make([]project.Passage, project.MaxPassages+1)
 			for i := range p.Passages {
@@ -235,5 +263,103 @@ func TestTheHistoryUndoesAndRedoesInOrder(t *testing.T) {
 	one.Record(change("y"))
 	if got, ok := one.Undo(); !ok || got.After.OriginalText != "y" || one.CanUndo() {
 		t.Fatalf("limit 0: %+v %v, can undo %v", got, ok, one.CanUndo())
+	}
+}
+
+// Saving the same span twice keeps both: the second gets " (2)", and so on.
+// Case and the spaces around do not make a name new.
+func TestUniqueNameKeepsEveryPassage(t *testing.T) {
+	passages := func(names ...string) []project.Passage {
+		list := make([]project.Passage, len(names))
+		for i, name := range names {
+			list[i] = project.Passage{Name: name, Start: 0, End: 1000}
+		}
+		return list
+	}
+	cases := []struct {
+		name  string
+		taken []project.Passage
+		base  string
+		want  string
+	}{
+		{"free", nil, "Trecho 10:38–11:30", "Trecho 10:38–11:30"},
+		{"taken once", passages("Trecho 1"), "Trecho 1", "Trecho 1 (2)"},
+		{"taken twice", passages("Trecho 1", "Trecho 1 (2)"), "Trecho 1", "Trecho 1 (3)"},
+		{"a gap is filled", passages("Trecho 1", "Trecho 1 (3)"), "Trecho 1", "Trecho 1 (2)"},
+		{"case", passages("trecho 1"), "Trecho 1", "Trecho 1 (2)"},
+		{"spaces around", passages("Trecho 1"), "  Trecho 1  ", "Trecho 1 (2)"},
+		{"a name that already ends in (2)", passages("Loja (2)"), "Loja (2)", "Loja (2) (2)"},
+	}
+	for _, c := range cases {
+		if got := project.UniqueName(c.taken, c.base); got != c.want {
+			t.Errorf("%s: UniqueName(%q) = %q, want %q", c.name, c.base, got, c.want)
+		}
+	}
+	// Many copies still give a new name each time, always valid.
+	var list []project.Passage
+	for range 120 {
+		name := project.UniqueName(list, "Trecho 0:04–0:09")
+		list = append(list, project.Passage{Name: name, Start: 0, End: 1000})
+	}
+	seen := map[string]bool{}
+	for _, passage := range list {
+		if seen[strings.ToLower(passage.Name)] {
+			t.Fatalf("UniqueName gave %q twice", passage.Name)
+		}
+		seen[strings.ToLower(passage.Name)] = true
+	}
+	// A name at the length limit stays inside it with its suffix.
+	long := strings.Repeat("á", project.MaxPassageNameLen)
+	got := project.UniqueName(passages(long), long)
+	if !strings.HasSuffix(got, " (2)") || len([]rune(got)) > project.MaxPassageNameLen {
+		t.Fatalf("UniqueName of a %d-letter name = %q (%d letters)", project.MaxPassageNameLen, got, len([]rune(got)))
+	}
+	if err := (project.Passage{Name: got, Start: 0, End: 1000}).Validate(); err != nil {
+		t.Fatalf("the long unique name is not valid: %v", err)
+	}
+	// Each length near the limit: cut only as much as the suffix needs.
+	room := project.MaxPassageNameLen - len([]rune(" (2)"))
+	for n := room - 2; n <= project.MaxPassageNameLen; n++ {
+		name := strings.Repeat("a", n)
+		want := strings.Repeat("a", min(n, room)) + " (2)"
+		if got := project.UniqueName(passages(name), name); got != want {
+			t.Errorf("UniqueName of %d letters = %d letters %q, want %d", n, len([]rune(got)), got, len([]rune(want)))
+		}
+	}
+	// A cut that ends on a space leaves no double space before the suffix.
+	spaced := strings.Repeat("a", room-1) + " bbbb"
+	if got, want := project.UniqueName(passages(spaced), spaced), strings.Repeat("a", room-1)+" (2)"; got != want {
+		t.Errorf("UniqueName cut on a space = %q, want %q", got, want)
+	}
+}
+
+func TestIndexOfIgnoresCaseAndSpaces(t *testing.T) {
+	list := []project.Passage{{Name: "Loja", End: 1}, {Name: "Rua", End: 1}}
+	for name, want := range map[string]int{"Rua": 1, "rua": 1, " LOJA ": 0, "Praça": -1, "": -1} {
+		if got := project.IndexOf(list, name); got != want {
+			t.Errorf("IndexOf(%q) = %d, want %d", name, got, want)
+		}
+	}
+}
+
+// A passage's plan goes to the file and back unchanged; without a plan it
+// pauses at the end with no helps.
+func TestAPassagePlanComesBackTheSame(t *testing.T) {
+	plans := []project.PassagePlan{
+		{},
+		{Loop: true, Gap: 2500, Progressive: true, Ladder: true, Goal: 7},
+		{Loop: false, Gap: 0, Ladder: true},
+	}
+	for _, plan := range plans {
+		if back := project.PlanOf(plan.Practice()); back != plan {
+			t.Errorf("PlanOf(Practice(%+v)) = %+v", plan, back)
+		}
+	}
+	looping := project.PassagePlan{Loop: true, Gap: 1500}.Practice()
+	if looping.Mode != "loop" || looping.Gap != 1500*time.Millisecond {
+		t.Fatalf("a looping plan = %+v", looping)
+	}
+	if mode := (project.Passage{Name: "P", End: 1000}).Practice().Mode; mode != "pause" {
+		t.Fatalf("a passage without a plan studies with %q, want pause", mode)
 	}
 }

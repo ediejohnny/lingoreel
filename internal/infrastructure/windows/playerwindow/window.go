@@ -66,6 +66,11 @@ type Labels struct {
 	Item func(item controlbar.Item) string
 	// Time is the "current / total" text.
 	Time func(position, duration time.Duration) string
+	// Entry words a menu entry: its text, the value it shows (a stepper's
+	// "10 s") and the key of its command.
+	Entry func(entry controlbar.Entry, state controlbar.State, keys shortcut.Map) controlbar.EntryText
+	// Status is the study text on the bar: "Início: 10:38".
+	Status func(state controlbar.StudyState) string
 }
 
 // Options configures a window.
@@ -107,6 +112,8 @@ type Window struct {
 	visibility controlbar.Visibility
 	barShown   bool
 	speedMenu  bool
+	// openMenu is the bar's menu shown, MenuNone for none.
+	openMenu   controlbar.Menu
 	hover      controlbar.Item
 	drag       controlbar.Action
 	dragX      float64

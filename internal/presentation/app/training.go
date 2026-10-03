@@ -5,6 +5,7 @@ import (
 
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/presentation/ptbr"
@@ -79,15 +80,11 @@ func (a *API) StudyPassage(request PassageRequest) error {
 	if err != nil {
 		return errBadTime
 	}
-	mode := study.EndPause
-	if request.Loop {
-		mode = study.EndLoop
-	}
-	plan := study.PracticePlan{
-		Mode: mode, Gap: secondsOf(request.Gap), Progressive: request.Progressive, Ladder: request.Ladder, Goal: request.Goal,
-	}
-	if plan.Validate() != nil {
-		return errBadPlan
+	plan, err := practiceOf(PassagePlan{
+		Loop: request.Loop, Gap: request.Gap, Progressive: request.Progressive, Ladder: request.Ladder, Goal: request.Goal,
+	})
+	if err != nil {
+		return err
 	}
 	current := a.current()
 	if current == nil || current.session == nil {
@@ -102,6 +99,67 @@ func (a *API) StudyPassage(request PassageRequest) error {
 	}
 	a.emit(EventPlayback, a.describe(current))
 	return nil
+}
+
+// StudySavedPassage studies a saved passage as it was kept: its times and
+// how it is studied.
+func (a *API) StudySavedPassage(name string) error {
+	current := a.current()
+	if current == nil || current.session == nil {
+		return errNotWatching
+	}
+	a.mu.Lock()
+	p := a.projectOf(current)
+	var passage project.Passage
+	i := -1
+	if p != nil {
+		i = project.IndexOf(p.value.Passages, name)
+	}
+	if i >= 0 {
+		passage = p.value.Passages[i]
+	}
+	a.mu.Unlock()
+	switch {
+	case i < 0:
+		return errUnknownPassage
+	case outside(passage, current.duration):
+		return errPassageOutside
+	}
+	if err := current.session.StudySaved(passage.Segment(), passage.Practice()); err != nil {
+		if errors.Is(err, study.ErrInvalidSegment) {
+			return errBadPassage
+		}
+		a.logger.Warn("the saved passage did not start", "error", err)
+		return errors.New("O player não respondeu ao comando.")
+	}
+	a.emit(EventPlayback, a.describe(current))
+	return nil
+}
+
+// SetPassageOptions sets how the next passage is studied, the one the end
+// key closes included: fitted to the lines or not, and the plan.
+func (a *API) SetPassageOptions(options PassageOptions) error {
+	plan, err := practiceOf(options.Plan)
+	if err != nil {
+		return err
+	}
+	if err := a.control(func(w *watching) error { return w.session.SetPassageOptions(plan, options.Snap) }); err != nil {
+		return err
+	}
+	return nil
+}
+
+// practiceOf reads a plan from the window, refusing what the rules refuse.
+func practiceOf(plan PassagePlan) (study.PracticePlan, error) {
+	mode := study.EndPause
+	if plan.Loop {
+		mode = study.EndLoop
+	}
+	practice := study.PracticePlan{Mode: mode, Gap: secondsOf(plan.Gap), Progressive: plan.Progressive, Ladder: plan.Ladder, Goal: plan.Goal}
+	if practice.Validate() != nil {
+		return study.PracticePlan{}, errBadPlan
+	}
+	return practice, nil
 }
 
 // PassageOfLine is "Esta fala": the times of the line on top being spoken,

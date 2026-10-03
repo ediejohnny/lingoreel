@@ -2,9 +2,12 @@ package ptbr
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"lingoreel/internal/application/session"
+	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/study"
 )
 
@@ -30,6 +33,69 @@ func PassageClock(d time.Duration) string {
 		return fmt.Sprintf("%s,%d", whole, tenths)
 	}
 	return whole
+}
+
+// PassageName is the name a passage gets when it is saved by its shortcut,
+// "Trecho 10:38–11:30": the user knows it in the list without opening it,
+// and renames it at will. It is in whole seconds: fitting a passage to the
+// lines moves its start half a second back, which a name needs not show.
+func PassageName(start, end time.Duration) string {
+	return "Trecho " + Clock(start.Round(time.Second)) + "–" + Clock(end.Round(time.Second))
+}
+
+// PassageMarkNotice words the notices of the passage shortcuts.
+func PassageMarkNotice(start time.Duration) string {
+	return "Início do trecho: " + PassageClock(start)
+}
+
+// PassageSavedNotice tells a passage was saved under a name.
+func PassageSavedNotice(name string) string {
+	return "Salvo: " + name
+}
+
+// PlanSummary says how a passage is studied: "Pausa no fim", or "Repete sem
+// parar · intervalo de 2 s · velocidade progressiva · escada de legendas ·
+// meta de 5 voltas".
+func PlanSummary(plan study.PracticePlan) string {
+	parts := []string{"Pausa no fim"}
+	if plan.Mode == study.EndLoop {
+		parts = []string{"Repete sem parar"}
+		if plan.Gap > 0 {
+			parts = append(parts, "intervalo de "+Seconds(plan.Gap))
+		}
+	}
+	if plan.Progressive {
+		parts = append(parts, "velocidade progressiva")
+	}
+	if plan.Ladder {
+		parts = append(parts, "escada de legendas")
+	}
+	switch {
+	case plan.Goal == 1:
+		parts = append(parts, "meta de 1 volta")
+	case plan.Goal > 1:
+		parts = append(parts, fmt.Sprintf("meta de %d voltas", plan.Goal))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// Seconds says a short time in seconds the Brazilian way: "2 s", "1,5 s".
+func Seconds(d time.Duration) string {
+	text := strconv.FormatFloat(d.Seconds(), 'f', -1, 64)
+	return strings.Replace(text, ".", ",", 1) + " s"
+}
+
+// MarkNotice words what a passage mark did for the notice on the video.
+func MarkNotice(event watch.MarkEvent, segment study.Segment) string {
+	switch event {
+	case watch.MarkStarted:
+		return PassageMarkNotice(segment.Start)
+	case watch.MarkNoStart:
+		return "Marque o início do trecho primeiro"
+	case watch.MarkTooShort:
+		return "O fim precisa vir pelo menos 1 s depois do início"
+	}
+	return ""
 }
 
 // EditClock shows a line's time to the millisecond for the editor,
