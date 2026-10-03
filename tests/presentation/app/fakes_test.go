@@ -1,10 +1,12 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -297,13 +299,32 @@ type rig struct {
 	display   *recordingDisplay
 	preview   *fakePreview
 	projects  *memoryProjects
+	log       *lockedBuffer
+}
+
+// lockedBuffer is the log's destination in the tests.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
-		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{},
+		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{}, log: &lockedBuffer{},
 		installed: []player.Installation{{ID: "fake", Path: `C:\fake\fake.exe`}, {ID: "potplayer", Path: `C:\pot\PotPlayerMini64.exe`}},
 	}
 	registry, err := players.NewRegistry(r.plugin)
@@ -318,6 +339,7 @@ func newRig(t *testing.T) *rig {
 			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) { return r.display, nil },
 		},
 		Settings: r.settings, Installer: r.installer, Projects: r.projects,
+		Logger:       slog.New(slog.NewTextHandler(r.log, nil)),
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,

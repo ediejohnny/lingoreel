@@ -124,7 +124,7 @@ type Lifecycle struct {
 }
 
 // ErrNotReady reports a call before the window started.
-var ErrNotReady = errors.New("the app window is not ready")
+var ErrNotReady = errors.New("A janela do app ainda está abrindo. Tente de novo em instantes.")
 
 // New creates the API and its lifecycle.
 func New(deps Deps) (*API, Lifecycle) {

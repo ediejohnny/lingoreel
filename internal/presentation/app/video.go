@@ -6,6 +6,7 @@ import (
 	"math"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -57,6 +58,8 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
 		return Video{}, errors.New("Não foi possível ler este vídeo. Confira se o arquivo existe e não está corrompido.")
 	}
+	a.logger.Info("video opened", "name", filepath.Base(path), "duration", result.Info.Duration.Round(time.Second),
+		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
 	opened := a.loadProject(path, result.Info)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()

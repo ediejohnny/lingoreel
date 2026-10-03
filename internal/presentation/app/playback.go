@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -112,9 +113,21 @@ func (a *API) Watch(request WatchRequest) error {
 	a.mu.Lock()
 	a.watching = current
 	a.mu.Unlock()
+	a.logger.Info("session started", "player", installation.ID, "audio", trackOf(video.Info, tracks.Audio),
+		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode)
 	a.keepChoice(current, tracks, mode)
 	go a.report(current)
 	return nil
+}
+
+// trackOf describes a track for the log: "4 en S_TEXT/UTF8", or "none".
+func trackOf(info media.Info, number uint64) string {
+	for _, track := range info.Tracks {
+		if track.Number == number {
+			return fmt.Sprintf("%d %s %s", track.Number, track.Language, track.Codec)
+		}
+	}
+	return "none"
 }
 
 // preferPlayer makes a player the active profile's preferred one.
@@ -151,8 +164,14 @@ func (a *API) report(current *watching) {
 			a.mu.Unlock()
 			a.saveOffsets(current)
 			ended := Ended{}
-			if errors.Is(current.session.Err(), playback.ErrPlayerLost) {
+			switch err := current.session.Err(); {
+			case errors.Is(err, playback.ErrPlayerLost):
+				a.logger.Warn("session ended: the player was lost", "error", err)
 				ended.Error = "O player parou de responder e a sessão foi encerrada."
+			case err != nil:
+				a.logger.Warn("session ended with an error", "error", err)
+			default:
+				a.logger.Info("session ended")
 			}
 			a.emit(EventPlayback, Playback{})
 			a.emit(EventEnded, ended)
@@ -315,6 +334,7 @@ func (a *API) stop(tell bool) bool {
 	if err := current.session.Stop(); err != nil && !errors.Is(err, playback.ErrPlayerLost) {
 		a.logger.Warn("the session did not end cleanly", "error", err)
 	}
+	a.logger.Info("session ended", "by", "the app")
 	a.saveOffsets(current)
 	if tell {
 		a.emit(EventPlayback, Playback{})

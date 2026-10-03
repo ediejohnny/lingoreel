@@ -6,23 +6,26 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	sys "golang.org/x/sys/windows"
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/watch"
+	"lingoreel/internal/buildinfo"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/infrastructure/logfile"
 	"lingoreel/internal/infrastructure/media/matroska"
 	"lingoreel/internal/infrastructure/persistence/projectfile"
 	"lingoreel/internal/infrastructure/persistence/settingsfile"
@@ -55,9 +58,9 @@ const (
 	windowMinHeight = 540
 )
 
-// logFileName keeps the last session's log next to the settings, for
-// problem reports; it never holds subtitle text.
-const logFileName = "lingoreel.log"
+// logFolder holds the daily logs next to the settings, for problem reports;
+// they never hold subtitle text.
+const logFolder = "logs"
 
 func main() {
 	if err := run(); err != nil {
@@ -71,8 +74,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	logger, closeLog := openLog(dir)
+	logger, closeLog := openLog(filepath.Join(dir, logFolder))
 	defer closeLog()
+	logger.Info("starting", "version", buildinfo.Version, "windows", windowsVersion())
+	defer logger.Info("closed")
 
 	registry, hints, err := plugins.Registry(logger)
 	if err != nil {
@@ -181,15 +186,17 @@ func activeProfile(files *settingsfile.Files) settings.Profile {
 	return settings.DefaultProfile()
 }
 
-// openLog writes the log of this run to the settings folder; without it,
-// the app runs with no log.
+// openLog writes the day's log in dir; without it, the app runs with no log.
 func openLog(dir string) (*slog.Logger, func()) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
-	}
-	file, err := os.Create(filepath.Join(dir, logFileName))
+	file, err := logfile.Open(dir, time.Now)
 	if err != nil {
-		return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		return slog.New(slog.DiscardHandler), func() {}
 	}
 	return slog.New(slog.NewTextHandler(file, nil)), func() { file.Close() }
+}
+
+// windowsVersion is "10.0.19045" for the log.
+func windowsVersion() string {
+	v := sys.RtlGetVersion()
+	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
 }

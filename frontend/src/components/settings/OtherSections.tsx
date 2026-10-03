@@ -90,7 +90,9 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
     <>
       <Card title="Pasta das configurações">
         <p className="mb-3 text-sm break-all text-fg-secondary">{view.folder}</p>
-        <p className="mb-3 text-xs text-fg-muted">Ali ficam os perfis e o registro da última sessão, útil para relatar um problema.</p>
+        <p className="mb-3 text-xs text-fg-muted">
+          Ali ficam os perfis e, na pasta "logs", os registros dos últimos 14 dias, úteis para relatar um problema.
+        </p>
         <Button icon={FolderOpen} onClick={() => void run(() => backend.openSettingsFolder())}>
           Abrir a pasta
         </Button>
