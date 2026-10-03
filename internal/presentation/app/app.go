@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"lingoreel/internal/application/analysis"
@@ -178,6 +180,24 @@ func (l Lifecycle) Dropped(paths []string) {
 		return
 	}
 	l.api.emit(EventVideoDropped, paths[0])
+}
+
+// VideoArgument finds the video in a command line's arguments (without the
+// program): the first one that is not an option, made absolute against dir.
+// Windows passes the file of a double click, "Abrir com" or the context menu
+// this way.
+func VideoArgument(args []string, dir string) (string, bool) {
+	for _, arg := range args {
+		arg = strings.Trim(strings.TrimSpace(arg), `"`)
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		if !filepath.IsAbs(arg) {
+			arg = filepath.Join(dir, arg)
+		}
+		return filepath.Clean(arg), true
+	}
+	return "", false
 }
 
 // WindowBounds is where the app's window was when it last closed.

@@ -42,7 +42,8 @@ export function App() {
       setScreen("session");
     } catch (failure) {
       setError(messageOf(failure));
-      setScreen("home");
+      // A video refused while another plays leaves the playback panel open.
+      setScreen((current) => (current === "playing" ? current : "home"));
     } finally {
       setLoading(false);
     }

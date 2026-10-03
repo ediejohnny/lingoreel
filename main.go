@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2"
@@ -57,6 +58,10 @@ const (
 	windowMinWidth  = 760
 	windowMinHeight = 540
 )
+
+// singleInstanceID names the app for Windows, so a second launch finds the
+// first one.
+const singleInstanceID = "lingoreel-edie-johnny"
 
 // logFolder holds the daily logs next to the settings, for problem reports;
 // they never hold subtitle text.
@@ -111,8 +116,8 @@ func run() error {
 		OpenFolder:  openFolder,
 		Projects:    projectfile.Open(dir),
 	}
-	if len(os.Args) > 1 {
-		deps.InitialVideo = os.Args[1]
+	if workingDir, err := os.Getwd(); err == nil {
+		deps.InitialVideo, _ = app.VideoArgument(os.Args[1:], workingDir)
 	}
 	samples, err := preview.Start()
 	if err != nil {
@@ -122,6 +127,8 @@ func run() error {
 		defer samples.Close()
 	}
 	api, lifecycle := app.New(deps)
+	// started is the window's context, for a second launch to reach it.
+	var started atomic.Pointer[context.Context]
 
 	return wails.Run(&options.App{
 		Title: windowTitle, Width: windowWidth, Height: windowHeight,
@@ -129,7 +136,23 @@ func run() error {
 		// Hidden until it is back where the user left it.
 		StartHidden: true,
 		AssetServer: &assetserver.Options{Assets: assets},
+		// Opening a video with the app already open brings this window up and
+		// opens the video here, instead of a second app.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: singleInstanceID,
+			OnSecondInstanceLaunch: func(second options.SecondInstanceData) {
+				logger.Info("opened again", "args", len(second.Args))
+				if ctx := started.Load(); ctx != nil {
+					runtime.WindowUnminimise(*ctx)
+					runtime.WindowShow(*ctx)
+				}
+				if video, found := app.VideoArgument(second.Args, second.WorkingDirectory); found {
+					lifecycle.Dropped([]string{video})
+				}
+			},
+		},
 		OnStartup: func(ctx context.Context) {
+			started.Store(&ctx)
 			lifecycle.Attach(ctx, app.NewWailsUI(ctx))
 			runtime.OnFileDrop(ctx, func(_, _ int, paths []string) { lifecycle.Dropped(paths) })
 			restoreWindow(ctx, lifecycle, logger)

@@ -19,6 +19,9 @@ import (
 // minNoteOffset is the least automatic correction worth telling the user.
 const minNoteOffset = 0.001
 
+// errBusy refuses a video opened while another one plays.
+var errBusy = errors.New("Um vídeo está tocando. Encerre-o (botão Encerrar) para abrir outro.")
+
 // ChooseVideo asks for a video file; an empty path means the user cancelled.
 func (a *API) ChooseVideo() (string, error) {
 	a.mu.Lock()
@@ -41,6 +44,9 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	ctx, err := a.context()
 	if err != nil {
 		return Video{}, err
+	}
+	if a.current() != nil {
+		return Video{}, errBusy
 	}
 	if !analysis.IsSupported(path) {
 		return Video{}, fmt.Errorf("O LingoReel não abre arquivos %s. Use um vídeo .mkv, .mp4, .avi, .mov ou .wmv.", extensionOf(path))
