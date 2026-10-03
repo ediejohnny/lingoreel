@@ -369,15 +369,39 @@ func (p *Practice) WakeIn(state playback.Sample) time.Duration {
 }
 
 // ReplayLine is "Treinar de novo": back to the start of the preview of the
-// line being previewed, spoken or last spoken.
+// line being previewed, spoken or last spoken, and playing from there, to
+// speak along. While a passage is studied, the line is one of the passage:
+// at its end, the last one spoken in it.
 func (p *Practice) ReplayLine() error {
 	track := p.subtitles.Track(LinePrimary)
 	if track == nil || track.Timeline == nil {
 		return ErrNotSupported
 	}
-	target, ok := study.ReplayTarget(track.Timeline, track.Offset, p.controls.Position(), p.subtitles.Karaoke().Rules)
-	if !ok {
-		return nil // no line yet: nothing to train again
+	position, rules := p.controls.Position(), p.subtitles.Karaoke().Rules
+	p.mu.Lock()
+	var passage *study.Segment
+	if p.segment != nil && !p.suspend {
+		segment := *p.segment
+		passage = &segment
 	}
-	return p.seek(target)
+	p.mu.Unlock()
+	var target time.Duration
+	if passage != nil {
+		target = study.ReplayTargetIn(track.Timeline, track.Offset, position, rules, *passage)
+	} else {
+		var ok bool
+		if target, ok = study.ReplayTarget(track.Timeline, track.Offset, position, rules); !ok {
+			return nil // no line yet: nothing to train again
+		}
+	}
+	// A jump of the user's, not of the practice: a passage paused at its end
+	// leaves the end, so Play goes on from the line instead of starting the
+	// passage over, and the line repeats count again.
+	if err := p.controls.SeekTo(target); err != nil {
+		return err
+	}
+	if p.controls.clock.State().Status == playback.StatusPlaying {
+		return nil
+	}
+	return p.controls.Play()
 }

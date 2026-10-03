@@ -162,6 +162,32 @@ func TestReplayTarget(t *testing.T) {
 	}
 }
 
+func TestReplayTargetInAPassage(t *testing.T) {
+	timeline := scene(t)
+	cases := []struct {
+		name            string
+		start, end, pos float64
+		want            float64
+	}{
+		// At the end the last line spoken in the passage is e4 (25–40,
+		// overlapping e3): its own start.
+		{"at the end: the last line spoken in it", 10, 30, 30, 25},
+		{"past the end: the same", 10, 30, 35, 25},
+		// Past the end of a passage ending on e2, e3 has started: still e2.
+		{"past the end, after another line: the passage's", 10, 23, 24.5, 15},
+		// e2 is spoken up to 23 s: its preview starts at 15 s.
+		{"a passage ending on a line: that line's preview", 10, 23, 23, 15},
+		{"a preview before the passage: its start", 17, 23, 23, 17},
+		{"before the passage: its start", 10, 30, 5, 10},
+		{"no line yet: its start", 0.5, 1.5, 1, 0.5},
+	}
+	for _, c := range cases {
+		passage := study.Segment{Start: s(c.start), End: s(c.end)}
+		if got := study.ReplayTargetIn(timeline, 0, s(c.pos), defaults, passage); got != s(c.want) {
+			t.Errorf("%s: %v, want %v", c.name, got, s(c.want))
+		}
+	}
+}
 func TestSpokenFraction(t *testing.T) {
 	// "ab cd" over 10 s is spoken in the first 8.5 s. Weights: letters 1,
 	// the space 0.5: 4.5 in all. Half the speaking time (4.25 s) reaches

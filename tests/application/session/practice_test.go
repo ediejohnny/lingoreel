@@ -268,15 +268,62 @@ func TestRepeatEachLine(t *testing.T) {
 func TestReplayLine(t *testing.T) {
 	r := newPracticeRig(t, nil)
 	r.at(ms(21_000), false)
+	r.reset()
 	if err := r.practice.ReplayLine(); err != nil {
 		t.Fatal(err)
 	}
-	if r.player.seekTarget != ms(15_000) {
-		t.Fatalf("Treinar de novo went to %v, want B's preview at 15 s", r.player.seekTarget)
+	// Back to B's preview, and playing: the line is trained by speaking along.
+	if r.player.seekTarget != ms(15_000) || !slices.Contains(r.calls(), "play") {
+		t.Fatalf("Treinar de novo: seek %v, calls %v; want B's preview at 15 s, playing", r.player.seekTarget, r.calls())
+	}
+	// Already playing, it only goes back.
+	r.at(ms(21_000), true)
+	r.reset()
+	if err := r.practice.ReplayLine(); err != nil {
+		t.Fatal(err)
+	}
+	if r.player.seekTarget != ms(15_000) || slices.Contains(r.calls(), "play") {
+		t.Fatalf("playing: seek %v, calls %v", r.player.seekTarget, r.calls())
 	}
 	empty := newPracticeRig(t, session.NewSubtitles(nil, nil))
 	if err := empty.practice.ReplayLine(); !errors.Is(err, session.ErrNotSupported) {
 		t.Fatalf("no line on top: %v", err)
+	}
+}
+
+// The reported case: a passage paused at its end ("Pausa no fim").
+// "Treinar de novo" trains B, the passage's last line, and plays on from it:
+// not from the passage's start, and the lap goes on. A line whose preview
+// starts before the passage is trained from the passage's start.
+func TestReplayLineInAPassagePausedAtItsEnd(t *testing.T) {
+	for _, c := range []struct {
+		passage study.Segment
+		want    time.Duration
+	}{
+		{study.Segment{Start: ms(10_000), End: ms(30_000)}, ms(15_000)},
+		{study.Segment{Start: ms(18_000), End: ms(30_000)}, ms(18_000)},
+	} {
+		r := newPracticeRig(t, nil)
+		if err := r.practice.Start(c.passage, study.PracticePlan{Mode: study.EndPause}); err != nil {
+			t.Fatal(err)
+		}
+		r.at(ms(29_000), true)
+		r.at(ms(30_000), true)
+		if !r.practice.Status().AtEnd {
+			t.Fatalf("%v: not paused at the end", c.passage)
+		}
+		r.at(ms(30_000), false)
+		r.reset()
+		if err := r.practice.ReplayLine(); err != nil {
+			t.Fatal(err)
+		}
+		// The last seek is the line's: Play did not start the passage over.
+		if r.player.seekTarget != c.want || !slices.Contains(r.calls(), "play") {
+			t.Fatalf("%v: seek %v, calls %v; want %v, playing", c.passage, r.player.seekTarget, r.calls(), c.want)
+		}
+		if status := r.practice.Status(); !status.Active || status.AtEnd || status.Suspended || status.Lap != 1 {
+			t.Fatalf("%v: after Treinar de novo %+v", c.passage, status)
+		}
 	}
 }
 

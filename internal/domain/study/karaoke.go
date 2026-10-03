@@ -182,6 +182,21 @@ func ReplayTarget(timeline *subtitle.Timeline, offset subtitle.Offset, position 
 	return max(offset.PlaybackTime(event.Start-lead), 0), true
 }
 
+// ReplayTargetIn is ReplayTarget while a passage is studied: the line
+// trained again is one of the passage (at its end, the last one spoken in
+// it), and the target never goes before the passage's start, which is also
+// where it goes when no line of the passage has come yet.
+func ReplayTargetIn(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules, passage Segment) time.Duration {
+	// Just inside the passage: a preview there has started by then, so the
+	// target never lands past the end either.
+	at := min(max(position, passage.Start), passage.End-time.Millisecond)
+	target, ok := ReplayTarget(timeline, offset, at, rules)
+	if !ok {
+		return passage.Start
+	}
+	return max(target, passage.Start)
+}
+
 // Speech timing estimate: a line's text is spoken over the first
 // speakingShare of its time, each letter taking one unit, a space half, and
 // punctuation a pause. Subtitles carry no word timing, so this is only an
