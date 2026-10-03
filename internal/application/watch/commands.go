@@ -83,6 +83,11 @@ func (s *Session) Run(command shortcut.Command, repeat bool) error {
 	case shortcut.PassageStop:
 		s.StopPassage()
 		return nil
+	case shortcut.PassageResume:
+		if err := s.ResumePassage(); !errors.Is(err, session.ErrNoPassage) {
+			return err
+		}
+		return nil
 	case shortcut.Undo:
 		_, err := s.Undo()
 		return err

@@ -2,6 +2,7 @@ package watch
 
 import (
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -113,6 +114,40 @@ func (s *Session) PassageOptions() (study.PracticePlan, bool) {
 	defer s.marks.mu.Unlock()
 	return s.marks.plan, s.marks.snap
 }
+
+// SavedPassage is a passage the video keeps, as the player window lists it.
+type SavedPassage struct {
+	Name    string
+	Segment study.Segment
+	Plan    study.PracticePlan
+}
+
+// SetSavedPassages tells the session the video's saved passages, for the
+// player window's menu; the app keeps them and calls it on every change.
+func (s *Session) SetSavedPassages(list []SavedPassage) {
+	copied := slices.Clone(list)
+	s.saved.Store(&copied)
+}
+
+// SavedPassages are the video's saved passages, as last told.
+func (s *Session) SavedPassages() []SavedPassage {
+	if list := s.saved.Load(); list != nil {
+		return slices.Clone(*list)
+	}
+	return nil
+}
+
+// StudySavedAt studies the saved passage at index, as it was kept.
+func (s *Session) StudySavedAt(index int) error {
+	list := s.SavedPassages()
+	if index < 0 || index >= len(list) {
+		return ErrNoSavedPassage
+	}
+	return s.StudySaved(list[index].Segment, list[index].Plan)
+}
+
+// ErrNoSavedPassage reports a saved passage that is not there anymore.
+var ErrNoSavedPassage = errors.New("no such saved passage")
 
 // tellMark shows the notice of a mark.
 func (s *Session) tellMark(event MarkEvent, segment study.Segment) {

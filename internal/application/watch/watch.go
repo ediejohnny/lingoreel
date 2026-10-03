@@ -106,6 +106,28 @@ type Remote interface {
 	Reveal(pressed bool)
 	// Select picks a line on screen for editing; the video must be paused.
 	Select(line session.Line) (Selection, error)
+
+	// What the bar's menus show and change: the passage being marked or
+	// studied and its options, the saved passages, the Modo Karaokê, the
+	// study mode and the sync.
+	MarkedStart() (time.Duration, bool)
+	Passage() session.PracticeStatus
+	PassageOptions() (study.PracticePlan, bool)
+	SetPassageOptions(plan study.PracticePlan, snap bool) error
+	SavedPassages() []SavedPassage
+	StudySavedAt(index int) error
+	Karaoke() session.Karaoke
+	SetKaraokeSettings(karaoke session.Karaoke) error
+	Indicator() study.Indicator
+	SetIndicator(indicator study.Indicator) error
+	LineRepeats() int
+	SetLineRepeats(times int) error
+	SetMode(mode study.Mode) error
+	HasPrimary() bool
+	ResetSync(line session.Line)
+	// OpenEditor pauses, picks the line on screen and brings the app's
+	// panel, where the editor is, to the front.
+	OpenEditor(line session.Line) error
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -151,7 +173,10 @@ type Ports struct {
 	// MarkNotice words what a passage mark did for a notice on the video;
 	// nil shows none.
 	MarkNotice func(MarkEvent, study.Segment) string
-	Now        func() time.Time
+	// ShowPanel brings the app's panel to the front, where the line editor
+	// is; nil leaves it where it is.
+	ShowPanel func()
+	Now       func() time.Time
 }
 
 // Request is what to watch and how.
@@ -258,6 +283,10 @@ type Session struct {
 	// passage it closes is studied with.
 	marks      marking
 	markNotice func(MarkEvent, study.Segment) string
+	// saved are the video's saved passages, told by the app; showPanel
+	// brings the app's panel up for the line editor.
+	saved     atomic.Pointer[[]SavedPassage]
+	showPanel func()
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -372,7 +401,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.keys.Store(&keys)
 	s.reveal.Store(cmp.Or(request.Reveal, study.RevealToggle))
 	s.quiet.Store(request.NoSyncNotice)
-	s.markNotice = ports.MarkNotice
+	s.markNotice, s.showPanel = ports.MarkNotice, ports.ShowPanel
 	s.marks.plan, s.marks.snap = markPlan, true
 
 	target := ShortcutTarget{ProcessID: running.ProcessID()}

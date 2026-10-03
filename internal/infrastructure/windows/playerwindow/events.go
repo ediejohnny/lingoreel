@@ -61,8 +61,8 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		w.pointer(w.cursorInZone())
 		return 0
 	case win32.WM_LBUTTONDOWN:
-		if w.speedMenu {
-			w.speedMenu = false
+		if w.speedMenu || w.openMenu != controlbar.MenuNone {
+			w.speedMenu, w.openMenu = false, controlbar.MenuNone
 			w.pointer(w.cursorInZone())
 		}
 		w.pick(win32.PointOf(lparam))
@@ -162,14 +162,14 @@ func (w *Window) trackLeave(index int, hwnd windows.HWND) {
 
 // pointer updates the bar's visibility; active tells the mouse wants it.
 func (w *Window) pointer(active bool) {
-	shown, recheck := w.visibility.Update(time.Now(), active || w.drag != controlbar.ActionNone || w.speedMenu)
+	shown, recheck := w.visibility.Update(time.Now(), active || w.drag != controlbar.ActionNone || w.speedMenu || w.openMenu != controlbar.MenuNone)
 	if recheck > 0 {
 		_ = win32.SetTimer(w.host, timerHide, uint32(recheck/time.Millisecond)+1)
 	} else {
 		win32.KillTimer(w.host, timerHide)
 	}
 	if !shown {
-		w.speedMenu = false
+		w.speedMenu, w.openMenu = false, controlbar.MenuNone
 	}
 	w.refreshBar()
 }
@@ -243,6 +243,10 @@ func (w *Window) press(item controlbar.Item, x float64) {
 	if item.Action != controlbar.ActionSpeed && item.Action != controlbar.ActionSpeedChoice {
 		w.speedMenu = false
 	}
+	// Anything but a menu's own button or entries closes the open menu.
+	if item.Action != controlbar.ActionMenu && item.Action != controlbar.ActionEntry {
+		w.openMenu = controlbar.MenuNone
+	}
 	switch item.Action {
 	case controlbar.ActionPlayPause:
 		w.do(func(r watch.Remote) error { return r.Controls().TogglePause() })
@@ -260,6 +264,20 @@ func (w *Window) press(item controlbar.Item, x float64) {
 		speed := item.Speed
 		w.speedMenu = false
 		w.do(func(r watch.Remote) error { return r.Controls().SetSpeed(speed) })
+	case controlbar.ActionFrameBack:
+		w.do(func(r watch.Remote) error { return r.Run(shortcut.FrameBack, false) })
+	case controlbar.ActionFrameForward:
+		w.do(func(r watch.Remote) error { return r.Run(shortcut.FrameForward, false) })
+	case controlbar.ActionMenu:
+		if w.openMenu == item.Menu {
+			w.openMenu = controlbar.MenuNone
+		} else {
+			w.openMenu, w.speedMenu = item.Menu, false
+		}
+	case controlbar.ActionEntry:
+		if !w.choose(item.Entry) {
+			w.openMenu = controlbar.MenuNone
+		}
 	case controlbar.ActionFullscreen:
 		w.setFullscreen(!w.fullscreen)
 	case controlbar.ActionTrack, controlbar.ActionVolume:
@@ -305,9 +323,9 @@ func (w *Window) keyDown(lparam uintptr) bool {
 	if !known {
 		return false
 	}
-	// Esc closes the speed list first, whatever its shortcut is.
-	if key == shortcut.KeyEscape && w.speedMenu {
-		w.speedMenu = false
+	// Esc closes the speed list or a menu first, whatever its shortcut is.
+	if key == shortcut.KeyEscape && (w.speedMenu || w.openMenu != controlbar.MenuNone) {
+		w.speedMenu, w.openMenu = false, controlbar.MenuNone
 		w.pointer(w.cursorInZone())
 		return true
 	}
@@ -426,6 +444,7 @@ func (w *Window) state(remote watch.Remote) controlbar.State {
 		HasTranslation: remote.HasTranslation(), TranslationVisible: remote.TranslationVisible(),
 		TranslationLocked: !remote.Mode().Hideable(),
 		Fullscreen:        w.fullscreen, Capabilities: controls.Capabilities(), SpeedMenuOpen: w.speedMenu,
+		OpenMenu: w.openMenu, Study: studyState(remote, sample),
 	}
 	if w.drag == controlbar.ActionTrack {
 		state.Position = w.layout.TrackPosition(w.dragX, sample.Duration)
@@ -519,9 +538,21 @@ func (w *Window) look(bar controlbar.Bar, state controlbar.State) gdiplus.BarLoo
 		look.Tip = labels.Tip(w.hover, state, w.shortcuts())
 	}
 	look.Thumb = w.drag == controlbar.ActionTrack || w.hover.Action == controlbar.ActionTrack
+	if labels.Entry != nil {
+		keys := w.shortcuts()
+		look.Entry = func(entry controlbar.Entry) controlbar.EntryText { return labels.Entry(entry, state, keys) }
+	}
+	if labels.Status != nil && bar.Status.Valid() {
+		look.Status = labels.Status(state.Study)
+	}
 	// The hovered item's bounds follow the latest layout.
 	for _, item := range bar.Items {
-		if item.Action == w.hover.Action && item.Speed == w.hover.Speed {
+		if item.Action == w.hover.Action && item.Speed == w.hover.Speed && item.Menu == w.hover.Menu {
+			look.Hover = item
+		}
+	}
+	for _, item := range bar.MenuItems {
+		if item.Action == w.hover.Action && item.Entry == w.hover.Entry {
 			look.Hover = item
 		}
 	}

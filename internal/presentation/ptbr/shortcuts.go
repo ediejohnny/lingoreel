@@ -123,6 +123,8 @@ func CommandName(command shortcut.Command) string {
 		return "Marcar o fim e salvar o trecho"
 	case shortcut.PassageStop:
 		return "Sair do trecho"
+	case shortcut.PassageResume:
+		return "Voltar ao trecho"
 	case shortcut.Undo:
 		return "Desfazer a correção"
 	case shortcut.Redo:

@@ -68,6 +68,38 @@ func (s *Session) SetKaraoke(enabled bool) {
 	s.subtitles.SetKaraoke(karaoke)
 }
 
+// SetKaraokeSettings changes the Modo Karaokê as a whole: on or off, its
+// timing and the fill, refusing timing the rules refuse.
+func (s *Session) SetKaraokeSettings(karaoke session.Karaoke) error {
+	if err := karaoke.Rules.Validate(); err != nil {
+		return err
+	}
+	s.subtitles.SetKaraoke(karaoke)
+	return nil
+}
+
+// HasPrimary tells a line on top is loaded: without it there is nothing to
+// preview, repeat or fit a passage to.
+func (s *Session) HasPrimary() bool {
+	return s.subtitles.Track(session.LinePrimary) != nil
+}
+
+// OpenEditor starts correcting a line from the player window: it pauses,
+// picks the line on screen and brings the app's panel, where the editor
+// is, to the front.
+func (s *Session) OpenEditor(line session.Line) error {
+	if err := s.controls.Pause(); err != nil {
+		return err
+	}
+	if _, err := s.Select(line); err != nil {
+		return err
+	}
+	if s.showPanel != nil {
+		s.showPanel()
+	}
+	return nil
+}
+
 // Karaoke is the Modo Karaokê as it is now.
 func (s *Session) Karaoke() session.Karaoke {
 	return s.subtitles.Karaoke()

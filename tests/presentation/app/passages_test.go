@@ -1,16 +1,24 @@
 package app_test
 
 import (
+	"context"
 	"math"
+	"slices"
+	"sync"
 	"testing"
 
+	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/project"
+	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/presentation/app"
 )
 
 // seekTo moves the paused video and waits for the panel to show it there.
+// It first waits for the player's first report, as a user always does:
+// a seek before it would be undone by it.
 func seekTo(t *testing.T, r *rig, seconds float64) {
 	t.Helper()
+	eventually(t, "the player's first report", func() bool { return r.api.PlaybackState().Duration > 0 })
 	if err := r.api.SeekTo(seconds); err != nil {
 		t.Fatal(err)
 	}
@@ -114,4 +122,80 @@ func TestTheEndMarkRespectsThePassageLimit(t *testing.T) {
 	if len(stored.Passages) != project.MaxPassages || after != before {
 		t.Fatalf("a full project took a passage: %d passages, %d saves (was %d)", len(stored.Passages), after, before)
 	}
+}
+
+// hostWindow is the app's window for a player that draws into it; it keeps
+// the session its controls drive.
+type hostWindow struct {
+	*recordingDisplay
+	mu     sync.Mutex
+	remote watch.Remote
+}
+
+func (w *hostWindow) Handle() uintptr            { return 1 }
+func (w *hostWindow) Closed() <-chan struct{}    { return nil }
+func (w *hostWindow) SetShortcuts(shortcut.Map)  {}
+func (w *hostWindow) Attach(remote watch.Remote) { w.mu.Lock(); w.remote = remote; w.mu.Unlock() }
+
+func (w *hostWindow) names() []string {
+	w.mu.Lock()
+	remote := w.remote
+	w.mu.Unlock()
+	if remote == nil {
+		return nil
+	}
+	var names []string
+	for _, saved := range remote.SavedPassages() {
+		names = append(names, saved.Name)
+	}
+	return names
+}
+
+// The bar's menu lists what the app lists: the saved passages reach the
+// session when the video opens, and follow every save, rename and delete.
+func TestTheBarMenuListsTheSavedPassages(t *testing.T) {
+	window := &hostWindow{recordingDisplay: &recordingDisplay{}}
+	r := newRigWith(t, func(d *app.Deps) {
+		d.Ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) { return window, nil }
+	})
+	r.plugin.drawsInHost = true
+	kept := project.New()
+	kept.Passages = []project.Passage{{Name: "Loja", Start: 10_000, End: 20_000}}
+	if err := r.projects.Save(movie, kept); err != nil {
+		t.Fatal(err)
+	}
+	r.attach(t)
+	if _, err := r.api.OpenVideo(movie); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.api.StopWatching() })
+	same := func(want ...string) func() bool {
+		return func() bool { return slices.Equal(window.names(), want) }
+	}
+	eventually(t, "the kept passage in the menu", same("Loja"))
+
+	seekTo(t, r, 30)
+	if err := r.api.RunShortcut("passage-mark-start", false); err != nil {
+		t.Fatal(err)
+	}
+	seekTo(t, r, 36)
+	if err := r.api.RunShortcut("passage-mark-end", false); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the marked passage in the menu", same("Loja", "Trecho 0:30–0:36"))
+	if err := r.api.RenamePassage("Loja", "Na loja"); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the renamed passage in the menu", same("Na loja", "Trecho 0:30–0:36"))
+	if err := r.api.DeletePassage("Na loja"); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the deleted passage gone from the menu", same("Trecho 0:30–0:36"))
+	if err := r.api.SavePassage("Rua"); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the saved passage in the menu", same("Trecho 0:30–0:36", "Rua"))
 }

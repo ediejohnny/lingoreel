@@ -28,19 +28,30 @@ const (
 	ActionSpeed
 	ActionSpeedChoice
 	ActionFullscreen
+	// ActionFrameBack and ActionFrameForward step one frame.
+	ActionFrameBack
+	ActionFrameForward
+	// ActionMenu opens or closes the item's Menu.
+	ActionMenu
+	// ActionEntry is a clickable entry of the open menu; ActionEntryText one
+	// that only shows (a title, a line, a stepper's row).
+	ActionEntry
+	ActionEntryText
 )
 
 // Sizes at 100% scaling (96 DPI), in pixels.
 const (
-	panelHeight   = 58.0
-	sidePadding   = 12.0
-	trackZone     = 16.0
-	trackThick    = 4.0
-	button        = 40.0
-	gap           = 4.0
-	volumeWidth   = 72.0
-	timeWidth     = 124.0
-	speedWidth    = 60.0
+	panelHeight = 58.0
+	sidePadding = 12.0
+	trackZone   = 16.0
+	trackThick  = 4.0
+	button      = 40.0
+	gap         = 4.0
+	volumeWidth = 72.0
+	timeWidth   = 124.0
+	speedWidth  = 60.0
+	// statusMin is the least width worth writing the study text in.
+	statusMin     = 120.0
 	menuColumns   = 3
 	menuCell      = 28.0
 	menuCellWidth = 58.0
@@ -73,6 +84,10 @@ type State struct {
 	Capabilities      playback.Capabilities
 	// SpeedMenuOpen shows the list of speeds above the speed button.
 	SpeedMenuOpen bool
+	// OpenMenu is the menu shown above its button, MenuNone for none.
+	OpenMenu Menu
+	// Study is what the menus and the study text show.
+	Study StudyState
 }
 
 // Item is a clickable part of the bar.
@@ -86,8 +101,12 @@ type Item struct {
 	// dimmed, keeps its tip and does nothing.
 	Enabled bool
 	// Active marks a pressed toggle: translation shown, sound muted,
-	// fullscreen on, the current speed.
+	// fullscreen on, the current speed, an open menu.
 	Active bool
+	// Menu is the menu of an ActionMenu button; Entry the entry of an
+	// ActionEntry or ActionEntryText.
+	Menu  Menu
+	Entry Entry
 }
 
 // Bar is a laid out control bar, in the window's client pixels.
@@ -108,6 +127,13 @@ type Bar struct {
 	// Menu is the speed list's background, zero when closed.
 	Menu  layout.Rect
 	Items []Item
+	// Status is where the study text goes ("Início: 10:38"), zero when
+	// dropped.
+	Status layout.Rect
+	// MenuPanel is the open menu's background and MenuItems its entries,
+	// zero and empty when none is open.
+	MenuPanel layout.Rect
+	MenuItems []Item
 }
 
 // Scale converts the DPI of the window into the bar's scale.
@@ -134,8 +160,9 @@ func InZone(area layout.Rect, y, scale float64) bool {
 }
 
 // Layout places the bar at the bottom of a window area. Narrow windows drop
-// parts in this order: the volume line, the jumps, the time, the speed, the
-// translation and the mute button; play, fullscreen and the track stay.
+// parts in this order: the study text, the volume line, the frame steps,
+// the jumps, the time, the speed, the translation, the mute button and the
+// menus; play, fullscreen and the track stay.
 func Layout(area layout.Rect, scale float64, state State) Bar {
 	if !area.Valid() || !(scale > 0 && scale <= maxScale) {
 		return Bar{}
@@ -165,6 +192,11 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 		add(Item{Action: ActionBack, Enabled: caps.Seek}, button)
 		add(Item{Action: ActionForward, Enabled: caps.Seek}, button)
 	}
+	if parts.frames {
+		back := caps.FrameStepBackward || caps.FrameStepBackwardEmulated
+		add(Item{Action: ActionFrameBack, Enabled: back}, button)
+		add(Item{Action: ActionFrameForward, Enabled: caps.FrameStepForward}, button)
+	}
 	if parts.mute {
 		add(Item{Action: ActionMute, Enabled: caps.Volume, Active: state.Muted}, button)
 	}
@@ -180,6 +212,7 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 	}
 	if parts.time {
 		bar.Time = layout.Rect{X: x, Y: row, W: timeWidth * s, H: button * s}
+		x += (timeWidth + gap) * s
 	}
 
 	// Right group, from the edge inwards.
@@ -199,9 +232,26 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 	if parts.translation {
 		place(Item{Action: ActionTranslation, Enabled: state.HasTranslation && !state.TranslationLocked, Active: state.TranslationVisible && state.HasTranslation}, button)
 	}
+	var open Item
+	if parts.menus {
+		menus := Menus()
+		for i := len(menus) - 1; i >= 0; i-- {
+			item := place(Item{Action: ActionMenu, Menu: menus[i], Enabled: true, Active: state.OpenMenu == menus[i]}, button)
+			if item.Active {
+				open = item
+			}
+		}
+	}
+	// The study text takes the room left between the two groups.
+	if parts.status && right-x >= statusMin*s {
+		bar.Status = layout.Rect{X: x, Y: row, W: right - x, H: button * s}
+	}
 
 	if state.SpeedMenuOpen && parts.speed && caps.Speed {
 		bar.addMenu(speed, area, state.Speed)
+	}
+	if open.Action == ActionMenu {
+		bar.layoutMenu(open, area, Entries(open.Menu, state.Study))
 	}
 	// The track takes the clicks left over at the top of the panel; a window
 	// narrower than the margins has none.
@@ -212,6 +262,9 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 	top := panel.Y - tooltipRoom*s
 	if bar.Menu.Valid() {
 		top = math.Min(top, bar.Menu.Y-tooltipRoom*s)
+	}
+	if bar.MenuPanel.Valid() {
+		top = math.Min(top, bar.MenuPanel.Y)
 	}
 	top = math.Max(top, area.Y)
 	bar.Band = layout.Rect{X: area.X, Y: top, W: area.W, H: area.Bottom() - top}
@@ -246,13 +299,13 @@ func (b *Bar) addMenu(speed Item, area layout.Rect, current playback.Speed) {
 
 // parts tells which optional parts fit.
 type parts struct {
-	jumps, mute, volume, time, speed, translation bool
+	jumps, frames, mute, volume, time, status, speed, translation, menus bool
 }
 
 // fit drops the optional parts, least useful first, until the rest fits in
-// width (at 100% scaling).
+// width (at 100% scaling). The menus go last: they reach everything else.
 func fit(width float64) parts {
-	p := parts{jumps: true, mute: true, volume: true, time: true, speed: true, translation: true}
+	p := parts{jumps: true, frames: true, mute: true, volume: true, time: true, status: true, speed: true, translation: true, menus: true}
 	need := func() float64 {
 		total := 2*button + gap // play and fullscreen
 		add := func(on bool, w float64) {
@@ -261,14 +314,17 @@ func fit(width float64) parts {
 			}
 		}
 		add(p.jumps, 2*button+gap)
+		add(p.frames, 2*button+gap)
 		add(p.mute, button)
 		add(p.volume, volumeWidth)
 		add(p.time, timeWidth)
+		add(p.status, statusMin)
 		add(p.speed, speedWidth)
 		add(p.translation, button)
+		add(p.menus, float64(len(Menus()))*(button+gap)-gap)
 		return total
 	}
-	for _, drop := range []*bool{&p.volume, &p.jumps, &p.time, &p.speed, &p.translation, &p.mute} {
+	for _, drop := range []*bool{&p.status, &p.volume, &p.frames, &p.jumps, &p.time, &p.speed, &p.translation, &p.mute, &p.menus} {
 		if need() <= width {
 			break
 		}
@@ -277,9 +333,19 @@ func fit(width float64) parts {
 	return p
 }
 
-// HitTest returns the item under a point: the speed list first, then the
-// buttons, then the track. ActionNone means nothing is there.
+// HitTest returns the item under a point: the open menu's entries first,
+// then the speed list, the buttons and the track. ActionNone means nothing
+// is there; a point on a menu's title or line is nothing too.
 func (b Bar) HitTest(x, y float64) Item {
+	if b.MenuPanel.Contains(x, y) {
+		// From the end: a stepper's buttons come after its row.
+		for i := len(b.MenuItems) - 1; i >= 0; i-- {
+			if item := b.MenuItems[i]; item.Action == ActionEntry && item.Bounds.Contains(x, y) {
+				return item
+			}
+		}
+		return Item{}
+	}
 	for i := len(b.Items) - 1; i >= 0; i-- {
 		if b.Items[i].Action == ActionSpeedChoice && b.Items[i].Bounds.Contains(x, y) {
 			return b.Items[i]
@@ -296,7 +362,7 @@ func (b Bar) HitTest(x, y float64) Item {
 // Covers reports whether the bar takes a point: the panel or the open speed
 // list. Elsewhere in the band the video shows through.
 func (b Bar) Covers(x, y float64) bool {
-	return b.Panel.Contains(x, y) || b.Menu.Contains(x, y)
+	return b.Panel.Contains(x, y) || b.Menu.Contains(x, y) || b.MenuPanel.Contains(x, y)
 }
 
 // TrackPosition is the playback position for a point at x on the track,

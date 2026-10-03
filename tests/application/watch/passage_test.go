@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/shortcut"
@@ -236,5 +237,100 @@ func TestARequestedPassageIsStudiedFromTheStart(t *testing.T) {
 	}
 	if len(bad.plugin.requests) != 0 {
 		t.Fatal("a player was launched for an invalid passage plan")
+	}
+}
+
+// The app tells the session the saved passages; the player window's menu
+// studies one by its place in that list, as it was kept.
+func TestSavedPassagesToldByTheAppAreStudied(t *testing.T) {
+	r, s := markingRig(t)
+	if len(s.SavedPassages()) != 0 {
+		t.Fatal("a new session lists saved passages")
+	}
+	if err := s.StudySavedAt(0); !errors.Is(err, watch.ErrNoSavedPassage) {
+		t.Fatalf("StudySavedAt with none = %v", err)
+	}
+	loop := study.PracticePlan{Mode: study.EndLoop, Gap: time.Second, Goal: 2}
+	list := []watch.SavedPassage{
+		{Name: "Loja", Segment: study.Segment{Start: 10 * time.Second, End: 20 * time.Second}, Plan: study.PracticePlan{Mode: study.EndPause}},
+		{Name: "Rua", Segment: study.Segment{Start: 30 * time.Second, End: 34 * time.Second}, Plan: loop},
+	}
+	s.SetSavedPassages(list)
+	list[0].Name = "changed after" // the session keeps its own copy
+	if got := s.SavedPassages(); len(got) != 2 || got[0].Name != "Loja" {
+		t.Fatalf("SavedPassages = %+v", got)
+	}
+	if err := s.StudySavedAt(1); err != nil {
+		t.Fatal(err)
+	}
+	if status := s.Passage(); !status.Active || status.Segment != list[1].Segment || status.Plan != loop {
+		t.Fatalf("studying the second saved passage: %+v", status)
+	}
+	// Studying a saved passage leaves the mark options as they were.
+	if plan, snap := s.PassageOptions(); plan.Mode != study.EndPause || !snap {
+		t.Fatalf("options after a saved passage = %+v %v", plan, snap)
+	}
+	if err := s.StudySavedAt(2); !errors.Is(err, watch.ErrNoSavedPassage) {
+		t.Fatalf("StudySavedAt past the list = %v", err)
+	}
+	_ = r
+}
+
+// The Modo Karaokê's timing changes as a whole, refusing what the rules
+// refuse.
+func TestTheKaraokeSettingsChangeAsAWhole(t *testing.T) {
+	_, s := markingRig(t)
+	rules := study.CueRules{MinGap: 4 * time.Second, Lead: 3 * time.Second}
+	if err := s.SetKaraokeSettings(session.Karaoke{Enabled: true, Rules: rules, Fill: false}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Karaoke(); !got.Enabled || got.Rules != rules || got.Fill {
+		t.Fatalf("karaoke = %+v", got)
+	}
+	if err := s.SetKaraokeSettings(session.Karaoke{Enabled: true, Rules: study.CueRules{MinGap: time.Millisecond, Lead: time.Second}}); err == nil {
+		t.Fatal("a gap the rules refuse was taken")
+	}
+	if got := s.Karaoke(); got.Rules != rules {
+		t.Fatalf("a refused change changed the karaoke: %+v", got)
+	}
+	if !s.HasPrimary() {
+		t.Fatal("the session has a line on top")
+	}
+}
+
+// Correcting a line from the player window pauses, picks the line on screen
+// and brings the app's panel up.
+func TestOpenEditorPausesPicksAndShowsThePanel(t *testing.T) {
+	r := newRig(t)
+	shown := make(chan struct{}, 1)
+	r.ports.ShowPanel = func() { shown <- struct{}{} }
+	s := r.start(t)
+	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Status: playback.StatusPlaying, Speed: 1, ObservedAt: time.Now()}
+	eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
+	if err := s.OpenEditor(session.LinePrimary); err != nil {
+		t.Fatalf("OpenEditor: %v", err)
+	}
+	if selection, ok := s.Selection(); !ok || selection.Line != session.LinePrimary {
+		t.Fatalf("selection = %+v %v", selection, ok)
+	}
+	if s.State().Status == playback.StatusPlaying {
+		t.Fatal("the video still plays while a line is corrected")
+	}
+	select {
+	case <-shown:
+	case <-time.After(time.Second):
+		t.Fatal("the app's panel was not brought up")
+	}
+	// No line on screen: nothing to correct, and the panel stays where it is.
+	if err := s.Controls().SeekTo(40 * time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.OpenEditor(session.LinePrimary); err == nil {
+		t.Fatal("OpenEditor with no line on screen succeeded")
+	}
+	select {
+	case <-shown:
+		t.Fatal("the panel came up with nothing to correct")
+	default:
 	}
 }

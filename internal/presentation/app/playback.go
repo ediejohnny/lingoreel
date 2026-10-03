@@ -165,6 +165,7 @@ func (a *API) Watch(request WatchRequest) error {
 	current.startKaraoke = karaokeOf(started)
 	a.mu.Lock()
 	a.watching = current
+	a.tellPassages(current)
 	a.mu.Unlock()
 	a.logger.Info("session started", "player", installation.ID, "audio", trackOf(video.Info, tracks.Audio),
 		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode)

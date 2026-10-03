@@ -84,9 +84,25 @@ type fakeRemote struct {
 	reveals  []bool
 	runs     []string
 	selected []session.Line
+	// What the menus show; changes records the menus' other calls.
+	markStart time.Duration
+	marked    bool
+	passage   session.PracticeStatus
+	plan      study.PracticePlan
+	snap      bool
+	saved     []watch.SavedPassage
+	karaoke   session.Karaoke
+	indicator study.Indicator
+	repeats   int
+	changes   []string
 }
 
 func newRemote(p *recordingPlayer) *fakeRemote {
+	return newRemoteFor(p)
+}
+
+// newRemoteFor is a fake session driving any player.
+func newRemoteFor(p session.Player) *fakeRemote {
 	clock := session.NewClock(playback.PrecisionExact, time.Now)
 	clock.Observe(playback.Sample{Position: 10 * time.Second, Duration: 100 * time.Second, Speed: 1, Status: playback.StatusPlaying, ObservedAt: time.Now()})
 	return &fakeRemote{controls: session.NewControls(p, clock, 25), clock: clock, shown: true}

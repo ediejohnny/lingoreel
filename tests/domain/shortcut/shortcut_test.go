@@ -215,7 +215,7 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 		shortcut.SpeedDown: "Ctrl+ArrowDown", shortcut.SpeedUp: "Ctrl+ArrowUp", shortcut.SpeedNormal: "Ctrl+Digit0",
 		shortcut.RepeatPhrase: "F9", shortcut.RepeatLast3: "Digit3", shortcut.RepeatLast5: "Digit5", shortcut.RepeatLast10: "Digit0",
 		shortcut.ShowBoth: "", shortcut.PrimaryOnly: "",
-		shortcut.PassageMarkStart: "Ctrl+F9", shortcut.PassageMarkEnd: "Ctrl+F10", shortcut.PassageStop: "",
+		shortcut.PassageMarkStart: "Ctrl+F9", shortcut.PassageMarkEnd: "Ctrl+F10", shortcut.PassageStop: "", shortcut.PassageResume: "",
 		shortcut.Undo: "Ctrl+KeyZ", shortcut.Redo: "Ctrl+KeyY",
 	}
 	if len(want) != len(shortcut.Commands()) {
@@ -239,7 +239,7 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 // The passage marks live with the other study commands, and holding them
 // never repeats: one press, one mark.
 func TestThePassageMarksAreStudyCommandsThatNeverRepeat(t *testing.T) {
-	for _, command := range []shortcut.Command{shortcut.PassageMarkStart, shortcut.PassageMarkEnd, shortcut.PassageStop} {
+	for _, command := range []shortcut.Command{shortcut.PassageMarkStart, shortcut.PassageMarkEnd, shortcut.PassageStop, shortcut.PassageResume} {
 		if command.Category() != shortcut.CategoryStudy {
 			t.Errorf("%s is in %q, want the study commands", command, command.Category())
 		}

@@ -270,7 +270,7 @@ func (a *API) keepSession(current *watching, final bool) {
 		return
 	}
 	last := &p.value.Last
-	if (final || state.Status == playback.StatusPlaying && now.Sub(p.positionAt) >= positionEvery) && state.Duration > 0 {
+	if final || state.Status == playback.StatusPlaying && now.Sub(p.positionAt) >= positionEvery {
 		if position := project.MillisOf(state.Position); position != last.Position {
 			last.Position = position
 			a.markDirty(p)
@@ -368,6 +368,7 @@ func (a *API) SavePassage(name string) error {
 	} else {
 		p.value.Passages = append(passages, passage)
 	}
+	a.tellPassages(current)
 	err := a.saveProject()
 	a.mu.Unlock()
 	a.emit(EventPlayback, a.describe(current))
@@ -395,6 +396,7 @@ func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan s
 		Start: project.MillisOf(segment.Start), End: project.MillisOf(segment.End), Plan: &practice,
 	}
 	p.value.Passages = append(p.value.Passages, passage)
+	a.tellPassages(current)
 	err := a.saveProject()
 	a.mu.Unlock()
 	if err != nil {
@@ -457,6 +459,9 @@ func (a *API) editPassages(change func([]project.Passage) ([]project.Passage, er
 		return err
 	}
 	p.value.Passages = passages
+	if current != nil {
+		a.tellPassages(current)
+	}
 	err = a.saveProject()
 	a.mu.Unlock()
 	if current != nil {
@@ -484,6 +489,20 @@ func (a *API) savedPassages(current *watching) ([]SavedPassage, string) {
 		return []SavedPassage{}, ""
 	}
 	return passagesOf(p, current.duration), p.note
+}
+
+// tellPassages gives the session the video's saved passages, for the player
+// window's menu. Called with a.mu held; the session only stores them.
+func (a *API) tellPassages(current *watching) {
+	p := a.projectOf(current)
+	if p == nil || current.session == nil {
+		return
+	}
+	list := make([]watch.SavedPassage, len(p.value.Passages))
+	for i, passage := range p.value.Passages {
+		list[i] = watch.SavedPassage{Name: passage.Name, Segment: passage.Segment(), Plan: passage.Practice()}
+	}
+	current.session.SetSavedPassages(list)
 }
 
 // passagesOf describes a project's passages; duration (zero when unknown)

@@ -93,6 +93,9 @@ func run() error {
 	files := settingsfile.Open(dir)
 	look := func() overlay.Look { return watch.LookOf(activeProfile(files)) }
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
+	// started is the window's context, for a second launch and the player
+	// window's menus to reach it.
+	var started atomic.Pointer[context.Context]
 	deps := app.Deps{
 		Service: service, Registry: registry,
 		Detect: func(configured map[player.ID]string) []player.Installation {
@@ -102,10 +105,18 @@ func run() error {
 			Service: service, Registry: registry,
 			OpenWindow: playerwindow.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
+				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
 			}, ptbr.WindowTitle, logger),
 			OpenDisplay:    overlay.Opener(look, logger),
 			PracticeNotice: ptbr.PracticeNotice,
 			MarkNotice:     ptbr.MarkNotice,
+			// The line editor is on the app's panel.
+			ShowPanel: func() {
+				if ctx := started.Load(); ctx != nil {
+					runtime.WindowUnminimise(*ctx)
+					runtime.WindowShow(*ctx)
+				}
+			},
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
@@ -138,8 +149,6 @@ func run() error {
 		defer samples.Close()
 	}
 	api, lifecycle := app.New(deps)
-	// started is the window's context, for a second launch to reach it.
-	var started atomic.Pointer[context.Context]
 
 	return wails.Run(&options.App{
 		Title: windowTitle, Width: windowWidth, Height: windowHeight,
