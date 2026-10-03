@@ -4,9 +4,10 @@ Aplicativo para Windows 10/11 que ajuda a estudar idiomas com filmes e séries. 
 no seu player preferido e desenha, por cima, duas legendas sincronizadas: a do idioma estudado e a
 tradução em português, que pode ficar sempre visível ou aparecer só quando você pedir.
 
-> **Estado:** em desenvolvimento (versões `0.x`). A primeira versão estável será a `1.0.0`.
+> **Estado:** beta (versões `0.x`). Tudo o que está descrito abaixo já funciona, e o app segue recebendo melhorias.
+> A primeira versão estável será a `1.0.0`.
 
-## Recursos planejados
+## Recursos
 
 - Leitura das legendas internas de arquivos `.mkv`, sem alterar o arquivo original.
 - Leitura de legendas externas (`.srt`, `.ass`, `.ssa`, `.vtt`) da pasta do vídeo e das
