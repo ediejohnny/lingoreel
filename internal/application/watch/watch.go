@@ -106,6 +106,9 @@ type Remote interface {
 	Reveal(pressed bool)
 	// Select picks a line on screen for editing; the video must be paused.
 	Select(line session.Line) (Selection, error)
+	// Edit changes the selected line, as the box over the video corrects
+	// its text; the video must be paused.
+	Edit(change EditChange) error
 
 	// What the bar's menus show and change: the passage being marked or
 	// studied and its options, the saved passages, the Modo Karaokê, the

@@ -106,6 +106,7 @@ func run() error {
 			OpenWindow: playerwindow.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
 				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
+				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty,
 			}, ptbr.WindowTitle, logger),
 			OpenDisplay:    overlay.Opener(look, logger),
 			PracticeNotice: ptbr.PracticeNotice,

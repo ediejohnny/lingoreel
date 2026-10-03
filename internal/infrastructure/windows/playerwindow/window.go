@@ -23,6 +23,7 @@ import (
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/controlbar"
+	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/windows/gdiplus"
@@ -56,6 +57,7 @@ const (
 	timerRefresh = 1 + iota
 	timerHide
 	timerCursor
+	timerEdit
 )
 
 // Labels word what the bar shows; the presentation layer gives them.
@@ -71,6 +73,9 @@ type Labels struct {
 	Entry func(entry controlbar.Entry, state controlbar.State, keys shortcut.Map) controlbar.EntryText
 	// Status is the study text on the bar: "Início: 10:38".
 	Status func(state controlbar.StudyState) string
+	// EditHint shows under the box that corrects a line; EditEmpty is told
+	// when Enter would save an empty line.
+	EditHint, EditEmpty string
 }
 
 // Options configures a window.
@@ -124,6 +129,8 @@ type Window struct {
 	tracking   [2]bool // WM_MOUSELEAVE asked for the host and the bar
 	// revealKey is the translation key held down, to send its release.
 	revealKey shortcut.Key
+	// editing is the box correcting a line over the video, if open.
+	editing *editor
 
 	remoteMu sync.Mutex
 	remote   watch.Remote
@@ -239,9 +246,12 @@ func registerClasses() {
 	}); registerErr != nil {
 		return
 	}
-	_, registerErr = win32.RegisterClass(&win32.WndClassEx{
+	if _, registerErr = win32.RegisterClass(&win32.WndClassEx{
 		WndProc: barProc, Instance: win32.ModuleHandle(), Cursor: win32.ArrowCursor(), ClassName: barClassName,
-	})
+	}); registerErr != nil {
+		return
+	}
+	registerErr = registerEditor()
 }
 
 // initialBounds is where the client area opens: the placement, or a
@@ -319,6 +329,13 @@ func (w *Window) Show(content session.Screen) error {
 	return w.overlay.Show(content)
 }
 
+// LineBounds is where a line was last drawn, in the window's client pixels;
+// false when it is not on screen.
+func (w *Window) LineBounds(line session.Line) (layout.Rect, bool) {
+	spot, ok := w.overlay.SpotOf(line)
+	return spot.Box, ok
+}
+
 // Restyle draws the subtitles with a new look.
 func (w *Window) Restyle(look overlay.Look) error {
 	return w.overlay.Restyle(look)
@@ -370,6 +387,7 @@ func (w *Window) release() {
 
 // teardown runs on the UI thread and is safe to call more than once.
 func (w *Window) teardown() {
+	w.finishEdit(false, false)
 	for _, hwnd := range []windows.HWND{w.bar, w.host} {
 		forget(hwnd)
 		if hwnd != 0 && windows.IsWindow(hwnd) {

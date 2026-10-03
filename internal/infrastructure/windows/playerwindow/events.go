@@ -68,7 +68,11 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		w.pick(win32.PointOf(lparam))
 		return 0
 	case win32.WM_LBUTTONDBLCLK:
-		w.setFullscreen(!w.fullscreen)
+		// On a line of the paused video, the box that corrects it; anywhere
+		// else, the fullscreen.
+		if !w.editAt(win32.PointOf(lparam)) {
+			w.setFullscreen(!w.fullscreen)
+		}
 		return 0
 	case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
 		// Unknown keys and Alt combinations go on: Alt+F4 must still close.
@@ -182,6 +186,8 @@ func (w *Window) timer(id uintptr) {
 		w.pointer(w.cursorInZone())
 	case timerHide:
 		w.pointer(w.cursorInZone())
+	case timerEdit:
+		w.watchEdit()
 	case timerCursor:
 		win32.KillTimer(w.host, timerCursor)
 		if w.fullscreen && !w.barShown {

@@ -18,6 +18,7 @@ import (
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
+	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/infrastructure/windows/playerwindow"
 	"lingoreel/internal/infrastructure/windows/win32"
 	"lingoreel/internal/presentation/ptbr"
@@ -86,6 +87,11 @@ type fakeRemote struct {
 	reveals  []bool
 	runs     []string
 	selected []session.Line
+	// lineText is the text of the line Select picks; edits are the texts
+	// Edit was given, and editErr its answer.
+	lineText string
+	edits    []string
+	editErr  error
 	// What the menus show; changes records the menus' other calls.
 	markStart time.Duration
 	marked    bool
@@ -145,7 +151,22 @@ func (r *fakeRemote) Select(line session.Line) (watch.Selection, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.selected = append(r.selected, line)
-	return watch.Selection{Line: line}, nil
+	return watch.Selection{Line: line, Event: subtitle.Event{ID: "e1", OriginalText: r.lineText}}, nil
+}
+
+func (r *fakeRemote) Edit(change watch.EditChange) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if change.Text != nil {
+		r.edits = append(r.edits, *change.Text)
+	}
+	return r.editErr
+}
+
+func (r *fakeRemote) edited() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.edits)
 }
 
 func (r *fakeRemote) selections() []session.Line {
