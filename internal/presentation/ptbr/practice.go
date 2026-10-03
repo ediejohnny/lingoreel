@@ -32,6 +32,29 @@ func PassageClock(d time.Duration) string {
 	return whole
 }
 
+// PassageName is the name a passage gets when it is saved by its shortcut,
+// "Trecho 10:38–11:30": the user knows it in the list without opening it,
+// and renames it at will.
+func PassageName(start, end time.Duration) string {
+	return "Trecho " + PassageClock(start) + "–" + PassageClock(end)
+}
+
+// PassageMarkNotice words the notices of the passage shortcuts.
+func PassageMarkNotice(start time.Duration) string {
+	return "Início do trecho: " + PassageClock(start)
+}
+
+// PassageSavedNotice tells a passage was saved under a name.
+func PassageSavedNotice(name string) string {
+	return "Salvo: " + name
+}
+
+// PassageNoStartNotice asks for the start before the end.
+const PassageNoStartNotice = "Marque o início do trecho primeiro"
+
+// PassageTooShortNotice tells the end came too soon after the start.
+const PassageTooShortNotice = "O fim precisa vir pelo menos 1 s depois do início"
+
 // EditClock shows a line's time to the millisecond for the editor,
 // "1:02:03,456" or "2:03,456", which ParseClock reads back.
 func EditClock(d time.Duration) string {

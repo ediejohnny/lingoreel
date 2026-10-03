@@ -60,7 +60,49 @@ func (s *Store) Fallback(video string) string {
 }
 
 func storeAt(path string) *jsonstore.Store[project.Project] {
-	return jsonstore.New(path, project.Version, project.New, nil)
+	return jsonstore.New(path, project.Version, project.New, migrations)
+}
+
+// migrations upgrade older project files, one version at a time.
+var migrations = map[int]jsonstore.Migration{
+	1: checkPassages,
+}
+
+// checkPassages (version 1 to 2) needs no new value: a passage without a
+// plan pauses at the end with no helps, and a video without "last" starts
+// from the beginning with the profile's speed and Modo Karaokê. It only
+// refuses passages that are not objects, as a hand-edited file may have.
+func checkPassages(document map[string]any) error {
+	items, _ := document["passages"].([]any)
+	for i, item := range items {
+		if _, ok := item.(map[string]any); !ok {
+			return fmt.Errorf("passage %d is not an object", i)
+		}
+	}
+	return nil
+}
+
+// Remove forgets a video's project: the file beside it and the one in the
+// app's folder. A file that is not there is no error; a folder of that name
+// is left alone, since it is no project.
+func (s *Store) Remove(video string) error {
+	var errs []error
+	for _, path := range []string{Beside(video), s.Fallback(video)} {
+		if path == "" {
+			continue
+		}
+		info, err := os.Lstat(path)
+		if errors.Is(err, fs.ErrNotExist) || (err == nil && !info.Mode().IsRegular()) {
+			continue
+		}
+		if err == nil {
+			err = os.Remove(path)
+		}
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			errs = append(errs, fmt.Errorf("removing %s: %w", filepath.Base(path), err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Load reads a video's project: the file beside it, or else the one in the

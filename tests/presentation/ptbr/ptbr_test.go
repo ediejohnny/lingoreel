@@ -51,6 +51,31 @@ func TestClock(t *testing.T) {
 	}
 }
 
+// A passage saved by its shortcut is named by its times, the way the panel
+// writes them, so ParseClock reads each side back.
+func TestPassageName(t *testing.T) {
+	cases := []struct {
+		start, end time.Duration
+		want       string
+	}{
+		{10*time.Minute + 38*time.Second, 11*time.Minute + 30*time.Second, "Trecho 10:38–11:30"},
+		{4 * time.Second, 9 * time.Second, "Trecho 0:04–0:09"},
+		{time.Hour + 10*time.Minute + 23*time.Second, time.Hour + 11*time.Minute + 4*time.Second, "Trecho 1:10:23–1:11:04"},
+		{2500 * time.Millisecond, 4 * time.Second, "Trecho 0:02,5–0:04"},
+	}
+	for _, c := range cases {
+		if got := ptbr.PassageName(c.start, c.end); got != c.want {
+			t.Errorf("PassageName(%v, %v) = %q, want %q", c.start, c.end, got, c.want)
+		}
+	}
+	if got := ptbr.PassageMarkNotice(10*time.Minute + 38*time.Second); got != "Início do trecho: 10:38" {
+		t.Errorf("PassageMarkNotice = %q", got)
+	}
+	if got := ptbr.PassageSavedNotice("Trecho 10:38–11:30"); got != "Salvo: Trecho 10:38–11:30" {
+		t.Errorf("PassageSavedNotice = %q", got)
+	}
+}
+
 func TestLineNamesAndNotice(t *testing.T) {
 	info := media.Info{Tracks: []media.Track{
 		{Number: 3, Type: media.TrackSubtitle, Language: "en"},
