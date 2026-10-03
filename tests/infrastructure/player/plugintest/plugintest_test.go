@@ -217,6 +217,9 @@ func TestTheKitCatchesEveryFlaw(t *testing.T) {
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
+			// Each flaw has its own plugin and processes; two of them wait out
+			// a whole bound of the kit, so they wait side by side.
+			t.Parallel()
 			failures := runKit(fake(t, c.flaw))
 			for _, failure := range failures {
 				if strings.Contains(failure, c.want) {

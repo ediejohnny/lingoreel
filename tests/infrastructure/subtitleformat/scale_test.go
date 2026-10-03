@@ -12,8 +12,9 @@ import (
 
 // PRD §58: 50 000 lines with no noticeable cost. The whole way a subtitle
 // file takes, read, ordered and looked up, stays far below a quadratic cost
-// (minutes at this size); the ceiling is generous for a loaded machine and
-// the race detector.
+// (minutes at this size). Without the race detector it takes about a
+// second; with it, and the other packages testing beside it, about ten, so
+// the ceiling sits well above that and well below a quadratic cost.
 func TestFiftyThousandLinesFromAFile(t *testing.T) {
 	const lines = 50_000
 	var file bytes.Buffer
@@ -42,7 +43,7 @@ func TestFiftyThousandLinesFromAFile(t *testing.T) {
 	}
 	elapsed := time.Since(began)
 	t.Logf("%d lines (%d KB) read, ordered and looked up in %v", lines, file.Len()/1024, elapsed)
-	if len(result.Events) != lines || elapsed > 10*time.Second {
+	if len(result.Events) != lines || elapsed > time.Minute {
 		t.Fatalf("%d lines in %v", len(result.Events), elapsed)
 	}
 }

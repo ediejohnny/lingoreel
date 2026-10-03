@@ -35,3 +35,44 @@ function Invoke-Native {
         return $output
     }
 }
+
+# Start-NativeJob starts a native program in the background, its output kept
+# in temporary files; Wait-NativeJobs waits for it. Independent steps run side
+# by side this way.
+function Start-NativeJob {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$FailureMessage
+    )
+
+    $outFile = [System.IO.Path]::GetTempFileName()
+    $errFile = [System.IO.Path]::GetTempFileName()
+    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $WorkingDirectory `
+        -NoNewWindow -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    # Reading the handle now keeps the exit code readable once it ends.
+    $null = $process.Handle
+    return [pscustomobject]@{ Process = $process; OutFile = $outFile; ErrFile = $errFile; FailureMessage = $FailureMessage }
+}
+
+# Wait-NativeJobs waits for every job, prints each one's output in turn and
+# throws one error naming every job that failed.
+function Wait-NativeJobs {
+    param([object[]]$Jobs = @())
+
+    $failures = @()
+    foreach ($job in $Jobs) {
+        $job.Process.WaitForExit()
+        foreach ($file in @($job.OutFile, $job.ErrFile)) {
+            Get-Content -LiteralPath $file -Encoding UTF8 | Out-Host
+            [System.IO.File]::Delete($file)
+        }
+        if ($job.Process.ExitCode -ne 0) {
+            $failures += "$($job.FailureMessage) (código de saída $($job.Process.ExitCode))."
+        }
+    }
+    if ($failures.Count -gt 0) {
+        throw ($failures -join " ")
+    }
+}
