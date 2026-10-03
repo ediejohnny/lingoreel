@@ -16,7 +16,15 @@ tradução em português, que pode ficar sempre visível ou aparecer só quando 
   revelar) e Tradução sempre visível.
 - Atalhos configuráveis: busca de 5, 10 e 30 s, passo de precisão, quadro a quadro, velocidade,
   repetir a frase e os últimos segundos.
-- Suporte a mpv, VLC e PotPlayer, com o player preferido escolhido por você.
+- Modo Karaokê: nas pausas longas, a próxima fala aparece antes da hora, com uma barra ou uma
+  contagem, e vai sendo preenchida enquanto o ator fala, para você falar junto.
+- Estudos salvos: Ctrl+F9 marca o início de um trecho e Ctrl+F10 o fim. O trecho é salvo com os
+  tempos no nome e repete até você sair. Ao reabrir o vídeo, ele continua de onde você parou, com
+  a velocidade, o Modo Karaokê, a sincronização e a lista de trechos.
+- Uma barra de controles própria sobre o vídeo, com quadro a quadro e menus para o trecho, o Modo
+  Karaokê e as legendas, sem precisar voltar ao app.
+- Suporte a VLC e PotPlayer, com o player preferido escolhido por você. Outros players entram como
+  plugins (veja o guia em `docs/plugins-de-player.md`).
 - Janela, tela cheia, vários monitores e escalas de DPI de 100% a 200%.
 - Correção de legendas com o vídeo pausado: clique na fala para corrigir o texto ou os tempos,
   com desfazer/refazer (Ctrl+Z/Ctrl+Y). O texto original nunca se perde.
