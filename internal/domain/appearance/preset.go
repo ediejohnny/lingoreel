@@ -66,11 +66,21 @@ func (p Preset) Apply(style SubtitleStyle) (SubtitleStyle, error) {
 	return style, nil
 }
 
-// DefaultPrimaryStyle is the look of the studied language (PRD: Arial 32,
+// AppFont is the family the app's own screens are drawn with, and the
+// subtitles' default. The user chose it over the PRD's Arial, so the text
+// over the video reads like the rest of the app. Windows has had it since
+// Windows 7, and the notices already use it.
+const AppFont = "Segoe UI"
+
+// PreviousDefaultFont is the family the subtitles used before AppFont; a
+// profile still on it is moved along, one that was changed is left alone.
+const PreviousDefaultFont = "Arial"
+
+// DefaultPrimaryStyle is the look of the studied language (PRD: 32 px,
 // white, 3 px black outline, 2 px shadow, at 82% of the height).
 func DefaultPrimaryStyle() SubtitleStyle {
 	style, _ := PresetClassic.Apply(SubtitleStyle{
-		FontFamily:       "Arial",
+		FontFamily:       AppFont,
 		FontSize:         32,
 		SizeMode:         SizeResponsive,
 		VerticalPosition: 0.82,
@@ -89,7 +99,7 @@ const noticeBackgroundAlpha = 0xA0
 // only subtitles, except these notices).
 func NoticeStyle() SubtitleStyle {
 	return SubtitleStyle{
-		FontFamily: "Segoe UI",
+		FontFamily: AppFont,
 		FontSize:   22,
 		SizeMode:   SizeResponsive,
 		Color:      white,

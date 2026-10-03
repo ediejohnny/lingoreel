@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/infrastructure/persistence/jsonstore"
@@ -53,7 +54,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if err != nil || gotProfiles.Items[0].PreferredPlayer != "vlc" {
 		t.Fatalf("profiles after a round trip = %+v, %v", gotProfiles, err)
 	}
-	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 2`} {
+	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 3`} {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil || !strings.Contains(string(data), version) {
 			t.Fatalf("%s = %s, %v; want %s", name, data, err, version)
@@ -163,6 +164,67 @@ func profileJSON(t *testing.T, name, shortcuts string) string {
 		t.Fatal(err)
 	}
 	return strings.Replace(string(data), `"shortcuts":null`, `"shortcuts":`+shortcuts, 1)
+}
+
+// Profiles saved before the subtitles moved to the app's own font (version
+// 2) follow, unless the user had picked a font of their own. Two profiles:
+// decoding over the default list, the first one would inherit the defaults
+// anyway.
+func TestOldProfilesFollowTheAppFont(t *testing.T) {
+	dir := t.TempDir()
+	defaults := settings.DefaultProfile()
+	styles := func(family string) (string, string) {
+		primary, translation := defaults.Primary, defaults.Translation
+		primary.FontFamily, translation.FontFamily = family, family
+		first, err := json.Marshal(primary)
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := json.Marshal(translation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(first), string(second)
+	}
+	profile := func(name, family string) string {
+		primary, translation := styles(family)
+		layout, err := json.Marshal(defaults.Layout)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return `{"name": "` + name + `", "languages": {"audio": "en", "primary": "en", "translation": "pt-BR"},
+			"primaryStyle": ` + primary + `, "translationStyle": ` + translation + `, "layout": ` + string(layout) + `,
+			"study": {"mode": "dual", "reveal": "hold", "karaoke": ` + karaokeJSON(t) + `}, "speed": 1,
+			"sync": {"precisionSeekStep": "100ms", "offsetStep": "50ms", "offsetLargeStep": "500ms"}}`
+	}
+	old := `{"version": 2, "profiles": [` + profile("Padrão", appearance.PreviousDefaultFont) + `,` +
+		profile("Escolhida", "Comic Sans MS") + `]}`
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 2 file: %v", err)
+	}
+	if len(profiles.Items) != 2 {
+		t.Fatalf("%d profiles after the migration", len(profiles.Items))
+	}
+	for i, want := range []string{appearance.AppFont, "Comic Sans MS"} {
+		got := profiles.Items[i]
+		if got.Primary.FontFamily != want || got.Translation.FontFamily != want {
+			t.Fatalf("profile %q fonts = %q and %q, want %q",
+				got.Name, got.Primary.FontFamily, got.Translation.FontFamily, want)
+		}
+	}
+}
+
+func karaokeJSON(t *testing.T) string {
+	t.Helper()
+	data, err := json.Marshal(settings.DefaultKaraoke())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }
 
 // A document without study preferences is refused, not silently patched.

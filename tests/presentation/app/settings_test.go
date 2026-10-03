@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/presentation/app"
@@ -26,7 +27,7 @@ func TestSettingsShowTheActiveProfileAndTheOptions(t *testing.T) {
 	r.attach(t)
 	view := settingsOf(t, r)
 	p := view.Profile
-	if p.Name != "Inglês" || p.Primary.FontFamily != "Arial" || p.Primary.FontSize != 32 || !p.Primary.Responsive ||
+	if p.Name != "Inglês" || p.Primary.FontFamily != appearance.AppFont || p.Primary.FontSize != 32 || !p.Primary.Responsive ||
 		p.Primary.Color != "#FFFFFF" || p.Primary.Position != 0.82 || p.Translation.Opacity != 0.9 {
 		t.Fatalf("profile = %+v", p)
 	}
