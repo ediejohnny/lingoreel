@@ -23,6 +23,11 @@ tradução em português, que pode ficar sempre visível ou aparecer só quando 
 - Um arquivo de correções por vídeo (`Filme.dualsub.json`, ao lado do vídeo), que guarda as
   correções, a sincronização, as faixas e o modo escolhidos e os trechos salvos para estudo.
 - Exportação da legenda corrigida e sincronizada em `.srt` ou `.ass`, para usar em outro player.
+- Um único `.exe` portátil, sem instalação: o WebView2 vai embutido para o Windows 10 que não o tem.
+- Abrir vídeos pelo menu do Windows ("Assistir com o LingoReel" e "Abrir com"), se você
+  ligar a opção; o programa padrão de cada vídeo não muda.
+- Registros diários dos últimos 14 dias e uma tela de diagnóstico para relatar problemas, sem o
+  texto das legendas e sem enviar nada pela internet.
 
 ## Desenvolvimento
 
@@ -33,6 +38,7 @@ no `PATH`.
 |---|---|
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatação, análise estática e testes |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1` | Compila os executáveis em `build\bin` |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package.ps1` | Monta o zip portátil em `build\dist` (depois do build) |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev.ps1` | Abre o app em modo de desenvolvimento (recarrega ao mudar o código) |
 
 As versões seguem o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
