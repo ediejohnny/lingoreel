@@ -37,9 +37,9 @@ const (
 	startRetry   = 50 * time.Millisecond
 	// startTolerance absorbs a position PotPlayer refreshes twice a second.
 	startTolerance = 700 * time.Millisecond
-	// seekSettle is how long a seek has to show in the reported position
-	// before the start is asked for again.
-	seekSettle = 400 * time.Millisecond
+	// commandSettle is how long a command of the opening has to show in
+	// what PotPlayer reports before it is asked for again.
+	commandSettle = 400 * time.Millisecond
 )
 
 // blankSubtitle is a valid subtitle file with a single blank line at an hour
@@ -150,36 +150,50 @@ func (s *Session) waitUntilReady(ctx context.Context, request player.LaunchReque
 	}); err != nil {
 		return err
 	}
-	// Paused first, then the seek: a PotPlayer still playing moves on from
-	// where the seek landed before the first sample is taken.
-	if request.StartPaused {
-		if err := s.waitUntilPaused(ctx, deadline.C); err != nil {
-			return err
-		}
+	// Pausing first does three things: it keeps the video still while the
+	// start is sought, and it is the moment PotPlayer proves it is taking
+	// commands. Everything sent before that may be lost (measured), so
+	// every other command of the opening comes after it.
+	if err := s.waitUntilStatus(ctx, deadline.C, statusPaused); err != nil {
+		return err
+	}
+	// PotPlayer keeps the speed of its last session, even across restarts;
+	// the app always opens a video at the normal rate.
+	if err := s.press(keyNormal); err != nil {
+		return fmt.Errorf("putting PotPlayer back at the normal speed: %w", err)
 	}
 	if err := s.seekToStart(ctx, deadline.C, request.Start); err != nil {
 		return err
+	}
+	if !request.StartPaused {
+		if err := s.waitUntilStatus(ctx, deadline.C, statusPlaying); err != nil {
+			return err
+		}
 	}
 	s.refreshArea()
 	return nil
 }
 
-// waitUntilPaused pauses and waits until PotPlayer says it is paused. A
-// pause sent while it was still opening the file is lost (measured: the
-// first sample then came in playing), so it is asked again.
-func (s *Session) waitUntilPaused(ctx context.Context, deadline <-chan time.Time) error {
-	if err := s.Pause(); err != nil {
-		return fmt.Errorf("pausing PotPlayer: %w", err)
+// waitUntilStatus asks PotPlayer to play or to pause and waits until it
+// says it did. A command sent while it was still opening the file is lost
+// (measured: the first sample then came in playing), so it is asked again.
+func (s *Session) waitUntilStatus(ctx context.Context, deadline <-chan time.Time, want int64) error {
+	step, send := "the pause", s.Pause
+	if want == statusPlaying {
+		step, send = "the start of the playback", s.Play
+	}
+	if err := send(); err != nil {
+		return fmt.Errorf("asking PotPlayer for %s: %w", step, err)
 	}
 	asked := time.Now()
-	_, err := s.waitFor(ctx, deadline, "the pause", func() bool {
+	_, err := s.waitFor(ctx, deadline, step, func() bool {
 		state, ok := ask(s.mainWindow(), codeGetStatus, 0)
-		if ok && state == statusPaused {
+		if ok && state == want {
 			return true
 		}
-		if time.Since(asked) >= seekSettle {
+		if time.Since(asked) >= commandSettle {
 			asked = time.Now()
-			_ = s.Pause()
+			_ = send()
 		}
 		return false
 	})
@@ -207,7 +221,7 @@ func (s *Session) seekToStart(ctx context.Context, deadline <-chan time.Time, st
 		}
 		// A seek sent while PotPlayer was still opening the file is lost;
 		// it is asked again, never so fast as to undo one that is landing.
-		if time.Since(asked) >= seekSettle {
+		if time.Since(asked) >= commandSettle {
 			asked = time.Now()
 			_ = s.SeekTo(start)
 		}

@@ -3,11 +3,13 @@
 package potplayer_test
 
 import (
+	"errors"
 	"math"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -133,6 +135,20 @@ func TestAFailedLaunchRemovesItsTemporaryFolder(t *testing.T) {
 	if after := temporaryFolders(t); after > before {
 		t.Fatalf("%d temporary folder(s) left behind", after-before)
 	}
+
+	// A file that is not a program at all: the launch fails before there
+	// is any process, and the folder must go away just the same.
+	notAProgram := filepath.Join(dir, "notaplayer.exe")
+	if err := os.WriteFile(notAProgram, []byte("this is not a program"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if session, err := potplayer.Launch(t.Context(), notAProgram, player.LaunchRequest{File: video, AudioIndex: -1}); err == nil {
+		session.Close()
+		t.Fatal("a file that is not a program must not launch")
+	}
+	if after := temporaryFolders(t); after > before {
+		t.Fatalf("%d temporary folder(s) left behind by a launch that never started", after-before)
+	}
 }
 
 func temporaryFolders(t *testing.T) int {
@@ -207,6 +223,12 @@ func TestPotPlayerFirstSampleIsAtTheRequestedStartAndPaused(t *testing.T) {
 			if sample.Duration <= 0 {
 				t.Fatalf("first duration %v, want the video's length", sample.Duration)
 			}
+			// Paused is not only what PotPlayer says: the video must stand
+			// still, or the subtitles would already be at another moment.
+			time.Sleep(1500 * time.Millisecond)
+			if moved := nextSample(t, session).Position; moved != sample.Position {
+				t.Fatalf("a paused PotPlayer moved from %v to %v", sample.Position, moved)
+			}
 		})
 	}
 }
@@ -245,6 +267,14 @@ func TestPotPlayerTakesEveryDeclaredCommand(t *testing.T) {
 	if sample := nextSample(t, session); math.Abs(float64(sample.Speed)-1.5) > 0.051 {
 		t.Fatalf("speed reported %v, want about 1.5", sample.Speed)
 	}
+	// Below the normal rate the step is counted the other way, and a rate
+	// rounded down instead of to the nearest step would land on 0.9.
+	if err := session.SetSpeed(0.8); err != nil {
+		t.Fatalf("SetSpeed(0.8): %v", err)
+	}
+	if sample := nextSample(t, session); math.Abs(float64(sample.Speed)-0.8) > 0.051 {
+		t.Fatalf("speed reported %v, want about 0.8", sample.Speed)
+	}
 	if err := session.SetSpeed(1); err != nil {
 		t.Fatalf("SetSpeed(1): %v", err)
 	}
@@ -265,6 +295,157 @@ func TestPotPlayerTakesEveryDeclaredCommand(t *testing.T) {
 	}
 	if status := waitForStatus(t, session, playback.StatusPaused); status != playback.StatusPaused {
 		t.Fatalf("status after Pause = %q", status)
+	}
+}
+
+// The speed is not only reported: PotPlayer really plays at it. It takes
+// no rate, only steps of 0.1 from the normal one, so a wrong number of
+// steps or a wrong direction shows up as a different rate on the clock.
+func TestPotPlayerPlaysAtTheSpeedAsked(t *testing.T) {
+	executable, video := realPotPlayer(t)
+	session, err := potplayer.Launch(t.Context(), executable,
+		player.LaunchRequest{File: video, AudioIndex: -1})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+
+	measure := func(speed playback.Speed) float64 {
+		t.Helper()
+		if err := session.SetSpeed(speed); err != nil {
+			t.Fatalf("SetSpeed(%v): %v", speed, err)
+		}
+		if err := session.Play(); err != nil {
+			t.Fatalf("Play: %v", err)
+		}
+		waitForStatus(t, session, playback.StatusPlaying)
+		time.Sleep(500 * time.Millisecond) // PotPlayer takes a moment to settle
+		first := nextSample(t, session)
+		var last playback.Sample
+		for deadline := time.Now().Add(2500 * time.Millisecond); time.Now().Before(deadline); {
+			last = nextSample(t, session)
+		}
+		elapsed := last.ObservedAt.Sub(first.ObservedAt)
+		if elapsed < time.Second {
+			t.Fatalf("only %v of samples at %v", elapsed, speed)
+		}
+		return float64(last.Position-first.Position) / float64(elapsed)
+	}
+
+	// 1.5 first, then 0.8: the second only lands if the speed is counted
+	// from the normal rate every time, not from the one in force.
+	for _, want := range []playback.Speed{1.5, 0.8} {
+		if got := measure(want); math.Abs(got-float64(want)) > 0.15 {
+			t.Fatalf("PotPlayer played at %.2fx with %v asked", got, want)
+		}
+	}
+}
+
+// A PotPlayer that stops answering for a while is waited for, and the
+// session goes on; one that stays silent past the limit is lost (RNF-013).
+func TestAFrozenPotPlayerIsWaitedForThenLost(t *testing.T) {
+	executable, video := realPotPlayer(t)
+	session, err := potplayer.Launch(t.Context(), executable,
+		player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	drain := func(until time.Duration) (open bool) {
+		deadline := time.After(until)
+		for {
+			select {
+			case _, open = <-session.Samples():
+				if !open {
+					return false
+				}
+			case <-deadline:
+				return true
+			}
+		}
+	}
+
+	// Frozen for 4 s: longer than one message may take, shorter than the limit.
+	thaw := freeze(t, session.ProcessID())
+	seen := false
+	for deadline := time.Now().Add(4 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		seen = seen || session.Reconnecting()
+	}
+	// A command sent to a frozen PotPlayer fails; it never pretends to work.
+	if err := session.Pause(); err == nil {
+		t.Fatal("a command to a frozen PotPlayer answered without an error")
+	}
+	thaw()
+	if !seen {
+		t.Fatal("a silent PotPlayer was never reported as reconnecting")
+	}
+	if !drain(3 * time.Second) {
+		t.Fatalf("the session ended after a short freeze: %v", session.Err())
+	}
+	if session.Reconnecting() || session.Err() != nil {
+		t.Fatalf("after PotPlayer answered again: reconnecting %v, err %v", session.Reconnecting(), session.Err())
+	}
+
+	// Frozen past the limit: the samples end and the session is lost.
+	freeze(t, session.ProcessID())
+	if drain(20 * time.Second) {
+		t.Fatal("the samples still run 20 s into a freeze")
+	}
+	if err := session.Err(); !errors.Is(err, playback.ErrPlayerLost) {
+		t.Fatalf("Err after a long freeze = %v, want ErrPlayerLost", err)
+	}
+}
+
+// freeze stops every thread of a process until the returned function runs.
+func freeze(t *testing.T, pid int) (thaw func()) {
+	t.Helper()
+	const processSuspendResume = 0x0800
+	ntdll := windows.NewLazySystemDLL("ntdll.dll")
+	handle, err := windows.OpenProcess(processSuspendResume, false, uint32(pid))
+	if err != nil {
+		t.Fatalf("OpenProcess: %v", err)
+	}
+	if status, _, _ := ntdll.NewProc("NtSuspendProcess").Call(uintptr(handle)); status != 0 {
+		windows.CloseHandle(handle)
+		t.Fatalf("NtSuspendProcess: status %#x", status)
+	}
+	var once sync.Once
+	thaw = func() {
+		once.Do(func() {
+			ntdll.NewProc("NtResumeProcess").Call(uintptr(handle))
+			windows.CloseHandle(handle)
+		})
+	}
+	t.Cleanup(thaw)
+	return thaw
+}
+
+// The user closing PotPlayer's window ends the session normally, never as
+// a player lost.
+func TestClosingPotPlayersWindowEndsTheSessionNormally(t *testing.T) {
+	executable, video := realPotPlayer(t)
+	session, err := potplayer.Launch(t.Context(), executable,
+		player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+
+	const wmClose = 0x0010
+	procPostMessage := windows.NewLazySystemDLL("user32.dll").NewProc("PostMessageW")
+	if r, _, err := procPostMessage.Call(session.Window(), wmClose, 0, 0); r == 0 {
+		t.Fatalf("PostMessage(WM_CLOSE): %v", err)
+	}
+	deadline := time.After(10 * time.Second)
+	for open := true; open; {
+		select {
+		case _, open = <-session.Samples():
+		case <-deadline:
+			t.Fatal("the samples still run after PotPlayer's window was closed")
+		}
+	}
+	if err := session.Err(); err != nil {
+		t.Fatalf("Err after the user closed PotPlayer = %v, want nil", err)
 	}
 }
 

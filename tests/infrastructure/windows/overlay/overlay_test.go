@@ -21,6 +21,8 @@ import (
 
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/appearance"
+	"lingoreel/internal/domain/media"
+	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/infrastructure/player/discovery"
 	"lingoreel/internal/infrastructure/player/vlc"
@@ -452,6 +454,59 @@ func TestOverlayCoversTheVideoAreaThePluginNames(t *testing.T) {
 
 	fake.cmd.Process.Kill()
 	s.waitForEnd()
+}
+
+// windowedRunning is a player that names its windows (players.Windowed),
+// as the PotPlayer plugin does; nothing else about it is used here.
+type windowedRunning struct {
+	processID    int
+	window, area windows.HWND
+}
+
+func (r *windowedRunning) Capabilities() playback.Capabilities { return playback.Capabilities{} }
+func (r *windowedRunning) Play() error                         { return nil }
+func (r *windowedRunning) Pause() error                        { return nil }
+func (r *windowedRunning) SeekTo(time.Duration) error          { return nil }
+func (r *windowedRunning) SetSpeed(playback.Speed) error       { return nil }
+func (r *windowedRunning) StepFrame(bool) error                { return nil }
+func (r *windowedRunning) SelectAudioTrack(int) error          { return nil }
+func (r *windowedRunning) Samples() <-chan playback.Sample     { return nil }
+func (r *windowedRunning) ProcessID() int                      { return r.processID }
+func (r *windowedRunning) Err() error                          { return nil }
+func (r *windowedRunning) Close() error                        { return nil }
+func (r *windowedRunning) Window() uintptr                     { return uintptr(r.window) }
+func (r *windowedRunning) VideoArea() uintptr                  { return uintptr(r.area) }
+
+// The Opener a session uses must pass the plugin's windows on, or the
+// subtitles would be put over the whole player window.
+func TestOpenerUsesTheWindowsThePluginNames(t *testing.T) {
+	fake := launchFakePlayer(t, false, areaVariable+"=1")
+	main := waitForWindowOf(t, fake.pid())
+	area := waitForChildOf(t, main, fakeAreaClass)
+
+	look := func() overlay.Look {
+		return overlay.Look{Layout: appearance.DefaultLayout(),
+			Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()}
+	}
+	running := &windowedRunning{processID: fake.pid(), window: main, area: area}
+	display, err := overlay.Opener(look, nil)(t.Context(), running, media.Info{})
+	if err != nil {
+		t.Fatalf("Opener: %v", err)
+	}
+	t.Cleanup(func() { display.Close() })
+	if err := display.Show(session.Screen{Primary: "That's sick!"}); err != nil {
+		t.Fatalf("Show: %v", err)
+	}
+	found := overlayWindows()
+	if len(found) != 1 {
+		t.Fatalf("found %d overlay windows, want 1", len(found))
+	}
+	s := &scene{t: t, screen: nil, window: found[0], target: main}
+	s.waitUntil("the overlay to cover the picture the plugin named", func() bool {
+		a, errA := win32.ClientRectOnScreen(found[0])
+		b, errB := win32.ClientRectOnScreen(area)
+		return errA == nil && errB == nil && a == b && windows.IsWindowVisible(found[0])
+	})
 }
 
 // waitForWindowOf returns the process's visible top-level window.
