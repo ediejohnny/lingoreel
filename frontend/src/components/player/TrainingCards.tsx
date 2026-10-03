@@ -1,9 +1,9 @@
-import { BookOpenCheck, Flag, LogOut, RotateCcw, Undo2 } from "lucide-react";
+import { BookOpenCheck, Bookmark, Flag, LogOut, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { passageClock } from "../../format";
 import { backend } from "../../services/backend";
-import type { Playback } from "../../services/backend";
-import { Button } from "../ui/Button";
+import type { Playback, SavedPassage } from "../../services/backend";
+import { Button, IconButton } from "../ui/Button";
 import { Toggle, TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
@@ -104,7 +104,20 @@ function PassageCard({ state, onCommand }: TrainingCardsProps) {
       Marcar
     </Button>
   );
+  const [name, setName] = useState("");
   const study = () => onCommand(() => backend.studyPassage({ start, end, snap, loop, gap, progressive, ladder, goal }));
+  // A saved passage was already fitted to the lines when it was studied.
+  const studySaved = (saved: SavedPassage) =>
+    onCommand(async () => {
+      setStart(saved.start);
+      setEnd(saved.end);
+      await backend.studyPassage({ start: saved.start, end: saved.end, snap: false, loop, gap, progressive, ladder, goal });
+    });
+  const save = () =>
+    onCommand(async () => {
+      await backend.savePassage(name);
+      setName("");
+    });
   const thisLine = () =>
     onCommand(async () => {
       const times = await backend.passageOfLine();
@@ -141,6 +154,51 @@ function PassageCard({ state, onCommand }: TrainingCardsProps) {
                 Sair do trecho
               </Button>
             </div>
+            <div className="mt-3 border-t border-line pt-3">
+              <TextField
+                label="Nome do trecho"
+                value={name}
+                onChange={setName}
+                placeholder="Discussão na loja"
+                inputMode="text"
+                action={
+                  <Button icon={Bookmark} disabled={name.trim() === ""} onClick={save}>
+                    Salvar este trecho
+                  </Button>
+                }
+                help={
+                  <HelpTip topic="salvar este trecho">
+                    Guarda o trecho com um nome, no arquivo de correções ao lado do vídeo, para estudar de novo outro dia. Um nome que já
+                    existe é substituído.
+                  </HelpTip>
+                }
+              />
+            </div>
+          </div>
+        )}
+        {state.savedPassages.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-fg">Trechos salvos</p>
+            <ul className="flex flex-col gap-1">
+              {state.savedPassages.map((saved) => (
+                <li key={saved.name} className="flex items-center gap-2 rounded-control border border-line px-3 py-1.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-fg" title={saved.name}>
+                    {saved.name}
+                  </span>
+                  <span className="text-fg-muted tabular-nums">
+                    {saved.start}–{saved.end}
+                  </span>
+                  <Button variant="ghost" icon={BookOpenCheck} onClick={() => studySaved(saved)}>
+                    Estudar
+                  </Button>
+                  <IconButton
+                    icon={Trash2}
+                    label={`Excluir o trecho "${saved.name}"`}
+                    onClick={() => onCommand(() => backend.deletePassage(saved.name))}
+                  />
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">

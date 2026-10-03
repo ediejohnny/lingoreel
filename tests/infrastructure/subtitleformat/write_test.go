@@ -70,6 +70,10 @@ func TestSRTReadsBackAsItWasWritten(t *testing.T) {
 	if !strings.Contains(string(data), "01:45:02,007 --> 01:45:04,999") {
 		t.Fatalf("times past an hour:\n%s", data)
 	}
+	// The parser drops a line without time or text; the file must not have it.
+	if cues := strings.Count(string(data), "-->"); cues != len(want) {
+		t.Fatalf("%d cues written, want %d (no blank or timeless line):\n%s", cues, len(want), data)
+	}
 }
 
 func TestASSReadsBackToTheCentisecond(t *testing.T) {

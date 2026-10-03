@@ -16,6 +16,58 @@ export namespace app {
 	        this.speed = source["speed"];
 	    }
 	}
+	export class EditRequest {
+	    text: string;
+	    start: string;
+	    end: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EditRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	    }
+	}
+	export class Editing {
+	    active: boolean;
+	    line: string;
+	    lineName: string;
+	    original: string;
+	    text: string;
+	    start: string;
+	    end: string;
+	    originalStart: string;
+	    originalEnd: string;
+	    edited: boolean;
+	    canUndo: boolean;
+	    canRedo: boolean;
+	    staleEdits: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Editing(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.active = source["active"];
+	        this.line = source["line"];
+	        this.lineName = source["lineName"];
+	        this.original = source["original"];
+	        this.text = source["text"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.originalStart = source["originalStart"];
+	        this.originalEnd = source["originalEnd"];
+	        this.edited = source["edited"];
+	        this.canUndo = source["canUndo"];
+	        this.canRedo = source["canRedo"];
+	        this.staleEdits = source["staleEdits"];
+	    }
+	}
 	export class GeneralSettings {
 	    theme: string;
 	    syncNotice: boolean;
@@ -204,6 +256,22 @@ export namespace app {
 	        this.end = source["end"];
 	    }
 	}
+	export class SavedPassage {
+	    name: string;
+	    start: string;
+	    end: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SavedPassage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	    }
+	}
 	export class Playback {
 	    active: boolean;
 	    status: string;
@@ -220,6 +288,9 @@ export namespace app {
 	    lines: LineNames;
 	    karaoke: Karaoke;
 	    passage: Passage;
+	    editing: Editing;
+	    savedPassages: SavedPassage[];
+	    projectNote: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Playback(source);
@@ -242,6 +313,9 @@ export namespace app {
 	        this.lines = this.convertValues(source["lines"], LineNames);
 	        this.karaoke = this.convertValues(source["karaoke"], Karaoke);
 	        this.passage = this.convertValues(source["passage"], Passage);
+	        this.editing = this.convertValues(source["editing"], Editing);
+	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
+	        this.projectNote = source["projectNote"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -538,6 +612,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	export class Selection {
 	    audio: number;
 	    primary: number;
@@ -734,6 +809,7 @@ export namespace app {
 	    players: Players;
 	    mode: string;
 	    modes: Option[];
+	    projectNote: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -750,6 +826,7 @@ export namespace app {
 	        this.players = this.convertValues(source["players"], Players);
 	        this.mode = source["mode"];
 	        this.modes = this.convertValues(source["modes"], Option);
+	        this.projectNote = source["projectNote"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -39,10 +39,12 @@ interface TextFieldProps {
   help?: ReactNode;
   /** action goes after the field, such as a "Marcar" button. */
   action?: ReactNode;
+  /** inputMode is "decimal" for times, the default, or "text" for names. */
+  inputMode?: "decimal" | "text";
 }
 
 /** TextField is a labelled one-line text input. */
-export function TextField({ label, value, onChange, placeholder, help, action }: TextFieldProps) {
+export function TextField({ label, value, onChange, placeholder, help, action, inputMode = "decimal" }: TextFieldProps) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1.5">
@@ -57,7 +59,7 @@ export function TextField({ label, value, onChange, placeholder, help, action }:
           id={id}
           value={value}
           placeholder={placeholder}
-          inputMode="decimal"
+          inputMode={inputMode}
           onChange={(event) => onChange(event.target.value)}
           className="h-10 w-full min-w-0 rounded-control border border-line-strong bg-surface px-3 text-sm text-fg"
         />

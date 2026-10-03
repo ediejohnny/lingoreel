@@ -14,6 +14,9 @@ export type WatchRequest = app.WatchRequest;
 export type PassageRequest = app.PassageRequest;
 export type PassageTimes = app.PassageTimes;
 export type Choice = app.Option;
+export type Editing = app.Editing;
+export type SavedPassage = app.SavedPassage;
+export type EditRequest = Plain<app.EditRequest>;
 
 /** Plain is a generated class's data without its methods, as the screens build it. */
 type Plain<T> = T extends (infer U)[]
@@ -89,6 +92,15 @@ export const backend = {
   passageOfLine: () => api.PassageOfLine(),
   stopPassage: () => api.StopPassage(),
   resumePassage: () => api.ResumePassage(),
+  savePassage: (name: string) => api.SavePassage(name),
+  deletePassage: (name: string) => api.DeletePassage(name),
+  selectLine: (line: Line) => api.SelectLine(line),
+  clearSelection: () => api.ClearSelection(),
+  editLine: (request: EditRequest) => api.EditLine(request as app.EditRequest),
+  restoreLine: () => api.RestoreLine(),
+  undoEdit: () => api.UndoEdit(),
+  redoEdit: () => api.RedoEdit(),
+  exportSubtitle: (line: Line) => api.ExportSubtitle(line),
   preferences: () => api.Preferences(),
   setTheme: (theme: string) => api.SetTheme(theme),
   installPlayer: (id: string) => api.InstallPlayer(id),

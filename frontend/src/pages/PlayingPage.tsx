@@ -1,5 +1,6 @@
 import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Square } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EditorCard } from "../components/player/EditorCard";
 import { SyncRow } from "../components/player/SyncRow";
 import { Timeline } from "../components/player/Timeline";
 import { TrainingCards } from "../components/player/TrainingCards";
@@ -140,6 +141,7 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
             {error}
           </Banner>
         )}
+        {state.projectNote && <Banner tone="warning">{state.projectNote}</Banner>}
         <Card>
           <p className="mb-1 truncate text-sm text-fg-muted">Tocando no player</p>
           <h1 className="mb-5 truncate text-lg font-semibold text-fg" title={name}>
@@ -228,6 +230,8 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
             </div>
           </Card>
         </div>
+
+        <EditorCard state={state} label={label} onCommand={onCommand} />
 
         <TrainingCards state={state} onCommand={onCommand} />
 

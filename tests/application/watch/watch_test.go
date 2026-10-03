@@ -241,10 +241,27 @@ func (s *fakeShortcuts) Close() error {
 type recordingListener struct {
 	mu     sync.Mutex
 	synced []subtitle.Offset
+	edited []editedLine
+}
+
+// editedLine is one call of Edited.
+type editedLine struct {
+	line  session.Line
+	edits map[string]project.Edit
 }
 
 func (l *recordingListener) SubtitlesChanged(time.Duration, session.Visible) {}
-func (l *recordingListener) Edited(session.Line, map[string]project.Edit)    {}
+func (l *recordingListener) Edited(line session.Line, edits map[string]project.Edit) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.edited = append(l.edited, editedLine{line, edits})
+}
+
+func (l *recordingListener) edits() []editedLine {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]editedLine(nil), l.edited...)
+}
 
 func (l *recordingListener) Synced(_ session.Line, offset subtitle.Offset) {
 	l.mu.Lock()

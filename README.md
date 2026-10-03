@@ -18,7 +18,11 @@ tradução em português, que pode ficar sempre visível ou aparecer só quando 
   repetir a frase e os últimos segundos.
 - Suporte a mpv, VLC e PotPlayer, com o player preferido escolhido por você.
 - Janela, tela cheia, vários monitores e escalas de DPI de 100% a 200%.
-- Edição de legendas com o vídeo pausado, com desfazer/refazer.
+- Correção de legendas com o vídeo pausado: clique na fala para corrigir o texto ou os tempos,
+  com desfazer/refazer (Ctrl+Z/Ctrl+Y). O texto original nunca se perde.
+- Um arquivo de correções por vídeo (`Filme.dualsub.json`, ao lado do vídeo), que guarda as
+  correções, a sincronização, as faixas e o modo escolhidos e os trechos salvos para estudo.
+- Exportação da legenda corrigida e sincronizada em `.srt` ou `.ass`, para usar em outro player.
 
 ## Desenvolvimento
 

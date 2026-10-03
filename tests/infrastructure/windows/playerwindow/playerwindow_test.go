@@ -83,6 +83,7 @@ type fakeRemote struct {
 	mode     study.Mode
 	reveals  []bool
 	runs     []string
+	selected []session.Line
 }
 
 func newRemote(p *recordingPlayer) *fakeRemote {
@@ -122,7 +123,18 @@ func (r *fakeRemote) Run(command shortcut.Command, repeat bool) error {
 	return nil
 }
 
-func (r *fakeRemote) Select(session.Line) (watch.Selection, error) { return watch.Selection{}, nil }
+func (r *fakeRemote) Select(line session.Line) (watch.Selection, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.selected = append(r.selected, line)
+	return watch.Selection{Line: line}, nil
+}
+
+func (r *fakeRemote) selections() []session.Line {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.selected)
+}
 
 func (r *fakeRemote) ran() []string {
 	r.mu.Lock()

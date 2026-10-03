@@ -72,6 +72,7 @@ export function SessionPage(props: SessionPageProps) {
             {props.error}
           </Banner>
         )}
+        {video.projectNote && <Banner tone="warning">{video.projectNote}</Banner>}
         <Card
           title="Legendas"
           aside={

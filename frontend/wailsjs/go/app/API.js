@@ -22,8 +22,16 @@ export function ClearPlayerPath(arg1) {
   return window['go']['app']['API']['ClearPlayerPath'](arg1);
 }
 
+export function ClearSelection() {
+  return window['go']['app']['API']['ClearSelection']();
+}
+
 export function CreateProfile(arg1) {
   return window['go']['app']['API']['CreateProfile'](arg1);
+}
+
+export function DeletePassage(arg1) {
+  return window['go']['app']['API']['DeletePassage'](arg1);
 }
 
 export function DeleteProfile(arg1) {
@@ -32,6 +40,14 @@ export function DeleteProfile(arg1) {
 
 export function DismissRecommendation(arg1) {
   return window['go']['app']['API']['DismissRecommendation'](arg1);
+}
+
+export function EditLine(arg1) {
+  return window['go']['app']['API']['EditLine'](arg1);
+}
+
+export function ExportSubtitle(arg1) {
+  return window['go']['app']['API']['ExportSubtitle'](arg1);
 }
 
 export function InitialVideo() {
@@ -78,6 +94,10 @@ export function PreviewSubtitles(arg1) {
   return window['go']['app']['API']['PreviewSubtitles'](arg1);
 }
 
+export function RedoEdit() {
+  return window['go']['app']['API']['RedoEdit']();
+}
+
 export function RenameProfile(arg1, arg2) {
   return window['go']['app']['API']['RenameProfile'](arg1, arg2);
 }
@@ -94,6 +114,10 @@ export function ResetSync(arg1) {
   return window['go']['app']['API']['ResetSync'](arg1);
 }
 
+export function RestoreLine() {
+  return window['go']['app']['API']['RestoreLine']();
+}
+
 export function ResumePassage() {
   return window['go']['app']['API']['ResumePassage']();
 }
@@ -106,6 +130,10 @@ export function RunShortcut(arg1, arg2) {
   return window['go']['app']['API']['RunShortcut'](arg1, arg2);
 }
 
+export function SavePassage(arg1) {
+  return window['go']['app']['API']['SavePassage'](arg1);
+}
+
 export function SaveProfile(arg1) {
   return window['go']['app']['API']['SaveProfile'](arg1);
 }
@@ -116,6 +144,10 @@ export function SeekBy(arg1) {
 
 export function SeekTo(arg1) {
   return window['go']['app']['API']['SeekTo'](arg1);
+}
+
+export function SelectLine(arg1) {
+  return window['go']['app']['API']['SelectLine'](arg1);
 }
 
 export function SetKaraoke(arg1) {
@@ -184,6 +216,10 @@ export function SwitchProfile(arg1) {
 
 export function TogglePause() {
   return window['go']['app']['API']['TogglePause']();
+}
+
+export function UndoEdit() {
+  return window['go']['app']['API']['UndoEdit']();
 }
 
 export function Watch(arg1) {

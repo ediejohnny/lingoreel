@@ -12,12 +12,10 @@ import (
 	"lingoreel/internal/infrastructure/persistence/projectfile"
 )
 
-func ptr[T any](v T) *T { return &v }
-
 func sample() project.Project {
 	p := project.New()
 	p.Tracks["uid:77"] = project.Track{Offset: 150, Edits: map[string]project.Edit{
-		"12": {Original: project.HashOf("Isso está doente!"), Text: ptr("Que loucura!"), Start: ptr(project.Millis(61_120))},
+		"12": {Original: project.HashOf("Isso está doente!"), Text: new("Que loucura!"), Start: new(project.Millis(61_120))},
 	}}
 	p.Tracks["file:Subs/Movie.pt-BR.srt"] = project.Track{Offset: -500}
 	p.Choice = project.Choice{Primary: "uid:77", Translation: "file:Subs/Movie.pt-BR.srt", Mode: "dual"}
@@ -65,7 +63,7 @@ func TestSaveAndLoadAgain(t *testing.T) {
 		t.Fatalf("loaded = %+v", got)
 	}
 	// A track kept without edits can take one at once.
-	got.Tracks["file:Subs/Movie.pt-BR.srt"].Edits["1"] = project.Edit{Original: project.HashOf("x"), Text: ptr("y")}
+	got.Tracks["file:Subs/Movie.pt-BR.srt"].Edits["1"] = project.Edit{Original: project.HashOf("x"), Text: new("y")}
 	if _, err := os.Stat(filepath.Join(dir, "app")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("the app's folder was written while the video's folder took the file")
 	}
@@ -200,6 +198,7 @@ func TestTrackKeysSurviveANewAnalysis(t *testing.T) {
 		{media.Track{Number: media.ExternalTrackBase, Path: `D:\Filmes\Movie.en.srt`}, "file:Movie.en.srt"},
 		// A file outside the video's folder is known by its name.
 		{media.Track{Number: media.ExternalTrackBase, Path: `E:\Legendas\Movie.en.srt`}, "file:Movie.en.srt"},
+		{media.Track{Number: media.ExternalTrackBase, Path: `D:\Legendas\Movie.en.srt`}, "file:Movie.en.srt"},
 		{media.Track{Number: 4, UID: 1234567890123}, "uid:1234567890123"},
 		{media.Track{Number: 4}, "track:4"},
 	}
