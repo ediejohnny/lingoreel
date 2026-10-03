@@ -55,8 +55,12 @@ func KeyLabel(key shortcut.Key, char KeyChar) string {
 	return string(key) // F1..F12
 }
 
-// ShortcutLabel writes a chord as the screens show it: "Ctrl+Shift+,".
+// ShortcutLabel writes a chord as the screens show it: "Ctrl+Shift+,";
+// empty for a command without a shortcut.
 func ShortcutLabel(chord shortcut.Chord, char KeyChar) string {
+	if chord.IsZero() {
+		return ""
+	}
 	var b strings.Builder
 	for _, m := range []struct {
 		modifier shortcut.Modifiers
@@ -79,6 +83,40 @@ func CommandName(command shortcut.Command) string {
 		return "Voltar 5 s"
 	case shortcut.SeekForward:
 		return "Avançar 5 s"
+	case shortcut.SeekBack10:
+		return "Voltar 10 s"
+	case shortcut.SeekForward10:
+		return "Avançar 10 s"
+	case shortcut.SeekBack30:
+		return "Voltar 30 s"
+	case shortcut.SeekForward30:
+		return "Avançar 30 s"
+	case shortcut.PrecisionBack:
+		return "Voltar um pouco (precisão)"
+	case shortcut.PrecisionForward:
+		return "Avançar um pouco (precisão)"
+	case shortcut.FrameBack:
+		return "Quadro anterior"
+	case shortcut.FrameForward:
+		return "Próximo quadro"
+	case shortcut.SpeedDown:
+		return "Mais devagar"
+	case shortcut.SpeedUp:
+		return "Mais rápido"
+	case shortcut.SpeedNormal:
+		return "Velocidade normal (1,00×)"
+	case shortcut.ShowBoth:
+		return "Mostrar as duas legendas"
+	case shortcut.PrimaryOnly:
+		return "Só a legenda de cima"
+	case shortcut.RepeatPhrase:
+		return "Repetir a frase"
+	case shortcut.RepeatLast3:
+		return "Repetir os últimos 3 s"
+	case shortcut.RepeatLast5:
+		return "Repetir os últimos 5 s"
+	case shortcut.RepeatLast10:
+		return "Repetir os últimos 10 s"
 	case shortcut.VolumeUp:
 		return "Aumentar o volume"
 	case shortcut.VolumeDown:
@@ -110,6 +148,12 @@ func CategoryName(category shortcut.Category) string {
 	switch category {
 	case shortcut.CategoryPlayback:
 		return "Reprodução"
+	case shortcut.CategorySeek:
+		return "Avançar e voltar"
+	case shortcut.CategoryFrame:
+		return "Quadro a quadro"
+	case shortcut.CategorySpeed:
+		return "Velocidade"
 	case shortcut.CategorySubtitle:
 		return "Sincronização das legendas"
 	case shortcut.CategoryTranslation:

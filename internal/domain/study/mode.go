@@ -20,6 +20,36 @@ func (m Mode) Valid() bool {
 	return m == ModeDual || m == ModeOnDemand || m == ModeAlwaysTranslated
 }
 
+// Modes lists the modes in the order the screens offer them.
+func Modes() []Mode {
+	return []Mode{ModeDual, ModeOnDemand, ModeAlwaysTranslated}
+}
+
+// StartsRevealed tells whether the translation shows when a video opens.
+func (m Mode) StartsRevealed() bool {
+	return m != ModeOnDemand
+}
+
+// Hideable tells whether the translation can be hidden at all: never when
+// it is always shown.
+func (m Mode) Hideable() bool {
+	return m != ModeAlwaysTranslated
+}
+
+// Reveal is whether the translation shows after the translation key goes
+// down (pressed) or up, given whether it shows now: in dual mode the key
+// hides and shows it in turns, on demand it follows the reveal behavior,
+// and when always shown the key changes nothing.
+func (m Mode) Reveal(behavior RevealBehavior, visible, pressed bool) bool {
+	switch m {
+	case ModeAlwaysTranslated:
+		return true
+	case ModeOnDemand:
+		return behavior.Revealed(visible, pressed)
+	}
+	return RevealToggle.Revealed(visible, pressed)
+}
+
 // RevealBehavior decides how the reveal key works in on-demand mode.
 type RevealBehavior string
 

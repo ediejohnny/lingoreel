@@ -228,9 +228,9 @@ func (w *Window) press(item controlbar.Item, x float64) {
 	case controlbar.ActionPlayPause:
 		w.do(func(r watch.Remote) error { return r.Controls().TogglePause() })
 	case controlbar.ActionBack:
-		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(-controlbar.JumpStep) })
+		w.do(func(r watch.Remote) error { return r.Run(shortcut.SeekBack, false) })
 	case controlbar.ActionForward:
-		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(controlbar.JumpStep) })
+		w.do(func(r watch.Remote) error { return r.Run(shortcut.SeekForward, false) })
 	case controlbar.ActionMute:
 		w.do(func(r watch.Remote) error { return r.Controls().ToggleMute() })
 	case controlbar.ActionTranslation:
@@ -296,10 +296,11 @@ func (w *Window) keyDown(lparam uintptr) bool {
 	if !found {
 		return false
 	}
-	if keyboard.Repeated(lparam) && !command.Repeats() {
+	repeat := keyboard.Repeated(lparam)
+	if repeat && !command.Repeats() {
 		return true // a held key: once is enough
 	}
-	return w.run(command, key)
+	return w.run(command, key, repeat)
 }
 
 // keyUp sends the translation key's release; the others need none.
@@ -322,24 +323,11 @@ func (w *Window) releaseReveal() {
 	w.do(func(r watch.Remote) error { r.Reveal(false); return nil })
 }
 
-// run carries out a command of the player window and reports whether it
-// applied (leaving the fullscreen when not in it does not).
-func (w *Window) run(command shortcut.Command, key shortcut.Key) bool {
+// run carries out a command and reports whether it applied (leaving the
+// fullscreen when not in it does not). The window keeps the fullscreen and
+// the translation key, whose release it hears; the session runs the rest.
+func (w *Window) run(command shortcut.Command, key shortcut.Key, repeat bool) bool {
 	switch command {
-	case shortcut.PlayPause:
-		w.do(func(r watch.Remote) error { return r.Controls().TogglePause() })
-	case shortcut.SeekBack:
-		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(-controlbar.JumpStep) })
-	case shortcut.SeekForward:
-		w.do(func(r watch.Remote) error { return r.Controls().SeekBy(controlbar.JumpStep) })
-	case shortcut.VolumeUp:
-		w.do(func(r watch.Remote) error { return r.Controls().ChangeVolume(playback.VolumeStep) })
-	case shortcut.VolumeDown:
-		w.do(func(r watch.Remote) error { return r.Controls().ChangeVolume(-playback.VolumeStep) })
-	case shortcut.Mute:
-		w.do(func(r watch.Remote) error { return r.Controls().ToggleMute() })
-	case shortcut.ReplayLine:
-		w.do(func(r watch.Remote) error { return r.ReplayLine() })
 	case shortcut.Translation:
 		w.revealKey = key
 		w.do(func(r watch.Remote) error { r.Reveal(true); return nil })
@@ -351,7 +339,7 @@ func (w *Window) run(command shortcut.Command, key shortcut.Key) bool {
 		}
 		w.setFullscreen(false)
 	default:
-		return false
+		w.do(func(r watch.Remote) error { return r.Run(command, repeat) })
 	}
 	return true
 }
@@ -407,7 +395,8 @@ func (w *Window) state(remote watch.Remote) controlbar.State {
 		Position: sample.Position, Duration: sample.Duration, Paused: sample.Status != playback.StatusPlaying,
 		Speed: sample.Speed, Volume: volume, Muted: muted,
 		HasTranslation: remote.HasTranslation(), TranslationVisible: remote.TranslationVisible(),
-		Fullscreen: w.fullscreen, Capabilities: controls.Capabilities(), SpeedMenuOpen: w.speedMenu,
+		TranslationLocked: !remote.Mode().Hideable(),
+		Fullscreen:        w.fullscreen, Capabilities: controls.Capabilities(), SpeedMenuOpen: w.speedMenu,
 	}
 	if w.drag == controlbar.ActionTrack {
 		state.Position = w.layout.TrackPosition(w.dragX, sample.Duration)

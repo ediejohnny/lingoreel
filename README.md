@@ -12,7 +12,10 @@ tradução em português, que pode ficar sempre visível ou aparecer só quando 
 - Leitura de legendas externas (`.srt`, `.ass`, `.ssa`, `.vtt`) da pasta do vídeo e das
   subpastas `Subs`/`Subtitles`, para quando o filme não traz a legenda que você quer.
 - Duas legendas simultâneas, com sincronização e deslocamento (offset) independentes.
-- Tradução sob demanda: mostrar, ocultar ou segurar uma tecla para revelar.
+- Três modos de estudo: Dupla, Tradução sob demanda (mostrar, ocultar ou segurar uma tecla para
+  revelar) e Tradução sempre visível.
+- Atalhos configuráveis: busca de 5, 10 e 30 s, passo de precisão, quadro a quadro, velocidade,
+  repetir a frase e os últimos segundos.
 - Suporte a mpv, VLC e PotPlayer, com o player preferido escolhido por você.
 - Janela, tela cheia, vários monitores e escalas de DPI de 100% a 200%.
 - Edição de legendas com o vídeo pausado, com desfazer/refazer.

@@ -125,6 +125,9 @@ export function App() {
       nudge: backend.nudge,
       resetSync: backend.resetSync,
       setTranslationVisible: backend.setTranslationVisible,
+      setStudyMode: backend.setStudyMode,
+      runShortcut: backend.runShortcut,
+      reveal: backend.reveal,
       stop: backend.stop,
     }),
     [],
@@ -181,6 +184,7 @@ export function App() {
           name={video.name}
           state={state}
           speeds={speeds}
+          modes={video.modes}
           error={error}
           onDismissError={() => setError("")}
           onCommand={command}

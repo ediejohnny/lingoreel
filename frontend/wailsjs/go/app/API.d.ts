@@ -50,6 +50,10 @@ export function ResetSync(arg1:string):Promise<void>;
 
 export function ResumePassage():Promise<void>;
 
+export function Reveal(arg1:boolean):Promise<void>;
+
+export function RunShortcut(arg1:string,arg2:boolean):Promise<void>;
+
 export function SaveProfile(arg1:app.ProfileSettings):Promise<void>;
 
 export function SeekBy(arg1:number):Promise<void>;
@@ -66,6 +70,8 @@ export function SetPlayerPath(arg1:string,arg2:string):Promise<void>;
 
 export function SetSpeed(arg1:number):Promise<void>;
 
+export function SetStudyMode(arg1:string):Promise<void>;
+
 export function SetSyncNotice(arg1:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
@@ -73,6 +79,8 @@ export function SetTheme(arg1:string):Promise<void>;
 export function SetTranslationVisible(arg1:boolean):Promise<void>;
 
 export function Settings():Promise<app.SettingsView>;
+
+export function Shortcuts():Promise<Array<app.ShortcutSetting>>;
 
 export function ShowRecommendations():Promise<void>;
 

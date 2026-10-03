@@ -1,8 +1,11 @@
-import { Keyboard, RotateCcw } from "lucide-react";
+import { Keyboard, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { backend, messageOf } from "../../services/backend";
 import { captureOf } from "../../settings";
 import { IconButton } from "../ui/Button";
+
+/** noShortcut is what a command without keys shows. */
+const noShortcut = "Sem atalho";
 
 interface ShortcutCaptureProps {
   /** name is the command, for screen readers. */
@@ -11,6 +14,8 @@ interface ShortcutCaptureProps {
   /** taken names the command already on a chord, or undefined when free. */
   taken: (chord: string) => string | undefined;
   onChange: (chord: string, label: string) => void;
+  /** onClear leaves the command without a shortcut; undefined when it has none. */
+  onClear?: () => void;
   /** onDefault puts the command's default back; undefined when it is already the default. */
   onDefault?: () => void;
 }
@@ -20,7 +25,7 @@ interface ShortcutCaptureProps {
  * keys pressed (Esc alone gives up). The Go side checks the chord, and a
  * chord another command uses is refused here, naming that command.
  */
-export function ShortcutCapture({ name, label, taken, onChange, onDefault }: ShortcutCaptureProps) {
+export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefault }: ShortcutCaptureProps) {
   const [listening, setListening] = useState(false);
   const [problem, setProblem] = useState("");
 
@@ -85,7 +90,7 @@ export function ShortcutCapture({ name, label, taken, onChange, onDefault }: Sho
       <div className="flex items-center gap-1">
         <button
           type="button"
-          aria-label={`${name}: ${label}. Clique e pressione as novas teclas`}
+          aria-label={`${name}: ${label || noShortcut}. Clique e pressione as novas teclas`}
           aria-pressed={listening}
           onClick={() => {
             setProblem("");
@@ -97,8 +102,15 @@ export function ShortcutCapture({ name, label, taken, onChange, onDefault }: Sho
           }`}
         >
           <Keyboard aria-hidden className="size-4" />
-          {listening ? "Pressione as teclas…" : <kbd className="font-sans">{label}</kbd>}
+          {listening ? (
+            "Pressione as teclas…"
+          ) : label ? (
+            <kbd className="font-sans">{label}</kbd>
+          ) : (
+            <span className="font-normal text-fg-muted">{noShortcut}</span>
+          )}
         </button>
+        {onClear ? <IconButton icon={X} label={`Deixar “${name}” sem atalho`} onClick={onClear} /> : <span className="size-9" />}
         {onDefault ? (
           <IconButton icon={RotateCcw} label={`Voltar ao atalho padrão de “${name}”`} onClick={onDefault} />
         ) : (

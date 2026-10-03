@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"lingoreel/internal/domain/shortcut"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/presentation/ptbr"
 )
 
@@ -56,6 +57,20 @@ func TestEveryCommandAndCategoryHasAName(t *testing.T) {
 		seen[name] = true
 		if category := ptbr.CategoryName(command.Category()); category == string(command.Category()) {
 			t.Errorf("category of %s has no name", command)
+		}
+	}
+	if got := ptbr.ShortcutLabel(shortcut.Chord{}, nil); got != "" {
+		t.Errorf("no shortcut is labeled %q", got)
+	}
+}
+
+func TestEveryStudyModeHasAName(t *testing.T) {
+	want := map[study.Mode]string{
+		study.ModeDual: "Dupla", study.ModeOnDemand: "Tradução sob demanda", study.ModeAlwaysTranslated: "Tradução sempre visível",
+	}
+	for _, mode := range study.Modes() {
+		if got := ptbr.ModeName(mode); got != want[mode] {
+			t.Errorf("ModeName(%s) = %q, want %q", mode, got, want[mode])
 		}
 	}
 }

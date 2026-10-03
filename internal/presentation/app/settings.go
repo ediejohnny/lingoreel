@@ -65,7 +65,7 @@ func (a *API) Settings() (SettingsView, error) {
 
 func (a *API) settingsOptions() SettingsOptions {
 	options := SettingsOptions{
-		Fonts: []string{}, Presets: []Option{}, Languages: []Option{}, Speeds: []float64{},
+		Fonts: []string{}, Presets: []Option{}, Languages: []Option{}, Speeds: []float64{}, Modes: modeOptions(),
 		Defaults: profileView(settings.DefaultProfile(), a.deps.KeyChar),
 		Limits: SettingsLimits{
 			FontSizeMin: appearance.MinFontSize, FontSizeMax: appearance.MaxFontSize,
@@ -76,6 +76,8 @@ func (a *API) settingsOptions() SettingsOptions {
 			LeadMin: study.MinCueLead.Seconds(), LeadMax: study.MaxCueLead.Seconds(), RepeatMax: study.MaxRepeats,
 			SyncStepMin: int(subtitle.MinNudgeStep.Milliseconds()), SyncStepMax: int(subtitle.MaxNudgeStep.Milliseconds()),
 			SyncFastStepMax: int(subtitle.MaxFastNudgeStep.Milliseconds()), ProfileNameMax: settings.MaxProfileNameRunes,
+			PrecisionStepMin: int(settings.MinPrecisionSeekStep.Milliseconds()),
+			PrecisionStepMax: int(settings.MaxPrecisionSeekStep.Milliseconds()),
 		},
 	}
 	if a.deps.Preview != nil {
@@ -93,6 +95,15 @@ func (a *API) settingsOptions() SettingsOptions {
 	}
 	for _, speed := range playback.SpeedSteps() {
 		options.Speeds = append(options.Speeds, float64(speed))
+	}
+	return options
+}
+
+// modeOptions are the study modes, in the order the screens offer them.
+func modeOptions() []Option {
+	options := []Option{}
+	for _, mode := range study.Modes() {
+		options = append(options, Option{Value: string(mode), Label: ptbr.ModeName(mode)})
 	}
 	return options
 }
@@ -134,7 +145,7 @@ func (a *API) SaveProfile(view ProfileSettings) error {
 	if err != nil {
 		return err
 	}
-	a.applyToSession(profile)
+	a.applyToSession(current, profile)
 	return nil
 }
 
@@ -172,10 +183,12 @@ func (a *API) commitConfig(next settings.Config) error {
 	return nil
 }
 
-// applyToSession gives the video being watched a profile's choices: the
-// look, the keys, the translation key, the sync steps and the Modo Karaokê.
-// A choice the session refuses is logged; the profile is saved anyway.
-func (a *API) applyToSession(profile settings.Profile) {
+// applyToSession gives the video being watched a profile's new choices:
+// the look, the keys, the translation key, the steps and the Modo Karaokê;
+// the study mode only when it changed from previous, so a mode picked on the
+// panel for this video stays. A choice the session refuses is logged; the
+// profile is saved anyway.
+func (a *API) applyToSession(previous, profile settings.Profile) {
 	current := a.current()
 	if current == nil || current.session == nil {
 		return
@@ -187,10 +200,14 @@ func (a *API) applyToSession(profile settings.Profile) {
 		s.SetShortcuts(profile.Shortcuts),
 		s.SetRevealBehavior(profile.Study.Reveal),
 		s.SetSyncSteps(profile.Sync.Nudge()),
+		s.SetPrecisionStep(profile.Sync.PrecisionSeekStep.Std()),
 		s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}),
 		s.SetIndicator(karaoke.Indicator),
 		s.SetLineRepeats(karaoke.Repeat),
 	)
+	if profile.Study.Mode != previous.Study.Mode {
+		err = errors.Join(err, s.SetMode(profile.Study.Mode))
+	}
 	if err != nil {
 		a.logger.Warn("the video did not take every new choice", "error", err)
 	}

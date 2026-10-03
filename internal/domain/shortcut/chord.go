@@ -98,6 +98,11 @@ func (c Chord) String() string {
 	return b.String()
 }
 
+// IsZero reports the empty chord: no shortcut.
+func (c Chord) IsZero() bool {
+	return c == Chord{}
+}
+
 // Has reports whether the chord holds a modifier.
 func (c Chord) Has(modifier Modifiers) bool {
 	return c.Modifiers&modifier != 0
@@ -131,16 +136,25 @@ var reservedChords = []Chord{
 	{Ctrl, KeyEscape}, {0, KeyF12},
 }
 
-// MarshalText implements encoding.TextMarshaler.
+// MarshalText implements encoding.TextMarshaler; no shortcut is written as
+// an empty text.
 func (c Chord) MarshalText() ([]byte, error) {
+	if c.IsZero() {
+		return []byte{}, nil
+	}
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 	return []byte(c.String()), nil
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
+// UnmarshalText implements encoding.TextUnmarshaler; an empty text is no
+// shortcut.
 func (c *Chord) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*c = Chord{}
+		return nil
+	}
 	parsed, err := Parse(string(text))
 	if err != nil {
 		return err

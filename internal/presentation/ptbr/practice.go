@@ -5,7 +5,21 @@ import (
 	"time"
 
 	"lingoreel/internal/application/session"
+	"lingoreel/internal/domain/study"
 )
+
+// ModeName names a study mode, as RF-026 and RF-029 call them.
+func ModeName(mode study.Mode) string {
+	switch mode {
+	case study.ModeDual:
+		return "Dupla"
+	case study.ModeOnDemand:
+		return "Tradução sob demanda"
+	case study.ModeAlwaysTranslated:
+		return "Tradução sempre visível"
+	}
+	return string(mode)
+}
 
 // PassageClock shows a passage's time as h:mm:ss or m:ss, with tenths when
 // it is not a whole second ("1:10:23,4"), which ParseClock reads back.

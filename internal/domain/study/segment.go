@@ -148,6 +148,20 @@ func SegmentForLine(event subtitle.Event, timeline *subtitle.Timeline, offset su
 	return SnapToLines(Segment{Start: offset.PlaybackTime(event.Start), End: offset.PlaybackTime(event.End)}, timeline, offset)
 }
 
+// PhraseStart is where "Repetir frase" goes: the start of the line being
+// spoken at a playback position, or of the last one spoken, with the lead-in
+// of SnapToLines. False before the first line.
+func PhraseStart(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration) (time.Duration, bool) {
+	if timeline == nil {
+		return 0, false
+	}
+	line, found := timeline.LastStartedBy(offset.TrackTime(position))
+	if !found {
+		return 0, false
+	}
+	return SegmentForLine(line, timeline, offset).Start, true
+}
+
 // EndMode is what happens at the end of the passage.
 type EndMode string
 

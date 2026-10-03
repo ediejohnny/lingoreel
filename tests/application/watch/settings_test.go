@@ -123,8 +123,11 @@ func TestChangingTheShortcutsWhilePlaying(t *testing.T) {
 
 func TestTheTranslationKey(t *testing.T) {
 	r := newRig(t)
-	r.request.TranslationHidden = true
+	r.request.Mode = study.ModeOnDemand
 	s := r.start(t)
+	if s.TranslationVisible() {
+		t.Fatal("on demand, the translation started shown")
+	}
 	// Toggle (the default): each press flips it; the release changes nothing.
 	s.Reveal(true)
 	s.Reveal(false)

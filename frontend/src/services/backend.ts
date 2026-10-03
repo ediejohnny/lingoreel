@@ -13,6 +13,7 @@ export type Preferences = app.Preferences;
 export type WatchRequest = app.WatchRequest;
 export type PassageRequest = app.PassageRequest;
 export type PassageTimes = app.PassageTimes;
+export type Choice = app.Option;
 
 /** Plain is a generated class's data without its methods, as the screens build it. */
 type Plain<T> = T extends (infer U)[]
@@ -75,6 +76,10 @@ export const backend = {
   nudge: (line: Line, later: boolean) => api.Nudge(line, later),
   resetSync: (line: Line) => api.ResetSync(line),
   setTranslationVisible: (visible: boolean) => api.SetTranslationVisible(visible),
+  setStudyMode: (mode: string) => api.SetStudyMode(mode),
+  shortcuts: (): Promise<ShortcutSetting[]> => api.Shortcuts(),
+  runShortcut: (command: string, repeat: boolean) => api.RunShortcut(command, repeat),
+  reveal: (pressed: boolean) => api.Reveal(pressed),
   playbackState: () => api.PlaybackState(),
   setKaraoke: (enabled: boolean) => api.SetKaraoke(enabled),
   setKaraokeIndicator: (indicator: string) => api.SetKaraokeIndicator(indicator),

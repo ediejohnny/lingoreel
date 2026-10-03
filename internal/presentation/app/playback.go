@@ -9,6 +9,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/settings"
+	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/presentation/ptbr"
 )
@@ -28,6 +29,7 @@ var (
 	errNotWatching  = errors.New("Nenhum vídeo está tocando.")
 	errNotSupported = errors.New("O player em uso não permite essa ação.")
 	errUnknownLine  = errors.New("Legenda desconhecida.")
+	errUnknownMode  = errors.New("Escolha um modo de estudo.")
 )
 
 // watching is the running session and what the window needs to describe it.
@@ -51,6 +53,9 @@ func (a *API) Watch(request WatchRequest) error {
 	if video == nil {
 		return errNoVideo
 	}
+	if request.Mode != "" && !study.Mode(request.Mode).Valid() {
+		return errUnknownMode
+	}
 	installation, err := a.installation(request.Player)
 	if err != nil {
 		return err
@@ -67,6 +72,10 @@ func (a *API) Watch(request WatchRequest) error {
 	syncNotice := a.config.SyncNotice
 	a.mu.Unlock()
 
+	mode := profile.Study.Mode
+	if request.Mode != "" {
+		mode = study.Mode(request.Mode)
+	}
 	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
 	names := ptbr.NewLineNames(video.Info, tracks.Primary, tracks.Translation)
 	karaoke := profile.Study.Karaoke
@@ -75,6 +84,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
+		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(),
 	}
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
@@ -149,6 +159,7 @@ func (a *API) describe(current *watching) Playback {
 		PrimaryOffset:      ptbr.Offset(current.session.Offset(session.LinePrimary)),
 		TranslationOffset:  ptbr.Offset(current.session.Offset(session.LineTranslation)),
 		TranslationVisible: current.session.TranslationVisible(),
+		Mode:               string(current.session.Mode()),
 		Capabilities:       Capabilities{Pause: capabilities.Pause, Seek: capabilities.Seek, Speed: capabilities.Speed},
 		Lines:              LineNames{Primary: current.names[session.LinePrimary], Translation: current.names[session.LineTranslation]},
 		Karaoke:            describeKaraoke(current.session),

@@ -168,6 +168,13 @@ func TestItemsFollowTheCapabilities(t *testing.T) {
 	if item(t, controlbar.Layout(wide, 1, state), controlbar.ActionTranslation).Active {
 		t.Error("translation pressed without a translation")
 	}
+	// A study mode that always shows the translation turns its button off;
+	// it still shows the translation as shown.
+	state = fullState()
+	state.TranslationVisible, state.TranslationLocked = true, true
+	if locked := item(t, controlbar.Layout(wide, 1, state), controlbar.ActionTranslation); locked.Enabled || !locked.Active {
+		t.Errorf("locked translation = %+v", locked)
+	}
 	// A track without a known duration cannot seek.
 	state = fullState()
 	state.Duration = 0

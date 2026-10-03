@@ -108,7 +108,18 @@ func runKaraoke(t *testing.T, start time.Duration, status playback.Status) *kara
 	k := &karaokeRunner{time: newFakeTime(), samples: make(chan playback.Sample), shown: make(chan session.Visible, 256)}
 	k.clock = session.NewClock(playback.PrecisionExact, k.time.Now)
 	k.clock.Observe(playback.Sample{Position: start, Duration: time.Minute, Speed: 1, Status: status, ObservedAt: k.time.Now()})
-	runner := session.NewRunner(k.clock, karaokeSubtitles(t), func(_ time.Duration, v session.Visible) { k.shown <- v }, k.time.NewTimer)
+	subtitles := karaokeSubtitles(t)
+	// The sample and the karaoke setup told of changes. Left pending, the
+	// runner would wake for them after its first timer and replace it, maybe
+	// after the test advanced the time already: the new timer, set from the
+	// new time, would never fire.
+	for _, changes := range []<-chan struct{}{k.clock.Changes(), subtitles.Changes()} {
+		select {
+		case <-changes:
+		default:
+		}
+	}
+	runner := session.NewRunner(k.clock, subtitles, func(_ time.Duration, v session.Visible) { k.shown <- v }, k.time.NewTimer)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go runner.Run(ctx, k.samples)

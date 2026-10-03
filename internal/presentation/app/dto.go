@@ -12,6 +12,9 @@ type Video struct {
 	Subtitles []Track   `json:"subtitles"`
 	Suggested Selection `json:"suggested"`
 	Players   Players   `json:"players"`
+	// Mode is the profile's study mode; Modes are the choices.
+	Mode  string   `json:"mode"`
+	Modes []Option `json:"modes"`
 }
 
 // Track is one audio or subtitle choice.
@@ -70,6 +73,8 @@ type WatchRequest struct {
 	Player      string `json:"player"`
 	// AlwaysUse makes the player the preferred one.
 	AlwaysUse bool `json:"alwaysUse"`
+	// Mode is the study mode to watch in; empty is the profile's.
+	Mode string `json:"mode"`
 }
 
 // Playback is the state of the session, sent a few times per second.
@@ -80,15 +85,17 @@ type Playback struct {
 	Duration float64 `json:"duration"`
 	Speed    float64 `json:"speed"`
 	// PositionText and DurationText are "1:02:03".
-	PositionText       string       `json:"positionText"`
-	DurationText       string       `json:"durationText"`
-	PrimaryOffset      string       `json:"primaryOffset"`
-	TranslationOffset  string       `json:"translationOffset"`
-	TranslationVisible bool         `json:"translationVisible"`
-	Capabilities       Capabilities `json:"capabilities"`
-	Lines              LineNames    `json:"lines"`
-	Karaoke            Karaoke      `json:"karaoke"`
-	Passage            Passage      `json:"passage"`
+	PositionText       string `json:"positionText"`
+	DurationText       string `json:"durationText"`
+	PrimaryOffset      string `json:"primaryOffset"`
+	TranslationOffset  string `json:"translationOffset"`
+	TranslationVisible bool   `json:"translationVisible"`
+	// Mode is the study mode; "always" keeps the translation shown.
+	Mode         string       `json:"mode"`
+	Capabilities Capabilities `json:"capabilities"`
+	Lines        LineNames    `json:"lines"`
+	Karaoke      Karaoke      `json:"karaoke"`
+	Passage      Passage      `json:"passage"`
 }
 
 // Karaoke is the Modo Karaokê of the session.

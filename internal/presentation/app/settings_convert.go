@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"lingoreel/internal/domain/appearance"
@@ -28,24 +29,18 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 			MarginLeft: profile.Layout.MarginLeft, MarginRight: profile.Layout.MarginRight,
 			MarginTop: profile.Layout.MarginTop, MarginBottom: profile.Layout.MarginBottom, MaxWidth: profile.Layout.MaxWidth,
 		},
-		Speed:        float64(profile.Speed),
-		SyncStep:     int(profile.Sync.OffsetStep.Std() / time.Millisecond),
-		SyncFastStep: int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
+		Speed:         float64(profile.Speed),
+		SyncStep:      int(profile.Sync.OffsetStep.Std() / time.Millisecond),
+		SyncFastStep:  int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
+		PrecisionStep: int(profile.Sync.PrecisionSeekStep.Std() / time.Millisecond),
+		Mode:          string(profile.Study.Mode),
 		Karaoke: KaraokeSettings{
 			Enabled: karaoke.Enabled, MinGap: karaoke.MinGap.Std().Seconds(), Lead: karaoke.Lead.Std().Seconds(),
 			Indicator: string(karaoke.Indicator), PreviewColor: karaoke.PreviewColor.String(),
 			Fill: karaoke.Fill, FillColor: karaoke.FillColor.String(), Repeat: karaoke.Repeat,
 		},
 		Reveal:    string(profile.Study.Reveal),
-		Shortcuts: []ShortcutSetting{},
-	}
-	keys := profile.Shortcuts.Resolved()
-	for _, command := range shortcut.Commands() {
-		chord := keys[command]
-		view.Shortcuts = append(view.Shortcuts, ShortcutSetting{
-			Command: string(command), Name: ptbr.CommandName(command), Category: ptbr.CategoryName(command.Category()),
-			Chord: chord.String(), Label: ptbr.ShortcutLabel(chord, char),
-		})
+		Shortcuts: shortcutViews(profile.Shortcuts.Resolved(), char),
 	}
 	return view
 }
@@ -74,8 +69,7 @@ func refuse(format string, args ...any) error {
 }
 
 // profileFrom puts the screen's choices on a profile, checked; what the
-// screen does not show (the study mode, the precision step) stays as base has
-// it.
+// screen does not show stays as base has it.
 func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar) (settings.Profile, error) {
 	primary, err := styleFrom(view.Primary, "Legenda de cima")
 	if err != nil {
@@ -106,14 +100,21 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 		Audio: view.Languages.Audio, Primary: view.Languages.Primary, Translation: view.Languages.Translation,
 	}
 	profile.Primary, profile.Translation, profile.Layout = primary, translation, layout
+	profile.Study.Mode = study.Mode(view.Mode)
 	profile.Study.Reveal, profile.Study.Karaoke = study.RevealBehavior(view.Reveal), karaoke
 	profile.Speed = playback.Speed(view.Speed)
 	profile.Sync.OffsetStep = settings.Duration(time.Duration(view.SyncStep) * time.Millisecond)
 	profile.Sync.OffsetLargeStep = settings.Duration(time.Duration(view.SyncFastStep) * time.Millisecond)
+	profile.Sync.PrecisionSeekStep = settings.Duration(time.Duration(view.PrecisionStep) * time.Millisecond)
 	profile.Shortcuts = keys
 	switch {
+	case !profile.Study.Mode.Valid():
+		return settings.Profile{}, refuse("Escolha um modo de estudo.")
 	case !profile.Speed.Valid():
 		return settings.Profile{}, refuse("Escolha uma das velocidades da lista.")
+	case view.PrecisionStep < int(settings.MinPrecisionSeekStep.Milliseconds()) || view.PrecisionStep > int(settings.MaxPrecisionSeekStep.Milliseconds()):
+		return settings.Profile{}, refuse("Passo de precisão: vai de %d a %d ms.",
+			settings.MinPrecisionSeekStep.Milliseconds(), settings.MaxPrecisionSeekStep.Milliseconds())
 	case profile.Sync.Nudge().Validate() != nil:
 		return settings.Profile{}, refuse("Passos da sincronização: o passo vai de %d a %d ms, e o passo segurando vai do passo até %d ms.",
 			subtitle.MinNudgeStep.Milliseconds(), subtitle.MaxNudgeStep.Milliseconds(), subtitle.MaxFastNudgeStep.Milliseconds())
@@ -234,6 +235,10 @@ func shortcutsFrom(views []ShortcutSetting, char ptbr.KeyChar) (shortcut.Map, er
 		command := shortcut.Command(view.Command)
 		if !command.Known() {
 			return nil, refuse("Atalhos: comando desconhecido.")
+		}
+		if strings.TrimSpace(view.Chord) == "" {
+			keys[command] = shortcut.Chord{} // no shortcut
+			continue
 		}
 		chord, err := shortcut.Parse(view.Chord)
 		if err != nil {

@@ -4,6 +4,7 @@ import { InstallCards } from "../components/session/InstallCards";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
+import { Segmented } from "../components/ui/Inputs";
 import { Select, type Option } from "../components/ui/Select";
 import type { PlayerInstall, Players, Track, Video, WatchRequest } from "../services/backend";
 
@@ -43,6 +44,7 @@ export function SessionPage(props: SessionPageProps) {
   const [audio, setAudio] = useState(String(video.suggested.audio));
   const [player, setPlayer] = useState(players.choice);
   const [alwaysUse, setAlwaysUse] = useState(false);
+  const [mode, setMode] = useState(video.mode);
 
   const supported = players.installed.filter((item) => item.supported);
   const playerOptions: Option[] = players.installed.map((item) => ({
@@ -59,6 +61,7 @@ export function SessionPage(props: SessionPageProps) {
       translation: Number(translation),
       player,
       alwaysUse,
+      mode,
     });
 
   return (
@@ -98,6 +101,23 @@ export function SessionPage(props: SessionPageProps) {
             <p className="mt-4 text-sm text-fg-muted">
               Este vídeo não tem legendas. Baixe uma legenda (.srt) e coloque na mesma pasta do vídeo.
             </p>
+          )}
+          {video.modes.length > 0 && (
+            <div className="mt-5">
+              <Segmented
+                label="Modo"
+                value={mode}
+                options={video.modes.map((option) => ({ value: option.value, label: option.label }))}
+                onChange={setMode}
+                help={
+                  <HelpTip topic="modo de estudo">
+                    Dupla mostra as duas legendas o tempo todo. Tradução sob demanda, o modo recomendado para estudar, mostra só a legenda
+                    de cima: a tecla da tradução mostra a de baixo quando precisar. Tradução sempre visível nunca esconde a de baixo. O
+                    padrão de cada perfil fica nas Configurações, com a tecla.
+                  </HelpTip>
+                }
+              />
+            </div>
           )}
         </Card>
 

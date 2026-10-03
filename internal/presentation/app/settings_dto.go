@@ -27,18 +27,22 @@ type GeneralSettings struct {
 
 // ProfileSettings are the active profile's choices.
 type ProfileSettings struct {
-	Name            string            `json:"name"`
-	PreferredPlayer string            `json:"preferredPlayer"`
-	Languages       LanguageSettings  `json:"languages"`
-	Primary         StyleSettings     `json:"primary"`
-	Translation     StyleSettings     `json:"translation"`
-	Layout          LayoutSettings    `json:"layout"`
-	Speed           float64           `json:"speed"`
-	SyncStep        int               `json:"syncStep"`
-	SyncFastStep    int               `json:"syncFastStep"`
-	Karaoke         KaraokeSettings   `json:"karaoke"`
-	Reveal          string            `json:"reveal"`
-	Shortcuts       []ShortcutSetting `json:"shortcuts"`
+	Name            string           `json:"name"`
+	PreferredPlayer string           `json:"preferredPlayer"`
+	Languages       LanguageSettings `json:"languages"`
+	Primary         StyleSettings    `json:"primary"`
+	Translation     StyleSettings    `json:"translation"`
+	Layout          LayoutSettings   `json:"layout"`
+	Speed           float64          `json:"speed"`
+	SyncStep        int              `json:"syncStep"`
+	SyncFastStep    int              `json:"syncFastStep"`
+	// PrecisionStep is the precision shortcuts' jump, in ms.
+	PrecisionStep int             `json:"precisionStep"`
+	Karaoke       KaraokeSettings `json:"karaoke"`
+	// Mode is the study mode a video opens with.
+	Mode      string            `json:"mode"`
+	Reveal    string            `json:"reveal"`
+	Shortcuts []ShortcutSetting `json:"shortcuts"`
 }
 
 // LanguageSettings are language tags such as "en" or "pt-BR".
@@ -100,6 +104,7 @@ type ShortcutSetting struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
 	// Chord is the keys as stored ("Ctrl+Comma"); Label as shown ("Ctrl+,").
+	// Both are empty for a command without a shortcut.
 	Chord string `json:"chord"`
 	Label string `json:"label"`
 }
@@ -126,6 +131,7 @@ type SettingsOptions struct {
 	Presets   []Option        `json:"presets"`
 	Languages []Option        `json:"languages"`
 	Speeds    []float64       `json:"speeds"`
+	Modes     []Option        `json:"modes"`
 	Limits    SettingsLimits  `json:"limits"`
 	Defaults  ProfileSettings `json:"defaults"`
 }
@@ -156,6 +162,9 @@ type SettingsLimits struct {
 	SyncStepMax     int     `json:"syncStepMax"`
 	SyncFastStepMax int     `json:"syncFastStepMax"`
 	ProfileNameMax  int     `json:"profileNameMax"`
+	// PrecisionStepMin and PrecisionStepMax bound the precision step, in ms.
+	PrecisionStepMin int `json:"precisionStepMin"`
+	PrecisionStepMax int `json:"precisionStepMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.
