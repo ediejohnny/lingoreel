@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,10 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	result, err := a.deps.Service.Analyze(ctx, path, preferences)
 	if err != nil {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
-		return Video{}, errors.New("Não foi possível ler este vídeo. Confira se o arquivo existe e não está corrompido.")
+		if errors.Is(err, fs.ErrNotExist) {
+			return Video{}, fmt.Errorf("O arquivo %s não foi encontrado. Ele pode ter sido movido, renomeado ou apagado.", filepath.Base(path))
+		}
+		return Video{}, fmt.Errorf("O arquivo %s não parece um vídeo que o LingoReel consiga ler: pode estar corrompido ou incompleto.", filepath.Base(path))
 	}
 	a.logger.Info("video opened", "name", filepath.Base(path), "duration", result.Info.Duration.Round(time.Second),
 		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
@@ -85,7 +89,34 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	for _, track := range result.Info.TracksOf(media.TrackSubtitle) {
 		video.Subtitles = append(video.Subtitles, subtitleTrack(track))
 	}
+	video.LanguageNote = languageNote(result.Info, suggested, preferences)
 	return video, nil
+}
+
+// languageNote tells when the video has subtitles but none in a language
+// the profile asks for (PRD §52, "idioma não encontrado").
+func languageNote(info media.Info, suggested media.Selection, preferences media.Preferences) string {
+	readable := 0
+	for _, track := range info.TracksOf(media.TrackSubtitle) {
+		if track.Readable {
+			readable++
+		}
+	}
+	if readable == 0 {
+		return ""
+	}
+	var missing []string
+	if suggested.Primary == 0 && preferences.Primary != "" {
+		missing = append(missing, ptbr.LanguageName(preferences.Primary))
+	}
+	if suggested.Translation == 0 && preferences.Translation != "" {
+		missing = append(missing, ptbr.LanguageName(preferences.Translation))
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	return "Não há legenda em " + strings.Join(missing, " nem em ") +
+		" neste vídeo. Escolha outra abaixo, ou coloque um arquivo .srt na pasta do vídeo e abra-o de novo."
 }
 
 func extensionOf(path string) string {

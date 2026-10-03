@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/players"
@@ -117,6 +118,14 @@ type API struct {
 	project  *videoProject
 	watching *watching
 	initial  string
+	// resume is where a session the player lost had reached, for
+	// "Assistir de novo".
+	resume *resumePoint
+}
+
+type resumePoint struct {
+	video string
+	at    time.Duration
 }
 
 // Lifecycle connects the API to the window. It is kept apart from the API so

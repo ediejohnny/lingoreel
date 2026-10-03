@@ -38,6 +38,8 @@ export type Line = "primary" | "translation";
 
 export interface Ended {
   error: string;
+  /** resume tells the session can start again where it was. */
+  resume: boolean;
 }
 
 export interface InstallProgress {

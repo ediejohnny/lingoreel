@@ -812,6 +812,7 @@ export namespace app {
 	    mode: string;
 	    modes: Option[];
 	    projectNote: string;
+	    languageNote: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -829,6 +830,7 @@ export namespace app {
 	        this.mode = source["mode"];
 	        this.modes = this.convertValues(source["modes"], Option);
 	        this.projectNote = source["projectNote"];
+	        this.languageNote = source["languageNote"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -856,6 +858,7 @@ export namespace app {
 	    player: string;
 	    alwaysUse: boolean;
 	    mode: string;
+	    resume: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WatchRequest(source);
@@ -869,6 +872,7 @@ export namespace app {
 	        this.player = source["player"];
 	        this.alwaysUse = source["alwaysUse"];
 	        this.mode = source["mode"];
+	        this.resume = source["resume"];
 	    }
 	}
 

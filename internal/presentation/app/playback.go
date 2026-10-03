@@ -3,6 +3,8 @@ package app
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"sync/atomic"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/study"
@@ -103,11 +106,17 @@ func (a *API) Watch(request WatchRequest) error {
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
 	}
+	a.mu.Lock()
+	if resume := a.resume; request.Resume && resume != nil && resume.video == video.Path {
+		watchRequest.Start = resume.at
+	}
+	a.resume = nil
+	a.mu.Unlock()
 	current := &watching{names: names, stop: make(chan struct{}), video: video.Path, keys: keys}
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
-		return errors.New("Não foi possível iniciar o player. Confira se ele está instalado e tente de novo.")
+		return a.startFailure(err, installation)
 	}
 	current.session = started
 	a.mu.Lock()
@@ -118,6 +127,26 @@ func (a *API) Watch(request WatchRequest) error {
 	a.keepChoice(current, tracks, mode)
 	go a.report(current)
 	return nil
+}
+
+// startFailure words why a session did not start (PRD §52), with what the
+// user can do.
+func (a *API) startFailure(err error, installation player.Installation) error {
+	name := string(installation.ID)
+	if plugin, found := a.deps.Registry.Plugin(installation.ID); found {
+		name = plugin.Descriptor().Name
+	}
+	switch {
+	case errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound):
+		return fmt.Errorf("O %s não foi encontrado em %s. Confira o caminho em Configurações › Player, ou instale-o de novo.", name, installation.Path)
+	case errors.Is(err, watch.ErrSubtitles):
+		return errors.New("Não foi possível ler as legendas escolhidas. Escolha outra legenda ou confira o arquivo dela.")
+	case errors.Is(err, watch.ErrDisplay):
+		return errors.New("Não foi possível abrir a janela do vídeo com as legendas. Tente de novo; se continuar, reinicie o LingoReel.")
+	case errors.Is(err, watch.ErrLaunch):
+		return fmt.Errorf("O %s não abriu a tempo. Clique em Assistir para tentar de novo; se continuar, feche outras janelas do %s.", name, name)
+	}
+	return errors.New("Não foi possível começar a sessão. Tente de novo.")
 }
 
 // healthText words the player's health for the panel and the video.
@@ -188,7 +217,11 @@ func (a *API) report(current *watching) {
 			switch err := current.session.Err(); {
 			case errors.Is(err, playback.ErrPlayerLost):
 				a.logger.Warn("session ended: the player was lost", "error", err)
-				ended.Error = "O player parou de responder e a sessão foi encerrada."
+				a.mu.Lock()
+				a.resume = &resumePoint{video: current.video, at: current.session.State().Position}
+				a.mu.Unlock()
+				ended.Error = "O player fechou ou parou de responder, e a sessão foi encerrada."
+				ended.Resume = true
 			case err != nil:
 				a.logger.Warn("session ended with an error", "error", err)
 			default:
