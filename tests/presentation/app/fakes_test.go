@@ -2,7 +2,9 @@ package app_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/subtitle"
 	"lingoreel/internal/presentation/app"
@@ -125,6 +128,10 @@ type fakeUI struct {
 	choose string
 	// program is what the program dialog answers.
 	program string
+	// savePath is what the save dialog answers; suggested keeps what it
+	// was offered.
+	savePath  string
+	suggested []string
 }
 
 func (u *fakeUI) Emit(name string, data any) {
@@ -134,6 +141,13 @@ func (u *fakeUI) Emit(name string, data any) {
 }
 func (u *fakeUI) OpenVideoDialog() (string, error)         { return u.choose, nil }
 func (u *fakeUI) OpenProgramDialog(string) (string, error) { return u.program, nil }
+func (u *fakeUI) SaveSubtitleDialog(suggested string) (string, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.suggested = append(u.suggested, suggested)
+	return u.savePath, nil
+}
+
 func (u *fakeUI) OpenURL(url string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -207,6 +221,69 @@ func (f *fakeInstaller) Install(_ context.Context, id string) error {
 	return f.err
 }
 
+// memoryProjects keeps each video's project as JSON, as a file would: what
+// the app changes after a save is not in the store until it saves again.
+type memoryProjects struct {
+	mu      sync.Mutex
+	files   map[string][]byte
+	saves   int
+	loadErr error
+	saveErr error
+}
+
+func (m *memoryProjects) Load(video string) (project.Project, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.loadErr != nil {
+		return project.Project{}, m.loadErr
+	}
+	data, found := m.files[video]
+	if !found {
+		return project.New(), nil
+	}
+	var p project.Project
+	err := json.Unmarshal(data, &p)
+	return p, err
+}
+
+func (m *memoryProjects) Save(video string, p project.Project) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.saves++
+	if m.saveErr != nil {
+		return m.saveErr
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	if m.files == nil {
+		m.files = map[string][]byte{}
+	}
+	m.files[video] = data
+	return nil
+}
+
+func (m *memoryProjects) TrackKey(_ string, track media.Track) string {
+	return fmt.Sprintf("track:%d", track.Number)
+}
+
+// stored is the project as last saved, and how many saves there were.
+func (m *memoryProjects) stored(t *testing.T, video string) (project.Project, int) {
+	t.Helper()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	data, found := m.files[video]
+	if !found {
+		return project.Project{}, m.saves
+	}
+	var p project.Project
+	if err := json.Unmarshal(data, &p); err != nil {
+		t.Fatal(err)
+	}
+	return p, m.saves
+}
+
 // --- harness ---
 
 type rig struct {
@@ -219,13 +296,14 @@ type rig struct {
 	installed []player.Installation
 	display   *recordingDisplay
 	preview   *fakePreview
+	projects  *memoryProjects
 }
 
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
-		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{},
+		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{},
 		installed: []player.Installation{{ID: "fake", Path: `C:\fake\fake.exe`}, {ID: "potplayer", Path: `C:\pot\PotPlayerMini64.exe`}},
 	}
 	registry, err := players.NewRegistry(r.plugin)
@@ -239,7 +317,7 @@ func newRig(t *testing.T) *rig {
 		Ports: watch.Ports{Service: service, Registry: registry,
 			OpenDisplay: func(context.Context, players.Running, media.Info) (session.Display, error) { return r.display, nil },
 		},
-		Settings: r.settings, Installer: r.installer,
+		Settings: r.settings, Installer: r.installer, Projects: r.projects,
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,

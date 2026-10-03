@@ -40,7 +40,23 @@ type Look struct {
 	// edge, as the line is spoken; nil paints nothing.
 	FillWidths []float64
 	FillColor  appearance.Color
+	// Highlight outlines the line being edited; nil draws none.
+	Highlight *Outline
 }
+
+// Outline is a discreet rounded frame around a line: a light stroke over a
+// dark one, so it shows on bright and dark pictures alike.
+type Outline struct {
+	Box layout.Rect
+	// Width is the light stroke's width in pixels; Radius rounds the corners.
+	Width, Radius float64
+}
+
+// Colors of the outline.
+var (
+	outlineLight = appearance.Color{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xD9}
+	outlineDark  = appearance.Color{R: 0x00, G: 0x00, B: 0x00, A: 0x8C}
+)
 
 // Renderer measures and draws subtitle text. It is not safe for concurrent
 // use; the overlay calls it from its UI thread only.
@@ -210,6 +226,14 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 	}
 	if frame.Translation != nil && look.TranslationVisible {
 		if err := r.drawBlock(canvas, target, frame.Translation, look.Translation); err != nil {
+			return err
+		}
+	}
+	if outline := look.Highlight; outline != nil && outline.Box.W > 0 && outline.Box.H > 0 && outline.Width > 0 {
+		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outlineDark, outline.Width*2); err != nil {
+			return err
+		}
+		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outlineLight, outline.Width); err != nil {
 			return err
 		}
 	}

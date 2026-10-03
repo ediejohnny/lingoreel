@@ -43,6 +43,8 @@ const (
 	RepeatLast3            Command = "repeat-last-3"
 	RepeatLast5            Command = "repeat-last-5"
 	RepeatLast10           Command = "repeat-last-10"
+	Undo                   Command = "undo"
+	Redo                   Command = "redo"
 )
 
 // Category groups the commands on the settings screen.
@@ -56,6 +58,7 @@ const (
 	CategorySubtitle    Category = "subtitle"
 	CategoryTranslation Category = "translation"
 	CategoryStudy       Category = "study"
+	CategoryEditor      Category = "editor"
 )
 
 // entry is a command with its category and default chord; a zero chord
@@ -99,6 +102,8 @@ var commands = []entry{
 	{RepeatLast3, CategoryStudy, Chord{Key: KeyDigit3}},
 	{RepeatLast5, CategoryStudy, Chord{Key: KeyDigit5}},
 	{RepeatLast10, CategoryStudy, Chord{Key: KeyDigit0}},
+	{Undo, CategoryEditor, Chord{Ctrl, KeyZ}},
+	{Redo, CategoryEditor, Chord{Ctrl, KeyY}},
 }
 
 // Commands lists every command in display order.

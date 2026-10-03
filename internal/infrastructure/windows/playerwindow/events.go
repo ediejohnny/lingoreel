@@ -65,6 +65,7 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 			w.speedMenu = false
 			w.pointer(w.cursorInZone())
 		}
+		w.pick(win32.PointOf(lparam))
 		return 0
 	case win32.WM_LBUTTONDBLCLK:
 		w.setFullscreen(!w.fullscreen)
@@ -131,6 +132,24 @@ func dispatchBar(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uint
 		return 0
 	}
 	return win32.DefWindowProc(hwnd, message, wparam, lparam)
+}
+
+// pick selects the line under a click for editing, with the video paused
+// (DESIGN: paused, then selected, then edited). A click elsewhere keeps the
+// selection, so an edit under way on the panel is not lost.
+func (w *Window) pick(point win32.Point) {
+	remote := w.currentRemote()
+	if remote == nil || remote.State().Status == playback.StatusPlaying {
+		return
+	}
+	line, hit := w.overlay.LineAt(float64(point.X), float64(point.Y))
+	if !hit {
+		return
+	}
+	w.do(func(r watch.Remote) error {
+		_, err := r.Select(line)
+		return err
+	})
 }
 
 // trackLeave asks once per entry for the message telling the mouse left.

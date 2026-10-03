@@ -21,6 +21,7 @@ import (
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/shortcut"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
@@ -90,6 +91,8 @@ type Remote interface {
 	// Reveal is the translation key going down (pressed) or up; a held
 	// key's repeats are not presses.
 	Reveal(pressed bool)
+	// Select picks a line on screen for editing; the video must be paused.
+	Select(line session.Line) (Selection, error)
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -153,6 +156,9 @@ type Request struct {
 	// PrecisionStep is the jump of the precision shortcuts; zero is
 	// DefaultPrecisionStep.
 	PrecisionStep time.Duration
+	// Saved is what the project keeps for each line: its offset and the
+	// user's edits, applied when they still fit the file.
+	Saved map[session.Line]project.Track
 	// Karaoke is the Modo Karaokê to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke
@@ -175,6 +181,9 @@ type Listener interface {
 	SubtitlesChanged(position time.Duration, visible session.Visible)
 	// Synced reports a line's new offset after a sync shortcut or a reset.
 	Synced(line session.Line, offset subtitle.Offset)
+	// Edited reports a line's edits, as the project keeps them, after an
+	// edit, an undo or a redo.
+	Edited(line session.Line, edits map[string]project.Edit)
 }
 
 // Session is a video being watched.
@@ -211,6 +220,8 @@ type Session struct {
 	restart     func(chords []shortcut.Chord) (Shortcuts, error)
 	shortcutsMu sync.Mutex
 	ending      bool
+
+	editor editing
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -275,7 +286,14 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.mode.Store(mode)
 	s.translationVisible.Store(mode.StartsRevealed())
 	s.precision.Store(int64(cmp.Or(request.PrecisionStep, DefaultPrecisionStep)))
-	s.subtitles = session.NewSubtitles(trackOf(loaded, request.Tracks.Primary), trackOf(loaded, request.Tracks.Translation))
+	s.editor.history = project.NewHistory(project.DefaultHistoryLimit)
+	var tracks [2]*session.Track
+	for line, number := range map[session.Line]uint64{session.LinePrimary: request.Tracks.Primary, session.LineTranslation: request.Tracks.Translation} {
+		if tracks[line], err = s.prepare(line, trackOf(loaded, number), request.Saved[line]); err != nil {
+			return nil, errors.Join(err, running.Close(), closeWindow(window))
+		}
+	}
+	s.subtitles = session.NewSubtitles(tracks[session.LinePrimary], tracks[session.LineTranslation])
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
@@ -525,6 +543,18 @@ func stack(events []subtitle.Event) string {
 		texts[i] = event.Text()
 	}
 	return strings.Join(texts, "\n")
+}
+
+// prepare gives a line its saved offset and edits.
+func (s *Session) prepare(line session.Line, track *session.Track, saved project.Track) (*session.Track, error) {
+	if track == nil {
+		return nil, nil
+	}
+	timeline, err := s.editor.prepareLine(line, track.Timeline, saved)
+	if err != nil {
+		return nil, fmt.Errorf("applying the saved edits: %w", err)
+	}
+	return &session.Track{Timeline: timeline, Offset: subtitle.NewOffset(saved.Offset.Duration())}, nil
 }
 
 func trackOf(loaded map[uint64]analysis.LoadedTrack, number uint64) *session.Track {

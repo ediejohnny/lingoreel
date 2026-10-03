@@ -117,6 +117,10 @@ func CommandName(command shortcut.Command) string {
 		return "Repetir os últimos 5 s"
 	case shortcut.RepeatLast10:
 		return "Repetir os últimos 10 s"
+	case shortcut.Undo:
+		return "Desfazer a correção"
+	case shortcut.Redo:
+		return "Refazer a correção"
 	case shortcut.VolumeUp:
 		return "Aumentar o volume"
 	case shortcut.VolumeDown:
@@ -160,6 +164,8 @@ func CategoryName(category shortcut.Category) string {
 		return "Tradução"
 	case shortcut.CategoryStudy:
 		return "Estudo"
+	case shortcut.CategoryEditor:
+		return "Correção das legendas"
 	}
 	return string(category)
 }

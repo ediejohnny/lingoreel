@@ -12,11 +12,19 @@ export function ChooseVideo():Promise<string>;
 
 export function ClearPlayerPath(arg1:string):Promise<void>;
 
+export function ClearSelection():Promise<void>;
+
 export function CreateProfile(arg1:string):Promise<void>;
+
+export function DeletePassage(arg1:string):Promise<void>;
 
 export function DeleteProfile(arg1:string):Promise<void>;
 
 export function DismissRecommendation(arg1:string):Promise<void>;
+
+export function EditLine(arg1:app.EditRequest):Promise<void>;
+
+export function ExportSubtitle(arg1:string):Promise<void>;
 
 export function InitialVideo():Promise<string>;
 
@@ -40,6 +48,8 @@ export function Preferences():Promise<app.Preferences>;
 
 export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 
+export function RedoEdit():Promise<void>;
+
 export function RenameProfile(arg1:string,arg2:string):Promise<void>;
 
 export function ReplayLine():Promise<void>;
@@ -48,17 +58,23 @@ export function ResetProfile():Promise<void>;
 
 export function ResetSync(arg1:string):Promise<void>;
 
+export function RestoreLine():Promise<void>;
+
 export function ResumePassage():Promise<void>;
 
 export function Reveal(arg1:boolean):Promise<void>;
 
 export function RunShortcut(arg1:string,arg2:boolean):Promise<void>;
 
+export function SavePassage(arg1:string):Promise<void>;
+
 export function SaveProfile(arg1:app.ProfileSettings):Promise<void>;
 
 export function SeekBy(arg1:number):Promise<void>;
 
 export function SeekTo(arg1:number):Promise<void>;
+
+export function SelectLine(arg1:string):Promise<void>;
 
 export function SetKaraoke(arg1:boolean):Promise<void>;
 
@@ -93,5 +109,7 @@ export function StudyPassage(arg1:app.PassageRequest):Promise<void>;
 export function SwitchProfile(arg1:string):Promise<void>;
 
 export function TogglePause():Promise<void>;
+
+export function UndoEdit():Promise<void>;
 
 export function Watch(arg1:app.WatchRequest):Promise<void>;

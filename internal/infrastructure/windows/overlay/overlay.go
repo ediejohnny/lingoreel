@@ -105,6 +105,11 @@ type Overlay struct {
 	pending   session.Screen
 	scheduled bool
 	drawErr   error
+
+	// boxes are where each line was last drawn, in the covered window's
+	// client pixels, for LineAt; a zero box was not drawn.
+	boxesMu sync.Mutex
+	boxes   [2]layout.Rect
 }
 
 // callbackTable routes Win32 callbacks to their overlay. Window procedures
@@ -560,6 +565,13 @@ func (o *Overlay) redraw() error {
 	} else if o.content.Fill > 0 {
 		look.FillWidths = layout.FillWidths(frame.Primary, o.content.Fill, o.renderer)
 	}
+	boxes := drawnBoxes(frame, o.content)
+	o.boxesMu.Lock()
+	o.boxes = boxes
+	o.boxesMu.Unlock()
+	if o.content.Highlighted {
+		look.Highlight = outlineOf(boxes[o.content.Highlight], o.dpi)
+	}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
 		return fmt.Errorf("drawing the subtitles: %w", err)
 	}
@@ -571,6 +583,55 @@ func (o *Overlay) redraw() error {
 		o.show()
 	}
 	return nil
+}
+
+// LineAt tells which line was drawn at a point of the covered window's
+// client area, so a click there can pick it for editing.
+func (o *Overlay) LineAt(x, y float64) (session.Line, bool) {
+	o.boxesMu.Lock()
+	defer o.boxesMu.Unlock()
+	for _, line := range []session.Line{session.LinePrimary, session.LineTranslation} {
+		if box := o.boxes[line]; box.W > 0 && box.H > 0 && box.Contains(x, y) {
+			return line, true
+		}
+	}
+	return 0, false
+}
+
+// drawnBoxes are the boxes of the lines a frame draws: a hidden line or one
+// without text has none.
+func drawnBoxes(frame layout.Frame, content session.Screen) [2]layout.Rect {
+	var boxes [2]layout.Rect
+	if frame.Primary != nil && !content.PrimaryHidden && content.Primary != "" {
+		boxes[session.LinePrimary] = frame.Primary.Bounds
+	}
+	if frame.Translation != nil && content.TranslationVisible && content.Translation != "" {
+		boxes[session.LineTranslation] = frame.Translation.Bounds
+	}
+	return boxes
+}
+
+// Sizes of the outline of a line being edited, at 100% scaling.
+const (
+	outlineGap    = 4.0
+	outlineWidth  = 1.5
+	outlineRadius = 6.0
+)
+
+// outlineOf frames a line's box a little outside it; nil for no box.
+func outlineOf(box layout.Rect, dpi int) *gdiplus.Outline {
+	if box.W <= 0 || box.H <= 0 {
+		return nil
+	}
+	scale := float64(dpi) / layout.BaseDPI
+	if scale <= 0 {
+		scale = 1
+	}
+	gap := outlineGap * scale
+	return &gdiplus.Outline{
+		Box:   layout.Rect{X: box.X - gap, Y: box.Y - gap, W: box.W + 2*gap, H: box.H + 2*gap},
+		Width: outlineWidth * scale, Radius: outlineRadius * scale,
+	}
 }
 
 // dispatchWindow is the window procedure of every overlay window.

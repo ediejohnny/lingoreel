@@ -2,12 +2,14 @@ package app
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/playback"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/study"
 	"lingoreel/internal/domain/subtitle"
@@ -38,6 +40,11 @@ type watching struct {
 	names   ptbr.LineNames
 	// stop ends the state reports.
 	stop chan struct{}
+	// video is the file watched; keys name its lines' tracks in the project.
+	video string
+	keys  [2]string
+	// problem is the last project file failure, for the panel.
+	problem atomic.Value // string
 }
 
 // Watch opens the video in the chosen player with the chosen tracks. A
@@ -67,16 +74,22 @@ func (a *API) Watch(request WatchRequest) error {
 			return err
 		}
 	}
+	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
 	a.mu.Lock()
 	profile := a.profile()
 	syncNotice := a.config.SyncNotice
+	var saved map[session.Line]project.Track
+	var keys [2]string
+	if opened := a.project; opened != nil && opened.video == video.Path {
+		saved = opened.saved(tracks)
+		keys = [2]string{opened.keys[tracks.Primary], opened.keys[tracks.Translation]}
+	}
 	a.mu.Unlock()
 
 	mode := profile.Study.Mode
 	if request.Mode != "" {
 		mode = study.Mode(request.Mode)
 	}
-	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
 	names := ptbr.NewLineNames(video.Info, tracks.Primary, tracks.Translation)
 	karaoke := profile.Study.Karaoke
 	watchRequest := watch.Request{
@@ -84,13 +97,13 @@ func (a *API) Watch(request WatchRequest) error {
 		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
-		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(),
+		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
 	}
 	if a.deps.Window != nil {
 		watchRequest.Window = a.deps.Window(video.Info)
 	}
-	current := &watching{names: names, stop: make(chan struct{})}
-	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a}, names.Notice)
+	current := &watching{names: names, stop: make(chan struct{}), video: video.Path, keys: keys}
+	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
 		return errors.New("Não foi possível iniciar o player. Confira se ele está instalado e tente de novo.")
@@ -99,6 +112,7 @@ func (a *API) Watch(request WatchRequest) error {
 	a.mu.Lock()
 	a.watching = current
 	a.mu.Unlock()
+	a.keepChoice(current, tracks, mode)
 	go a.report(current)
 	return nil
 }
@@ -135,6 +149,7 @@ func (a *API) report(current *watching) {
 				a.watching = nil
 			}
 			a.mu.Unlock()
+			a.saveOffsets(current)
 			ended := Ended{}
 			if errors.Is(current.session.Err(), playback.ErrPlayerLost) {
 				ended.Error = "O player parou de responder e a sessão foi encerrada."
@@ -152,6 +167,10 @@ func (a *API) report(current *watching) {
 func (a *API) describe(current *watching) Playback {
 	state := current.session.State()
 	capabilities := current.session.Controls().Capabilities()
+	saved, note := a.savedPassages(current)
+	if problem, _ := current.problem.Load().(string); problem != "" {
+		note = problem
+	}
 	return Playback{
 		Active: true, Status: string(state.Status),
 		Position: state.Position.Seconds(), Duration: state.Duration.Seconds(), Speed: float64(state.Speed),
@@ -164,20 +183,30 @@ func (a *API) describe(current *watching) Playback {
 		Lines:              LineNames{Primary: current.names[session.LinePrimary], Translation: current.names[session.LineTranslation]},
 		Karaoke:            describeKaraoke(current.session),
 		Passage:            describePassage(current.session.Passage()),
+		Editing:            describeEditing(current),
+		SavedPassages:      saved,
+		ProjectNote:        note,
 	}
 }
 
-// sessionListener sends sync changes to the window at once.
+// sessionListener tells the window of sync changes and edits at once, and
+// keeps them in the video's project.
 type sessionListener struct {
-	api *API
+	api     *API
+	current *watching
 }
 
 func (l sessionListener) SubtitlesChanged(time.Duration, session.Visible) {}
 
-func (l sessionListener) Synced(session.Line, subtitle.Offset) {
-	if current := l.api.current(); current != nil {
-		l.api.emit(EventPlayback, l.api.describe(current))
+func (l sessionListener) Synced(line session.Line, offset subtitle.Offset) {
+	l.api.keepOffset(l.current, line, offset)
+	if l.current.session != nil {
+		l.api.emit(EventPlayback, l.api.describe(l.current))
 	}
+}
+
+func (l sessionListener) Edited(line session.Line, edits map[string]project.Edit) {
+	l.api.keepEdits(l.current, line, edits)
 }
 
 func (a *API) current() *watching {
@@ -286,11 +315,20 @@ func (a *API) stop(tell bool) bool {
 	if err := current.session.Stop(); err != nil && !errors.Is(err, playback.ErrPlayerLost) {
 		a.logger.Warn("the session did not end cleanly", "error", err)
 	}
+	a.saveOffsets(current)
 	if tell {
 		a.emit(EventPlayback, Playback{})
 		a.emit(EventEnded, Ended{})
 	}
 	return true
+}
+
+// lineName names a line as the window does.
+func lineName(line session.Line) string {
+	if line == session.LineTranslation {
+		return lineTranslation
+	}
+	return linePrimary
 }
 
 func lineOf(name string) (session.Line, error) {

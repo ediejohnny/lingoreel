@@ -12,9 +12,12 @@ type Video struct {
 	Subtitles []Track   `json:"subtitles"`
 	Suggested Selection `json:"suggested"`
 	Players   Players   `json:"players"`
-	// Mode is the profile's study mode; Modes are the choices.
+	// Mode is the study mode to start with: the one last used on this video,
+	// or else the profile's. Modes are the choices.
 	Mode  string   `json:"mode"`
 	Modes []Option `json:"modes"`
+	// ProjectNote tells of a problem with the video's corrections file.
+	ProjectNote string `json:"projectNote"`
 }
 
 // Track is one audio or subtitle choice.
@@ -96,6 +99,46 @@ type Playback struct {
 	Lines        LineNames    `json:"lines"`
 	Karaoke      Karaoke      `json:"karaoke"`
 	Passage      Passage      `json:"passage"`
+	Editing      Editing      `json:"editing"`
+	// SavedPassages are the video's passages kept for study.
+	SavedPassages []SavedPassage `json:"savedPassages"`
+	// ProjectNote tells of a problem with the video's corrections file.
+	ProjectNote string `json:"projectNote"`
+}
+
+// Editing is the line being corrected and what the editor can do. Times are
+// on the playback clock, to the millisecond ("1:02:03,456").
+type Editing struct {
+	Active bool `json:"active"`
+	// Line is "primary" or "translation"; LineName as the panel says it.
+	Line          string `json:"line"`
+	LineName      string `json:"lineName"`
+	Original      string `json:"original"`
+	Text          string `json:"text"`
+	Start         string `json:"start"`
+	End           string `json:"end"`
+	OriginalStart string `json:"originalStart"`
+	OriginalEnd   string `json:"originalEnd"`
+	// Edited tells the line differs from its file.
+	Edited  bool `json:"edited"`
+	CanUndo bool `json:"canUndo"`
+	CanRedo bool `json:"canRedo"`
+	// StaleEdits counts saved corrections that no longer fit their file.
+	StaleEdits int `json:"staleEdits"`
+}
+
+// EditRequest is the editor's text and times for the selected line.
+type EditRequest struct {
+	Text  string `json:"text"`
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// SavedPassage is a passage kept for study, with times as typed ("1:10:23").
+type SavedPassage struct {
+	Name  string `json:"name"`
+	Start string `json:"start"`
+	End   string `json:"end"`
 }
 
 // Karaoke is the Modo Karaokê of the session.

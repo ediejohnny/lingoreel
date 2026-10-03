@@ -19,6 +19,10 @@ type Screen struct {
 	Cue *CueScreen
 	// Fill is the share of the primary line's characters already spoken.
 	Fill float64
+	// Highlighted marks the Highlight line as the one being edited, with a
+	// discreet outline.
+	Highlighted bool
+	Highlight   Line
 }
 
 // CueScreen is how a preview shows the time left.

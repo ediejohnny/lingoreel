@@ -17,6 +17,7 @@ func (s *Session) screen(visible session.Visible) session.Screen {
 	screen := Screen(visible, s.translationVisible.Load() && lap.ShowTranslation)
 	screen.PrimaryHidden = !lap.ShowPrimary
 	screen.Fill = visible.Fill
+	screen.Highlight, screen.Highlighted = s.highlighted(visible, screen)
 	if visible.Cue != nil {
 		screen.Cue = &session.CueScreen{
 			Indicator: s.Indicator(),

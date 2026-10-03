@@ -15,6 +15,7 @@ import (
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/player"
+	"lingoreel/internal/domain/project"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/presentation/ptbr"
 )
@@ -35,7 +36,19 @@ type UI interface {
 	OpenVideoDialog() (string, error)
 	// OpenProgramDialog asks for a program (.exe); empty when cancelled.
 	OpenProgramDialog(title string) (string, error)
+	// SaveSubtitleDialog asks where to export a subtitle, suggesting a file
+	// name; empty when cancelled.
+	SaveSubtitleDialog(name string) (string, error)
 	OpenURL(url string)
+}
+
+// Projects keeps each video's project: the user's corrections, the offsets,
+// the last choices and the saved passages. TrackKey names a track so the
+// name survives a new analysis of the video.
+type Projects interface {
+	Load(video string) (project.Project, error)
+	Save(video string, p project.Project) error
+	TrackKey(video string, track media.Track) string
 }
 
 // Previewer draws sample subtitles for the settings screen and lists the
@@ -83,6 +96,8 @@ type Deps struct {
 	// the file explorer.
 	SettingsDir string
 	OpenFolder  func(path string) error
+	// Projects keeps each video's project; nil keeps nothing between runs.
+	Projects Projects
 }
 
 // API is bound to the window: every exported method is callable from the
@@ -97,6 +112,7 @@ type API struct {
 	config   settings.Config
 	profiles settings.Profiles
 	video    *analysis.Analysis
+	project  *videoProject
 	watching *watching
 	initial  string
 }

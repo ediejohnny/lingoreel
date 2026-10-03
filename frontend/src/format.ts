@@ -44,12 +44,26 @@ export function isTyping(target: EventTarget | null): boolean {
  */
 export function passageClock(seconds: number): string {
   const tenthsTotal = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 10) : 0;
-  const whole = Math.floor(tenthsTotal / 10);
   const tenths = tenthsTotal % 10;
+  const clock = wholeClock(Math.floor(tenthsTotal / 10));
+  return tenths > 0 ? `${clock},${tenths}` : clock;
+}
+
+/**
+ * editClock shows a time for the subtitle editor to the millisecond,
+ * "1:02:03,456" or "2:03,456", as the Go side shows and reads it.
+ */
+export function editClock(seconds: number): string {
+  const millisTotal = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
+  const millis = String(millisTotal % 1000).padStart(3, "0");
+  return `${wholeClock(Math.floor(millisTotal / 1000))},${millis}`;
+}
+
+/** wholeClock shows whole seconds as h:mm:ss, or m:ss below an hour. */
+function wholeClock(whole: number): string {
   const hours = Math.floor(whole / 3600);
   const minutes = Math.floor((whole % 3600) / 60);
   const rest = whole % 60;
   const pad = (value: number) => String(value).padStart(2, "0");
-  const clock = hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
-  return tenths > 0 ? `${clock},${tenths}` : clock;
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
 }

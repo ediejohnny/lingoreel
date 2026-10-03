@@ -215,6 +215,7 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 		shortcut.SpeedDown: "Ctrl+ArrowDown", shortcut.SpeedUp: "Ctrl+ArrowUp", shortcut.SpeedNormal: "Ctrl+Digit0",
 		shortcut.RepeatPhrase: "F9", shortcut.RepeatLast3: "Digit3", shortcut.RepeatLast5: "Digit5", shortcut.RepeatLast10: "Digit0",
 		shortcut.ShowBoth: "", shortcut.PrimaryOnly: "",
+		shortcut.Undo: "Ctrl+KeyZ", shortcut.Redo: "Ctrl+KeyY",
 	}
 	if len(want) != len(shortcut.Commands()) {
 		t.Fatalf("the test knows %d commands of %d", len(want), len(shortcut.Commands()))

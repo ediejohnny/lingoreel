@@ -24,6 +24,8 @@ const (
 	KeyPeriod     Key = "Period"
 	KeyF          Key = "KeyF"
 	KeyM          Key = "KeyM"
+	KeyY          Key = "KeyY"
+	KeyZ          Key = "KeyZ"
 	KeyDigit0     Key = "Digit0"
 	KeyDigit3     Key = "Digit3"
 	KeyDigit5     Key = "Digit5"
