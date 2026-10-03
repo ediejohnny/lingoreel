@@ -106,6 +106,16 @@ type Deps struct {
 	About    About
 	Monitors func() ([]Monitor, error)
 	LogDir   string
+	// Associations lets Windows open videos with the app; nil offers none.
+	Associations Associations
+}
+
+// Associations writes and removes the app's place in Windows' "Abrir com"
+// and in the videos' context menu.
+type Associations interface {
+	Enabled() (bool, error)
+	Enable() error
+	Disable() error
 }
 
 // About names the versions the diagnostics show.

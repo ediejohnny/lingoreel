@@ -35,6 +35,7 @@ import (
 	"lingoreel/internal/infrastructure/player/plugins"
 	"lingoreel/internal/infrastructure/subtitlefile"
 	"lingoreel/internal/infrastructure/windows/appwindow"
+	"lingoreel/internal/infrastructure/windows/association"
 	"lingoreel/internal/infrastructure/windows/hotkeys"
 	"lingoreel/internal/infrastructure/windows/keyboard"
 	"lingoreel/internal/infrastructure/windows/overlay"
@@ -119,6 +120,11 @@ func run() error {
 		About:       app.About{Version: buildinfo.Version, Windows: windowsVersion()},
 		Monitors:    monitors,
 		LogDir:      filepath.Join(dir, logFolder),
+	}
+	if executable, err := os.Executable(); err == nil {
+		deps.Associations = association.Registrar{
+			Base: `Software\Classes`, Executable: executable, Extensions: analysis.VideoExtensions(),
+		}
 	}
 	if workingDir, err := os.Getwd(); err == nil {
 		deps.InitialVideo, _ = app.VideoArgument(os.Args[1:], workingDir)

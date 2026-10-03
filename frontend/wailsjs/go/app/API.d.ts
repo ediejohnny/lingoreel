@@ -28,6 +28,8 @@ export function EditLine(arg1:app.EditRequest):Promise<void>;
 
 export function ExportSubtitle(arg1:string):Promise<void>;
 
+export function FileAssociation():Promise<boolean>;
+
 export function InitialVideo():Promise<string>;
 
 export function InstallPlayer(arg1:string):Promise<void>;
@@ -77,6 +79,8 @@ export function SeekBy(arg1:number):Promise<void>;
 export function SeekTo(arg1:number):Promise<void>;
 
 export function SelectLine(arg1:string):Promise<void>;
+
+export function SetFileAssociation(arg1:boolean):Promise<void>;
 
 export function SetKaraoke(arg1:boolean):Promise<void>;
 

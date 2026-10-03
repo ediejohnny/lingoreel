@@ -126,6 +126,8 @@ export const backend = {
   clearPlayerPath: (id: string) => api.ClearPlayerPath(id),
   openSettingsFolder: () => api.OpenSettingsFolder(),
   diagnostics: (): Promise<Diagnostics> => api.Diagnostics(),
+  fileAssociation: () => api.FileAssociation(),
+  setFileAssociation: (on: boolean) => api.SetFileAssociation(on),
   copyText: (text: string) => ClipboardSetText(text),
 
   onDropped: (listener: (path: string) => void) => EventsOn(events.dropped, listener),

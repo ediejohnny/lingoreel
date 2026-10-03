@@ -9,6 +9,7 @@ import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { AssociationCard } from "./AssociationCard";
 import { DiagnosticsCard } from "./DiagnosticsCard";
 import { change, type SectionProps } from "./section";
 
@@ -84,7 +85,7 @@ export function AppearanceSection({ theme, onTheme }: AppearanceSectionProps) {
   );
 }
 
-/** AdvancedSection holds the settings folder, the diagnostics and the reset of the profile. */
+/** AdvancedSection holds the settings folder, the Windows association, the diagnostics and the reset of the profile. */
 export function AdvancedSection({ view, dirty, run }: SectionProps) {
   const [confirming, setConfirming] = useState(false);
   return (
@@ -98,6 +99,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
           Abrir a pasta
         </Button>
       </Card>
+      <AssociationCard />
       <DiagnosticsCard />
       <Card title="Restaurar o perfil">
         <p className="mb-3 text-sm text-fg-secondary">

@@ -54,6 +54,10 @@ export function ExportSubtitle(arg1) {
   return window['go']['app']['API']['ExportSubtitle'](arg1);
 }
 
+export function FileAssociation() {
+  return window['go']['app']['API']['FileAssociation']();
+}
+
 export function InitialVideo() {
   return window['go']['app']['API']['InitialVideo']();
 }
@@ -152,6 +156,10 @@ export function SeekTo(arg1) {
 
 export function SelectLine(arg1) {
   return window['go']['app']['API']['SelectLine'](arg1);
+}
+
+export function SetFileAssociation(arg1) {
+  return window['go']['app']['API']['SetFileAssociation'](arg1);
 }
 
 export function SetKaraoke(arg1) {

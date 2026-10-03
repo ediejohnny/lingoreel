@@ -88,6 +88,11 @@ func NewService(reader Reader, files SubtitleFiles) *Service {
 	return &Service{reader: reader, files: files}
 }
 
+// VideoExtensions are every extension IsSupported takes, such as ".mkv".
+func VideoExtensions() []string {
+	return slices.Concat(trackExtensions, externalOnlyExtensions)
+}
+
 // IsSupported reports whether the player can open the file: a container whose
 // tracks it reads, or a video that only gets subtitles from files.
 func IsSupported(path string) bool {

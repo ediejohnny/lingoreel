@@ -345,6 +345,8 @@ type rig struct {
 	// monitors and monitorsErr are what the monitor list answers.
 	monitors    []app.Monitor
 	monitorsErr error
+	// associations stands for the Windows registry.
+	associations *fakeAssociations
 }
 
 // lockedBuffer is the log's destination in the tests.
@@ -369,7 +371,7 @@ func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{
 		ui: &fakeUI{}, plugin: &fakePlugin{}, settings: newMemorySettings(),
-		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{}, log: &lockedBuffer{},
+		installer: &fakeInstaller{available: true}, display: &recordingDisplay{}, preview: &fakePreview{}, projects: &memoryProjects{}, log: &lockedBuffer{}, associations: &fakeAssociations{},
 		installed: []player.Installation{{ID: "fake", Path: `C:\fake\fake.exe`}, {ID: "potplayer", Path: `C:\pot\PotPlayerMini64.exe`}},
 	}
 	registry, err := players.NewRegistry(r.plugin)
@@ -390,6 +392,7 @@ func newRig(t *testing.T) *rig {
 		About:        app.About{Version: "0.13.0-test", Windows: "10.0.19045"},
 		Monitors:     func() ([]app.Monitor, error) { return r.monitors, r.monitorsErr },
 		LogDir:       `C:\Users\x\AppData\Roaming\LingoReel\logs`,
+		Associations: r.associations,
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,

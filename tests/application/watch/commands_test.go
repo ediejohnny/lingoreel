@@ -15,11 +15,12 @@ import (
 )
 
 // at puts a paused video at a position at the normal speed, and forgets
-// the calls that took.
+// the calls that took. It pauses before seeking: seeking first let a playing
+// clock run on for the moment before the pause (a flaky "seek 15.001s").
 func at(t *testing.T, r *rig, s *watch.Session, position time.Duration) {
 	t.Helper()
 	controls := s.Controls()
-	if err := errors.Join(controls.SeekTo(position), controls.Pause(), controls.SetSpeed(playback.NormalSpeed)); err != nil {
+	if err := errors.Join(controls.Pause(), controls.SeekTo(position), controls.SetSpeed(playback.NormalSpeed)); err != nil {
 		t.Fatal(err)
 	}
 	r.running.took()
