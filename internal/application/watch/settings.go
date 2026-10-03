@@ -59,9 +59,7 @@ func (s *Session) SetMode(mode study.Mode) error {
 	}
 	s.mode.Store(mode)
 	s.translationVisible.Store(mode.StartsRevealed())
-	if last := s.lastVisible.Load(); last != nil {
-		s.show(*last)
-	}
+	s.redraw()
 	return nil
 }
 

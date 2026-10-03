@@ -42,8 +42,11 @@ func (s *Session) setLap(lap study.Lap) {
 }
 
 // redraw shows the last visible events again, after a change of how they
-// show.
+// show. It holds showMu as the runner does, so a change the runner draws
+// meanwhile is never painted over with the lines from before it.
 func (s *Session) redraw() {
+	s.showMu.Lock()
+	defer s.showMu.Unlock()
 	if last := s.lastVisible.Load(); last != nil {
 		s.show(*last)
 	}

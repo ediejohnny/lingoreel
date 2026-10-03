@@ -2,6 +2,7 @@ package watch_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -303,5 +304,24 @@ func TestTheOutlineFollowsTheSelectedLine(t *testing.T) {
 	screenShows(t, r, "no outline between lines", func(screen session.Screen) bool { return !screen.Highlighted })
 	if _, found := s.Selection(); !found {
 		t.Fatal("moving on lost the selection, and the draft with it")
+	}
+}
+
+// Every edit reaches the screen: the redraw that follows a change never
+// paints the screen from before it over the new one, however the runner's
+// own drawing of the change interleaves with it.
+func TestEveryEditReachesTheScreen(t *testing.T) {
+	r, s := playingRig(t)
+	at(t, r, s, 1500*time.Millisecond)
+	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
+	if _, err := s.Select(session.LinePrimary); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 300 {
+		text := fmt.Sprintf("Edit number %d.", i)
+		if err := s.Edit(watch.EditChange{Text: &text}); err != nil {
+			t.Fatal(err)
+		}
+		screenShows(t, r, text, func(screen session.Screen) bool { return screen.Primary == text })
 	}
 }

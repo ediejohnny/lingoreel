@@ -261,8 +261,11 @@ type Session struct {
 	mode               atomic.Value // study.Mode
 	precision          atomic.Int64 // time.Duration
 	lastVisible        atomic.Pointer[session.Visible]
-	practice           *session.Practice
-	indicator          atomic.Value // study.Indicator
+	// showMu keeps the last visible lines and what the display shows in step:
+	// a redraw always paints the newest lines, never ones a change replaced.
+	showMu    sync.Mutex
+	practice  *session.Practice
+	indicator atomic.Value // study.Indicator
 	// lap is how the current lap of a passage shows the lines (the ladder).
 	lap atomic.Pointer[study.Lap]
 	// keys are the shortcuts; reveal is how the translation key works;
@@ -499,8 +502,10 @@ func (s *Session) run(ctx context.Context, runner *session.Runner) {
 
 // changed runs on the runner's loop for every change on screen.
 func (s *Session) changed(position time.Duration, visible session.Visible) {
+	s.showMu.Lock()
 	s.lastVisible.Store(&visible)
 	s.show(visible)
+	s.showMu.Unlock()
 	if s.listener != nil {
 		s.listener.SubtitlesChanged(position, visible)
 	}
@@ -567,9 +572,7 @@ func (s *Session) SetTranslationVisible(visible bool) {
 		return
 	}
 	s.translationVisible.Store(visible)
-	if last := s.lastVisible.Load(); last != nil {
-		s.show(*last)
-	}
+	s.redraw()
 }
 
 // HasTranslation tells whether the session shows a translation line.
