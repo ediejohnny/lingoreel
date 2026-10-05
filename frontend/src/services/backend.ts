@@ -3,6 +3,7 @@
 import * as api from "../../wailsjs/go/app/API";
 import type { app } from "../../wailsjs/go/models";
 import { ClipboardSetText, EventsOn } from "../../wailsjs/runtime/runtime";
+import { t } from "../i18n";
 
 export type Video = app.Video;
 export type Track = app.Track;
@@ -77,7 +78,7 @@ export function messageOf(error: unknown): string {
   if (error instanceof Error && error.message !== "") {
     return error.message;
   }
-  return "Algo deu errado. Tente de novo.";
+  return t("ui.common.error");
 }
 
 export const backend = {

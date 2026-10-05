@@ -1,5 +1,6 @@
 // Pure helpers of the keyboard shortcuts: reading a key press as a chord, as
 // the Go side writes them, and what a press does on the app's panel.
+import { t } from "./i18n";
 
 /** The key codes of the modifiers: alone they make no shortcut. */
 const modifierCodes = new Set([
@@ -95,4 +96,9 @@ export function keyLabel(keys: { command: string; label: string }[], command: st
 /** withKey adds a command's keys to a text: "Pausar (Espaço)", or the text alone. */
 export function withKey(text: string, label: string): string {
   return label === "" ? text : `${text} (${label})`;
+}
+
+/** both joins two commands' keys for a hint: "Shift+, e Shift+.", or the one there is. */
+export function both(first: string, second: string): string {
+  return first === "" || second === "" ? first + second : t("ui.keys.both", { first, second });
 }

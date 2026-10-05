@@ -1,5 +1,6 @@
 import { CircleAlert, Info, TriangleAlert, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { t } from "../../i18n";
 
 type Tone = "error" | "warning" | "info";
 
@@ -29,7 +30,12 @@ export function Banner({ tone, children, action, onClose }: BannerProps) {
       <div className="flex-1 leading-relaxed">{children}</div>
       {action}
       {onClose && (
-        <button type="button" aria-label="Fechar aviso" onClick={onClose} className="rounded-control p-1 text-fg-muted hover:text-fg">
+        <button
+          type="button"
+          aria-label={t("ui.banner.close")}
+          onClick={onClose}
+          className="rounded-control p-1 text-fg-muted hover:text-fg"
+        >
           <X aria-hidden className="size-4" />
         </button>
       )}

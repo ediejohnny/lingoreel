@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { t } from "../../i18n";
 import { backend, messageOf, type LayoutSettings, type StyleSettings } from "../../services/backend";
 import type { PreviewView, SubtitleLine } from "../../settings";
 
@@ -71,20 +72,16 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
   }, [primary, translation, layout, highlight, view, fillColor, width]);
 
   const marked =
-    highlight === "primary" ? " A legenda de cima está marcada." : highlight === "translation" ? " A legenda de baixo está marcada." : "";
-  const filled = view === "fill" ? " No Modo Karaokê: metade da frase de cima já foi falada e aparece na cor do preenchimento." : "";
-  const alt =
-    view === "fill"
-      ? "Prévia das legendas no Modo Karaokê: “This is a preview.”, com a primeira metade na cor do preenchimento, e “Esta é uma prévia.”"
-      : "Prévia das legendas: “This is a preview.” e “Esta é uma prévia.”";
+    highlight === "primary" ? t("ui.settings.preview.markedTop") : highlight === "translation" ? t("ui.settings.preview.markedBottom") : "";
+  const filled = view === "fill" ? t("ui.settings.preview.filled") : "";
+  const caption = [t("ui.settings.preview.caption"), marked, filled].filter((sentence) => sentence !== "").join(" ");
+  const alt = view === "fill" ? t("ui.settings.preview.altFill") : t("ui.settings.preview.alt");
   return (
     <figure className="flex flex-col gap-2">
       <div ref={box} className="relative aspect-video w-full overflow-hidden rounded-card border border-line bg-sunken">
         {picture && <img src={picture} alt={alt} className="size-full" />}
       </div>
-      <figcaption className={`text-xs ${problem ? "text-error" : "text-fg-muted"}`}>
-        {problem || `Prévia num vídeo deste tamanho. Ela acompanha as mudanças antes de salvar.${marked}${filled}`}
-      </figcaption>
+      <figcaption className={`text-xs ${problem ? "text-error" : "text-fg-muted"}`}>{problem || caption}</figcaption>
     </figure>
   );
 }

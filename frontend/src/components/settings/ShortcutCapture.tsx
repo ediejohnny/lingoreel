@@ -1,11 +1,9 @@
 import { Keyboard, RotateCcw, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { t } from "../../i18n";
 import { backend, messageOf } from "../../services/backend";
 import { captureOf } from "../../settings";
 import { IconButton } from "../ui/Button";
-
-/** noShortcut is what a command without keys shows. */
-const noShortcut = "Sem atalho";
 
 interface ShortcutCaptureProps {
   /** name is the command, for screen readers. */
@@ -28,6 +26,8 @@ interface ShortcutCaptureProps {
 export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefault }: ShortcutCaptureProps) {
   const [listening, setListening] = useState(false);
   const [problem, setProblem] = useState("");
+  // noShortcut is what a command without keys shows.
+  const noShortcut = t("ui.settings.shortcut.none");
 
   useEffect(() => {
     if (!listening) {
@@ -40,7 +40,7 @@ export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefau
         .then((checked) => {
           const owner = taken(checked.chord);
           if (owner) {
-            setProblem(`“${checked.label}” já é o atalho de “${owner}”.`);
+            setProblem(t("ui.settings.shortcut.taken", { keys: checked.label, command: owner }));
             return;
           }
           setProblem("");
@@ -59,7 +59,7 @@ export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefau
           setListening(false);
           return;
         case "unsupported":
-          setProblem("A tecla do Windows não pode fazer parte de um atalho.");
+          setProblem(t("ui.settings.shortcut.windows"));
           setListening(false);
           return;
       }
@@ -90,7 +90,7 @@ export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefau
       <div className="flex items-center gap-1">
         <button
           type="button"
-          aria-label={`${name}: ${label || noShortcut}. Clique e pressione as novas teclas`}
+          aria-label={t("ui.settings.shortcut.button", { name, keys: label || noShortcut })}
           aria-pressed={listening}
           onClick={() => {
             setProblem("");
@@ -103,16 +103,20 @@ export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefau
         >
           <Keyboard aria-hidden className="size-4" />
           {listening ? (
-            "Pressione as teclas…"
+            t("ui.settings.shortcut.listening")
           ) : label ? (
             <kbd className="font-sans">{label}</kbd>
           ) : (
             <span className="font-normal text-fg-muted">{noShortcut}</span>
           )}
         </button>
-        {onClear ? <IconButton icon={X} label={`Deixar “${name}” sem atalho`} onClick={onClear} /> : <span className="size-9" />}
+        {onClear ? (
+          <IconButton icon={X} label={t("ui.settings.shortcut.clear", { name })} onClick={onClear} />
+        ) : (
+          <span className="size-9" />
+        )}
         {onDefault ? (
-          <IconButton icon={RotateCcw} label={`Voltar ao atalho padrão de “${name}”`} onClick={onDefault} />
+          <IconButton icon={RotateCcw} label={t("ui.settings.shortcut.default", { name })} onClick={onDefault} />
         ) : (
           <span className="size-9" />
         )}

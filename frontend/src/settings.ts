@@ -1,5 +1,6 @@
 // Pure helpers of the settings screen: its sections, capturing a shortcut,
 // colors with transparency and telling unsaved changes.
+import { t } from "./i18n";
 import { chordOf, isModifier, type KeyPress } from "./keys";
 
 export type { KeyPress } from "./keys";
@@ -38,21 +39,21 @@ export interface SectionItem {
  */
 export function settingsSections(languages: Record<SubtitleLine, string>): SectionItem[] {
   return [
-    { id: "general", label: "Geral" },
-    { id: "playback", label: "Reprodução" },
+    { id: "general", label: t("ui.settings.sections.general") },
+    { id: "playback", label: t("ui.settings.sections.playback") },
     {
       id: "subtitles",
-      label: "Legendas",
+      label: t("ui.settings.sections.subtitles"),
       children: [
-        { id: "subtitles-primary", label: "De cima", detail: languages.primary },
-        { id: "subtitles-translation", label: "De baixo", detail: languages.translation },
+        { id: "subtitles-primary", label: t("ui.settings.sections.subtitlesTop"), detail: languages.primary },
+        { id: "subtitles-translation", label: t("ui.settings.sections.subtitlesBottom"), detail: languages.translation },
       ],
     },
-    { id: "study", label: "Estudo" },
-    { id: "shortcuts", label: "Atalhos" },
-    { id: "players", label: "Player" },
-    { id: "appearance", label: "Aparência" },
-    { id: "advanced", label: "Avançado" },
+    { id: "study", label: t("ui.settings.sections.study") },
+    { id: "shortcuts", label: t("ui.settings.sections.shortcuts") },
+    { id: "players", label: t("ui.settings.sections.players") },
+    { id: "appearance", label: t("ui.settings.sections.appearance") },
+    { id: "advanced", label: t("ui.settings.sections.advanced") },
   ];
 }
 
@@ -73,7 +74,7 @@ export function lineOfSection(section: SectionId): SubtitleLine | "" {
  */
 export function lineLanguage(line: SubtitleLine, tag: string, languages: readonly { value: string; label: string }[]): string {
   if (tag === "") {
-    return line === "primary" ? "principal" : "tradução";
+    return line === "primary" ? t("ui.settings.line.primary") : t("ui.settings.line.translation");
   }
   return languages.find((option) => option.value === tag)?.label ?? tag;
 }

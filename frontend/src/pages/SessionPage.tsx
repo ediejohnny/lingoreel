@@ -6,7 +6,9 @@ import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Segmented } from "../components/ui/Inputs";
+import { Rich } from "../components/ui/Rich";
 import { Select, type Option } from "../components/ui/Select";
+import { t } from "../i18n";
 import { keyLabel } from "../keys";
 import { backend, messageOf } from "../services/backend";
 import type { PlayerInstall, Players, SavedPassage, ShortcutSetting, Track, Video, WatchRequest } from "../services/backend";
@@ -76,14 +78,14 @@ export function SessionPage(props: SessionPageProps) {
   const supported = players.installed.filter((item) => item.supported);
   const playerOptions: Option[] = players.installed.map((item) => ({
     value: item.id,
-    label: item.supported ? item.name : `${item.name} (suporte em breve)`,
+    label: item.supported ? item.name : t("ui.session.player.soon", { name: item.name }),
     disabled: !item.supported,
   }));
   const canWatch = supported.some((item) => item.id === player) && (primary !== none || translation !== none);
   // A player that keeps its own audio track: the choice is hidden, never sent.
   const chosen = players.installed.find((item) => item.id === player);
   const fixedAudio = chosen?.fixedAudio ?? false;
-  const chosenName = chosen?.name ?? "player";
+  const chosenName = chosen?.name ?? t("ui.session.player.fallback");
 
   // A lost player's place, or where the video was left when asked; a saved
   // passage opens the video at its own start.
@@ -120,7 +122,7 @@ export function SessionPage(props: SessionPageProps) {
             action={
               props.resumable && canWatch ? (
                 <Button icon={RotateCcw} loading={props.starting} onClick={() => watch(true)}>
-                  Assistir de novo
+                  {t("ui.session.watchAgain")}
                 </Button>
               ) : undefined
             }
@@ -131,73 +133,61 @@ export function SessionPage(props: SessionPageProps) {
         {video.projectNote && <Banner tone="warning">{video.projectNote}</Banner>}
         {video.languageNote && <Banner tone="info">{video.languageNote}</Banner>}
         <Card
-          title="Legendas"
-          aside={
-            <HelpTip topic="legendas">
-              A legenda de cima é a do idioma que você estuda; a de baixo é a tradução. Legendas baixadas na pasta do vídeo ou em subpastas
-              aparecem aqui, e o tempo delas é conferido com o vídeo.
-            </HelpTip>
-          }
+          title={t("ui.session.subtitles.title")}
+          aside={<HelpTip topic={t("ui.session.subtitles.topic")}>{t("ui.session.subtitles.help")}</HelpTip>}
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <Select
-              label="Legenda (idioma estudado)"
+              label={t("ui.session.subtitles.primary")}
               value={primary}
-              options={trackOptions(video.subtitles, "Sem legenda")}
+              options={trackOptions(video.subtitles, t("ui.session.subtitles.none"))}
               onChange={setPrimary}
               {...noteOf(video.subtitles, primary)}
             />
             <Select
-              label="Tradução"
+              label={t("ui.session.subtitles.translation")}
               value={translation}
-              options={trackOptions(video.subtitles, "Sem tradução")}
+              options={trackOptions(video.subtitles, t("ui.session.subtitles.noTranslation"))}
               onChange={setTranslation}
               {...noteOf(video.subtitles, translation)}
             />
           </div>
-          {video.subtitles.length === 0 && (
-            <p className="mt-4 text-sm text-fg-muted">
-              Este vídeo não tem legendas. Baixe uma legenda (.srt) e coloque na mesma pasta do vídeo.
-            </p>
-          )}
+          {video.subtitles.length === 0 && <p className="mt-4 text-sm text-fg-muted">{t("ui.session.subtitles.missing")}</p>}
           {video.modes.length > 0 && (
             <div className="mt-5">
               <Segmented
-                label="Modo"
+                label={t("ui.session.mode.label")}
                 value={mode}
                 options={video.modes.map((option) => ({ value: option.value, label: option.label }))}
                 onChange={setMode}
-                help={
-                  <HelpTip topic="modo de estudo">
-                    Dupla mostra as duas legendas o tempo todo. Tradução sob demanda, o modo recomendado para estudar, mostra só a legenda
-                    de cima: a tecla da tradução mostra a de baixo quando precisar. Tradução sempre visível nunca esconde a de baixo. O
-                    padrão de cada perfil fica nas Configurações, com a tecla.
-                  </HelpTip>
-                }
+                help={<HelpTip topic={t("ui.session.mode.topic")}>{t("ui.session.mode.help")}</HelpTip>}
               />
             </div>
           )}
         </Card>
 
-        <Card title="Áudio">
+        <Card title={t("ui.session.audio.title")}>
           <Select
-            label="Faixa de áudio"
+            label={t("ui.session.audio.label")}
             value={fixedAudio ? none : audio}
             options={[
-              { value: none, label: "Escolha do player" },
+              { value: none, label: t("ui.session.audio.player") },
               ...video.audio.map((track) => ({ value: String(track.number), label: track.label })),
             ]}
             onChange={setAudio}
             disabled={fixedAudio}
-            note={fixedAudio ? `O ${chosenName} não aceita trocar a faixa de áudio pelo app; escolha no menu dele.` : undefined}
+            note={fixedAudio ? t("ui.session.audio.fixed", { name: chosenName }) : undefined}
           />
         </Card>
 
         <Card
-          title="Trechos salvos"
+          title={t("ui.session.passages.title")}
           aside={
-            <HelpTip topic="trechos salvos">
-              {`Trechos do filme guardados para estudar de novo, no arquivo ao lado do vídeo. Durante o vídeo, ${startKey || "o atalho de início"} marca o começo de um trecho e ${endKey || "o atalho de fim"} marca o fim: o trecho é salvo com os tempos no nome e começa a repetir.`}
+            <HelpTip topic={t("ui.session.passages.topic")}>
+              {t("ui.session.passages.help", {
+                start: startKey || t("ui.session.passages.startNone"),
+                end: endKey || t("ui.session.passages.endNone"),
+              })}
             </HelpTip>
           }
         >
@@ -208,14 +198,19 @@ export function SessionPage(props: SessionPageProps) {
           )}
           {passages.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Nenhum trecho salvo ainda. Durante o vídeo, {startKey ? <kbd>{startKey}</kbd> : "o atalho de início"} marca o começo e{" "}
-              {endKey ? <kbd>{endKey}</kbd> : "o atalho de fim"} marca o fim e salva.
+              <Rich
+                text={t("ui.session.passages.empty")}
+                nodes={{
+                  start: startKey ? <kbd>{startKey}</kbd> : t("ui.session.passages.startNone"),
+                  end: endKey ? <kbd>{endKey}</kbd> : t("ui.session.passages.endNone"),
+                }}
+              />
             </p>
           ) : (
             <SavedPassages
               passages={passages}
-              studyLabel="Estudar este trecho"
-              studyDisabled={canWatch ? undefined : "Escolha uma legenda e um player para assistir"}
+              studyLabel={t("ui.session.passages.study")}
+              studyDisabled={canWatch ? undefined : t("ui.session.passages.blocked")}
               onStudy={(name) => watch(false, name)}
               onRename={async (from, to) => {
                 await backend.renamePassage(from, to);
@@ -226,7 +221,7 @@ export function SessionPage(props: SessionPageProps) {
           )}
         </Card>
 
-        <Card title="Player">
+        <Card title={t("ui.session.player.title")}>
           {players.choice === "" ? (
             <InstallCards
               recommendations={players.recommendations as PlayerInstall[]}
@@ -238,10 +233,8 @@ export function SessionPage(props: SessionPageProps) {
             />
           ) : (
             <div className="flex flex-col gap-3">
-              {players.preferredMissing && (
-                <Banner tone="info">O seu player preferido não está mais instalado; foi escolhido outro.</Banner>
-              )}
-              <Select label="Abrir com" value={player} options={playerOptions} onChange={setPlayer} />
+              {players.preferredMissing && <Banner tone="info">{t("ui.session.player.missing")}</Banner>}
+              <Select label={t("ui.session.player.label")} value={player} options={playerOptions} onChange={setPlayer} />
               <label className="flex w-fit items-center gap-2 text-sm text-fg">
                 <input
                   type="checkbox"
@@ -249,27 +242,20 @@ export function SessionPage(props: SessionPageProps) {
                   onChange={(event) => setAlwaysUse(event.target.checked)}
                   className="size-4 accent-[var(--sp-accent)]"
                 />
-                Usar sempre este player
-                <HelpTip topic="usar sempre este player">
-                  O LingoReel passa a abrir os vídeos sempre com este player, enquanto ele estiver instalado.
-                </HelpTip>
+                {t("ui.session.player.always")}
+                <HelpTip topic={t("ui.session.player.alwaysTopic")}>{t("ui.session.player.alwaysHelp")}</HelpTip>
               </label>
             </div>
           )}
         </Card>
 
         <Card
-          title="Este vídeo"
-          aside={
-            <HelpTip topic="esquecer tudo deste vídeo">
-              O LingoReel guarda, para cada vídeo, as legendas e o modo escolhidos, a sincronia, as correções, os trechos salvos, a
-              velocidade, o Modo Karaokê e onde você parou. Esquecer apaga tudo isso deste vídeo; o vídeo e as legendas não são tocados.
-            </HelpTip>
-          }
+          title={t("ui.session.forget.title")}
+          aside={<HelpTip topic={t("ui.session.forget.topic")}>{t("ui.session.forget.help")}</HelpTip>}
         >
           {resetting ? (
             <div className="flex flex-wrap items-center gap-2 text-sm text-fg">
-              <span>Apagar as correções, a sincronia, os trechos salvos e onde você parou neste vídeo?</span>
+              <span>{t("ui.session.forget.confirm")}</span>
               <Button
                 variant="secondary"
                 icon={Eraser}
@@ -279,15 +265,15 @@ export function SessionPage(props: SessionPageProps) {
                   })
                 }
               >
-                Sim, esquecer tudo
+                {t("ui.session.forget.yes")}
               </Button>
               <Button variant="ghost" onClick={() => setResetting(false)}>
-                Não
+                {t("ui.common.no")}
               </Button>
             </div>
           ) : (
             <Button variant="ghost" icon={Eraser} onClick={() => setResetting(true)}>
-              Esquecer tudo deste vídeo
+              {t("ui.session.forget.button")}
             </Button>
           )}
         </Card>
@@ -302,11 +288,11 @@ export function SessionPage(props: SessionPageProps) {
                 onChange={(event) => setContinueFrom(event.target.checked)}
                 className="size-4 accent-[var(--sp-accent)]"
               />
-              Continuar de {video.resume.text}
+              {t("ui.session.continueFrom", { time: video.resume.text })}
             </label>
           )}
           <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={() => watch()}>
-            {props.starting ? "Iniciando o player…" : "Assistir"}
+            {props.starting ? t("ui.session.starting") : t("ui.session.watch")}
           </Button>
         </div>
       </div>

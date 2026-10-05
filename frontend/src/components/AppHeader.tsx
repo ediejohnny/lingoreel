@@ -35,7 +35,7 @@ export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHea
         )}
         <IconButton
           icon={themeIcons[theme]}
-          label={`${themeLabel(theme)}. Mudar para ${themeLabel(next).toLowerCase()}`}
+          label={t("ui.app.theme", { current: themeLabel(theme), next: themeLabel(next).toLowerCase() })}
           onClick={() => onTheme(next)}
         />
       </div>

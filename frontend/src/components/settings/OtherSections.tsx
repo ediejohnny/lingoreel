@@ -1,7 +1,8 @@
 import { FolderOpen, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { speedLabel } from "../../format";
-import { keyLabel } from "../../keys";
+import { t } from "../../i18n";
+import { both, keyLabel } from "../../keys";
 import { backend } from "../../services/backend";
 import { themeLabel, type Theme } from "../../stores/theme";
 import { Button } from "../ui/Button";
@@ -16,36 +17,30 @@ import { change, type SectionProps } from "./section";
 /** PlaybackSection holds how a video starts, its speed and its audio, and the precision step. */
 export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
   const options = view.options;
-  const precisionKeys = [keyLabel(draft.shortcuts, "precision-back"), keyLabel(draft.shortcuts, "precision-forward")]
-    .filter((label) => label !== "")
-    .join(" e ");
+  const precisionKeys = both(keyLabel(draft.shortcuts, "precision-back"), keyLabel(draft.shortcuts, "precision-forward"));
   return (
     <>
-      <Card title="Ao abrir um vídeo">
+      <Card title={t("ui.settings.playback.open.title")}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Velocidade inicial"
+            label={t("ui.settings.playback.speed.label")}
             value={String(draft.speed)}
             options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
             onChange={(speed) => change(setDraft, "speed")(Number(speed))}
-            help={
-              <HelpTip topic="Velocidade inicial">
-                A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.
-              </HelpTip>
-            }
+            help={<HelpTip topic={t("ui.settings.playback.speed.topic")}>{t("ui.settings.playback.speed.help")}</HelpTip>}
           />
           <Select
-            label="Idioma do áudio preferido"
+            label={t("ui.settings.playback.audio.label")}
             value={draft.languages.audio}
             options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
             onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
-            help={<HelpTip topic="Idioma do áudio">O áudio que o app escolhe sozinho quando o vídeo tem mais de um.</HelpTip>}
+            help={<HelpTip topic={t("ui.settings.playback.audio.topic")}>{t("ui.settings.playback.audio.help")}</HelpTip>}
           />
         </div>
       </Card>
-      <Card title="Avançar e voltar">
+      <Card title={t("ui.settings.playback.seek.title")}>
         <NumberField
-          label="Passo de precisão"
+          label={t("ui.settings.playback.precision.label")}
           value={draft.precisionStep}
           min={options.limits.precisionStepMin}
           max={options.limits.precisionStepMax}
@@ -53,9 +48,10 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
           unit="ms"
           onChange={(step) => change(setDraft, "precisionStep")(Math.round(step))}
           help={
-            <HelpTip topic="Passo de precisão">
-              {`Quanto os atalhos de precisão${precisionKeys ? ` (${precisionKeys})` : ""} andam no vídeo, para achar o começo exato ` +
-                "de uma fala. Os outros saltos são de 5, 10 e 30 segundos."}
+            <HelpTip topic={t("ui.settings.playback.precision.topic")}>
+              {precisionKeys
+                ? t("ui.settings.playback.precision.helpKeys", { keys: precisionKeys })
+                : t("ui.settings.playback.precision.help")}
             </HelpTip>
           }
         />
@@ -73,13 +69,13 @@ interface AppearanceSectionProps {
 export function AppearanceSection({ theme, onTheme }: AppearanceSectionProps) {
   const themes: Theme[] = ["system", "light", "dark"];
   return (
-    <Card title="Aparência do app">
+    <Card title={t("ui.settings.appearance.title")}>
       <Segmented
-        label="Tema"
+        label={t("ui.settings.appearance.theme")}
         value={theme}
         options={themes.map((value) => ({ value, label: themeLabel(value) }))}
         onChange={(value) => onTheme(value as Theme)}
-        help={<HelpTip topic="Tema">“Tema do Windows” segue o modo claro ou escuro do sistema. Muda na hora, sem reiniciar.</HelpTip>}
+        help={<HelpTip topic={t("ui.settings.appearance.topic")}>{t("ui.settings.appearance.help")}</HelpTip>}
       />
     </Card>
   );
@@ -90,41 +86,36 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
   const [confirming, setConfirming] = useState(false);
   return (
     <>
-      <Card title="Pasta das configurações">
+      <Card title={t("ui.settings.folder.title")}>
         <p className="mb-3 text-sm break-all text-fg-secondary">{view.folder}</p>
-        <p className="mb-3 text-xs text-fg-muted">
-          Ali ficam os perfis e, na pasta "logs", os registros dos últimos 14 dias, úteis para relatar um problema.
-        </p>
+        <p className="mb-3 text-xs text-fg-muted">{t("ui.settings.folder.note")}</p>
         <Button icon={FolderOpen} onClick={() => void run(() => backend.openSettingsFolder())}>
-          Abrir a pasta
+          {t("ui.settings.folder.open")}
         </Button>
       </Card>
       <AssociationCard />
       <DiagnosticsCard />
-      <Card title="Restaurar o perfil">
-        <p className="mb-3 text-sm text-fg-secondary">
-          Volta todas as escolhas do perfil “{view.general.activeProfile}” ao padrão: legendas, cores, atalhos, Modo Karaokê e player. O
-          nome do perfil continua.
-        </p>
+      <Card title={t("ui.settings.reset.title")}>
+        <p className="mb-3 text-sm text-fg-secondary">{t("ui.settings.reset.note", { name: view.general.activeProfile })}</p>
         {confirming ? (
           <div className="flex flex-wrap items-center gap-2 rounded-control border border-error/40 bg-error-soft p-3">
-            <span className="flex-1 text-sm text-fg">Restaurar o padrão? Não dá para desfazer.</span>
+            <span className="flex-1 text-sm text-fg">{t("ui.settings.reset.confirm")}</span>
             <Button
               icon={RotateCcw}
               onClick={() => {
                 setConfirming(false);
-                void run(() => backend.resetProfile(), "Perfil restaurado ao padrão.");
+                void run(() => backend.resetProfile(), t("ui.settings.reset.done"));
               }}
             >
-              Restaurar
+              {t("ui.settings.reset.yes")}
             </Button>
             <Button variant="ghost" onClick={() => setConfirming(false)}>
-              Cancelar
+              {t("ui.common.cancel")}
             </Button>
           </div>
         ) : (
           <Button icon={RotateCcw} disabled={dirty} onClick={() => setConfirming(true)}>
-            Restaurar o padrão…
+            {t("ui.settings.reset.button")}
           </Button>
         )}
       </Card>
