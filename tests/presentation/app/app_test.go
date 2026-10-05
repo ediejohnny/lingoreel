@@ -150,7 +150,9 @@ func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
 	}
 }
 
-func TestThePlayerClosingEndsTheSession(t *testing.T) {
+// A player in a window of its own (PotPlayer) is one with the app: the user
+// closing it closes the app too, the session's work saved first.
+func TestThePlayerClosingClosesTheApp(t *testing.T) {
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -159,11 +161,69 @@ func TestThePlayerClosingEndsTheSession(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
 		t.Fatal(err)
 	}
+	if got := r.ui.titled(); len(got) != 1 || got[0] != "Movie.mkv — LingoReel" {
+		t.Fatalf("titles %q: the window does not name the video", got)
+	}
+	if err := r.api.SeekTo(70); err != nil {
+		t.Fatal(err)
+	}
 	r.plugin.current().Close() // the user closed the player
+	eventually(t, "the app to close", func() bool { return r.ui.quitCount() == 1 && !r.api.PlaybackState().Active })
+	// Saved before closing: the place reached is kept for "Continuar de".
+	if saved, _ := r.projects.stored(t, `D:\Filmes\Movie.mkv`); saved.Last.Position.Duration() == 0 {
+		t.Fatal("the app closed without keeping where the video was")
+	}
+	if got := r.ui.titled(); got[len(got)-1] != "LingoReel" {
+		t.Fatalf("titles %q: the window still names the video", got)
+	}
+	if _, told := r.ui.last(app.EventEnded); told {
+		t.Fatal("the screens were told of an end, as if the app went on")
+	}
+}
+
+// A session the app ends itself never closes the app, whatever the player.
+func TestStoppingTheVideoNeverClosesTheApp(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.StopWatching(); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond) // the reports' goroutine, which must not quit either
+	if r.ui.quitCount() != 0 {
+		t.Fatal("stopping the video closed the app")
+	}
+	if _, told := r.ui.last(app.EventEnded); !told {
+		t.Fatal("the screens were not told the video ended")
+	}
+}
+
+// The player lost (a crash) leaves the app open, offering to watch again.
+func TestALostPlayerKeepsTheAppOpen(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
+		t.Fatal(err)
+	}
+	running := r.plugin.current()
+	running.lost.Store(true)
+	running.Close()
 	eventually(t, "the end of the session", func() bool {
-		_, ended := r.ui.last(app.EventEnded)
-		return ended && !r.api.PlaybackState().Active
+		data, told := r.ui.last(app.EventEnded)
+		ended, _ := data.(app.Ended)
+		return told && ended.Resume
 	})
+	if r.ui.quitCount() != 0 {
+		t.Fatal("a lost player closed the app")
+	}
 }
 
 // A player that keeps its own audio track (PotPlayer) says so to the

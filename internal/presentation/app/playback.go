@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -59,6 +60,9 @@ type watching struct {
 	// video keeps only what the user changed from them.
 	startSpeed   playback.Speed
 	startKaraoke project.Karaoke
+	// embedded tells the video is drawn inside the app's window; a player
+	// in a window of its own closes the app when the user closes it.
+	embedded bool
 }
 
 // Watch opens the video in the chosen player with the chosen tracks. A
@@ -155,6 +159,7 @@ func (a *API) Watch(request WatchRequest) error {
 		names: names, stop: make(chan struct{}), video: video.Path, keys: keys,
 		player: installation, frameRate: frameRateOf(video.Info), duration: video.Info.Duration,
 		startSpeed: cmp.Or(watchRequest.Speed, playback.NormalSpeed),
+		embedded:   a.embeds(installation.ID),
 	}
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
@@ -168,10 +173,21 @@ func (a *API) Watch(request WatchRequest) error {
 	a.tellPassages(current)
 	a.mu.Unlock()
 	a.logger.Info("session started", "player", installation.ID, "audio", trackOf(video.Info, tracks.Audio),
-		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode)
+		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode,
+		"embedded", current.embedded)
 	a.keepChoice(current, tracks, mode)
+	a.setTitle(ptbr.WindowTitle(filepath.Base(video.Path)))
 	go a.report(current)
 	return nil
+}
+
+// embeds tells whether a player's video is drawn inside the app's window.
+func (a *API) embeds(id player.ID) bool {
+	if a.deps.Stage == nil || a.deps.Ports.OpenWindow == nil {
+		return false
+	}
+	plugin, found := a.deps.Registry.Plugin(id)
+	return found && plugin.Descriptor().DrawsInHost
 }
 
 // startFailure words why a session did not start (PRD §52), with what the
@@ -254,11 +270,18 @@ func (a *API) report(current *watching) {
 			a.keepSession(current, false)
 		case <-current.session.Done():
 			a.mu.Lock()
-			if a.watching == current {
+			// Ended by the app (stop), the session was already let go: stop
+			// tells the window, or not, itself.
+			byPlayer := a.watching == current
+			if byPlayer {
 				a.watching = nil
 			}
 			a.mu.Unlock()
+			if !byPlayer {
+				return
+			}
 			a.flushSession(current)
+			a.setTitle(ptbr.WindowTitle(""))
 			ended := Ended{}
 			switch err := current.session.Err(); {
 			case errors.Is(err, playback.ErrPlayerLost):
@@ -270,6 +293,12 @@ func (a *API) report(current *watching) {
 				ended.Resume = true
 			case err != nil:
 				a.logger.Warn("session ended with an error", "error", err)
+			case !current.embedded:
+				// The user closed the player's own window: the app, which is one
+				// with it, closes too, its work saved above.
+				a.logger.Info("session ended", "by", "the player's window")
+				a.quit()
+				return
 			default:
 				a.logger.Info("session ended")
 			}
@@ -298,7 +327,7 @@ func (a *API) describe(current *watching) Playback {
 	return Playback{
 		MarkedStart:    markedStart,
 		PassageOptions: PassageOptions{Snap: snap, Plan: planOf(plan)},
-		Active:         true, Status: string(state.Status),
+		Active:         true, Embedded: current.embedded, Status: string(state.Status),
 		Position: state.Position.Seconds(), Duration: state.Duration.Seconds(), Speed: float64(state.Speed),
 		PositionText: ptbr.Clock(state.Position), DurationText: ptbr.Clock(state.Duration),
 		PrimaryOffset:      ptbr.Offset(current.session.Offset(session.LinePrimary)),
@@ -448,11 +477,22 @@ func (a *API) stop(tell bool) bool {
 	}
 	a.logger.Info("session ended", "by", "the app")
 	a.flushSession(current)
+	a.setTitle(ptbr.WindowTitle(""))
 	if tell {
 		a.emit(EventPlayback, Playback{})
 		a.emit(EventEnded, Ended{})
 	}
 	return true
+}
+
+// quit closes the app, unless it is closing already.
+func (a *API) quit() {
+	a.mu.Lock()
+	ui, gone := a.ui, a.shutDown || a.closing
+	a.mu.Unlock()
+	if ui != nil && !gone {
+		ui.Quit()
+	}
 }
 
 // lineName names a line as the window does.

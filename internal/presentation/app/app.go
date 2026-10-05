@@ -16,6 +16,7 @@ import (
 	"lingoreel/internal/application/players"
 	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
+	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/domain/media"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/project"
@@ -29,6 +30,11 @@ const (
 	EventPlayback     = "playback:state"
 	EventEnded        = "playback:ended"
 	EventInstall      = "player:install"
+	// EventFullscreen tells the video went fullscreen (true) or left it.
+	EventFullscreen = "window:fullscreen"
+	// EventPanel asks the screens to open the panel beside the video on a
+	// section (PanelRequest).
+	EventPanel = "panel:open"
 )
 
 // UI is what the app needs from the window toolkit, so the API can be tested
@@ -43,6 +49,18 @@ type UI interface {
 	// name; empty when cancelled.
 	SaveSubtitleDialog(name string) (string, error)
 	OpenURL(url string)
+	// SetTitle names the window: the video playing, or the app.
+	SetTitle(title string)
+	// Quit closes the app.
+	Quit()
+}
+
+// Stage is the place for the video inside the app's window: whether the
+// screen shows it, the room the screen's controls take around it, and the
+// fullscreen.
+type Stage interface {
+	Place(visible bool, insets layout.Insets)
+	SetFullscreen(on bool)
 }
 
 // Projects keeps each video's project: the user's corrections, the offsets,
@@ -113,6 +131,10 @@ type Deps struct {
 	LogDir   string
 	// Associations lets Windows open videos with the app; nil offers none.
 	Associations Associations
+	// Stage puts the video inside the app's window, for players that draw
+	// into one (it opens Ports.OpenWindow's windows); nil leaves each video
+	// in a window of its own.
+	Stage Stage
 }
 
 // Associations writes and removes the app's place in Windows' "Abrir com"
@@ -154,6 +176,10 @@ type API struct {
 	// resume is where a session the player lost had reached, for
 	// "Assistir de novo".
 	resume *resumePoint
+	// closing is set while a session ends before the window closes; shutDown
+	// once the window's message loop is gone, when the window is not to be
+	// touched any more.
+	closing, shutDown bool
 }
 
 type resumePoint struct {
@@ -267,8 +293,48 @@ func (l Lifecycle) SaveWindow(bounds settings.WindowBounds) {
 
 // Shutdown ends a running session when the window closes.
 func (l Lifecycle) Shutdown() {
+	l.api.mu.Lock()
+	l.api.shutDown = true
+	l.api.mu.Unlock()
 	// The window is closing: a failure to end the session has no one to tell.
 	_ = l.api.StopWatching()
+}
+
+// EndBeforeClosing ends a running session before the window closes, so a
+// video drawn inside the window never outlives the window's message loop;
+// then it calls quit. It reports whether the window must wait for that
+// (true), or may close now: no session (false).
+func (l Lifecycle) EndBeforeClosing(quit func()) bool {
+	a := l.api
+	a.mu.Lock()
+	running := a.watching != nil
+	if running && a.closing {
+		a.mu.Unlock()
+		return true // asked again while the session ends
+	}
+	a.closing = running
+	a.mu.Unlock()
+	if !running {
+		return false
+	}
+	go func() {
+		// The window is closing: a failure to end the session has no one to tell.
+		_ = a.StopWatching()
+		quit()
+	}()
+	return true
+}
+
+// FullscreenChanged tells the screens the video went fullscreen or left
+// it, whatever asked for it, so they hide or show their controls.
+func (l Lifecycle) FullscreenChanged(on bool) {
+	l.api.emit(EventFullscreen, on)
+}
+
+// ShowEditor opens the panel beside the video on the line editor: the bar's
+// "Corrigir a legenda…" has picked the line.
+func (l Lifecycle) ShowEditor() {
+	l.api.emit(EventPanel, PanelRequest{Section: PanelEditor})
 }
 
 func (a *API) emit(event string, data any) {
@@ -277,6 +343,16 @@ func (a *API) emit(event string, data any) {
 	a.mu.Unlock()
 	if ui != nil {
 		ui.Emit(event, data)
+	}
+}
+
+// setTitle names the window, unless it is gone.
+func (a *API) setTitle(title string) {
+	a.mu.Lock()
+	ui, gone := a.ui, a.shutDown
+	a.mu.Unlock()
+	if ui != nil && !gone {
+		ui.SetTitle(title)
 	}
 }
 

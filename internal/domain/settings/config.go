@@ -45,6 +45,26 @@ type Config struct {
 	SyncNotice bool `json:"syncNotice"`
 	// Window is where the app's window was when it closed.
 	Window WindowBounds `json:"window"`
+	// Panel is how the panel beside the video was left.
+	Panel PanelBounds `json:"panel"`
+}
+
+// PanelBounds is the panel beside the video: open or closed, and its width
+// in pixels at 100% scaling; a zero width means the default one.
+type PanelBounds struct {
+	Open  bool    `json:"open"`
+	Width float64 `json:"width"`
+}
+
+// The panel's width, in pixels at 100% scaling.
+const (
+	PanelMinWidth = 280
+	PanelMaxWidth = 1600
+)
+
+// Valid reports whether the width is the default (zero) or a panel's.
+func (p PanelBounds) Valid() bool {
+	return p.Width == 0 || (p.Width >= PanelMinWidth && p.Width <= PanelMaxWidth)
 }
 
 // WindowBounds are the app window's position and size in screen pixels;
@@ -102,6 +122,9 @@ func (c Config) Validate() error {
 	if w.Width < 0 || w.Height < 0 || w.Width > maxWindowSize || w.Height > maxWindowSize ||
 		w.X < -maxWindowSize || w.X > maxWindowSize || w.Y < -maxWindowSize || w.Y > maxWindowSize {
 		return fmt.Errorf("%w: window %+v", ErrInvalidSettings, w)
+	}
+	if !c.Panel.Valid() {
+		return fmt.Errorf("%w: panel width %v", ErrInvalidSettings, c.Panel.Width)
 	}
 	return nil
 }

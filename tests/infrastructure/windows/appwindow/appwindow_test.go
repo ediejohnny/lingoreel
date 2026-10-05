@@ -31,14 +31,16 @@ func hiddenWindow(t *testing.T, title string) windows.HWND {
 func TestTheWindowPlaceIsReadAndRestored(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	const title = "LingoReel test window 7f3a"
-	hwnd := hiddenWindow(t, title)
-	found, err := appwindow.Find(title)
+	// Found by its class, whatever its title says (the video playing).
+	hwnd := hiddenWindow(t, "Filme.mkv — LingoReel")
+	found, err := appwindow.Find("Static")
 	if err != nil || found != hwnd {
 		t.Fatalf("Find = %v, %v; want %v", found, err, hwnd)
 	}
-	if _, err := appwindow.Find(title + " other"); !errors.Is(err, appwindow.ErrNotFound) {
-		t.Fatalf("Find of another title = %v", err)
+	for _, other := range []string{"Static2", "Stati", "LingoReelApp"} {
+		if _, err := appwindow.Find(other); !errors.Is(err, appwindow.ErrNotFound) {
+			t.Fatalf("Find of the class %q = %v", other, err)
+		}
 	}
 
 	// A place on the primary monitor comes back exactly, hidden.

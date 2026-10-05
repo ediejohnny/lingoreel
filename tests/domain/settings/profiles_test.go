@@ -2,6 +2,7 @@ package settings_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"lingoreel/internal/domain/settings"
@@ -158,5 +159,28 @@ func TestConfigWindowBounds(t *testing.T) {
 	}
 	if !settings.DefaultConfig().SyncNotice {
 		t.Fatal("the sync notice starts off")
+	}
+}
+
+// The panel beside the video: its width is the default (zero) or between a
+// narrow and a very wide panel; it starts closed.
+func TestConfigPanel(t *testing.T) {
+	cases := []struct {
+		width float64
+		valid bool
+	}{
+		{0, true}, {settings.PanelMinWidth, true}, {420, true}, {settings.PanelMaxWidth, true},
+		{settings.PanelMinWidth - 0.5, false}, {settings.PanelMaxWidth + 0.5, false}, {-420, false},
+		{math.NaN(), false}, {math.Inf(1), false},
+	}
+	for _, c := range cases {
+		config := settings.DefaultConfig()
+		config.Panel = settings.PanelBounds{Open: true, Width: c.width}
+		if err := config.Validate(); (err == nil) != c.valid {
+			t.Errorf("a panel %v wide: Validate = %v, want valid %v", c.width, err, c.valid)
+		}
+	}
+	if panel := settings.DefaultConfig().Panel; panel.Open || panel.Width != 0 {
+		t.Fatalf("the panel starts as %+v, want closed at the default width", panel)
 	}
 }

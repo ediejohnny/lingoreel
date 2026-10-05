@@ -23,6 +23,7 @@ import (
 	"lingoreel/internal/application/analysis"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/buildinfo"
+	"lingoreel/internal/domain/layout"
 	"lingoreel/internal/domain/player"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
@@ -50,8 +51,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// windowTitle names the app window; it also finds it to keep its place.
+// windowTitle names the app window until a video plays in it.
 const windowTitle = "LingoReel"
+
+// windowClass is the app window's own class: it finds the window to keep
+// its place and to draw the video in it, whatever its title says.
+const windowClass = "LingoReelApp"
 
 // Window sizes of the app, in device-independent pixels.
 const (
@@ -94,8 +99,20 @@ func run() error {
 	look := func() overlay.Look { return watch.LookOf(activeProfile(files)) }
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	// started is the window's context, for a second launch and the player
-	// window's menus to reach it.
+	// window's menus to reach it; lifecycle is set once the API exists.
 	var started atomic.Pointer[context.Context]
+	var lifecycle app.Lifecycle
+	// The video plays inside the app's own window: one window for all.
+	stage := playerwindow.NewStage(playerwindow.StageOptions{
+		Parent: func() uintptr {
+			hwnd, err := appwindow.Find(windowClass)
+			if err != nil {
+				return 0
+			}
+			return uintptr(hwnd)
+		},
+		OnFullscreen: func(on bool) { lifecycle.FullscreenChanged(on) },
+	})
 	deps := app.Deps{
 		Service: service, Registry: registry,
 		Detect: func(configured map[player.ID]string) []player.Installation {
@@ -103,16 +120,20 @@ func run() error {
 		},
 		Ports: watch.Ports{
 			Service: service, Registry: registry,
-			OpenWindow: playerwindow.Opener(look, playerwindow.Labels{
+			OpenWindow: stage.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
 				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
 				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty,
 			}, ptbr.WindowTitle, logger),
-			OpenDisplay:    overlay.Opener(look, logger),
-			PracticeNotice: ptbr.PracticeNotice,
-			MarkNotice:     ptbr.MarkNotice,
-			// The line editor is on the app's panel.
+			WindowHearsKeys: true,
+			OpenDisplay:     overlay.Opener(look, logger),
+			PracticeNotice:  ptbr.PracticeNotice,
+			MarkNotice:      ptbr.MarkNotice,
+			// The line editor is on the panel beside the video; with a player
+			// in a window of its own, the app's window comes to the front.
 			ShowPanel: func() {
+				stage.SetFullscreen(false)
+				lifecycle.ShowEditor()
 				if ctx := started.Load(); ctx != nil {
 					runtime.WindowUnminimise(*ctx)
 					runtime.WindowShow(*ctx)
@@ -122,6 +143,7 @@ func run() error {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
 		},
+		Stage:       stagePort{stage},
 		Settings:    files,
 		Installer:   install.Winget{},
 		Window:      placement.ForVideo,
@@ -149,7 +171,8 @@ func run() error {
 		deps.Preview = samples
 		defer samples.Close()
 	}
-	api, lifecycle := app.New(deps)
+	var api *app.API
+	api, lifecycle = app.New(deps)
 
 	return wails.Run(&options.App{
 		Title: windowTitle, Width: windowWidth, Height: windowHeight,
@@ -178,8 +201,13 @@ func run() error {
 			runtime.OnFileDrop(ctx, func(_, _ int, paths []string) { lifecycle.Dropped(paths) })
 			restoreWindow(ctx, lifecycle, logger)
 		},
-		OnBeforeClose: func(context.Context) bool {
-			if hwnd, err := appwindow.Find(windowTitle); err == nil {
+		OnBeforeClose: func(ctx context.Context) bool {
+			// A video playing in the window ends first, then the app quits and
+			// comes back here with nothing playing.
+			if lifecycle.EndBeforeClosing(func() { runtime.Quit(ctx) }) {
+				return true
+			}
+			if hwnd, err := appwindow.Find(windowClass); err == nil {
 				if bounds, err := appwindow.Bounds(hwnd); err == nil {
 					lifecycle.SaveWindow(bounds)
 				}
@@ -189,8 +217,19 @@ func run() error {
 		OnShutdown:  func(context.Context) { lifecycle.Shutdown() },
 		DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true},
 		Bind:        []any{api},
-		Windows:     &windows.Options{Theme: windows.SystemDefault},
+		Windows: &windows.Options{
+			Theme: windows.SystemDefault, WindowClassName: windowClass,
+			// The screen measures the video's place in its own pixels.
+			DisablePinchZoom: true,
+		},
 	})
+}
+
+// stagePort places the video on the stage for the app.
+type stagePort struct{ *playerwindow.Stage }
+
+func (s stagePort) Place(visible bool, insets layout.Insets) {
+	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
 }
 
 // restoreWindow puts the app window back where it was when it closed and
@@ -199,7 +238,7 @@ func run() error {
 func restoreWindow(ctx context.Context, lifecycle app.Lifecycle, logger *slog.Logger) {
 	defer runtime.WindowShow(ctx)
 	bounds := lifecycle.WindowBounds()
-	hwnd, err := appwindow.Find(windowTitle)
+	hwnd, err := appwindow.Find(windowClass)
 	if err != nil {
 		logger.Warn("the app window was not found to restore it", "error", err)
 		return

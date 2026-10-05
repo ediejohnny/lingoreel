@@ -10,14 +10,14 @@ import (
 // Preferences are the settings the window needs at start.
 func (a *API) Preferences() Preferences {
 	a.mu.Lock()
-	theme := a.config.Theme
+	theme, panel := a.config.Theme, a.config.Panel
 	a.mu.Unlock()
 	steps := playback.SpeedSteps()
 	speeds := make([]float64, len(steps))
 	for i, step := range steps {
 		speeds[i] = float64(step)
 	}
-	return Preferences{Theme: string(theme), Speeds: speeds}
+	return Preferences{Theme: string(theme), Speeds: speeds, Panel: PanelState{Open: panel.Open, Width: panel.Width}}
 }
 
 // SetTheme changes the color theme: "system", "light" or "dark".

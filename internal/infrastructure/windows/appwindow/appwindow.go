@@ -1,9 +1,10 @@
 //go:build windows && amd64
 
 // Package appwindow keeps the app window where the user left it: it finds
-// the window by its title among the process's own and reads or restores its
-// place with the system's placement, which knows the maximized state and
-// the size the window returns to.
+// the window by its class among the process's own (its title names the
+// video playing) and reads or restores its place with the system's
+// placement, which knows the maximized state and the size the window
+// returns to.
 package appwindow
 
 import (
@@ -11,7 +12,6 @@ import (
 	"os"
 	"sync"
 	"syscall"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 
@@ -19,18 +19,16 @@ import (
 	"lingoreel/internal/infrastructure/windows/win32"
 )
 
-// ErrNotFound reports that no window of this process has the title.
+// ErrNotFound reports that no window of this process has the class.
 var ErrNotFound = errors.New("app window not found")
 
 const swShowMaximized = 3
-
-var getWindowText = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowTextW")
 
 // search collects the window during one EnumWindows call; callbacks made
 // with syscall.NewCallback are never freed, so one serves every search.
 var search struct {
 	sync.Mutex
-	title string
+	class string
 	found windows.HWND
 }
 
@@ -39,20 +37,19 @@ var searchProc = syscall.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr 
 	if _, err := windows.GetWindowThreadProcessId(hwnd, &owner); err != nil || int(owner) != os.Getpid() {
 		return 1
 	}
-	text := make([]uint16, len(search.title)+2)
-	n, _, _ := getWindowText.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&text[0])), uintptr(len(text)))
-	if windows.UTF16ToString(text[:n]) == search.title {
+	name := make([]uint16, len(search.class)+2)
+	if n, err := windows.GetClassName(hwnd, &name[0], int32(len(name))); err == nil && windows.UTF16ToString(name[:n]) == search.class {
 		search.found = hwnd
 		return 0 // stop
 	}
 	return 1
 })
 
-// Find is the window of this process with exactly this title.
-func Find(title string) (windows.HWND, error) {
+// Find is the top-level window of this process with exactly this class.
+func Find(class string) (windows.HWND, error) {
 	search.Lock()
 	defer search.Unlock()
-	search.title, search.found = title, 0
+	search.class, search.found = class, 0
 	// Stopping early makes EnumWindows report a failure: the result counts.
 	_ = windows.EnumWindows(searchProc, nil)
 	if search.found == 0 {
