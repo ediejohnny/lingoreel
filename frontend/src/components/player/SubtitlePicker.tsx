@@ -1,25 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { t } from "../../i18n";
-import type { Track } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Select, type Option } from "../ui/Select";
-
-/** none is the list's value for no track. */
-export const none = "0";
-
-/** trackOptions lists the subtitle tracks after the choice of none. */
-export function trackOptions(tracks: Track[], emptyLabel: string): Option[] {
-  return [
-    { value: none, label: emptyLabel },
-    ...tracks.map((track) => ({ value: String(track.number), label: track.label, disabled: !track.readable })),
-  ];
-}
-
-/** noteOf is what the app found about the chosen track, for the note below the list. */
-export function noteOf(tracks: Track[], value: string): { note?: string; warning: boolean } {
-  const track = tracks.find((candidate) => String(candidate.number) === value);
-  return { note: track?.note || undefined, warning: track?.warning ?? false };
-}
 
 interface SubtitlePickerProps {
   label: string;

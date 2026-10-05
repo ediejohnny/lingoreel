@@ -1,7 +1,7 @@
 import { Eraser, Play, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SavedPassages } from "../components/player/SavedPassages";
-import { none, noteOf, SubtitlePicker, trackOptions } from "../components/player/SubtitlePicker";
+import { SubtitlePicker } from "../components/player/SubtitlePicker";
 import { InstallCards } from "../components/session/InstallCards";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
@@ -13,6 +13,7 @@ import { t } from "../i18n";
 import { keyLabel } from "../keys";
 import { backend, messageOf } from "../services/backend";
 import type { Line, PlayerInstall, Players, SavedPassage, ShortcutSetting, Video, WatchRequest } from "../services/backend";
+import { none, noteOf, trackOptions } from "../tracks";
 
 interface SessionPageProps {
   video: Video;

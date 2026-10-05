@@ -223,7 +223,7 @@
   "line.primary": "Legenda de cima",
   "line.translation": "Legenda de baixo",
   "line.withLanguage": "{line} ({language})",
-  "menu.addSubtitle": "Abrir arquivo de legenda…",
+  "menu.addSubtitle": "Adicionar arquivo de legenda…",
   "menu.appearance": "Aparência desta legenda…",
   "menu.close": "Fechar",
   "menu.copyHere": "Copiar esta fala",
