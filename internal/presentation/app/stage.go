@@ -11,7 +11,10 @@ import (
 // leave room for it, ask for the fullscreen, and keep the panel beside it.
 
 // Panel sections the app asks the screens to open.
-const PanelEditor = "editor"
+const (
+	PanelEditor   = "editor"
+	PanelSettings = "settings"
+)
 
 var (
 	errBadVideoLayout = errors.New("Não foi possível posicionar o vídeo na janela.")
@@ -30,9 +33,10 @@ type VideoLayout struct {
 }
 
 // PanelRequest asks the screens to open the panel beside the video on a
-// section.
+// section; for the settings, Page names the page (empty for the first).
 type PanelRequest struct {
 	Section string `json:"section"`
+	Page    string `json:"page,omitempty"`
 }
 
 // PanelState is how the panel beside the video was left: open or closed,

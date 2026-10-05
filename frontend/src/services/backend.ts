@@ -37,6 +37,14 @@ export type ShortcutSetting = Plain<app.ShortcutSetting>;
 export type PlayerSetting = Plain<app.PlayerSetting>;
 export type SettingsOptions = Plain<app.SettingsOptions>;
 export type PreviewRequest = Plain<app.PreviewRequest>;
+export type VideoLayout = Plain<app.VideoLayout>;
+export type PanelState = Plain<app.PanelState>;
+
+/** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
+export interface PanelRequest {
+  section: string;
+  page?: string;
+}
 export type Line = "primary" | "translation";
 
 export interface Ended {
@@ -57,6 +65,8 @@ const events = {
   playback: "playback:state",
   ended: "playback:ended",
   install: "player:install",
+  fullscreen: "window:fullscreen",
+  panel: "panel:open",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -136,9 +146,14 @@ export const backend = {
   fileAssociation: () => api.FileAssociation(),
   setFileAssociation: (on: boolean) => api.SetFileAssociation(on),
   copyText: (text: string) => ClipboardSetText(text),
+  setVideoLayout: (place: VideoLayout) => api.SetVideoLayout(place as app.VideoLayout),
+  setFullscreen: (on: boolean) => api.SetFullscreen(on),
+  setPanel: (state: PanelState) => api.SetPanel(state as app.PanelState),
 
   onDropped: (listener: (path: string) => void) => EventsOn(events.dropped, listener),
   onPlayback: (listener: (state: Playback) => void) => EventsOn(events.playback, listener),
   onEnded: (listener: (ended: Ended) => void) => EventsOn(events.ended, listener),
   onInstall: (listener: (progress: InstallProgress) => void) => EventsOn(events.install, listener),
+  onFullscreen: (listener: (on: boolean) => void) => EventsOn(events.fullscreen, listener),
+  onPanel: (listener: (request: PanelRequest) => void) => EventsOn(events.panel, listener),
 };

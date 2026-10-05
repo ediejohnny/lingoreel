@@ -135,3 +135,15 @@ export function clampNumber(text: string, min: number, max: number, fallback: nu
   }
   return Math.min(Math.max(value, min), max);
 }
+
+/** sectionOfPage is the settings page a request names ("subtitles-primary"), or the first one for a name it does not know. */
+export function sectionOfPage(page: string | undefined): SectionId {
+  const ids: string[] = [];
+  const walk = (items: SectionItem[]) =>
+    items.forEach((item) => {
+      ids.push(item.id);
+      walk(item.children ?? []);
+    });
+  walk(settingsSections({ primary: "", translation: "" }));
+  return page !== undefined && ids.includes(page) ? (page as SectionId) : "general";
+}

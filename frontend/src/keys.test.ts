@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chordOf, keyLabel, panelCommand, withKey, type CommandKey, type KeyPress } from "./keys";
+import { chordOf, fullscreenOf, keyLabel, panelCommand, withKey, type CommandKey, type KeyPress } from "./keys";
 
 function press(code: string, held: Partial<KeyPress> = {}): KeyPress {
   return { code, ctrlKey: false, shiftKey: false, altKey: false, metaKey: false, ...held };
@@ -50,6 +50,14 @@ describe("panelCommand", () => {
     expect(panelCommand(press("ShiftLeft", { shiftKey: true }), keys)).toBe("");
     expect(panelCommand(press("Space", { metaKey: true }), keys)).toBe("");
     expect(panelCommand(press("Space"), [])).toBe("");
+  });
+
+  it("runs the fullscreen keys when the video is inside the app's window", () => {
+    expect(panelCommand(press("KeyF"), keys, true)).toBe("fullscreen");
+    expect(panelCommand(press("Escape"), keys, true)).toBe("exit-fullscreen");
+    expect(fullscreenOf("fullscreen")).toBe(true);
+    expect(fullscreenOf("exit-fullscreen")).toBe(false);
+    expect(fullscreenOf("play-pause")).toBeUndefined();
   });
 });
 

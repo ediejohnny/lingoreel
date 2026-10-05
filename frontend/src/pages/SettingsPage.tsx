@@ -49,6 +49,15 @@ function MenuEntry({ item, current, onOpen }: MenuEntryProps) {
 interface SettingsPageProps {
   theme: Theme;
   onTheme: (theme: Theme) => void;
+  /** section is the page to open first. */
+  section?: SectionId;
+  /** narrow lays the page out for the panel beside the video: the pages in a list on top instead of a menu beside. */
+  narrow?: boolean;
+}
+
+/** flatten lists the pages and their own pages in menu order. */
+function flatten(items: SectionItem[], depth = 0): { item: SectionItem; depth: number }[] {
+  return items.flatMap((item) => [{ item, depth }, ...flatten(item.children ?? [], depth + 1)]);
 }
 
 /**
@@ -57,10 +66,16 @@ interface SettingsPageProps {
  * is pressed. Choices outside the profile (theme, profiles, players) apply
  * at once.
  */
-export function SettingsPage({ theme, onTheme }: SettingsPageProps) {
+export function SettingsPage({ theme, onTheme, section: first = "general", narrow = false }: SettingsPageProps) {
   const [view, setView] = useState<SettingsView | null>(null);
   const [draft, setDraft] = useState<ProfileSettings | null>(null);
-  const [section, setSection] = useState<SectionId>("general");
+  const [section, setSection] = useState<SectionId>(first);
+  // A request for another page (from the video's menu) opens it.
+  const [asked, setAsked] = useState<SectionId>(first);
+  if (asked !== first) {
+    setAsked(first);
+    setSection(first);
+  }
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -134,18 +149,37 @@ export function SettingsPage({ theme, onTheme }: SettingsPageProps) {
   const wide = section === "subtitles" || section === "subtitles-primary" || section === "subtitles-translation";
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <nav aria-label="Seções das configurações" className="w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3">
-        <ul className="flex flex-col gap-0.5">
-          {sections.map((item) => (
-            <MenuEntry key={item.id} item={item} current={section} onOpen={setSection} />
-          ))}
-        </ul>
-      </nav>
-      <div className="flex min-w-0 flex-1 flex-col">
+    <div className={`flex min-h-0 flex-1 ${narrow ? "flex-col" : ""}`}>
+      {narrow ? (
+        <div className="shrink-0 border-b border-line bg-surface p-3">
+          <label className="flex flex-col gap-1 text-sm text-fg-secondary">
+            Seção
+            <select
+              value={section}
+              onChange={(event) => setSection(event.target.value as SectionId)}
+              className="h-9 rounded-control border border-line-strong bg-surface px-2 text-fg"
+            >
+              {flatten(sections).map(({ item, depth }) => (
+                <option key={item.id} value={item.id}>
+                  {"  ".repeat(depth) + item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <nav aria-label="Seções das configurações" className="w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3">
+          <ul className="flex flex-col gap-0.5">
+            {sections.map((item) => (
+              <MenuEntry key={item.id} item={item} current={section} onOpen={setSection} />
+            ))}
+          </ul>
+        </nav>
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* The padding is inside the scrolling area, so whatever sticks to its top sticks to the very top. */}
         <main ref={scroller} className="flex-1 overflow-y-auto">
-          <div className={`mx-auto flex flex-col gap-5 p-6 ${wide ? "max-w-6xl" : "max-w-4xl"}`}>
+          <div className={`mx-auto flex flex-col gap-5 ${narrow ? "p-4" : "p-6"} ${wide ? "max-w-6xl" : "max-w-4xl"}`}>
             {error && (
               <Banner tone="error" onClose={() => setError("")}>
                 {error}

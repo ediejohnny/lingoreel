@@ -1,12 +1,15 @@
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, PanelRight, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
+import { SidePanel, type PanelTab } from "./components/player/SidePanel";
+import { VideoStage } from "./components/player/VideoStage";
 import { IconButton } from "./components/ui/Button";
 import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { backend, messageOf, type Playback, type Players, type Video, type WatchRequest } from "./services/backend";
+import { backend, messageOf, type PanelState, type Playback, type Players, type Video, type WatchRequest } from "./services/backend";
+import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
 
@@ -33,6 +36,12 @@ export function App() {
   // resets counts the times the video was forgotten: the session screen
   // starts over with what the video has become.
   const [resets, setResets] = useState(0);
+  // The panel beside a video inside the window, the tab it shows, and the
+  // video's fullscreen, which leaves only the video.
+  const [panel, setPanel] = useState<PanelState>({ open: true, width: 0 });
+  const [panelTab, setPanelTab] = useState<PanelTab>("playback");
+  const [settingsPage, setSettingsPage] = useState<SectionId>("general");
+  const [fullscreen, setFullscreen] = useState(false);
 
   const open = useCallback(async (path: string) => {
     if (!path) {
@@ -60,6 +69,7 @@ export function App() {
       .then((preferences) => {
         setTheme(asTheme(preferences.theme));
         setSpeeds(preferences.speeds);
+        setPanel(preferences.panel);
       })
       .catch(() => undefined);
     backend
@@ -70,11 +80,23 @@ export function App() {
     const offPlayback = backend.onPlayback((next) => setState(next.active ? next : null));
     const offEnded = backend.onEnded((ended) => {
       setState(null);
+      setFullscreen(false);
       setScreen((current) => (current === "playing" ? "session" : current));
       if (ended.error) {
         setError(ended.error);
       }
       setResumable(ended.resume);
+    });
+    const offFullscreen = backend.onFullscreen(setFullscreen);
+    const offPanel = backend.onPanel((request) => {
+      setPanel((current) => (current.open ? current : { ...current, open: true }));
+      if (request.section === "settings") {
+        setSettingsPage(sectionOfPage(request.page));
+        setPanelTab("settings");
+        return;
+      }
+      setPanelTab("playback");
+      requestAnimationFrame(() => document.getElementById("panel-editor")?.scrollIntoView({ block: "start" }));
     });
     const offInstall = backend.onInstall(async (progress) => {
       setInstalling("");
@@ -87,6 +109,8 @@ export function App() {
       offDropped();
       offPlayback();
       offEnded();
+      offFullscreen();
+      offPanel();
       offInstall();
     };
   }, [open]);
@@ -149,6 +173,7 @@ export function App() {
       runShortcut: backend.runShortcut,
       reveal: backend.reveal,
       stop: backend.stop,
+      setFullscreen: backend.setFullscreen,
     }),
     [],
   );
@@ -171,33 +196,87 @@ export function App() {
     }
   };
 
+  // A video drawn inside the window plays under the header, with the panel
+  // beside it; fullscreen leaves only the video.
+  const embedded = screen === "playing" && video !== null && state !== null && state.embedded;
+  const keepPanel = (next: PanelState) => {
+    setPanel(next);
+    // The panel still changes when saving fails; it is only not remembered.
+    backend.setPanel(next).catch(() => undefined);
+  };
+
   // The settings go back to where they were opened; a session that ended
   // meanwhile goes back to its screen.
   const closeSettings = () => setScreen(returnTo === "playing" && !state ? "session" : returnTo);
-  const back =
-    screen === "settings" ? (
-      <IconButton icon={ArrowLeft} label="Voltar" onClick={closeSettings} />
-    ) : screen === "session" ? (
-      <IconButton icon={ArrowLeft} label="Abrir outro vídeo" onClick={() => setScreen("home")} />
-    ) : undefined;
+  const back = embedded ? (
+    <IconButton icon={ArrowLeft} label="Encerrar o vídeo" onClick={() => command(backend.stop)} />
+  ) : screen === "settings" ? (
+    <IconButton icon={ArrowLeft} label="Voltar" onClick={closeSettings} />
+  ) : screen === "session" ? (
+    <IconButton icon={ArrowLeft} label="Abrir outro vídeo" onClick={() => setScreen("home")} />
+  ) : undefined;
   const subtitle =
     screen === "settings" ? "Configurações" : video && screen !== "home" ? `${video.name} · ${durationLabel(video.duration)}` : undefined;
-  const openSettings =
-    screen === "settings" ? undefined : (
+  const openSettings = embedded ? (
+    <>
       <IconButton
         icon={Settings}
         label="Configurações"
         onClick={() => {
-          setReturnTo(screen);
-          setScreen("settings");
+          setPanelTab("settings");
+          keepPanel({ ...panel, open: true });
         }}
       />
-    );
+      <IconButton
+        icon={PanelRight}
+        label={panel.open ? "Fechar o painel" : "Abrir o painel"}
+        active={panel.open}
+        onClick={() => keepPanel({ ...panel, open: !panel.open })}
+      />
+    </>
+  ) : screen === "settings" ? undefined : (
+    <IconButton
+      icon={Settings}
+      label="Configurações"
+      onClick={() => {
+        setReturnTo(screen);
+        setScreen("settings");
+      }}
+    />
+  );
 
   return (
     <div className="flex h-full flex-col bg-bg">
-      <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
-      {screen === "settings" ? (
+      {!(embedded && fullscreen) && (
+        <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
+      )}
+      {embedded && video && state ? (
+        <div className="flex min-h-0 flex-1">
+          <VideoStage />
+          {panel.open && !fullscreen && (
+            <SidePanel
+              width={panel.width}
+              tab={panelTab}
+              onTab={setPanelTab}
+              onWidth={(width) => keepPanel({ open: true, width })}
+              playback={
+                <PlayingPage
+                  name={video.name}
+                  embedded
+                  state={state}
+                  speeds={speeds}
+                  modes={video.modes}
+                  error={error}
+                  onDismissError={() => setError("")}
+                  onCommand={command}
+                  commands={commands}
+                />
+              }
+              settings={<SettingsPage theme={theme} onTheme={chooseTheme} section={settingsPage} narrow />}
+            />
+          )}
+        </div>
+      ) : screen === "settings" ? (
         <SettingsPage theme={theme} onTheme={chooseTheme} />
       ) : screen === "playing" && video && state ? (
         <PlayingPage

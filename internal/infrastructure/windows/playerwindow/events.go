@@ -84,6 +84,11 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		}
 		w.pick(win32.PointOf(lparam))
 		return 0
+	case win32.WM_CONTEXTMENU:
+		// Taken here: left to Windows, it climbs to the parent by a message that
+		// waits for it, and on a stage the parent is the app's window, on
+		// another thread this window never waits for.
+		return 0
 	case win32.WM_LBUTTONDBLCLK:
 		// On a line of the paused video, the box that corrects it; anywhere
 		// else, the fullscreen.

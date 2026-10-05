@@ -45,8 +45,9 @@ type fakeApp struct {
 	hwnd   windows.HWND
 	screen windows.HWND
 
-	mu     sync.Mutex
-	closes int
+	mu           sync.Mutex
+	closes       int
+	contextMenus int
 }
 
 var (
@@ -69,6 +70,11 @@ func dispatchFakeApp(hwnd windows.HWND, message uint32, wparam, lparam uintptr) 
 		case win32.WM_CLOSE:
 			app.mu.Lock()
 			app.closes++
+			app.mu.Unlock()
+			return 0
+		case win32.WM_CONTEXTMENU:
+			app.mu.Lock()
+			app.contextMenus++
 			app.mu.Unlock()
 			return 0
 		case win32.WM_SETFOCUS:
@@ -374,6 +380,22 @@ func TestAltF4OnTheVideoClosesTheAppWindow(t *testing.T) {
 	w.Attach(newRemote(&recordingPlayer{}))
 	sendMessage.Call(uintptr(host), win32.WM_SYSKEYDOWN, win32.VK_F4, key(scanF4, false, false)|altContext)
 	testkit.Eventually(t, "the app's window asked to close", func() bool { return app.closeCount() == 1 })
+}
+
+// A right click on the video never reaches the app's window: the menu it
+// asks for would climb there by a message that waits for the app's thread.
+func TestARightClickOnTheVideoStaysOffTheAppWindow(t *testing.T) {
+	app := newFakeApp(t, offScreenApp, true)
+	w := openOn(t, stageFor(app, nil))
+	host := windows.HWND(w.Handle())
+	w.Attach(newRemote(&recordingPlayer{}))
+	sendMessage.Call(uintptr(host), win32.WM_RBUTTONUP, 0, at(50, 50))
+	// The message would have reached the app before SendMessage returned.
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.contextMenus != 0 {
+		t.Fatalf("the app's window got %d context menu messages", app.contextMenus)
+	}
 }
 
 // The window's keys reach the session on a stage too, the sync ones with

@@ -10,6 +10,7 @@ import {
   splitColor,
   type KeyPress,
   type SectionItem,
+  sectionOfPage,
 } from "./settings";
 
 describe("settingsSections", () => {
@@ -143,5 +144,15 @@ describe("sameSettings", () => {
   it("compares drafts by their content", () => {
     expect(sameSettings({ a: 1, b: [1, 2] }, { a: 1, b: [1, 2] })).toBe(true);
     expect(sameSettings({ a: 1 }, { a: 2 })).toBe(false);
+  });
+});
+
+describe("sectionOfPage", () => {
+  it("opens the page a request names, or the first one", () => {
+    expect(sectionOfPage("subtitles-primary")).toBe("subtitles-primary");
+    expect(sectionOfPage("study")).toBe("study");
+    expect(sectionOfPage("karaoke")).toBe("general");
+    expect(sectionOfPage("")).toBe("general");
+    expect(sectionOfPage(undefined)).toBe("general");
   });
 });
