@@ -58,6 +58,17 @@ type Capabilities struct {
 	AudioTrackSelection       bool
 	SubtitleSuppression       bool
 	// Volume means the player takes volume changes (session.VolumePlayer).
-	Volume    bool
+	Volume bool
+	// MaxVolume is the loudest the player plays: FullVolume (100%) when
+	// unset, at most MaxVolume (200%).
+	MaxVolume Volume
 	Precision Precision
+}
+
+// VolumeCeiling is the loudest level the player takes.
+func (c Capabilities) VolumeCeiling() Volume {
+	if !(c.MaxVolume > 0) {
+		return FullVolume
+	}
+	return min(c.MaxVolume, MaxVolume)
 }

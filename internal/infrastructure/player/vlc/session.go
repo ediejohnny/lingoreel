@@ -86,7 +86,7 @@ func (s *Session) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
 		Pause: true, Seek: true, ExactSeek: true, Speed: true,
 		FrameStepForward: true, FrameStepBackward: false,
-		AudioTrackSelection: true, SubtitleSuppression: true, Volume: true,
+		AudioTrackSelection: true, SubtitleSuppression: true, Volume: true, MaxVolume: playback.MaxVolume,
 		Precision: playback.PrecisionEstimated,
 	}
 }
@@ -94,13 +94,30 @@ func (s *Session) Capabilities() playback.Capabilities {
 // vlcFullVolume is 100% on VLC's volume scale.
 const vlcFullVolume = 256
 
-// SetVolume changes the volume; playback.MaxVolume is VLC's 100%.
+// SetVolume changes the volume; VLC takes up to 200% (512), amplifying the
+// sound above 100%.
 func (s *Session) SetVolume(volume playback.Volume) error {
 	if !volume.Valid() {
 		return fmt.Errorf("invalid volume %v", volume)
 	}
 	level := math.Round(float64(volume) * vlcFullVolume)
 	return s.send(command("volume", "value", strconv.FormatFloat(level, 'f', 0, 64)))
+}
+
+// ReportedVolume is the level VLC says it plays at, for diagnostics; it is
+// not a session.VolumeReader on purpose: before its sound output exists VLC
+// reports none, so a session starts by asking for 100% instead.
+func (s *Session) ReportedVolume() (playback.Volume, bool, error) {
+	ctx, cancel := context.WithTimeout(s.pollCtx, requestTimeout)
+	defer cancel()
+	current, err := s.client.call(ctx, nil)
+	if err != nil {
+		return 0, false, err
+	}
+	if current.Volume < 0 {
+		return 0, false, nil
+	}
+	return playback.Volume(current.Volume / vlcFullVolume), true, nil
 }
 
 // ProcessID identifies the VLC process, whose window the overlay follows.

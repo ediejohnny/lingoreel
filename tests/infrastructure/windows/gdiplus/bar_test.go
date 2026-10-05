@@ -120,3 +120,39 @@ func absDiff(a, b byte) byte {
 	}
 	return b - a
 }
+
+// Past 100% on a player that amplifies, the volume line warns in amber.
+func TestTheVolumePastFullIsAmber(t *testing.T) {
+	r := newRenderer(t)
+	amber := func(volume playback.Volume) int {
+		t.Helper()
+		state := controlbar.State{
+			Position: 25 * time.Second, Duration: 100 * time.Second, Speed: 1, Volume: volume,
+			Capabilities: playback.Capabilities{Pause: true, Seek: true, Speed: true, Volume: true, MaxVolume: 2},
+		}
+		bar := controlbar.Layout(layout.Rect{W: 1280, H: 360}, 1, state)
+		dib := newDIB(t, 1280, 92)
+		if err := r.DrawBar(dib, bar, gdiplus.BarLook{Label: func(controlbar.Item) string { return "1,00×" }}); err != nil {
+			t.Fatal(err)
+		}
+		line, n := bar.VolumeTrack, 0
+		if !line.Valid() {
+			t.Fatal("no volume line")
+		}
+		for y := int(line.Y); y < int(line.Bottom()); y++ {
+			for x := int(line.X); x < int(line.Right()); x++ {
+				b, g, r, a := pixel(dib, x, y)
+				if a == 0xFF && r > 0xE0 && g > 0x90 && g < 0xB8 && b < 0x40 {
+					n++
+				}
+			}
+		}
+		return n
+	}
+	if n := amber(1.5); n == 0 {
+		t.Fatal("150%: no amber on the volume line")
+	}
+	if n := amber(0.9); n != 0 {
+		t.Fatalf("90%%: %d amber pixels", n)
+	}
+}

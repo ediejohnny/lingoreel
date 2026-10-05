@@ -129,6 +129,7 @@ func run() error {
 			OpenDisplay:     overlay.Opener(look, logger),
 			PracticeNotice:  ptbr.PracticeNotice,
 			MarkNotice:      ptbr.MarkNotice,
+			VolumeNotice:    ptbr.VolumeNotice,
 			// The line editor is on the panel beside the video; with a player
 			// in a window of its own, the app's window comes to the front.
 			ShowPanel: func() {

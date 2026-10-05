@@ -182,6 +182,9 @@ type Ports struct {
 	// MarkNotice words what a passage mark did for a notice on the video;
 	// nil shows none.
 	MarkNotice func(MarkEvent, study.Segment) string
+	// VolumeNotice words the volume after a volume key or mute, with the
+	// player's ceiling, for a notice on the video; nil shows none.
+	VolumeNotice func(volume, ceiling playback.Volume, muted bool) string
 	// ShowPanel brings the app's panel to the front, where the line editor
 	// is; nil leaves it where it is.
 	ShowPanel func()
@@ -295,6 +298,9 @@ type Session struct {
 	// passage it closes is studied with.
 	marks      marking
 	markNotice func(MarkEvent, study.Segment) string
+	// volumeNotice words the volume for a notice; now is the session's clock.
+	volumeNotice func(volume, ceiling playback.Volume, muted bool) string
+	now          func() time.Time
 	// saved are the video's saved passages, told by the app; showPanel
 	// brings the app's panel up for the line editor.
 	saved     atomic.Pointer[[]SavedPassage]
@@ -397,6 +403,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	}
 	s.subtitles = session.NewSubtitles(tracks[session.LinePrimary], tracks[session.LineTranslation])
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
+	// A level that could not be synced leaves the bar at 100%, as before;
+	// the next volume key sets the player's level anyway.
+	_ = s.controls.SyncVolume()
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
@@ -414,6 +423,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.reveal.Store(cmp.Or(request.Reveal, study.RevealToggle))
 	s.quiet.Store(request.NoSyncNotice)
 	s.markNotice, s.showPanel = ports.MarkNotice, ports.ShowPanel
+	s.volumeNotice, s.now = ports.VolumeNotice, now
 	s.marks.plan, s.marks.snap = markPlan, true
 
 	target := ShortcutTarget{ProcessID: running.ProcessID()}
