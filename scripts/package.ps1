@@ -20,7 +20,8 @@ $distDir = Join-Path $root "build\dist"
 $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
 
-# The read-me that goes in the zip, for whoever downloads it.
+# The read-me that goes in the zip, for whoever downloads it. Like the app's
+# interface, it is in Brazilian Portuguese until the app takes translations.
 $readMe = @"
 LingoReel $fileVersion
 ============================
@@ -52,17 +53,17 @@ MIT. Veja o arquivo LICENSE. (c) Edie Johnny.
 
 foreach ($required in @($app, $license)) {
     if (-not (Test-Path -LiteralPath $required)) {
-        throw "Arquivo não encontrado: $required. Rode scripts\build.ps1 antes."
+        throw "File not found: $required. Run scripts\build.ps1 first."
     }
 }
 
-Write-Host "[1/3] Conferindo a versão do app compilado..."
+Write-Host "[1/3] Checking the version of the built app..."
 $built = Get-FileProperty -Path $app -Name "ProductVersion"
 if ($built -ne $fileVersion) {
-    throw "O app compilado é a versão '$built', mas o pacote seria '$fileVersion'. Rode scripts\build.ps1 de novo."
+    throw "The built app is version '$built', but the package would be '$fileVersion'. Run scripts\build.ps1 again."
 }
 
-Write-Host "[2/3] Montando a pasta do pacote..."
+Write-Host "[2/3] Assembling the package folder..."
 $name = "LingoReel $fileVersion"
 $staging = Join-Path $distDir $name
 if (Test-Path -LiteralPath $staging) {
@@ -74,7 +75,7 @@ Copy-Item -LiteralPath $license -Destination (Join-Path $staging "LICENSE.txt")
 # Notepad reads UTF-8 with a BOM correctly on every Windows version.
 [IO.File]::WriteAllText((Join-Path $staging "LEIA-ME.txt"), ($readMe -replace "`r?`n", "`r`n"), (New-Object Text.UTF8Encoding($true)))
 
-Write-Host "[3/3] Compactando..."
+Write-Host "[3/3] Compressing..."
 $zip = Join-Path $distDir "$name.zip"
 if (Test-Path -LiteralPath $zip) {
     Remove-Item -LiteralPath $zip -Force
@@ -84,5 +85,5 @@ Remove-Item -LiteralPath $staging -Recurse -Force
 
 $zipMb = [math]::Round((Get-Item -LiteralPath $zip).Length / 1MB, 1)
 Write-Host ""
-Write-Host "Pacote pronto." -ForegroundColor Green
+Write-Host "Package ready." -ForegroundColor Green
 Write-Host "  $zip ($zipMb MB)"
