@@ -63,8 +63,8 @@ type fakeRunning struct {
 	// frames makes the player step frames; calls records what it was asked.
 	frames bool
 	calls  []string
-	// audio makes the player switch audio tracks.
-	audio bool
+	// audio makes the player switch audio tracks; loud, change its volume.
+	audio, loud bool
 	// reconnecting is what Reconnecting answers.
 	reconnecting atomic.Bool
 }
@@ -75,7 +75,14 @@ func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
 		Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact,
 		FrameStepForward: r.frames, FrameStepBackward: r.frames, AudioTrackSelection: r.audio,
+		Volume: r.loud, MaxVolume: playback.MaxVolume,
 	}
+}
+
+// SetVolume answers only when loud makes the player change its volume.
+func (r *fakeRunning) SetVolume(volume playback.Volume) error {
+	r.record(fmt.Sprintf("volume %d", volume.Percent()))
+	return nil
 }
 func (r *fakeRunning) Play() error  { r.record("play"); return nil }
 func (r *fakeRunning) Pause() error { r.record("pause"); return nil }

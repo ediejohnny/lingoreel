@@ -251,8 +251,8 @@ func (c *Controls) ChangeVolume(delta playback.Volume) error {
 }
 
 // StepVolume is a volume key going down (repeat false) or held: a touch is
-// one step, a held key moves on at the ramp's pace and stops at 100% going
-// up (playback.VolumeRamp). It unmutes.
+// one step, a held key moves on at the ramp's pace up to the player's
+// ceiling (playback.VolumeRamp). It unmutes.
 func (c *Controls) StepVolume(now time.Time, up, repeat bool) error {
 	c.volumeMu.Lock()
 	defer c.volumeMu.Unlock()

@@ -231,7 +231,6 @@
   "notice.sync": "{line}: {offset}",
   "notice.volume": "Volume {percent}%",
   "notice.volumeCeiling": "Volume {percent}% · máximo deste player",
-  "notice.volumeFull": "Volume {percent}% · toque de novo para passar de 100%",
   "number.decimal": ",",
   "passage.name": "Trecho {start}–{end}",
   "plan.gap": "intervalo de {gap}",

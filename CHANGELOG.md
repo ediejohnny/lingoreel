@@ -6,6 +6,10 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- A held volume key goes all the way to the player's ceiling (200% on VLC), no longer stopping at 100%.
+
 ## [0.19.0] - 2026-10-05
 
 The app is ready for translations.

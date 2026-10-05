@@ -2,6 +2,7 @@ package watch_test
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -36,6 +37,24 @@ func playingRig(t *testing.T) (*rig, *watch.Session) {
 	r.running.samples <- playback.Sample{Position: 20 * time.Second, Duration: time.Minute, Status: playback.StatusPaused, Speed: 1}
 	testkit.Eventually(t, "the first sample", func() bool { return s.State().Duration == time.Minute })
 	return r, s
+}
+
+// Every touch of a volume key shows the level on the video, as a sync step
+// does, even past 100%.
+func TestEveryVolumeKeyShowsTheLevelOnTheVideo(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.running.loud = true
+	r.ports.VolumeNotice = func(volume, _ playback.Volume, _ bool) string { return fmt.Sprintf("%d%%", volume.Percent()) }
+	s := r.start(t)
+	for _, command := range []shortcut.Command{shortcut.VolumeUp, shortcut.VolumeUp, shortcut.VolumeDown} {
+		if err := s.Run(command, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, notices, _ := r.display.last(); !slices.Equal(notices, []string{"101%", "102%", "101%"}) {
+		t.Fatalf("notices = %q, want one per key with the level", notices)
+	}
 }
 
 func TestEveryCommandAsksThePlayer(t *testing.T) {
