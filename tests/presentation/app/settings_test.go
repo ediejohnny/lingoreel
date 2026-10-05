@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/domain/shortcut"
@@ -297,7 +298,8 @@ func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
 	}
 	call := r.preview.requests[0]
 	if call.width != 600 || call.height != 338 || call.dpi != 144 || call.look.Primary.FontSize != 50 ||
-		call.primary != "This is a preview." || call.translated != "Esta é uma prévia." {
+		call.screen.Primary != "This is a preview." || call.screen.Translation != "Esta é uma prévia." ||
+		!call.screen.TranslationVisible || call.screen.Highlighted {
 		t.Fatalf("preview call = %+v", call)
 	}
 	// A scaling no screen has is read as 100%.
@@ -308,6 +310,41 @@ func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
 	request.Primary.Color = "#12"
 	if _, err := r.api.PreviewSubtitles(request); err == nil || len(r.preview.requests) != 2 {
 		t.Fatal("a bad color reached the preview")
+	}
+}
+
+func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	for i, c := range []struct {
+		highlight string
+		want      session.Line
+	}{{"primary", session.LinePrimary}, {"translation", session.LineTranslation}} {
+		request.Highlight = c.highlight
+		if _, err := r.api.PreviewSubtitles(request); err != nil {
+			t.Fatalf("Highlight %q: %v", c.highlight, err)
+		}
+		if screen := r.preview.requests[i].screen; !screen.Highlighted || screen.Highlight != c.want {
+			t.Fatalf("Highlight %q drew %+v", c.highlight, screen)
+		}
+	}
+}
+
+func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	for _, highlight := range []string{"middle", "Primary", " primary", "1"} {
+		request.Highlight = highlight
+		if _, err := r.api.PreviewSubtitles(request); err == nil {
+			t.Errorf("Highlight %q was drawn", highlight)
+		}
+	}
+	if len(r.preview.requests) != 0 {
+		t.Fatalf("%d unknown lines reached the preview", len(r.preview.requests))
 	}
 }
 

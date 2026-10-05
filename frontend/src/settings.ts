@@ -1,8 +1,79 @@
-// Pure helpers of the settings screen: capturing a shortcut, colors with
-// transparency and telling unsaved changes.
+// Pure helpers of the settings screen: its sections, capturing a shortcut,
+// colors with transparency and telling unsaved changes.
 import { chordOf, isModifier, type KeyPress } from "./keys";
 
 export type { KeyPress } from "./keys";
+
+/** SubtitleLine is one of the two subtitle lines: on top, or the translation below. */
+export type SubtitleLine = "primary" | "translation";
+
+/** SectionId names a page of the settings screen. */
+export type SectionId =
+  | "general"
+  | "playback"
+  | "subtitles"
+  | "subtitles-primary"
+  | "subtitles-translation"
+  | "study"
+  | "shortcuts"
+  | "players"
+  | "appearance"
+  | "advanced";
+
+/** SectionItem is an entry of the settings menu; detail is a second, smaller line. */
+export interface SectionItem {
+  id: SectionId;
+  label: string;
+  detail?: string;
+  children?: SectionItem[];
+}
+
+/**
+ * settingsSections is the settings menu, grouped by subject (DESIGN §32):
+ * each subtitle line has its own entry under "Legendas", named by where it
+ * goes and, below, by its language.
+ */
+export function settingsSections(languages: Record<SubtitleLine, string>): SectionItem[] {
+  return [
+    { id: "general", label: "Geral" },
+    { id: "playback", label: "Reprodução" },
+    {
+      id: "subtitles",
+      label: "Legendas",
+      children: [
+        { id: "subtitles-primary", label: "De cima", detail: languages.primary },
+        { id: "subtitles-translation", label: "De baixo", detail: languages.translation },
+      ],
+    },
+    { id: "study", label: "Estudo" },
+    { id: "shortcuts", label: "Atalhos" },
+    { id: "players", label: "Player" },
+    { id: "appearance", label: "Aparência" },
+    { id: "advanced", label: "Avançado" },
+  ];
+}
+
+/** lineOfSection is the subtitle line a page edits, or "" for a page of no single line. */
+export function lineOfSection(section: SectionId): SubtitleLine | "" {
+  if (section === "subtitles-primary") {
+    return "primary";
+  }
+  if (section === "subtitles-translation") {
+    return "translation";
+  }
+  return "";
+}
+
+/**
+ * lineLanguage names a line's preferred language by its label; a line
+ * without one says what it is for, and an unknown language keeps its tag.
+ */
+export function lineLanguage(line: SubtitleLine, tag: string, languages: readonly { value: string; label: string }[]): string {
+  if (tag === "") {
+    return line === "primary" ? "principal" : "tradução";
+  }
+  return languages.find((option) => option.value === tag)?.label ?? tag;
+}
 
 export type Capture = { kind: "wait" } | { kind: "cancel" } | { kind: "unsupported" } | { kind: "chord"; chord: string };
 

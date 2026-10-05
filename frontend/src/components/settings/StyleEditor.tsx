@@ -44,7 +44,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         </div>
       </div>
 
-      <fieldset className="grid gap-4 sm:grid-cols-2">
+      <fieldset className="grid gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">Texto</legend>
         <Select
           label="Fonte"
@@ -84,7 +84,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         <NumberField label="Opacidade" value={style.opacity} min={0} max={1} step={0.05} scale={100} unit="%" onChange={set("opacity")} />
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-2">
+      <fieldset className="grid gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">Contorno e sombra</legend>
         <Toggle label="Contorno" checked={style.outline} onChange={set("outline")} />
         <span />
@@ -134,7 +134,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-2">
+      <fieldset className="grid gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">Fundo</legend>
         <Toggle
           label="Fundo atrás do texto"
@@ -162,7 +162,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-2">
+      <fieldset className="grid gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">Posição</legend>
         <NumberField
           label="Altura da base"

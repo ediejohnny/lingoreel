@@ -275,12 +275,20 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if err := layout.Validate(); err != nil {
 		return "", refuse("Margens: %s.", fieldProblem(err))
 	}
+	screen := session.Screen{Primary: previewPrimary, Translation: previewTranslation, TranslationVisible: true}
+	if request.Highlight != "" {
+		line, err := lineOf(request.Highlight)
+		if err != nil {
+			return "", err
+		}
+		screen.Highlighted, screen.Highlight = true, line
+	}
 	scale := request.Scale
 	if !(scale >= 0.5 && scale <= 5) {
 		scale = 1
 	}
 	look := session.Look{Layout: layout, Primary: primary, Translation: translation}
-	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(baseDPI*scale)), previewPrimary, previewTranslation)
+	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(baseDPI*scale)), screen)
 	if err != nil {
 		a.logger.Warn("the preview was not drawn", "error", err)
 		return "", errBadPreview

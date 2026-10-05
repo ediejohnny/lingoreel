@@ -59,7 +59,7 @@ type Projects interface {
 // Previewer draws sample subtitles for the settings screen and lists the
 // fonts they may use.
 type Previewer interface {
-	Preview(look session.Look, width, height, dpi int, primary, translation string) ([]byte, error)
+	Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error)
 	Fonts() ([]string, error)
 }
 
