@@ -350,6 +350,13 @@ func (w *Window) createOnStage(title *uint16) error {
 	}
 	w.host = host
 	remember(host, w)
+	// The app's window erases its background (white, Wails') without
+	// clipping its children: when it grows (maximized, fullscreen) that paint
+	// covers the parts of the video VLC paints the plain way, the black bars,
+	// and nothing repaints them. Clipping its children keeps it off them.
+	if style := win32.Style(parent); style&win32.WS_CLIPCHILDREN == 0 {
+		win32.SetStyle(parent, style|win32.WS_CLIPCHILDREN)
+	}
 	if err := w.followParent(); err != nil {
 		return fmt.Errorf("following the app's window: %w", err)
 	}
