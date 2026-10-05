@@ -111,6 +111,7 @@ func run() error {
 			OpenDisplay:    overlay.Opener(look, logger),
 			PracticeNotice: ptbr.PracticeNotice,
 			MarkNotice:     ptbr.MarkNotice,
+			VolumeNotice:   ptbr.VolumeNotice,
 			// The line editor is on the app's panel.
 			ShowPanel: func() {
 				if ctx := started.Load(); ctx != nil {

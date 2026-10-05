@@ -172,10 +172,18 @@ func honestCapabilities(t T, running players.Running) {
 	case capabilities.Volume && !hasVolume:
 		t.Errorf("declares Volume without a SetVolume method")
 	case capabilities.Volume:
-		if err := volume.SetVolume(playback.MaxVolume); err != nil {
-			t.Errorf("SetVolume is declared but failed: %v", err)
+		// The player plays up to its declared ceiling, and refuses past it.
+		ceiling := capabilities.VolumeCeiling()
+		if err := volume.SetVolume(ceiling); err != nil {
+			t.Errorf("SetVolume(%v), the declared ceiling, failed: %v", ceiling, err)
 		}
-	case hasVolume && volume.SetVolume(playback.MaxVolume) == nil:
+		if ceiling < playback.MaxVolume && volume.SetVolume(ceiling+playback.VolumeStep) == nil {
+			t.Errorf("SetVolume past the declared ceiling of %v pretended to work", ceiling)
+		}
+		if err := volume.SetVolume(playback.FullVolume); err != nil {
+			t.Errorf("SetVolume(100%%) failed: %v", err)
+		}
+	case hasVolume && volume.SetVolume(playback.FullVolume) == nil:
 		t.Errorf("SetVolume is not declared but pretended to work")
 	}
 	if p := capabilities.Precision; p != playback.PrecisionExact && p != playback.PrecisionEstimated {

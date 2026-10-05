@@ -42,9 +42,9 @@ else
       local vout = vlc.object.vout()
       if vout then vlc.var.set(vout, "fullscreen", _GET["value"] == "1") end
     elseif command == "volume" then
-      -- VLC's own scale: 256 is 100%; the app never goes above it.
+      -- VLC's own scale: 256 is 100%, 512 the app's ceiling of 200%.
       local level = number("value")
-      if level and level >= 0 and level <= 256 then vlc.volume.set(math.floor(level)) end
+      if level and level >= 0 and level <= 512 then vlc.volume.set(math.floor(level)) end
     elseif command == "audio" then
       local index = number("index")
       local ok, ids = pcall(vlc.var.get_list, input, "audio-es")
@@ -70,9 +70,9 @@ else
   if input then
     -- %.0f, not %d: VLC's Lua formats %d as a 32-bit int, which overflows
     -- at 2^31 microseconds (35 min 47 s).
-    print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f}',
+    print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f,"volume":%.0f}',
       vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
-      math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate")))
+      math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate"), vlc.volume.get()))
   else
     print('{"status":"stopped","time":0,"length":0,"rate":1}')
   end

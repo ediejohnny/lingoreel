@@ -40,12 +40,10 @@ func (s *Session) Run(command shortcut.Command, repeat bool) error {
 	switch command {
 	case shortcut.PlayPause:
 		return s.controls.TogglePause()
-	case shortcut.VolumeUp:
-		return s.controls.ChangeVolume(playback.VolumeStep)
-	case shortcut.VolumeDown:
-		return s.controls.ChangeVolume(-playback.VolumeStep)
+	case shortcut.VolumeUp, shortcut.VolumeDown:
+		return s.tellVolume(s.controls.StepVolume(s.now(), command == shortcut.VolumeUp, repeat))
 	case shortcut.Mute:
-		return s.controls.ToggleMute()
+		return s.tellVolume(s.controls.ToggleMute())
 	case shortcut.PrecisionBack:
 		return s.controls.SeekBy(-s.PrecisionStep())
 	case shortcut.PrecisionForward:
@@ -124,4 +122,16 @@ func (s *Session) playFrom(position time.Duration) error {
 		return nil
 	}
 	return s.controls.Play()
+}
+
+// tellVolume shows the volume on the video after a change that worked.
+func (s *Session) tellVolume(err error) error {
+	if err != nil || s.display == nil || s.volumeNotice == nil {
+		return err
+	}
+	volume, muted := s.controls.Volume()
+	if text := s.volumeNotice(volume, s.controls.Capabilities().VolumeCeiling(), muted); text != "" {
+		_ = s.display.Notify(text) // a lost notice is cosmetic
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +28,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")
@@ -91,7 +93,9 @@ func TestArgumentsKeepControlLocalAndPlayerQuiet(t *testing.T) {
 			t.Fatalf("argument %s %s missing in %q", pair[0], pair[1], args)
 		}
 	}
-	for _, flag := range []string{"--no-spu", "--no-one-instance", "--no-metadata-network-access", "--play-and-pause", "--dummy-quiet"} {
+	// The volume is the app's: none saved between sessions (shared with the
+	// user's own VLC) and no gain of VLC's own.
+	for _, flag := range []string{"--no-spu", "--no-one-instance", "--no-metadata-network-access", "--play-and-pause", "--dummy-quiet", "--no-volume-save", "--gain=1"} {
 		if !slices.Contains(args, flag) {
 			t.Fatalf("flag %s missing in %q", flag, args)
 		}
@@ -650,4 +654,30 @@ func TestVLCLaunchMovesOffATakenPort(t *testing.T) {
 		t.Fatalf("ports picked = %d, want 2 (the taken one, then a free one)", picks)
 	}
 	waitFor(t, session.Samples(), "a sample from the second VLC", func(s playback.Sample) bool { return s.Duration > 19*time.Second })
+}
+
+// VLC plays up to 200%: each level asked for is the one it reports, on its
+// own scale (256 is 100%), and more than 200% is refused before reaching it.
+func TestVLCPlaysUpTo200Percent(t *testing.T) {
+	executable, video := realVLC(t)
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	if session.Capabilities().VolumeCeiling() != 2 {
+		t.Fatalf("VLC declares a ceiling of %v, want 2", session.Capabilities().VolumeCeiling())
+	}
+	for _, level := range []playback.Volume{1.5, 2, 0.5} {
+		if err := session.SetVolume(level); err != nil {
+			t.Fatalf("SetVolume(%v): %v", level, err)
+		}
+		testkit.Eventually(t, fmt.Sprintf("VLC to report %v", level), func() bool {
+			got, known, err := session.ReportedVolume()
+			return err == nil && known && math.Abs(float64(got-level)) <= 1.0/256
+		})
+	}
+	if err := session.SetVolume(2.01); err == nil {
+		t.Fatal("SetVolume(2.01) reached VLC")
+	}
 }

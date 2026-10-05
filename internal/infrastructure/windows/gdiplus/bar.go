@@ -11,7 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
-// Colors of the control bar: the dark theme's tokens (DESIGN), since the bar
+// Colors of the control bar: the dark theme's tokens, since the bar
 // always sits over a video.
 var (
 	barPanel    = appearance.Color{R: 0x0e, G: 0x12, B: 0x17, A: 0xb8}
@@ -22,6 +22,8 @@ var (
 	barAccent   = appearance.Color{R: 0x5b, G: 0x9b, B: 0xff, A: 0xff}
 	barIcon     = appearance.Color{R: 0xe7, G: 0xea, B: 0xef, A: 0xff}
 	barDisabled = appearance.Color{R: 0xe7, G: 0xea, B: 0xef, A: 0x5c}
+	// barLoud is the volume past 100%, where the player amplifies.
+	barLoud = appearance.Color{R: 0xf5, G: 0xa5, B: 0x24, A: 0xff}
 	// barAccentText is the study text: light enough on the dark panel.
 	barAccentText = appearance.Color{R: 0x9c, G: 0xc3, B: 0xff, A: 0xff}
 )
@@ -451,6 +453,20 @@ func (r *Renderer) drawVolume(g uintptr, bar controlbar.Bar, item controlbar.Ite
 	level.W = line.W * math.Min(math.Max(bar.VolumeLevel, 0), 1)
 	if level.W > 0 {
 		if err := fillRect(g, fillColor, level); err != nil {
+			return err
+		}
+	}
+	// On a player that amplifies, the part past 100% is in a warning color,
+	// and a mark shows where 100% is.
+	if full := bar.VolumeFull; full > 0 && full < 1 && item.Enabled {
+		at := line.X + line.W*full
+		if loud := level.Right() - at; loud > 0 {
+			if err := fillRect(g, barLoud, layout.Rect{X: at, Y: line.Y, W: loud, H: line.H}); err != nil {
+				return err
+			}
+		}
+		mark := math.Max(1, bar.Scale)
+		if err := fillRect(g, barIcon, layout.Rect{X: at - mark/2, Y: line.Y - 2*mark, W: mark, H: line.H + 4*mark}); err != nil {
 			return err
 		}
 	}

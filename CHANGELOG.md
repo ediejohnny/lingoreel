@@ -6,6 +6,20 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-05
+
+The volume goes up to 200% on VLC, gradually while a key is held.
+
+### Added
+
+- Volume up to 200% on VLC (100% on PotPlayer, the most it takes), shown on the video at each change; the control bar's
+  volume line spans the player's ceiling, past 100% in amber.
+- The volume keys move 1% a touch; held, about 9% a second, and going up they stop at 100% until a new touch.
+
+### Fixed
+
+- PotPlayer opened at its own kept level while the bar showed 100%.
+- VLC no longer changes the level of the user's own VLC: it keeps no volume between sessions.
 ## [0.16.3] - 2026-10-05
 
 The Modo Karaokê's fill color on the page of the line on top, and three fixes.
@@ -313,7 +327,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...v0.17.0
 [0.16.3]: https://github.com/ediejohnny/lingoreel/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/ediejohnny/lingoreel/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/ediejohnny/lingoreel/compare/v0.16.0...v0.16.1

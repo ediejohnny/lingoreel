@@ -139,7 +139,7 @@ func dispatchBar(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uint
 }
 
 // pick selects the line under a click for editing, with the video paused
-// (DESIGN: paused, then selected, then edited). A click elsewhere keeps the
+// (paused, then selected, then edited). A click elsewhere keeps the
 // selection, so an edit under way on the panel is not lost.
 func (w *Window) pick(point win32.Point) {
 	remote := w.currentRemote()
