@@ -264,10 +264,11 @@ type Session struct {
 	subtitles *session.Subtitles
 	sync      *session.Sync
 	listener  Listener
+	loadedMu  sync.Mutex
 	loaded    map[uint64]analysis.LoadedTrack
 	notice    func(session.Line, subtitle.Offset) string
 	// hasTranslation tells a translation track is loaded.
-	hasTranslation bool
+	hasTranslation atomic.Bool
 
 	translationVisible atomic.Bool
 	mode               atomic.Value // study.Mode
@@ -387,10 +388,10 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 
 	s := &Session{
 		running: running, listener: listener, loaded: loaded, notice: notice,
-		clock:          session.NewClock(running.Capabilities().Precision, now),
-		hasTranslation: request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil,
-		done:           make(chan struct{}),
+		clock: session.NewClock(running.Capabilities().Precision, now),
+		done:  make(chan struct{}),
 	}
+	s.hasTranslation.Store(request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil)
 	s.mode.Store(mode)
 	s.translationVisible.Store(mode.StartsRevealed())
 	s.precision.Store(int64(cmp.Or(request.PrecisionStep, DefaultPrecisionStep)))
@@ -596,7 +597,7 @@ func (s *Session) SetTranslationVisible(visible bool) {
 
 // HasTranslation tells whether the session shows a translation line.
 func (s *Session) HasTranslation() bool {
-	return s.hasTranslation
+	return s.hasTranslation.Load()
 }
 
 // TranslationVisible tells whether the translation is shown.
@@ -617,6 +618,8 @@ func (s *Session) State() playback.Sample {
 // Loaded are the subtitle tracks the session shows, with the corrections
 // applied to their files.
 func (s *Session) Loaded() map[uint64]analysis.LoadedTrack {
+	s.loadedMu.Lock()
+	defer s.loadedMu.Unlock()
 	return s.loaded
 }
 

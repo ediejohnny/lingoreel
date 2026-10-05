@@ -70,8 +70,9 @@ type editing struct {
 	lines    [2]*lineEdits
 	history  *project.History
 	selected *selected
-	// stale counts the saved edits that no longer apply to their file.
-	stale int
+	// stale counts, by line, the saved edits that no longer apply to their
+	// file.
+	stale [2]int
 }
 
 type selected struct {
@@ -98,7 +99,7 @@ func (e *editing) prepareLine(line session.Line, timeline *subtitle.Timeline, sa
 		}
 	}
 	e.lines[line] = edits
-	e.stale += stale
+	e.stale[line] = stale
 	if len(edits.edits) == 0 {
 		return timeline, nil // nothing edited: the file's own timeline
 	}
@@ -274,7 +275,7 @@ func (s *Session) CanRedo() bool {
 func (s *Session) StaleEdits() int {
 	s.editor.mu.Lock()
 	defer s.editor.mu.Unlock()
-	return s.editor.stale
+	return s.editor.stale[session.LinePrimary] + s.editor.stale[session.LineTranslation]
 }
 
 // Edits are a line's edits as the project keeps them.
