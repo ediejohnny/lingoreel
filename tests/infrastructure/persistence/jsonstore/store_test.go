@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 type sample struct {
@@ -213,6 +214,7 @@ func TestLoadRejectsBadDocuments(t *testing.T) {
 }
 
 func TestLoadRejectsOversizedDocumentButAcceptsTheLimit(t *testing.T) {
+	testkit.Slow(t)
 	store, path := newSampleStore(t, 1, nil)
 	prefix, suffix := `{"version": 1, "name": "`, `"}`
 

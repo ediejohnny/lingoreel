@@ -8,6 +8,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // savedProject is a project already kept for the movie: two passages, a
@@ -243,11 +244,13 @@ func TestAnUntouchedVideoKeepsOnlyItsPosition(t *testing.T) {
 	}
 }
 
-// Steps of a held sync key save once, a moment after the last step, and
-// the study mode changed on the panel is kept for the video.
+// Steps of a held sync key wait for one save a moment later: nothing is
+// written at each step, every step until the save goes into it, and a step
+// after it waits for its own. The study mode changed on the panel is kept
+// for the video the same way.
 func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
-	// Longer than a state report (250 ms), which is when the mode is read.
-	r := newRigWith(t, func(deps *app.Deps) { deps.SaveDelay = 600 * time.Millisecond })
+	timers := &testkit.Timers{}
+	r := newRigWith(t, func(deps *app.Deps) { deps.Later = timers.Later })
 	r.attach(t)
 	openMovie(t, r)
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
@@ -256,26 +259,36 @@ func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
 	t.Cleanup(func() { r.api.StopWatching() })
 	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	_, before := r.projects.stored(t, movie)
-	for range 3 {
+	const steps = 20
+	for range steps {
 		if err := r.api.Nudge("translation", true); err != nil {
 			t.Fatal(err)
 		}
 	}
+	if _, saves := r.projects.stored(t, movie); saves != before || timers.Pending() != 1 {
+		t.Fatalf("after %d steps: %d saves and %d waiting, want none and one", steps, saves-before, timers.Pending())
+	}
+	timers.Fire()
+	stored, after := r.projects.stored(t, movie)
+	if after-before != 1 || stored.Tracks["track:5"].Offset != project.MillisOf(steps*50*time.Millisecond) {
+		t.Fatalf("%d saves keeping %d ms, want one with %d steps of 50 ms", after-before, stored.Tracks["track:5"].Offset, steps)
+	}
+	if err := r.api.Nudge("translation", true); err != nil {
+		t.Fatal(err)
+	}
+	if timers.Pending() != 1 {
+		t.Fatalf("a step after the save: %d waiting, want its own save", timers.Pending())
+	}
+
+	// The mode is read at the next state report.
 	if err := r.api.SetStudyMode("always"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the waiting save", func() bool {
+	eventually(t, "the mode kept", func() bool {
+		timers.Fire()
 		stored, _ := r.projects.stored(t, movie)
-		return stored.Tracks["track:5"].Offset != 0 && stored.Choice.Mode == "always"
+		return stored.Choice.Mode == "always"
 	})
-	time.Sleep(time.Second) // well past the delay: no more saves come
-	stored, after := r.projects.stored(t, movie)
-	if after-before != 1 {
-		t.Fatalf("%d saves for three steps and a mode, want one", after-before)
-	}
-	if stored.Tracks["track:5"].Offset != project.MillisOf(150*time.Millisecond) {
-		t.Fatalf("offset kept %d ms, want three steps of 50", stored.Tracks["track:5"].Offset)
-	}
 }
 
 // "Esquecer tudo deste vídeo" removes what was kept and opens the video as
@@ -326,41 +339,10 @@ func TestAProgressivePassageLeavesTheVideosSpeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	eventually(t, "the first lap's slower speed", func() bool { return r.api.PlaybackState().Speed < 1 })
-	time.Sleep(600 * time.Millisecond) // a few state reports
+	// Stopping keeps how the video is watched right then, in the slower lap.
 	r.api.StopWatching()
 	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	if stored, _ := r.projects.stored(t, movie); stored.Last.Speed != 0 {
 		t.Fatalf("kept speed %v, want none", stored.Last.Speed)
-	}
-}
-
-// Steps that go on for longer than the delay are saved about once per
-// delay, not once per step.
-func TestALongRunOfStepsIsSavedOncePerDelay(t *testing.T) {
-	const delay = 200 * time.Millisecond
-	r := newRigWith(t, func(deps *app.Deps) { deps.SaveDelay = delay })
-	r.attach(t)
-	openMovie(t, r)
-	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
-	_, before := r.projects.stored(t, movie)
-	const steps = 20
-	for range steps {
-		if err := r.api.Nudge("translation", true); err != nil {
-			t.Fatal(err)
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
-	eventually(t, "the last step saved", func() bool {
-		stored, _ := r.projects.stored(t, movie)
-		return stored.Tracks["track:5"].Offset == project.MillisOf(steps*50*time.Millisecond)
-	})
-	time.Sleep(2 * delay)
-	// 20 steps over half a second: a save at most every 200 ms.
-	if _, after := r.projects.stored(t, movie); after-before > 5 {
-		t.Fatalf("%d saves for %d steps over %v", after-before, steps, steps*25*time.Millisecond)
 	}
 }

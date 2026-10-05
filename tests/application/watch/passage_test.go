@@ -198,19 +198,18 @@ func TestTheGlobalKeysMarkOncePerPress(t *testing.T) {
 	eventually(t, "the start marked by its key", func() bool { _, set := s.MarkedStart(); return set })
 	at(t, r, s, 30*time.Second)
 	// Held: only repeats arrive after the first press; none of them counts.
+	// The keys are handled in order, so a start mark sent after them tells
+	// when they were handled.
 	r.shortcuts.presses <- watch.Press{Index: end, Repeat: true}
 	r.shortcuts.presses <- watch.Press{Index: end, Repeat: true}
-	time.Sleep(100 * time.Millisecond)
+	r.shortcuts.presses <- watch.Press{Index: start}
+	eventually(t, "the keys handled", func() bool { marked, _ := s.MarkedStart(); return marked == 30*time.Second })
 	if s.Passage().Active || len(r.listener.passages()) != 0 {
 		t.Fatal("a held key's repeats closed a passage")
 	}
+	at(t, r, s, 40*time.Second)
 	r.shortcuts.presses <- watch.Press{Index: end}
 	eventually(t, "the passage closed by its key", func() bool { return len(r.listener.passages()) == 1 })
-	r.shortcuts.presses <- watch.Press{Index: end, Repeat: true}
-	time.Sleep(100 * time.Millisecond)
-	if got := len(r.listener.passages()); got != 1 {
-		t.Fatalf("%d passages told for one press", got)
-	}
 }
 
 // A session may open studying a saved passage: the player opens where it

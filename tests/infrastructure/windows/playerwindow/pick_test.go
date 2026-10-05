@@ -15,6 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // wmNull does nothing; sent after posted messages, it returns once they ran.
@@ -29,6 +30,7 @@ func clickDown(t *testing.T, host windows.HWND) {
 }
 
 func TestAClickPicksTheLineOnlyWhilePaused(t *testing.T) {
+	testkit.Slow(t)
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},

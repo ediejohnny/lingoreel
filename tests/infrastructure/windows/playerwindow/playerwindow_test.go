@@ -22,6 +22,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -297,6 +298,7 @@ func TestTheClientAreaIsTheOneAsked(t *testing.T) {
 // TestCloseButtonEndsTheWindow is the reported bug: the close button and
 // Alt+F4 (both WM_CLOSE) must reach the app, which then ends everything.
 func TestCloseButtonEndsTheWindow(t *testing.T) {
+	testkit.Slow(t)
 	w := open(t)
 	host := windows.HWND(w.Handle())
 	post(t, host, win32.WM_CLOSE, 0, 0)
@@ -383,6 +385,7 @@ func TestTheBarJumpsAndTheLockedTranslation(t *testing.T) {
 }
 
 func TestTheBarShowsAtTheBottomAndTakesClicks(t *testing.T) {
+	testkit.Slow(t)
 	w := open(t)
 	host := windows.HWND(w.Handle())
 	p := &recordingPlayer{}

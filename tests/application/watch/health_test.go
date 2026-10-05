@@ -19,14 +19,17 @@ func TestThePlayersHealth(t *testing.T) {
 	}
 	r.running.reconnecting.Store(false)
 
-	// Playing, the same position for more than 3 s: frozen.
-	start := time.Now()
-	for time.Since(start) < 3300*time.Millisecond {
-		r.running.samples <- playback.Sample{Position: 20 * time.Second, Duration: time.Minute, Status: playback.StatusPlaying, Speed: 1, ObservedAt: time.Now()}
-		time.Sleep(100 * time.Millisecond)
+	// Playing, the same position for more than 3 s: frozen. The samples'
+	// own times tell it (the limit itself is the clock's, tested there).
+	at := time.Now()
+	playing := func(position, after time.Duration) {
+		at = at.Add(after)
+		r.running.samples <- playback.Sample{Position: position, Duration: time.Minute, Status: playback.StatusPlaying, Speed: 1, ObservedAt: at}
 	}
+	playing(20*time.Second, 0)
+	playing(20*time.Second, 3300*time.Millisecond)
 	eventually(t, "the freeze", func() bool { return s.Health() == watch.HealthStalled })
-	r.running.samples <- playback.Sample{Position: 21 * time.Second, Duration: time.Minute, Status: playback.StatusPlaying, Speed: 1, ObservedAt: time.Now()}
+	playing(21*time.Second, 100*time.Millisecond)
 	eventually(t, "the player moving again", func() bool { return s.Health() == watch.HealthGood })
 
 	s.Notify("Aviso")

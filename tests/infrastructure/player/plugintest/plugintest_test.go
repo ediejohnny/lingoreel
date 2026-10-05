@@ -17,6 +17,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/tests/infrastructure/player/plugintest"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // childEnv turns the test binary into a stand-in player process that just
@@ -200,25 +201,36 @@ func TestTheKitPassesAnHonestPlugin(t *testing.T) {
 	}
 }
 
+type flawCase struct {
+	flaw flaw
+	want string
+}
+
 func TestTheKitCatchesEveryFlaw(t *testing.T) {
-	cases := map[string]struct {
-		flaw flaw
-		want string
-	}{
+	catches(t, map[string]flawCase{
 		"declared seek fails":         {seekDeclaredButFails, "SeekTo is declared but failed"},
 		"backward step pretends":      {backwardPretends, "StepFrame backward is not declared but pretended"},
 		"process left after Close":    {leavesProcess, "still running after Close"},
 		"normal close called a crash": {errAfterClose, "Err after a normal Close"},
 		"cancelled launch succeeds":   {ignoresCancel, "cancelled context succeeded"},
 		"cancelled launch leaves one": {leavesProcessWhenCancelled, "cancelled launch left"},
-		"samples never close":         {samplesNeverClose, "Samples still open"},
 		"volume without its method":   {volumeWithoutMethod, "declares Volume without"},
-		"claims to draw in the app":   {claimsToDrawInHost, "did not draw into the app's window"},
-	}
+	})
+}
+
+// These flaws are caught only after a whole bound of the kit (10 s).
+func TestTheKitCatchesFlawsThatWaitOutABound(t *testing.T) {
+	testkit.Slow(t)
+	catches(t, map[string]flawCase{
+		"samples never close":       {samplesNeverClose, "Samples still open"},
+		"claims to draw in the app": {claimsToDrawInHost, "did not draw into the app's window"},
+	})
+}
+
+func catches(t *testing.T, cases map[string]flawCase) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			// Each flaw has its own plugin and processes; two of them wait out
-			// a whole bound of the kit, so they wait side by side.
+			// Each flaw has its own plugin and processes, so they run side by side.
 			t.Parallel()
 			failures := runKit(fake(t, c.flaw))
 			for _, failure := range failures {

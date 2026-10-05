@@ -317,7 +317,13 @@ func TestEveryEditReachesTheScreen(t *testing.T) {
 	if _, err := s.Select(session.LinePrimary); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 300 {
+	// The race it guards against shows only now and then: the full check
+	// tries many times, the quick one a few.
+	tries := 300
+	if testing.Short() {
+		tries = 30
+	}
+	for i := range tries {
 		text := fmt.Sprintf("Edit number %d.", i)
 		if err := s.Edit(watch.EditChange{Text: &text}); err != nil {
 			t.Fatal(err)

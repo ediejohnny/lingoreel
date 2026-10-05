@@ -2,10 +2,15 @@
 # analysis and tests (with the race detector when a C compiler is available),
 # and, side by side with them, the window's frontend: types, lint and tests.
 #
+# By default the Go tests run with -short, which skips the slow ones (windows
+# that wait for the screen, real waits, huge inputs); -Full runs every test
+# and is required before every merge and tag.
+#
 # Usage:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1 [-SkipRace]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1 [-Full] [-SkipRace]
 
 param(
+    [switch]$Full,
     [switch]$SkipRace
 )
 
@@ -103,17 +108,22 @@ try {
         # t.Parallel (-parallel), one worker per processor but one, which stays
         # free: 7 on an 8-processor computer.
         $workers = [string][Math]::Max(1, [Environment]::ProcessorCount - 1)
-        $testArguments = @("test", "-p", $workers, "-parallel", $workers) + $goPackages
+        $testFlags = @("-p", $workers, "-parallel", $workers)
+        if (-not $Full) {
+            $testFlags += "-short"
+        }
         if (-not $SkipRace) {
             if (Get-Command "gcc" -ErrorAction SilentlyContinue) {
                 $env:CGO_ENABLED = "1"
-                $testArguments = @("test", "-race", "-p", $workers, "-parallel", $workers) + $goPackages
+                $testFlags = @("-race") + $testFlags
             }
             else {
                 Write-Host "Warning: gcc not found on the PATH; the tests will run without -race." -ForegroundColor Yellow
             }
         }
-        Write-Host "[6/6] Tests (go $($testArguments -join ' '))..."
+        $testArguments = @("test") + $testFlags + $goPackages
+        $mode = if ($Full) { "full" } else { "quick: the slow tests run with -Full" }
+        Write-Host "[6/6] Tests, $mode (go $($testArguments -join ' '))..."
         Invoke-Native -FilePath "go" -Arguments $testArguments -FailureMessage "Some tests are failing"
     }
     catch {

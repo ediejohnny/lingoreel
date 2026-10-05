@@ -20,6 +20,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // menuRig is a player window whose bar shows, driving a fake session with
@@ -181,6 +182,7 @@ func waitFor(t *testing.T, what string, list func() []string, want string) {
 // The passage menu marks a passage and changes its options; a command
 // closes the menu, an option keeps it open for the next one.
 func TestThePassageMenuDrivesTheSession(t *testing.T) {
+	testkit.Slow(t)
 	r := newMenuRig(t)
 	bar := r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Command == "passage-mark-start" }))
@@ -270,6 +272,7 @@ func TestAMenuClosesWithEscOrAClickOnTheVideo(t *testing.T) {
 // The frame buttons step one frame each way through the session; with a
 // player that cannot, they are off and do nothing.
 func TestTheFrameButtonsStepFrames(t *testing.T) {
+	testkit.Slow(t)
 	off := newMenuRig(t)
 	bar := off.layout(controlbar.MenuNone)
 	for _, it := range bar.Items {
@@ -305,6 +308,7 @@ func TestTheFrameButtonsStepFrames(t *testing.T) {
 // A menu row changes only what it names, inside its limits; a saved passage
 // of a longer cut is listed but cannot be studied.
 func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
+	testkit.Slow(t)
 	r := newMenuRig(t)
 	r.remote.mu.Lock()
 	r.remote.repeats = 3

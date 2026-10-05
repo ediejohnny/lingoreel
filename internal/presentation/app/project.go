@@ -30,7 +30,7 @@ type videoProject struct {
 	// than at once: the offsets of a held shortcut, the position, the speed,
 	// the Modo Karaokê, the mode. flush is that pending save.
 	dirty bool
-	flush *time.Timer
+	flush func() bool
 	// positionAt is when the position was last kept.
 	positionAt time.Time
 }
@@ -168,7 +168,12 @@ func (a *API) markDirty(p *videoProject) {
 	if delay <= 0 {
 		delay = defaultSaveDelay
 	}
-	p.flush = time.AfterFunc(delay, func() { a.flushProject(p) })
+	run := func() { a.flushProject(p) }
+	if a.deps.Later != nil {
+		p.flush = a.deps.Later(delay, run)
+		return
+	}
+	p.flush = time.AfterFunc(delay, run).Stop
 }
 
 // flushProject runs the pending save, unless the project is no longer the
@@ -186,7 +191,7 @@ func (a *API) flushProject(p *videoProject) {
 // cancelFlush drops a pending save. Called with a.mu held.
 func (p *videoProject) cancelFlush() {
 	if p.flush != nil {
-		p.flush.Stop()
+		p.flush()
 		p.flush = nil
 	}
 }

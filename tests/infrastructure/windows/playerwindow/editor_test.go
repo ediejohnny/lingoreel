@@ -19,6 +19,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -176,6 +177,7 @@ func (r *editorRig) noEditsSince(n int, what string) {
 // Two clicks on a line of the paused video open the box over it, with the
 // line's text, instead of the fullscreen; closing the window closes it.
 func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	before, err := win32.WindowRect(r.host)
 	if err != nil {
@@ -246,6 +248,7 @@ func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
 // text save nothing, an empty text keeps the box open on Enter and is dropped
 // when the box loses the keys, and losing the keys saves a real change.
 func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 
 	box, field := r.open()
@@ -293,6 +296,7 @@ func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
 // A line of two lines opens as two lines (the field breaks only on CR LF),
 // and saved untouched it changes nothing.
 func TestALineOfTwoLinesOpensAsTwo(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	r.remote.mu.Lock()
 	r.remote.lineText = "Line one\nLine two"
@@ -309,6 +313,7 @@ func TestALineOfTwoLinesOpensAsTwo(t *testing.T) {
 // A line is corrected with the video paused: the box closes, saving
 // nothing, once it plays.
 func TestTheBoxClosesWhenTheVideoPlays(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	box, field := r.open()
 	setText(field, "Halfway")
