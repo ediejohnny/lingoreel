@@ -152,8 +152,8 @@ export function PlayingPage({
   const translationKeys = both(label("sync-translation-earlier"), label("sync-translation-later"));
 
   return (
-    <main className={`flex flex-1 justify-center overflow-y-auto ${embedded ? "p-4" : "p-6"}`}>
-      <div className="flex w-full max-w-3xl flex-col gap-5">
+    <main className={`flex min-w-0 flex-1 justify-center overflow-y-auto ${embedded ? "overflow-x-hidden p-4" : "p-6"}`}>
+      <div className="flex w-full max-w-3xl min-w-0 flex-col gap-5">
         {error && (
           <Banner tone="error" onClose={onDismissError}>
             {error}
@@ -200,7 +200,7 @@ export function PlayingPage({
           </Card>
         )}
 
-        <div className={`grid gap-5 ${embedded ? "" : "sm:grid-cols-2"}`}>
+        <div className={`grid gap-5 [&>*]:min-w-0 ${embedded ? "" : "sm:grid-cols-2"}`}>
           <Card title="Reprodução">
             <div className="flex flex-col gap-4">
               <Select

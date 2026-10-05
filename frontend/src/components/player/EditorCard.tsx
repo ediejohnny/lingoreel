@@ -39,7 +39,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
         </HelpTip>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="@container flex flex-col gap-4">
         {editing.staleEdits > 0 && (
           <p role="status" className="text-sm text-warning">
             {editing.staleEdits === 1
@@ -56,7 +56,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
             onCommand={onCommand}
           />
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 @md:grid-cols-2">
             <Button icon={PencilLine} disabled={playing} title={playing ? pausedOnly : undefined} onClick={() => pick("primary")}>
               Corrigir a legenda de cima
             </Button>
@@ -65,7 +65,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
             </Button>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+        <div className="grid grid-cols-2 gap-2 border-t border-line pt-4">
           <Button
             icon={Undo2}
             disabled={playing || !editing.canUndo}
@@ -82,7 +82,8 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
           >
             Refazer
           </Button>
-          <span className="flex-1" />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Button icon={FileDown} variant="ghost" onClick={() => exportLine("primary")}>
             Exportar a legenda de cima
           </Button>

@@ -40,7 +40,7 @@ export function Timeline({ position, duration, positionText, durationText, disab
         onPointerUp={release}
         onKeyUp={release}
         style={{ background: `linear-gradient(to right, var(--sp-accent) ${share}%, var(--sp-border) ${share}%)` }}
-        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full accent-[var(--sp-accent)] disabled:cursor-not-allowed"
+        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-control accent-[var(--sp-accent)] disabled:cursor-not-allowed"
       />
       <span className="w-16 text-sm text-fg-muted tabular-nums">{durationText}</span>
     </div>

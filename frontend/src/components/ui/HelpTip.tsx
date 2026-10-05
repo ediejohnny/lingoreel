@@ -42,7 +42,7 @@ export function HelpTip({ topic, children }: HelpTipProps) {
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex size-7 items-center justify-center rounded-full text-fg-muted hover:bg-sunken hover:text-fg"
+        className="inline-flex size-7 items-center justify-center rounded-control text-fg-muted hover:bg-sunken hover:text-fg"
       >
         <CircleHelp aria-hidden className="size-4" />
       </button>

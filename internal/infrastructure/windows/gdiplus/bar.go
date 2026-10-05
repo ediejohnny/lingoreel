@@ -30,9 +30,11 @@ var (
 
 // Bar geometry at 100% scaling, in pixels.
 const (
-	barFontSize    = 13.0
-	barIcon16      = 16.0
-	barRadius      = 6.0
+	barFontSize = 13.0
+	barIcon16   = 16.0
+	// barRadius rounds the corners of the bar's boxes (menus, hover,
+	// tips) barely: 0.1rem at 100%.
+	barRadius      = 1.6
 	barThumbRadius = 6.0
 	barStroke      = 2.0
 	barTipPadding  = 6.0
@@ -167,7 +169,7 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	hovered := item.Action == controlbar.ActionEntry && item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == entry
 	if hovered {
 		inset := layout.Rect{X: b.X + 4*s, Y: b.Y + s, W: b.W - 8*s, H: b.H - 2*s}
-		if err := newShape().rounded(inset, 4*s).fill(g, barHover); err != nil {
+		if err := newShape().rounded(inset, barRadius*s).fill(g, barHover); err != nil {
 			return err
 		}
 	}
@@ -215,7 +217,7 @@ func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar
 	if item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == item.Entry {
 		background = barAccent
 	}
-	if err := newShape().rounded(b, 4*s).fill(g, background.WithAlpha(0x60)); err != nil {
+	if err := newShape().rounded(b, barRadius*s).fill(g, background.WithAlpha(0x60)); err != nil {
 		return err
 	}
 	cx, cy, arm := b.X+b.W/2, b.Y+b.H/2, b.W*0.25
@@ -229,7 +231,7 @@ func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar
 // drawCheck draws a toggle's box, with a check when on.
 func (r *Renderer) drawCheck(g uintptr, box layout.Rect, on bool, color appearance.Color, s float64) error {
 	if on {
-		if err := newShape().rounded(box, 3*s).fill(g, barAccent); err != nil {
+		if err := newShape().rounded(box, barRadius*s).fill(g, barAccent); err != nil {
 			return err
 		}
 		return newShape().
@@ -237,7 +239,7 @@ func (r *Renderer) drawCheck(g uintptr, box layout.Rect, on bool, color appearan
 			line(box.X+box.W*0.43, box.Y+box.H*0.72, box.X+box.W*0.78, box.Y+box.H*0.3).
 			stroke(g, barIcon, barStroke*s)
 	}
-	return newShape().rounded(box, 3*s).stroke(g, color, barStroke*s*0.75)
+	return newShape().rounded(box, barRadius*s).stroke(g, color, barStroke*s*0.75)
 }
 
 // drawDot draws a choice's ring, filled when chosen.
@@ -354,10 +356,10 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 	case controlbar.ActionTranslation:
 		frame := layout.Rect{X: b.X + 6*s, Y: b.Y + 10*s, W: b.W - 12*s, H: b.H - 20*s}
 		if item.Active {
-			if err := newShape().rounded(frame, 3*s).fill(g, barAccent); err != nil {
+			if err := newShape().rounded(frame, barRadius*s).fill(g, barAccent); err != nil {
 				return err
 			}
-		} else if err := newShape().rounded(frame, 3*s).stroke(g, color, stroke*0.75); err != nil {
+		} else if err := newShape().rounded(frame, barRadius*s).stroke(g, color, stroke*0.75); err != nil {
 			return err
 		}
 		small := font
@@ -482,11 +484,11 @@ func (r *Renderer) drawChoice(g uintptr, bar controlbar.Bar, item controlbar.Ite
 	inset := layout.Rect{X: b.X + 2*bar.Scale, Y: b.Y + 2*bar.Scale, W: b.W - 4*bar.Scale, H: b.H - 4*bar.Scale}
 	switch {
 	case item.Active:
-		if err := newShape().rounded(inset, 4*bar.Scale).fill(g, barAccent); err != nil {
+		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, barAccent); err != nil {
 			return err
 		}
 	case look.Hover.Action == controlbar.ActionSpeedChoice && look.Hover.Speed == item.Speed:
-		if err := newShape().rounded(inset, 4*bar.Scale).fill(g, barHover); err != nil {
+		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, barHover); err != nil {
 			return err
 		}
 	}
@@ -506,7 +508,7 @@ func (r *Renderer) drawTip(g uintptr, bar controlbar.Bar, look BarLook, font lay
 		y = bar.Track.Y - barTipGap*s - height
 	}
 	box := layout.Rect{X: x, Y: math.Max(y, bar.Band.Y), W: width, H: height}
-	if err := newShape().rounded(box, 4*s).fill(g, barTip); err != nil {
+	if err := newShape().rounded(box, barRadius*s).fill(g, barTip); err != nil {
 		return err
 	}
 	return r.writeLine(g, look.Tip, font, box, true, barIcon)

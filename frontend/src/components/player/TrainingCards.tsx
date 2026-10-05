@@ -30,9 +30,11 @@ const goalOptions = [0, 3, 5, 10, 20].map((laps) => ({ value: String(laps), labe
 /** TrainingCards are the Modo Karaokê and "Estudar trecho" controls. */
 export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
-      <KaraokeCard state={state} label={label} onCommand={onCommand} />
-      <PassageCard state={state} label={label} onCommand={onCommand} />
+    <div className="@container">
+      <div className="grid gap-5 [&>*]:min-w-0 @2xl:grid-cols-2">
+        <KaraokeCard state={state} label={label} onCommand={onCommand} />
+        <PassageCard state={state} label={label} onCommand={onCommand} />
+      </div>
     </div>
   );
 }

@@ -75,7 +75,7 @@ func (r *Renderer) drawCue(c *canvas, target *win32.DIB, block *layout.Block, st
 		return nil
 	}
 	bar := layout.Rect{X: bounds.X, Y: bounds.Y - gap - thickness, W: bounds.W * progress, H: thickness}
-	return newShape().rounded(bar, thickness/2).fill(c.graphics, style.Color.WithAlpha(uint8(math.Round(alpha))))
+	return newShape().rounded(bar, math.Min(thickness/2, barRadius*block.Scale)).fill(c.graphics, style.Color.WithAlpha(uint8(math.Round(alpha))))
 }
 
 // drawFill paints the spoken part of each line over the text's path,

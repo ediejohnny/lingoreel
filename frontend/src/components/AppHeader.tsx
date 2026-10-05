@@ -25,12 +25,19 @@ export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHea
         <span className="font-semibold text-fg">LingoReel</span>
         {subtitle && <span className="truncate text-sm text-fg-muted">{subtitle}</span>}
       </div>
-      {actions}
-      <IconButton
-        icon={themeIcons[theme]}
-        label={`${themeLabel(theme)}. Mudar para ${themeLabel(next).toLowerCase()}`}
-        onClick={() => onTheme(next)}
-      />
+      <div className="flex items-center gap-2">
+        {actions && (
+          <>
+            {actions}
+            <span aria-hidden className="mx-1 h-6 w-px bg-line" />
+          </>
+        )}
+        <IconButton
+          icon={themeIcons[theme]}
+          label={`${themeLabel(theme)}. Mudar para ${themeLabel(next).toLowerCase()}`}
+          onClick={() => onTheme(next)}
+        />
+      </div>
     </header>
   );
 }
