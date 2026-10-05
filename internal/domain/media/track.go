@@ -56,6 +56,9 @@ type Track struct {
 	// subfolder, another name): it is chosen automatically only when its
 	// timing matches the video.
 	Candidate bool
+	// Added marks a file the user picked, from anywhere, rather than one
+	// found next to the video.
+	Added bool
 	// Alignment is how a readable file lines up with the video's own
 	// subtitles; an empty Verdict means it was not measured.
 	Alignment subtitle.Alignment

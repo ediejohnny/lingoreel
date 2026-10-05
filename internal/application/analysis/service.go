@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"path/filepath"
 	"slices"
@@ -124,7 +125,7 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 	}
 	var internal map[uint64]media.SubtitleContent
 	if len(contents) > 0 {
-		if internal, err = s.alignFiles(ctx, path, info, tracks, contents); err != nil {
+		if internal, err = s.alignFiles(ctx, path, info, tracks, contents, nil); err != nil {
 			return Analysis{}, err
 		}
 	}
@@ -134,17 +135,17 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 
 // alignFiles measures how each subtitle file lines up with the video against
 // its fullest subtitle track, in any language. The container tracks read for
-// that are returned to be kept, so loading one of them later reads nothing.
-// A video whose tracks cannot be read is only compared by its length.
-func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, tracks []media.Track, contents map[uint64]media.SubtitleContent) (map[uint64]media.SubtitleContent, error) {
+// that are returned to be kept, so loading one of them later reads nothing;
+// tracks already read (internal) are not read again. A video whose tracks
+// cannot be read is only compared by its length.
+func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, tracks []media.Track, contents, internal map[uint64]media.SubtitleContent) (map[uint64]media.SubtitleContent, error) {
 	var readable []uint64
 	for _, track := range info.TracksOf(media.TrackSubtitle) {
-		if track.Readable {
+		if track.Readable && !track.External() {
 			readable = append(readable, track.Number)
 		}
 	}
-	var internal map[uint64]media.SubtitleContent
-	if len(readable) > 0 {
+	if len(readable) > 0 && internal == nil {
 		read, err := s.reader.ReadSubtitles(ctx, path, readable, nil)
 		switch {
 		case ctx.Err() != nil:
@@ -205,6 +206,69 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media
 		tracks = append(tracks, track)
 	}
 	return tracks, contents, nil
+}
+
+// maxAddedFiles bounds the subtitle files picked for one video; the
+// video's project keeps a bounded number of tracks too.
+const maxAddedFiles = 16
+
+// ErrTooManyFiles reports one subtitle file too many picked for a video.
+var ErrTooManyFiles = errors.New("too many subtitle files added to the video")
+
+// AddSubtitleFile adds a subtitle file the user picked, from anywhere, to an
+// analyzed video: the result is a new analysis with the file as one more
+// track, and that track; the analysis passed in is left as it was. The
+// language comes from the file's name or, when it says none, from its text;
+// the file is measured against the video like the files next to it, and
+// kept to be loaded without reading it again. A file the analysis already
+// has (in any case) gives its own track back.
+func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path string) (Analysis, media.Track, error) {
+	if s.files == nil {
+		return analysis, media.Track{}, errors.New("no subtitle files source")
+	}
+	next, added := uint64(media.ExternalTrackBase), 0
+	for _, track := range analysis.Info.Tracks {
+		if track.Path != "" && strings.EqualFold(filepath.Clean(track.Path), filepath.Clean(path)) {
+			return analysis, track, nil
+		}
+		if track.External() {
+			next = max(next, track.Number+1)
+		}
+		if track.Added {
+			added++
+		}
+	}
+	if added >= maxAddedFiles {
+		return analysis, media.Track{}, ErrTooManyFiles
+	}
+	format, content, err := s.files.Load(path)
+	if err != nil {
+		return analysis, media.Track{}, fmt.Errorf("reading the subtitle file %s: %w", filepath.Base(path), err)
+	}
+	hints := media.HintsFromFileName(filepath.Base(path), filepath.Base(analysis.Path))
+	track := media.Track{
+		Number: next, Type: media.TrackSubtitle, Name: filepath.Base(path), Path: path,
+		Language: hints.Language, Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
+		Readable: true, SubtitleFormat: format, Codec: strings.ToUpper(string(format)), Added: true,
+	}
+	if track.Language == "" {
+		track.Language = media.DetectLanguage(joinedText(content.Events))
+	}
+	measured := []media.Track{track}
+	internal, err := s.alignFiles(ctx, analysis.Path, analysis.Info, measured, map[uint64]media.SubtitleContent{next: content}, analysis.internal)
+	if err != nil {
+		return analysis, media.Track{}, err
+	}
+	track = measured[0]
+	result := analysis
+	result.Info.Tracks = append(slices.Clone(analysis.Info.Tracks), track)
+	result.external = maps.Clone(analysis.external)
+	if result.external == nil {
+		result.external = map[uint64]media.SubtitleContent{}
+	}
+	result.external[next] = content
+	result.internal = internal
+	return result, track, nil
 }
 
 func joinedText(events []subtitle.Event) string {
