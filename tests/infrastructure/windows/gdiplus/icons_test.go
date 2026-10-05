@@ -62,3 +62,39 @@ func TestEveryMenuIconDrawsInTheColorAsked(t *testing.T) {
 		t.Fatalf("an unknown icon left %d pixels", opaque)
 	}
 }
+
+// No icon draws past its square, which is all of the menu's bitmap: on a
+// bitmap wider or taller than the square, the room past it stays clear but
+// for the smoothed edge of a line on the square's border (at 16 pixels the
+// corners and the gear leave a third of a pixel there). The frame of "CC"
+// reached past both sides at every size.
+func TestNoMenuIconDrawsPastItsSquare(t *testing.T) {
+	t.Parallel()
+	r := newRenderer(t)
+	const (
+		room  = 8
+		faint = 0x80 // half a pixel
+	)
+	text := appearance.Color{R: 0x10, G: 0x20, B: 0x30, A: 0xff}
+	for _, size := range []int{16, 20, 24, 32} {
+		for _, icon := range contextmenu.Icons() {
+			for _, wide := range []bool{true, false} {
+				width, height := size+room, size
+				if !wide {
+					width, height = size, size+room
+				}
+				dib := newDIB(t, width, height)
+				if err := r.DrawIcon(dib, icon, text); err != nil {
+					t.Fatal(err)
+				}
+				for y := range height {
+					for x := range width {
+						if (x >= size || y >= size) && dib.Pixels[(y*width+x)*4+3] > faint {
+							t.Fatalf("icon %d at %d pixels drew past its square, at (%d, %d)", icon, size, x, y)
+						}
+					}
+				}
+			}
+		}
+	}
+}

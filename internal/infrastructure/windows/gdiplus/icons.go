@@ -117,9 +117,23 @@ func (r *Renderer) DrawIcon(target *win32.DIB, icon contextmenu.Icon, color appe
 	defer c.close()
 	side := float64(min(target.Width, target.Height))
 	pad := math.Round(side * iconPadRatio)
-	box := layout.Rect{X: pad, Y: pad, W: side - 2*pad, H: side - 2*pad}
+	inner := side - 2*pad
+	// An icon drawn wider than its box gets a smaller box, centered, so all
+	// of it lands on the bitmap.
+	size := inner / iconExtent(icon)
+	offset := pad + (inner-size)/2
+	box := layout.Rect{X: offset, Y: offset, W: size, H: size}
 	font := layout.Font{Family: barFont, Size: barFontSize * box.W / barIcon16}
 	return r.drawIcon(c.graphics, icon, box, color, box.W*iconStrokeRatio, font)
+}
+
+// iconExtent is how much wider than its box an icon draws: the frame of "CC"
+// reaches past both sides (on the bar, into its button's room).
+func iconExtent(icon contextmenu.Icon) float64 {
+	if icon == contextmenu.IconSubtitles {
+		return ccWidth
+	}
+	return 1
 }
 
 // drawIcon draws an icon in a square box, with the stroke of its lines.
