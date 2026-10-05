@@ -93,7 +93,7 @@ func (a *API) Settings() (SettingsView, error) {
 	a.mu.Unlock()
 	view := SettingsView{
 		General: GeneralSettings{
-			Theme: string(config.Theme), SyncNotice: config.SyncNotice, ActiveProfile: profile.Name,
+			Theme: string(config.Theme), SyncNotice: config.SyncNotice, ActiveProfile: profile.Name, AlwaysOnTop: config.AlwaysOnTop,
 			RecommendationsHidden: config.InstallRecommendations.DismissAll || len(config.InstallRecommendations.Dismissed) > 0,
 			Language:              config.Language, Languages: interfaceLanguages(),
 		},
@@ -292,6 +292,32 @@ func (a *API) SetSyncNotice(show bool) error {
 		current.session.SetSyncNotice(show)
 	}
 	return nil
+}
+
+// SetAlwaysOnTop keeps the app's window in front of the other programs', or
+// lets it go behind them, at once and from then on.
+func (a *API) SetAlwaysOnTop(on bool) error {
+	a.mu.Lock()
+	next := a.config
+	next.AlwaysOnTop = on
+	err := a.commitConfig(next)
+	a.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	a.keepOnTop()
+	return nil
+}
+
+// keepOnTop gives the window the place the settings ask for, unless it is
+// gone.
+func (a *API) keepOnTop() {
+	a.mu.Lock()
+	ui, gone, on := a.ui, a.shutDown, a.config.AlwaysOnTop
+	a.mu.Unlock()
+	if ui != nil && !gone {
+		ui.SetAlwaysOnTop(on)
+	}
 }
 
 // ApplyPreset returns a style with a preset's colors and effects; font,

@@ -72,6 +72,10 @@ func (w wailsUI) SetTitle(title string) {
 	runtime.WindowSetTitle(w.ctx, title)
 }
 
+func (w wailsUI) SetAlwaysOnTop(on bool) {
+	runtime.WindowSetAlwaysOnTop(w.ctx, on)
+}
+
 func (w wailsUI) Quit() {
 	runtime.Quit(w.ctx)
 }

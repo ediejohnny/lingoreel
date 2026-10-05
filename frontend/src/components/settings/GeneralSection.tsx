@@ -109,6 +109,14 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
           />
         </Card>
       )}
+      <Card title={t("ui.settings.window.title")}>
+        <Toggle
+          label={t("ui.settings.window.onTop")}
+          checked={view.general.alwaysOnTop}
+          onChange={(on) => void run(() => backend.setAlwaysOnTop(on))}
+          help={<HelpTip topic={t("ui.settings.window.topic")}>{t("ui.settings.window.help")}</HelpTip>}
+        />
+      </Card>
       <Card title={t("ui.settings.notices.title")}>
         <Toggle
           label={t("ui.settings.notices.sync")}

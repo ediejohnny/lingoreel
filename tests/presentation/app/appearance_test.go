@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"errors"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -108,6 +110,29 @@ func TestTheAppsLookIsKeptForTheNextStart(t *testing.T) {
 	err := r.api.SetInterface(app.InterfaceSettings{Accent: "#FF8C0080", TextSize: 1})
 	if err == nil || !strings.Contains(err.Error(), "Aparência do app: a cor de destaque") || r.settings.saves != saves {
 		t.Fatalf("a see-through accent: %v, %d saves", err, r.settings.saves-saves)
+	}
+}
+
+// The app stays in front of the other programs unless the settings say
+// otherwise, and every show puts it back where they say.
+func TestTheAppStaysOnTopUnlessTurnedOff(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	r.lifecycle.KeepOnTop()
+	if on := settingsOf(t, r).General.AlwaysOnTop; !on || !slices.Equal(r.ui.placed(), []bool{true}) {
+		t.Fatalf("a new app: on top %v, the window was told %v", on, r.ui.placed())
+	}
+	if err := r.api.SetAlwaysOnTop(false); err != nil {
+		t.Fatal(err)
+	}
+	r.lifecycle.KeepOnTop()
+	if r.settings.config.AlwaysOnTop || !slices.Equal(r.ui.placed(), []bool{true, false, false}) {
+		t.Fatalf("turned off: kept %v, the window was told %v", r.settings.config.AlwaysOnTop, r.ui.placed())
+	}
+	r.settings.saveError = errors.New("disk full")
+	if err := r.api.SetAlwaysOnTop(true); err == nil || len(r.ui.placed()) != 3 {
+		t.Fatalf("a failed save: %v, the window was told %v", err, r.ui.placed())
 	}
 }
 

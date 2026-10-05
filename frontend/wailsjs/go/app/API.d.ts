@@ -90,6 +90,8 @@ export function SeekTo(arg1:number):Promise<void>;
 
 export function SelectLine(arg1:string):Promise<void>;
 
+export function SetAlwaysOnTop(arg1:boolean):Promise<void>;
+
 export function SetAppearance(arg1:app.AppearanceSettings):Promise<void>;
 
 export function SetFileAssociation(arg1:boolean):Promise<void>;

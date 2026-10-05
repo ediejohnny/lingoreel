@@ -59,6 +59,9 @@ type UI interface {
 	CopyText(text string) error
 	// SetTitle names the window: the video playing, or the app.
 	SetTitle(title string)
+	// SetAlwaysOnTop keeps the window in front of the other programs', or
+	// lets it go behind them.
+	SetAlwaysOnTop(on bool)
 	// Quit closes the app.
 	Quit()
 }
@@ -373,6 +376,13 @@ func (l Lifecycle) FullscreenChanged(on bool) {
 
 // ShowEditor opens the panel beside the video on the line editor: the bar's
 // "Corrigir a legenda…" has picked the line.
+// KeepOnTop puts the window in front of the other programs' when the
+// settings ask for it; showing the window (Wails' WindowShow) leaves that
+// place, so this follows every show.
+func (l Lifecycle) KeepOnTop() {
+	l.api.keepOnTop()
+}
+
 func (l Lifecycle) ShowEditor() {
 	l.api.emit(EventPanel, PanelRequest{Section: PanelEditor})
 }
