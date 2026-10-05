@@ -212,6 +212,14 @@ type ShortcutCheck struct {
 	Label string `json:"label"`
 }
 
+// FillCheck is the color the Modo Karaokê's fill is painted in over the line
+// on top: the chosen one, or the one standing in for it when the line would
+// hide it (Changed).
+type FillCheck struct {
+	Used    string `json:"used"`
+	Changed bool   `json:"changed"`
+}
+
 // PlayerSetting is a player the app knows.
 type PlayerSetting struct {
 	ID        string `json:"id"`

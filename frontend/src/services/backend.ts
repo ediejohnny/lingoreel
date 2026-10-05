@@ -48,6 +48,7 @@ export type BarPreviewRequest = Plain<app.BarPreviewRequest>;
 export type InterfaceSettings = Plain<app.InterfaceSettings>;
 export type VideoLayout = Plain<app.VideoLayout>;
 export type PanelState = Plain<app.PanelState>;
+export type FillCheck = Plain<app.FillCheck>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -154,6 +155,7 @@ export const backend = {
   resetProfile: () => api.ResetProfile(),
   applyPreset: (style: StyleSettings, preset: string): Promise<StyleSettings> => api.ApplyPreset(style as app.StyleSettings, preset),
   checkShortcut: (chord: string) => api.CheckShortcut(chord),
+  checkFill: (text: string, fill: string): Promise<FillCheck> => api.CheckFill(text, fill),
   previewSubtitles: (request: PreviewRequest) => api.PreviewSubtitles(request as app.PreviewRequest),
   setAppearance: (look: AppearanceSettings) => api.SetAppearance(look as app.AppearanceSettings),
   setInterface: (look: InterfaceSettings) => api.SetInterface(look as app.InterfaceSettings),

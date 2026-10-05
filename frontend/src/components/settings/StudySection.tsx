@@ -4,6 +4,7 @@ import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
+import { FillColorNote } from "./FillColorNote";
 import { change, type SectionProps } from "./section";
 import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
@@ -82,6 +83,9 @@ export function StudySection(props: SectionProps) {
               disabled={!karaoke.fill}
               onChange={set("fillColor")}
             />
+            <div className="sm:col-span-2">
+              <FillColorNote text={draft.primary.color} fill={karaoke.fillColor} enabled={karaoke.fill} onAdopt={set("fillColor")} />
+            </div>
             <NumberField
               label={t("ui.settings.study.repeat.label")}
               value={karaoke.repeat}

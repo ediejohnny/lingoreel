@@ -6,6 +6,8 @@ export function AddSubtitleFile(arg1:string):Promise<app.Video>;
 
 export function ApplyPreset(arg1:app.StyleSettings,arg2:string):Promise<app.StyleSettings>;
 
+export function CheckFill(arg1:string,arg2:string):Promise<app.FillCheck>;
+
 export function CheckShortcut(arg1:string):Promise<app.ShortcutCheck>;
 
 export function ChoosePlayerProgram(arg1:string):Promise<string>;

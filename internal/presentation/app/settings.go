@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -343,6 +344,21 @@ func (a *API) CheckShortcut(text string) (ShortcutCheck, error) {
 	return ShortcutCheck{Chord: chord.String(), Label: ptbr.ShortcutLabel(chord, a.deps.KeyChar)}, nil
 }
 
+// CheckFill tells which color the Modo Karaokê's fill is painted in over a
+// line of color text: a fill the line would hide gives way to one that shows.
+func (a *API) CheckFill(text, fill string) (FillCheck, error) {
+	textColor, err := appearance.ParseColor(text)
+	if err != nil {
+		return FillCheck{}, refuse(ptbr.T("error.settings.color", "line", ptbr.T("line.primary"), "color", fmt.Sprintf("%q", text)))
+	}
+	fillColor, err := appearance.ParseColor(fill)
+	if err != nil {
+		return FillCheck{}, refuse(ptbr.T("error.karaoke.fillColor"))
+	}
+	used, changed := appearance.ReadableFill(textColor, fillColor)
+	return FillCheck{Used: used.String(), Changed: changed}, nil
+}
+
 // PreviewSubtitles draws the two styles on a sample picture, as a PNG data
 // address for an image on the screen.
 func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
@@ -381,7 +397,9 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		if err != nil {
 			return "", refuse(ptbr.T("error.karaoke.fillColor"))
 		}
-		look.FillColor, screen.Fill = fill, previewSpoken
+		// The fill as the video paints it over this line.
+		look.FillColor, _ = appearance.ReadableFill(primary.Color, fill)
+		screen.Fill = previewSpoken
 	case previewViewCue:
 		if err := previewCue(request.Karaoke, &look, &screen); err != nil {
 			return "", err

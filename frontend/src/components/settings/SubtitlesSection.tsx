@@ -3,11 +3,13 @@ import { t } from "../../i18n";
 import { backend, messageOf, type KaraokeSettings, type StyleSettings } from "../../services/backend";
 import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
+import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { MarksCards } from "./MarksCards";
 import { RestoreButton } from "./RestoreButton";
+import { FillColorNote } from "./FillColorNote";
 import { change, type SectionProps } from "./section";
 import { StyleEditor } from "./StyleEditor";
 import { SubtitlePreview } from "./SubtitlePreview";
@@ -171,15 +173,25 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
           }
         >
           <div className="grid gap-4 @lg:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <ColorField
-                label={t("ui.settings.subtitles.karaoke.fillColor")}
-                value={karaoke.fillColor}
-                disabled={!karaoke.fill}
-                onChange={(fillColor) => setKaraoke({ fillColor }, "fill")}
+            <div className="flex flex-col gap-2 @lg:col-span-2">
+              <Toggle
+                label={t("ui.settings.subtitles.karaoke.fill")}
+                checked={karaoke.fill}
+                onChange={(fill) => setKaraoke({ fill }, fill ? "fill" : "")}
               />
-              {!karaoke.fill && <p className="text-sm text-fg-muted">{t("ui.settings.subtitles.karaoke.off")}</p>}
+              <FillColorNote
+                text={style.color}
+                fill={karaoke.fillColor}
+                enabled={karaoke.fill}
+                onAdopt={(fillColor) => setKaraoke({ fillColor }, "fill")}
+              />
             </div>
+            <ColorField
+              label={t("ui.settings.subtitles.karaoke.fillColor")}
+              value={karaoke.fillColor}
+              disabled={!karaoke.fill}
+              onChange={(fillColor) => setKaraoke({ fillColor }, "fill")}
+            />
             <ColorField
               label={t("ui.settings.subtitles.karaoke.barColor")}
               value={karaoke.barColor}

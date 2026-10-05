@@ -10,6 +10,10 @@ export function ApplyPreset(arg1, arg2) {
   return window['go']['app']['API']['ApplyPreset'](arg1, arg2);
 }
 
+export function CheckFill(arg1, arg2) {
+  return window['go']['app']['API']['CheckFill'](arg1, arg2);
+}
+
 export function CheckShortcut(arg1) {
   return window['go']['app']['API']['CheckShortcut'](arg1);
 }

@@ -227,6 +227,26 @@ func TestRestyleReachesTheWindow(t *testing.T) {
 	}
 }
 
+// The user's profile: the high-contrast yellow line with the karaoke yellow
+// fill, which painted the spoken part invisibly. The fill the video gets must
+// show over the line; over the default white line the chosen fill is kept.
+func TestTheFillShowsOverAHighContrastLine(t *testing.T) {
+	t.Parallel()
+	profile := settings.DefaultProfile()
+	highContrast, err := appearance.PresetHighContrast.Apply(profile.Primary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile.Primary = highContrast
+	look := watch.LookOf(profile)
+	if distance := appearance.DeltaE2000(look.Primary.Color.Lab(), look.FillColor.Lab()); distance < appearance.MinFillContrast {
+		t.Errorf("fill %s over the line %s: only %.1f apart", look.FillColor, look.Primary.Color, distance)
+	}
+	if look := watch.LookOf(settings.DefaultProfile()); look.FillColor != settings.DefaultKaraoke().FillColor {
+		t.Errorf("over the white line the fill became %s", look.FillColor)
+	}
+}
+
 func chordTexts(chords []shortcut.Chord) []string {
 	texts := make([]string, len(chords))
 	for i, chord := range chords {

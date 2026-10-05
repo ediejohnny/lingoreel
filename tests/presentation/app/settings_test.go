@@ -442,6 +442,35 @@ func TestThePreviewShowsTheKaraokeFill(t *testing.T) {
 	}
 }
 
+// Over the high-contrast yellow the karaoke yellow cannot be seen: the screen
+// is told which color stands in for it, and the preview paints that one.
+func TestTheFillHiddenByTheLineShowsItsStandIn(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	check, err := r.api.CheckFill("#FFE600", "#FFD23F")
+	if err != nil || !check.Changed || check.Used == "#FFD23F" {
+		t.Fatalf("CheckFill = %+v, %v", check, err)
+	}
+	if kept, err := r.api.CheckFill("#FFFFFF", "#FFD23F"); err != nil || kept.Changed || kept.Used != "#FFD23F" {
+		t.Fatalf("over white: %+v, %v", kept, err)
+	}
+	for _, c := range [][2]string{{"#12", "#FFD23F"}, {"#FFE600", "amarelo"}} {
+		if _, err := r.api.CheckFill(c[0], c[1]); err == nil {
+			t.Errorf("CheckFill(%q, %q) was accepted", c[0], c[1])
+		}
+	}
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	request.Primary.Color, request.View, request.Karaoke.FillColor = "#FFE600", "fill", "#FFD23F"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatal(err)
+	}
+	if painted := r.preview.requests[0].look.FillColor.String(); painted != check.Used {
+		t.Fatalf("the preview painted %s, the screen says %s", painted, check.Used)
+	}
+}
+
 func TestThePreviewRefusesAnUnknownViewOrFill(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
