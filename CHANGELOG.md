@@ -12,11 +12,14 @@ All notable changes to this project are listed here. The format follows
 
 - Configurações › Geral › Janela: "Manter o app sempre no topo", on by default. The app's window, with the subtitles and
   the bar over the video, stays in front of other programs; turned off, it can go behind them.
+- The menu over the video shows stop in red, play in blue and pause in amber.
 
 ### Fixed
 
 - A white band over the video after maximizing the window or going fullscreen (at the top or the bottom, full width or
   part of it): the app's window painted its white background over the video's black bars.
+- The menu over the video's icons were black on the dark menu. The menu now follows the app's theme (dark, light or
+  Windows'), and its icons are drawn for it.
 
 ## [0.21.0] - 2026-10-05
 
