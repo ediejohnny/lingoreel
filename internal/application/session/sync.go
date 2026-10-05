@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // Sync carries out the sync shortcuts: each line moves earlier or later by

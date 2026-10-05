@@ -12,16 +12,16 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // Events sent to the window.

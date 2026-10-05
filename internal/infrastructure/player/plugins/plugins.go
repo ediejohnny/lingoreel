@@ -1,14 +1,14 @@
 // Package plugins lists the player plugins the app ships with. A new player
-// is one more line in All (see docs/plugins-de-player.md).
+// is one more line in All (see docs/player-plugins.md).
 package plugins
 
 import (
 	"log/slog"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/potplayer"
-	"lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/potplayer"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
 )
 
 // Plugin is a player plugin that also tells where its player is usually

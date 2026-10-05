@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func TestDefaultsAreValidAndConsistent(t *testing.T) {

@@ -6,9 +6,9 @@ import (
 	"image"
 	"testing"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 )
 
 // changedBounds is the smallest rectangle where two drawings differ.

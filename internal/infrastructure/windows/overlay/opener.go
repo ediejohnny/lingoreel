@@ -6,10 +6,10 @@ import (
 	"context"
 	"log/slog"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/infrastructure/windows/placement"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 )
 
 // Look is how the subtitles are drawn.

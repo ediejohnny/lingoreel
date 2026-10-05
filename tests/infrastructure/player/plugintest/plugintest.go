@@ -18,11 +18,11 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 )
 
 // Bounds of the contract.

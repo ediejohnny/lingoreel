@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 // The video inside the app's window (B2): the screens place it, ask for the

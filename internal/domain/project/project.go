@@ -14,9 +14,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // Version is the current version of the project file. Version 2 added how

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 )
 
 // executableExtension is what a player program file ends with on Windows.

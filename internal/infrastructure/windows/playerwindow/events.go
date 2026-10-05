@@ -8,14 +8,14 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
-	"lingoreel/internal/infrastructure/windows/keyboard"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 const (

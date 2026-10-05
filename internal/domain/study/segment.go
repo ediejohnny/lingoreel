@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // ErrInvalidSegment reports a passage that cannot be studied.

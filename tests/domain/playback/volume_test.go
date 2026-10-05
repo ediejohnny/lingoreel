@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 func TestVolumeRange(t *testing.T) {

@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // markingRig is a session that tells its passage marks on the video as

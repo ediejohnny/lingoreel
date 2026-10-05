@@ -12,16 +12,16 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/overlay"
-	"lingoreel/internal/infrastructure/windows/playerwindow"
-	"lingoreel/internal/infrastructure/windows/uithread"
-	"lingoreel/internal/infrastructure/windows/win32"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // The video inside the app's own window. fakeApp stands for that window

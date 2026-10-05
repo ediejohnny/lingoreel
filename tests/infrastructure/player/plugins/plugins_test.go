@@ -3,9 +3,9 @@ package plugins_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/plugins"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
 )
 
 func TestTheShippedPluginsRegister(t *testing.T) {

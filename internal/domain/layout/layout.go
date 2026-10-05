@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 )
 
 const (

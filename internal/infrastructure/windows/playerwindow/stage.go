@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/infrastructure/windows/overlay"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // The stage is the place for the video inside the app's own window: there

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/infrastructure/persistence/projectfile"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 )
 
 func sample() project.Project {

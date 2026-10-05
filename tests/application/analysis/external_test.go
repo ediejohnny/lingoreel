@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // fakeFiles serves subtitle files from memory.
@@ -58,7 +58,7 @@ func TestExternalSubtitlesJoinTheAnalysisAndTheSelection(t *testing.T) {
 	files := &fakeFiles{
 		paths: []string{`D:\Filmes\Exemplo.en.srt`, `D:\Filmes\Subs\legenda.srt`},
 		content: map[string]media.SubtitleContent{
-			`D:\Filmes\Exemplo.en.srt`:     lines("Captain Nova and Comet!", "Get them both!"),
+			`D:\Filmes\Exemplo.en.srt`:   lines("Captain Nova and Comet!", "Get them both!"),
 			`D:\Filmes\Subs\legenda.srt`: lines(portugueseText),
 		},
 	}

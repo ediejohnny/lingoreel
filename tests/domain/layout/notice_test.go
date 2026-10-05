@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 func withNotice(in layout.Input, notice string) layout.Input {

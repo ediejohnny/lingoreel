@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/persistence/settingsfile"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/settingsfile"
 )
 
 func TestCheckPlayerPaths(t *testing.T) {

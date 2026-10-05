@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 )
 
 const (

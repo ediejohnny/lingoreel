@@ -6,9 +6,9 @@ import (
 	"context"
 	"log/slog"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/infrastructure/windows/overlay"
-	"lingoreel/internal/infrastructure/windows/placement"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 )
 
 // Opener returns what a watch session uses to open its player window: the

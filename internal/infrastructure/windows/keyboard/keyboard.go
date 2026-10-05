@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // position is a key's scan code (set 1), extended for the keys Windows

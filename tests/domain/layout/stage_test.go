@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 func TestVideoAreaLeavesTheControlsTheirRoom(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 func TestThePanelRunsTheShortcuts(t *testing.T) {

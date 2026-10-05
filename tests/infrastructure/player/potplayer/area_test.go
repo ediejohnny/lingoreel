@@ -3,7 +3,7 @@ package potplayer_test
 import (
 	"testing"
 
-	"lingoreel/internal/infrastructure/player/potplayer"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/potplayer"
 )
 
 // The windows PotPlayer really has inside its main window (measured): a

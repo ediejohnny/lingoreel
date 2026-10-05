@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 )
 
 func twoProfiles(t *testing.T) settings.Profiles {

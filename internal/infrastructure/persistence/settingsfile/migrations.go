@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
 // profilesMigrations upgrade older profiles.json documents, one version at

@@ -5,12 +5,12 @@ package playerwindow
 import (
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // choose carries out a menu entry through the session, reading the value

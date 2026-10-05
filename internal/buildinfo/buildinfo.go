@@ -2,5 +2,5 @@
 package buildinfo
 
 // Version is the semantic version of the build. Release builds set it with
-// -ldflags "-X lingoreel/internal/buildinfo.Version=<version>".
+// -ldflags "-X github.com/ediejohnny/lingoreel/internal/buildinfo.Version=<version>".
 var Version = "0.0.0-dev"

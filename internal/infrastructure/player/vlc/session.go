@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 )
 
 // ErrNotSupported reports a command VLC cannot perform.

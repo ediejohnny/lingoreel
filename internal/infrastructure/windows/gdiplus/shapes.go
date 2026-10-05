@@ -6,8 +6,8 @@ import (
 	"errors"
 	"unsafe"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 // shape collects figures into one GDI+ path; the first error sticks and

@@ -3,7 +3,7 @@ package overlay_test
 import (
 	"testing"
 
-	"lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 )
 
 func TestChooseTargetPicksTheLargestVisibleWindow(t *testing.T) {

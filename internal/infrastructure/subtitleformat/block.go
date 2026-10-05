@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // matroskaASSFields is the field count of an ASS/SSA event stored in a Matroska

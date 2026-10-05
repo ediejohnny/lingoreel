@@ -1,6 +1,6 @@
 package project
 
-import "lingoreel/internal/domain/subtitle"
+import "github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 
 // Change is one edit of a line as the history keeps it: the line before and
 // after, on one of the session's subtitle lines (its own numbering).

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 func TestNothingWorksBeforeTheWindow(t *testing.T) {

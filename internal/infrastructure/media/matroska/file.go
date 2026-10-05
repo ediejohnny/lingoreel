@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
 
 // FileReader reads Matroska and WebM files from disk. Files are opened read

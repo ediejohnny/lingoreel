@@ -3,7 +3,7 @@ package subtitleformat_test
 import (
 	"testing"
 
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 func TestSRTParsesWellFormedDocument(t *testing.T) {

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/tests/infrastructure/player/plugintest"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/tests/infrastructure/player/plugintest"
 )
 
 // childEnv turns the test binary into a stand-in player process that just

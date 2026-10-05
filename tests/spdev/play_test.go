@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/spdev"
 )
 
 var studySample = filepath.Join("..", "testdata", "video", "study-sample.mkv")

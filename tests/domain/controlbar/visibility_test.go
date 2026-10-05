@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 )
 
 func TestVisibility(t *testing.T) {

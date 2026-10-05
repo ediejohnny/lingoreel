@@ -1,8 +1,8 @@
 package session
 
 import (
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // Screen is what the subtitle display shows at one moment.

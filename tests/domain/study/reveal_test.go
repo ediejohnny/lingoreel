@@ -3,7 +3,7 @@ package study_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 func TestRevealedTogglesOnPressesAndHoldsWhilePressed(t *testing.T) {

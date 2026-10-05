@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // videoProject is the open video's project and what keeping it needs.

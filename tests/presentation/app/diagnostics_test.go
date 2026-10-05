@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 func factOf(d app.Diagnostics, label string) (string, bool) {

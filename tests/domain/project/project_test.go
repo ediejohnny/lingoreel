@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func ms(n int64) time.Duration { return time.Duration(n) * time.Millisecond }

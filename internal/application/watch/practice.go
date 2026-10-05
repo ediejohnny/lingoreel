@@ -3,8 +3,8 @@ package watch
 import (
 	"errors"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // ErrNoLine reports "Esta fala" before any line was spoken.

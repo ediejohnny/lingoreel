@@ -15,11 +15,11 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/potplayer"
-	"lingoreel/tests/infrastructure/player/plugintest"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/potplayer"
+	"github.com/ediejohnny/lingoreel/tests/infrastructure/player/plugintest"
 )
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")

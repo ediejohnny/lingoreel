@@ -15,7 +15,7 @@ function Resolve-BuildVersion {
     }
     try {
         $described = Invoke-Native -FilePath "git" -Arguments @("-C", $Root, "describe", "--tags", "--always", "--dirty") `
-            -FailureMessage "git describe falhou" -Capture
+            -FailureMessage "git describe failed" -Capture
     }
     catch {
         return $fallbackVersion

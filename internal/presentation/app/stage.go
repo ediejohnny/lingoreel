@@ -3,8 +3,8 @@ package app
 import (
 	"errors"
 
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 )
 
 // The video inside the app's window: the screens tell where their controls

@@ -3,7 +3,7 @@ package subtitle_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func TestEventTextPrefersOverride(t *testing.T) {

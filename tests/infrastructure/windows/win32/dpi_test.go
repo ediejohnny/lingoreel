@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // After the process-wide call, a thread that never chose its own awareness

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // dialogue returns n film-like lines (gaps of 0.8 to 6 s from 30 s on),

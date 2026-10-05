@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 func TestSpeedAndTime(t *testing.T) {

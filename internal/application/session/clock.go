@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 // After the session moves the position itself (seek, frame step), players

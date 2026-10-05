@@ -6,10 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // DefaultPrecisionStep is the precision shortcuts' jump when none is given.

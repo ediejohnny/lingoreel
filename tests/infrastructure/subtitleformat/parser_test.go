@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 func TestNewParserSelectsStrategyByFormat(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
 
 func TestHintsFromFileName(t *testing.T) {

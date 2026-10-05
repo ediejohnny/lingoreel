@@ -4,8 +4,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 // checkInvariants holds for any input: no panic, only valid events with valid

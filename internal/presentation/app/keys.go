@@ -3,9 +3,9 @@ package app
 import (
 	"errors"
 
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // While a video plays, the app's panel takes the profile's shortcuts too,

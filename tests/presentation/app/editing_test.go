@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 const movie = `D:\Filmes\Movie.mkv`

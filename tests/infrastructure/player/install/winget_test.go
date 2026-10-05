@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"lingoreel/internal/infrastructure/player/install"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 )
 
 type recorder struct {

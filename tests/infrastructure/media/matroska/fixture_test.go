@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 )
 
 // Fixtures made by scripts\make-fixtures.ps1 with mkvmerge.

@@ -6,10 +6,10 @@ import (
 	"math"
 	"strconv"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // CueLook is how a preview shows the time left before its line.

@@ -3,8 +3,8 @@ package app
 import (
 	"errors"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 )
 
 // Preferences are the settings the window needs at start.

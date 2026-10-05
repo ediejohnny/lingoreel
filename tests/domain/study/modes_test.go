@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func TestTheModesStartAndHideAsThePRDSays(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func TestNormalizeText(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 )
 
 // startLongProcess starts a harmless command that would run for a minute.
