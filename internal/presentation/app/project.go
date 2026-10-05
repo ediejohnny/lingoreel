@@ -205,34 +205,42 @@ func (a *API) projectOf(current *watching) *videoProject {
 	return a.project
 }
 
-// keepEdits takes a line's edits into the project and saves it.
-func (a *API) keepEdits(current *watching, line session.Line, edits map[string]project.Edit) {
+// keepEdits takes a track's edits into the project and saves it.
+func (a *API) keepEdits(current *watching, number uint64, edits map[string]project.Edit) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	p := a.projectOf(current)
-	if p == nil || current.keys[line] == "" {
+	key := ""
+	if p != nil && number != 0 {
+		key = p.keys[number]
+	}
+	if key == "" {
 		return
 	}
-	track := p.track(current.keys[line])
+	track := p.track(key)
 	track.Edits = edits
-	p.value.Tracks[current.keys[line]] = track
+	p.value.Tracks[key] = track
 	if err := a.saveProject(); err != nil {
 		current.problem.Store(err.Error())
 	}
 }
 
-// keepOffset takes a line's offset into the project, saved a moment after
+// keepOffset takes a track's offset into the project, saved a moment after
 // the last step: a held sync key saves once.
-func (a *API) keepOffset(current *watching, line session.Line, offset subtitle.Offset) {
+func (a *API) keepOffset(current *watching, number uint64, offset subtitle.Offset) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	p := a.projectOf(current)
-	if p == nil || current.keys[line] == "" {
+	key := ""
+	if p != nil && number != 0 {
+		key = p.keys[number]
+	}
+	if key == "" {
 		return
 	}
-	track := p.track(current.keys[line])
+	track := p.track(key)
 	track.Offset = project.MillisOf(offset.Duration())
-	p.value.Tracks[current.keys[line]] = track
+	p.value.Tracks[key] = track
 	a.markDirty(p)
 }
 

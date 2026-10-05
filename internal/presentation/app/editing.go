@@ -183,7 +183,7 @@ func describeEditing(current *watching) Editing {
 	}
 	editing.Active = true
 	editing.Line = lineName(selection.Line)
-	editing.LineName = current.names[selection.Line]
+	editing.LineName = current.lineNames()[selection.Line]
 	editing.Original = selection.Original.OriginalText
 	editing.Text = selection.Event.Text()
 	editing.Start = ptbr.EditClock(selection.Offset.PlaybackTime(selection.Event.Start))

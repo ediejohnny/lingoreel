@@ -336,9 +336,11 @@ func (s *Session) replaceLocked(line session.Line, from, to subtitle.Event, reco
 	}
 	s.subtitles.SetTimeline(line, timeline)
 	saved := maps.Clone(edits.edits)
+	// SetLine changes the tracks under the same lock: this is the track edited.
+	track := s.tracks.Load().Number(line)
 	return func() {
 		if s.listener != nil {
-			s.listener.Edited(line, saved)
+			s.listener.Edited(line, track, saved)
 		}
 		s.redraw()
 	}, nil

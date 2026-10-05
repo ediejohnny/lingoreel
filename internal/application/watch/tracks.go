@@ -3,12 +3,97 @@ package watch
 import (
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
+
+// Tracks are the video's audio and subtitle tracks, in the video's order, and
+// the ones the session plays (zero: none, or the player's own audio).
+type Tracks struct {
+	List    []media.Track
+	Current media.Selection
+}
+
+// Number is the track a subtitle line shows; zero when it shows none.
+func (t Tracks) Number(line session.Line) uint64 {
+	if line == session.LineTranslation {
+		return t.Current.Translation
+	}
+	return t.Current.Primary
+}
+
+// Of lists the tracks of a kind.
+func (t Tracks) Of(kind media.TrackType) []media.Track {
+	var list []media.Track
+	for _, track := range t.List {
+		if track.Type == kind {
+			list = append(list, track)
+		}
+	}
+	return list
+}
+
+// newTracks keeps the tracks a session can switch between.
+func newTracks(info media.Info, current media.Selection) *Tracks {
+	tracks := &Tracks{Current: current}
+	for _, track := range info.Tracks {
+		if track.Type == media.TrackAudio || track.Type == media.TrackSubtitle {
+			tracks.List = append(tracks.List, track)
+		}
+	}
+	return tracks
+}
+
+// Tracks are the video's tracks and the ones playing.
+func (s *Session) Tracks() Tracks {
+	tracks := *s.tracks.Load()
+	tracks.List = slices.Clone(tracks.List)
+	return tracks
+}
+
+// AddTrack lists a subtitle file added to the video while it plays; a track
+// already listed is left as it is.
+func (s *Session) AddTrack(track media.Track) {
+	s.changeTracks(func(tracks *Tracks) {
+		if !slices.ContainsFunc(tracks.List, func(listed media.Track) bool { return listed.Number == track.Number }) {
+			tracks.List = append(slices.Clone(tracks.List), track)
+		}
+	})
+}
+
+// changeTracks replaces the tracks with a changed copy; readers never wait.
+func (s *Session) changeTracks(change func(*Tracks)) {
+	s.tracksMu.Lock()
+	defer s.tracksMu.Unlock()
+	next := *s.tracks.Load()
+	change(&next)
+	s.tracks.Store(&next)
+}
+
+// SelectAudio switches the audio track while the video plays, by its number;
+// session.ErrNotSupported when the player cannot.
+func (s *Session) SelectAudio(number uint64) error {
+	index := slices.IndexFunc(s.Tracks().Of(media.TrackAudio), func(track media.Track) bool { return track.Number == number })
+	if index < 0 {
+		return fmt.Errorf("unknown audio track %d", number)
+	}
+	if err := s.controls.SelectAudioTrack(index); err != nil {
+		return err
+	}
+	s.changeTracks(func(tracks *Tracks) { tracks.Current.Audio = number })
+	return nil
+}
+
+// SetSyncWording changes how a sync change is worded on the video, as the
+// lines' names change with their tracks; nil shows none.
+func (s *Session) SetSyncWording(notice func(session.Line, subtitle.Offset) string) {
+	s.notice.Store(&notice)
+}
 
 // SetLine puts another subtitle on a line while the video plays, a track of
 // the video or a file (number and what was loaded for it), or takes the
@@ -38,6 +123,15 @@ func (s *Session) SetLine(line session.Line, number uint64, loaded analysis.Load
 		}
 		track = &session.Track{Timeline: timeline, Offset: subtitle.NewOffset(saved.Offset.Duration())}
 	}
+	// Under the editor's lock, so an edit is always told with the track it
+	// was made on.
+	s.changeTracks(func(tracks *Tracks) {
+		if line == session.LineTranslation {
+			tracks.Current.Translation = number
+		} else {
+			tracks.Current.Primary = number
+		}
+	})
 	s.editor.mu.Unlock()
 
 	if number != 0 {

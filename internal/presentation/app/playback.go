@@ -43,12 +43,14 @@ var (
 // watching is the running session and what the window needs to describe it.
 type watching struct {
 	session *watch.Session
-	names   ptbr.LineNames
+	// names name the lines by their tracks, which a switch changes.
+	names atomic.Pointer[ptbr.LineNames]
 	// stop ends the state reports.
 	stop chan struct{}
-	// video is the file watched; keys name its lines' tracks in the project.
+	// video is the file watched.
 	video string
-	keys  [2]string
+	// switching tells a subtitle is being loaded for a line: one at a time.
+	switching atomic.Bool
 	// problem is the last project file failure, for the panel.
 	problem atomic.Value // string
 	// player, frameRate and duration (from the analysis) are for the
@@ -97,13 +99,11 @@ func (a *API) Watch(request WatchRequest) error {
 	profile := a.profile()
 	syncNotice := a.config.SyncNotice
 	var saved map[session.Line]project.Track
-	var keys [2]string
 	var last project.Last
 	var passages []project.Passage
 	opened := a.project
 	if opened != nil && opened.video == video.Path {
 		saved = opened.saved(tracks)
-		keys = [2]string{opened.keys[tracks.Primary], opened.keys[tracks.Translation]}
 		last, passages = opened.value.Last, opened.value.Passages
 	} else {
 		opened = nil
@@ -156,11 +156,12 @@ func (a *API) Watch(request WatchRequest) error {
 	a.resume = nil
 	a.mu.Unlock()
 	current := &watching{
-		names: names, stop: make(chan struct{}), video: video.Path, keys: keys,
+		stop: make(chan struct{}), video: video.Path,
 		player: installation, frameRate: frameRateOf(video.Info), duration: video.Info.Duration,
 		startSpeed: cmp.Or(watchRequest.Speed, playback.NormalSpeed),
 		embedded:   a.embeds(installation.ID),
 	}
+	current.names.Store(&names)
 	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
@@ -335,7 +336,7 @@ func (a *API) describe(current *watching) Playback {
 		TranslationVisible: current.session.TranslationVisible(),
 		Mode:               string(current.session.Mode()),
 		Capabilities:       Capabilities{Pause: capabilities.Pause, Seek: capabilities.Seek, Speed: capabilities.Speed},
-		Lines:              LineNames{Primary: current.names[session.LinePrimary], Translation: current.names[session.LineTranslation]},
+		Lines:              LineNames{Primary: current.lineNames()[session.LinePrimary], Translation: current.lineNames()[session.LineTranslation]},
 		Karaoke:            describeKaraoke(current.session),
 		Passage:            describePassage(current.session.Passage()),
 		Editing:            describeEditing(current),
@@ -354,19 +355,24 @@ type sessionListener struct {
 
 func (l sessionListener) SubtitlesChanged(time.Duration, session.Visible) {}
 
-func (l sessionListener) Synced(line session.Line, offset subtitle.Offset) {
-	l.api.keepOffset(l.current, line, offset)
+func (l sessionListener) Synced(_ session.Line, track uint64, offset subtitle.Offset) {
+	l.api.keepOffset(l.current, track, offset)
 	if l.current.session != nil {
 		l.api.emit(EventPlayback, l.api.describe(l.current))
 	}
 }
 
-func (l sessionListener) Edited(line session.Line, edits map[string]project.Edit) {
-	l.api.keepEdits(l.current, line, edits)
+func (l sessionListener) Edited(_ session.Line, track uint64, edits map[string]project.Edit) {
+	l.api.keepEdits(l.current, track, edits)
 }
 
 func (l sessionListener) PassageMarked(segment study.Segment, plan study.PracticePlan) {
 	l.api.keepMarkedPassage(l.current, segment, plan)
+}
+
+// lineNames name the lines by the tracks they show now.
+func (w *watching) lineNames() ptbr.LineNames {
+	return *w.names.Load()
 }
 
 func (a *API) current() *watching {
