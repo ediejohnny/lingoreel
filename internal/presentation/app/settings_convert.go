@@ -64,18 +64,18 @@ type settingsError struct{ message string }
 
 func (e settingsError) Error() string { return e.message }
 
-func refuse(format string, args ...any) error {
-	return settingsError{message: fmt.Sprintf(format, args...)}
+func refuse(message string) error {
+	return settingsError{message: message}
 }
 
 // profileFrom puts the screen's choices on a profile, checked; what the
 // screen does not show stays as base has it.
 func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar) (settings.Profile, error) {
-	primary, err := styleFrom(view.Primary, "Legenda de cima")
+	primary, err := styleFrom(view.Primary, ptbr.T("line.primary"))
 	if err != nil {
 		return settings.Profile{}, err
 	}
-	translation, err := styleFrom(view.Translation, "Legenda de baixo")
+	translation, err := styleFrom(view.Translation, ptbr.T("line.translation"))
 	if err != nil {
 		return settings.Profile{}, err
 	}
@@ -84,7 +84,7 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 		MarginTop: view.Layout.MarginTop, MarginBottom: view.Layout.MarginBottom, MaxWidth: view.Layout.MaxWidth,
 	}
 	if err := layout.Validate(); err != nil {
-		return settings.Profile{}, refuse("Margens: %s.", fieldProblem(err))
+		return settings.Profile{}, refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
 	}
 	karaoke, err := karaokeFrom(view.Karaoke)
 	if err != nil {
@@ -109,20 +109,20 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 	profile.Shortcuts = keys
 	switch {
 	case !profile.Study.Mode.Valid():
-		return settings.Profile{}, refuse("Escolha um modo de estudo.")
+		return settings.Profile{}, refuse(ptbr.T("error.unknownMode"))
 	case !profile.Speed.Valid():
-		return settings.Profile{}, refuse("Escolha uma das velocidades da lista.")
+		return settings.Profile{}, refuse(ptbr.T("error.settings.speed"))
 	case view.PrecisionStep < int(settings.MinPrecisionSeekStep.Milliseconds()) || view.PrecisionStep > int(settings.MaxPrecisionSeekStep.Milliseconds()):
-		return settings.Profile{}, refuse("Passo de precisão: vai de %d a %d ms.",
-			settings.MinPrecisionSeekStep.Milliseconds(), settings.MaxPrecisionSeekStep.Milliseconds())
+		return settings.Profile{}, refuse(ptbr.T("error.settings.precisionStep",
+			"min", settings.MinPrecisionSeekStep.Milliseconds(), "max", settings.MaxPrecisionSeekStep.Milliseconds()))
 	case profile.Sync.Nudge().Validate() != nil:
-		return settings.Profile{}, refuse("Passos da sincronização: o passo vai de %d a %d ms, e o passo segurando vai do passo até %d ms.",
-			subtitle.MinNudgeStep.Milliseconds(), subtitle.MaxNudgeStep.Milliseconds(), subtitle.MaxFastNudgeStep.Milliseconds())
+		return settings.Profile{}, refuse(ptbr.T("error.settings.syncSteps", "min", subtitle.MinNudgeStep.Milliseconds(),
+			"max", subtitle.MaxNudgeStep.Milliseconds(), "fastMax", subtitle.MaxFastNudgeStep.Milliseconds()))
 	case !profile.Study.Reveal.Valid():
-		return settings.Profile{}, refuse("Escolha como a tecla da tradução funciona.")
+		return settings.Profile{}, refuse(ptbr.T("error.settings.reveal"))
 	}
 	if err := profile.Validate(); err != nil {
-		return settings.Profile{}, refuse("Confira os idiomas preferidos e o player preferido.")
+		return settings.Profile{}, refuse(ptbr.T("error.settings.profile"))
 	}
 	return profile, nil
 }
@@ -148,12 +148,12 @@ func styleFrom(view StyleSettings, line string) (appearance.SubtitleStyle, error
 	} {
 		parsed, err := appearance.ParseColor(color.text)
 		if err != nil {
-			return style, refuse("%s: a cor %q não é válida.", line, color.text)
+			return style, refuse(ptbr.T("error.settings.color", "line", line, "color", fmt.Sprintf("%q", color.text)))
 		}
 		*color.target = parsed
 	}
 	if err := style.Validate(); err != nil {
-		return style, refuse("%s: %s.", line, fieldProblem(err))
+		return style, refuse(ptbr.T("error.settings.style", "line", line, "problem", fieldProblem(err)))
 	}
 	return style, nil
 }
@@ -162,47 +162,48 @@ func styleFrom(view StyleSettings, line string) (appearance.SubtitleStyle, error
 func fieldProblem(err error) string {
 	var field *appearance.FieldError
 	if !errors.As(err, &field) {
-		return "um dos valores está fora do limite"
+		return ptbr.T("settings.problem.outOfRange")
 	}
+	limit := func(value float64) string { return ptbr.Number(value, -1) }
 	switch field.Field {
 	case "fontFamily":
-		return "escolha uma fonte"
+		return ptbr.T("settings.problem.fontFamily")
 	case "fontSize":
-		return fmt.Sprintf("o tamanho da fonte vai de %g a %g", appearance.MinFontSize, appearance.MaxFontSize)
+		return ptbr.T("settings.problem.fontSize", "min", limit(appearance.MinFontSize), "max", limit(appearance.MaxFontSize))
 	case "sizeMode":
-		return "escolha tamanho fixo ou responsivo"
+		return ptbr.T("settings.problem.sizeMode")
 	case "opacity":
-		return "a opacidade vai de 0% a 100%"
+		return ptbr.T("settings.problem.opacity")
 	case "outline.width":
-		return fmt.Sprintf("a espessura do contorno vai de 0 a %g", appearance.MaxOutlineWidth)
+		return ptbr.T("settings.problem.outlineWidth", "max", limit(appearance.MaxOutlineWidth))
 	case "shadow.offsetX", "shadow.offsetY":
-		return fmt.Sprintf("o deslocamento da sombra vai de −%g a %g", appearance.MaxShadowOffset, appearance.MaxShadowOffset)
+		return ptbr.T("settings.problem.shadowOffset", "max", limit(appearance.MaxShadowOffset))
 	case "shadow.blur":
-		return fmt.Sprintf("o desfoque da sombra vai de 0 a %g", appearance.MaxShadowBlur)
+		return ptbr.T("settings.problem.shadowBlur", "max", limit(appearance.MaxShadowBlur))
 	case "background.padding":
-		return fmt.Sprintf("a margem do fundo vai de 0 a %g", appearance.MaxPadding)
+		return ptbr.T("settings.problem.padding", "max", limit(appearance.MaxPadding))
 	case "verticalPosition":
-		return "a posição vai de 1% a 100% da altura"
+		return ptbr.T("settings.problem.position")
 	case "alignment":
-		return "escolha esquerda, centro ou direita"
+		return ptbr.T("settings.problem.alignment")
 	case "maxLines":
-		return fmt.Sprintf("o máximo de linhas vai de %d a %d", appearance.MinLines, appearance.MaxLines)
+		return ptbr.T("settings.problem.maxLines", "min", appearance.MinLines, "max", appearance.MaxLines)
 	case "marginLeft", "marginRight", "marginTop", "marginBottom":
-		return fmt.Sprintf("cada margem vai de 0%% a %g%%", appearance.MaxMarginFraction*100)
+		return ptbr.T("settings.problem.margin", "max", limit(appearance.MaxMarginFraction*100))
 	case "maxWidth":
-		return "a largura máxima vai de 1% a 100%"
+		return ptbr.T("settings.problem.maxWidth")
 	}
-	return "um dos valores está fora do limite"
+	return ptbr.T("settings.problem.outOfRange")
 }
 
 func karaokeFrom(view KaraokeSettings) (settings.KaraokePreferences, error) {
 	preview, err := appearance.ParseColor(view.PreviewColor)
 	if err != nil {
-		return settings.KaraokePreferences{}, refuse("Modo Karaokê: a cor da prévia não é válida.")
+		return settings.KaraokePreferences{}, refuse(ptbr.T("error.karaoke.previewColor"))
 	}
 	fill, err := appearance.ParseColor(view.FillColor)
 	if err != nil {
-		return settings.KaraokePreferences{}, refuse("Modo Karaokê: a cor do preenchimento não é válida.")
+		return settings.KaraokePreferences{}, refuse(ptbr.T("error.karaoke.fillColor"))
 	}
 	karaoke := settings.KaraokePreferences{
 		Enabled: view.Enabled, MinGap: seconds(view.MinGap), Lead: seconds(view.Lead),
@@ -210,12 +211,13 @@ func karaokeFrom(view KaraokeSettings) (settings.KaraokePreferences, error) {
 	}
 	switch {
 	case karaoke.Rules().Validate() != nil:
-		return karaoke, refuse("Modo Karaokê: a lacuna mínima vai de %g a %g s e a antecedência de %g a %g s.",
-			study.MinCueGap.Seconds(), study.MaxCueGap.Seconds(), study.MinCueLead.Seconds(), study.MaxCueLead.Seconds())
+		return karaoke, refuse(ptbr.T("error.karaoke.timing",
+			"gapMin", ptbr.Number(study.MinCueGap.Seconds(), -1), "gapMax", ptbr.Number(study.MaxCueGap.Seconds(), -1),
+			"leadMin", ptbr.Number(study.MinCueLead.Seconds(), -1), "leadMax", ptbr.Number(study.MaxCueLead.Seconds(), -1)))
 	case !karaoke.Indicator.Valid():
-		return karaoke, refuse("Modo Karaokê: escolha a barra ou a contagem regressiva.")
+		return karaoke, refuse(ptbr.T("error.karaoke.indicator"))
 	case karaoke.Repeat < 0 || karaoke.Repeat > study.MaxRepeats:
-		return karaoke, refuse("Modo Karaokê: repetir cada fala vai de 0 a %d vezes.", study.MaxRepeats)
+		return karaoke, refuse(ptbr.T("error.karaoke.repeat", "max", study.MaxRepeats))
 	}
 	return karaoke, nil
 }
@@ -234,7 +236,7 @@ func shortcutsFrom(views []ShortcutSetting, char ptbr.KeyChar) (shortcut.Map, er
 	for _, view := range views {
 		command := shortcut.Command(view.Command)
 		if !command.Known() {
-			return nil, refuse("Atalhos: comando desconhecido.")
+			return nil, refuse(ptbr.T("error.shortcut.unknownCommand"))
 		}
 		if strings.TrimSpace(view.Chord) == "" {
 			keys[command] = shortcut.Chord{} // no shortcut
@@ -242,12 +244,13 @@ func shortcutsFrom(views []ShortcutSetting, char ptbr.KeyChar) (shortcut.Map, er
 		}
 		chord, err := shortcut.Parse(view.Chord)
 		if err != nil {
-			return nil, refuse("Atalho de “%s”: %s", ptbr.CommandName(command), ptbr.ShortcutProblem(err, char))
+			return nil, refuse(ptbr.T("error.shortcut.problem",
+				"command", ptbr.CommandName(command), "problem", ptbr.ShortcutProblem(err, char)))
 		}
 		keys[command] = chord
 	}
 	if err := keys.Validate(); err != nil {
-		return nil, refuse("%s", ptbr.ShortcutProblem(err, char))
+		return nil, refuse(ptbr.ShortcutProblem(err, char))
 	}
 	return keys.Resolved(), nil
 }

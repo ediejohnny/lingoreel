@@ -6,10 +6,11 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // ErrUnknownPlayer reports a player id the app has no plugin for.
-var ErrUnknownPlayer = errors.New("Este player não é suportado pelo LingoReel.")
+var ErrUnknownPlayer = worded(func() string { return ptbr.T("error.player.unsupported") })
 
 // Players lists the players on the computer again, after an installation
 // or when the user asks.
@@ -98,7 +99,7 @@ func (a *API) installation(id string) (player.Installation, error) {
 	if i := slices.IndexFunc(installed, func(found player.Installation) bool { return found.ID == player.ID(id) }); i >= 0 {
 		return installed[i], nil
 	}
-	return player.Installation{}, errors.New("Este player não está mais instalado. Escolha outro ou instale-o de novo.")
+	return player.Installation{}, errors.New(ptbr.T("error.player.missing"))
 }
 
 // InstallPlayer installs a player with winget in the background; the window
@@ -114,13 +115,13 @@ func (a *API) InstallPlayer(id string) error {
 	}
 	packageID := plugin.Descriptor().Install.WingetID
 	if a.deps.Installer == nil || !a.deps.Installer.Available() || packageID == "" {
-		return errors.New("A instalação automática não está disponível neste computador. Use \"Baixar no site oficial\".")
+		return errors.New(ptbr.T("error.install.unavailable"))
 	}
 	go func() {
 		progress := InstallProgress{ID: id, Done: true}
 		if err := a.deps.Installer.Install(ctx, packageID); err != nil {
 			a.logger.Warn("player installation failed", "player", id, "error", err)
-			progress.Error = "A instalação não foi concluída. Tente de novo ou baixe no site oficial."
+			progress.Error = ptbr.T("error.install.failed")
 		}
 		a.emit(EventInstall, progress)
 	}()

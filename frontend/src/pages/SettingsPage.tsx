@@ -9,6 +9,7 @@ import { SubtitleLineSection, SubtitlesSection } from "../components/settings/Su
 import type { SectionProps } from "../components/settings/section";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
+import { t } from "../i18n";
 import { backend, messageOf, type ProfileSettings, type SettingsView } from "../services/backend";
 import { lineLanguage, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
 import type { Theme } from "../stores/theme";
@@ -128,7 +129,7 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
   if (!view || !draft) {
     return (
       <main className="flex flex-1 items-center justify-center p-6">
-        {error ? <Banner tone="error">{error}</Banner> : <p className="text-sm text-fg-muted">Carregando as configurações…</p>}
+        {error ? <Banner tone="error">{error}</Banner> : <p className="text-sm text-fg-muted">{t("ui.settings.loading")}</p>}
       </main>
     );
   }
@@ -136,7 +137,7 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
   const dirty = !sameSettings(draft, view.profile);
   const save = async () => {
     setSaving(true);
-    await run(() => backend.saveProfile(draft), "Configurações salvas. O vídeo aberto já usa as novas escolhas.");
+    await run(() => backend.saveProfile(draft), t("ui.settings.saved"));
     setSaving(false);
   };
   const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection };
@@ -153,7 +154,7 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
       {narrow ? (
         <div className="shrink-0 border-b border-line bg-surface p-3">
           <label className="flex flex-col gap-1 text-sm text-fg-secondary">
-            Seção
+            {t("ui.settings.section")}
             <select
               value={section}
               onChange={(event) => setSection(event.target.value as SectionId)}
@@ -168,7 +169,7 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
           </label>
         </div>
       ) : (
-        <nav aria-label="Seções das configurações" className="w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3">
+        <nav aria-label={t("ui.settings.nav")} className="w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3">
           <ul className="flex flex-col gap-0.5">
             {sections.map((item) => (
               <MenuEntry key={item.id} item={item} current={section} onOpen={setSection} />
@@ -206,13 +207,13 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
           <footer className="flex shrink-0 items-center gap-3 border-t border-line bg-surface px-6 py-3" role="status">
             <span className="flex-1 text-sm text-fg">
               <span aria-hidden className="mr-2 inline-block size-2 rounded-full bg-warning align-middle" />
-              Alterações não salvas
+              {t("ui.settings.unsaved")}
             </span>
             <Button icon={Undo2} variant="ghost" onClick={() => setDraft(view.profile)}>
-              Descartar
+              {t("ui.settings.discard")}
             </Button>
             <Button icon={Save} variant="primary" loading={saving} onClick={() => void save()}>
-              Salvar
+              {t("ui.common.save")}
             </Button>
           </footer>
         )}

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"errors"
-
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
@@ -12,8 +10,8 @@ import (
 // outside its text fields: the same commands the player window runs.
 
 var (
-	errUnknownCommand = errors.New("Atalho desconhecido.")
-	errWindowOnly     = errors.New("Esse atalho funciona na janela do filme.")
+	errUnknownCommand = worded(func() string { return ptbr.T("error.shortcut.unknown") })
+	errWindowOnly     = worded(func() string { return ptbr.T("error.shortcut.windowOnly") })
 )
 
 // Shortcuts are the keys of the commands: the video's, or else the active

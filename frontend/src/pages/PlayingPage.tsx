@@ -9,7 +9,8 @@ import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
 import { isTyping, speedLabel } from "../format";
-import { fullscreenOf, keyLabel, panelCommand, translationCommand, withKey } from "../keys";
+import { t } from "../i18n";
+import { both, fullscreenOf, keyLabel, panelCommand, translationCommand, withKey } from "../keys";
 import { backend, type Choice, type Line, type Playback, type ShortcutSetting } from "../services/backend";
 
 /** seekStep is the jump of the back and forward buttons, in seconds. */
@@ -44,26 +45,16 @@ interface PlayingPageProps {
   };
 }
 
-/** both joins two keys for a hint: "Shift+, e Shift+.", or the one there is. */
-function both(first: string, second: string): string {
-  return [first, second].filter((label) => label !== "").join(" e ");
-}
-
 function modeHelp(translationKey: string): string {
-  return (
-    `Dupla mostra as duas legendas, e a tecla da tradução (${translationKey || "sem atalho"}) esconde e mostra a de baixo. ` +
-    "Tradução sob demanda começa só com a legenda de cima: a tecla mostra a tradução quando você precisar. " +
-    "Tradução sempre visível nunca esconde a de baixo. Vale só para este vídeo; o padrão fica nas Configurações."
-  );
+  return t("ui.playing.mode.help", { key: translationKey || t("ui.playing.mode.noKey") });
 }
 
 function syncHelp(primaryKeys: string, translationKeys: string): string {
-  const primary = primaryKeys ? `${primaryKeys} movem a legenda de cima` : "a legenda de cima está sem atalho";
-  const translation = translationKeys ? `${translationKeys} a de baixo` : "a de baixo está sem atalho";
-  return (
-    "Se uma legenda aparece antes ou depois da fala, ajuste aqui ou pelos atalhos, na janela do filme ou neste painel: " +
-    `${primary}, ${translation}. Segurar a tecla acelera.`
-  );
+  const primary = primaryKeys ? t("ui.playing.sync.helpPrimary", { keys: primaryKeys }) : t("ui.playing.sync.helpPrimaryNone");
+  const translation = translationKeys
+    ? t("ui.playing.sync.helpTranslation", { keys: translationKeys })
+    : t("ui.playing.sync.helpTranslationNone");
+  return t("ui.playing.sync.help", { primary, translation });
 }
 
 /** PlayingPage is the playback panel while the video plays in the player. */
@@ -163,7 +154,7 @@ export function PlayingPage({
         {state.projectNote && <Banner tone="warning">{state.projectNote}</Banner>}
         {!embedded && (
           <Card>
-            <p className="mb-1 truncate text-sm text-fg-muted">Tocando no player</p>
+            <p className="mb-1 truncate text-sm text-fg-muted">{t("ui.playing.title")}</p>
             <h1 className="mb-5 truncate text-lg font-semibold text-fg" title={name}>
               {name}
             </h1>
@@ -178,13 +169,13 @@ export function PlayingPage({
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <IconButton
                 icon={Rewind}
-                label={withKey(`Voltar ${seekStep} segundos`, label("seek-back"))}
+                label={withKey(t("ui.playing.seekBack", { seconds: seekStep }), label("seek-back"))}
                 disabled={!capabilities.seek}
                 onClick={() => onCommand(() => commands.seekBy(-seekStep))}
               />
               <IconButton
                 icon={playing ? Pause : Play}
-                label={withKey(playing ? "Pausar" : "Reproduzir", label("play-pause"))}
+                label={withKey(playing ? t("ui.playing.pause") : t("ui.playing.play"), label("play-pause"))}
                 size="lg"
                 active
                 disabled={!capabilities.pause}
@@ -192,7 +183,7 @@ export function PlayingPage({
               />
               <IconButton
                 icon={FastForward}
-                label={withKey(`Avançar ${seekStep} segundos`, label("seek-forward"))}
+                label={withKey(t("ui.playing.seekForward", { seconds: seekStep }), label("seek-forward"))}
                 disabled={!capabilities.seek}
                 onClick={() => onCommand(() => commands.seekBy(seekStep))}
               />
@@ -201,10 +192,10 @@ export function PlayingPage({
         )}
 
         <div className={`grid gap-5 [&>*]:min-w-0 ${embedded ? "" : "sm:grid-cols-2"}`}>
-          <Card title="Reprodução">
+          <Card title={t("ui.playing.playback.title")}>
             <div className="flex flex-col gap-4">
               <Select
-                label="Velocidade"
+                label={t("ui.playing.speed.label")}
                 value={String(currentSpeed)}
                 options={speedOptions}
                 disabled={!capabilities.speed}
@@ -212,25 +203,28 @@ export function PlayingPage({
               />
               {modes.length > 0 && (
                 <Select
-                  label="Modo de estudo"
+                  label={t("ui.playing.mode.label")}
                   value={state.mode}
                   options={modes.map((mode) => ({ value: mode.value, label: mode.label }))}
                   onChange={(mode) => onCommand(() => commands.setStudyMode(mode))}
-                  help={<HelpTip topic="modo de estudo">{modeHelp(label(translationCommand))}</HelpTip>}
+                  help={<HelpTip topic={t("ui.playing.mode.topic")}>{modeHelp(label(translationCommand))}</HelpTip>}
                 />
               )}
               <Button
                 icon={state.translationVisible ? EyeOff : Eye}
                 disabled={translationLocked}
-                title={translationLocked ? "A tradução fica sempre visível neste modo de estudo" : undefined}
+                title={translationLocked ? t("ui.playing.translation.locked") : undefined}
                 onClick={() => onCommand(() => commands.setTranslationVisible(!state.translationVisible))}
               >
-                {state.translationVisible ? "Ocultar tradução" : "Mostrar tradução"}
+                {state.translationVisible ? t("ui.playing.translation.hide") : t("ui.playing.translation.show")}
               </Button>
             </div>
           </Card>
 
-          <Card title="Sincronização" aside={<HelpTip topic="sincronização">{syncHelp(primaryKeys, translationKeys)}</HelpTip>}>
+          <Card
+            title={t("ui.playing.sync.title")}
+            aside={<HelpTip topic={t("ui.playing.sync.topic")}>{syncHelp(primaryKeys, translationKeys)}</HelpTip>}
+          >
             <div className="flex flex-col gap-4">
               <SyncRow
                 name={state.lines.primary}
@@ -260,7 +254,7 @@ export function PlayingPage({
 
         <div className="flex justify-end pb-2">
           <Button icon={Square} onClick={() => onCommand(commands.stop)}>
-            Encerrar
+            {t("ui.playing.stop")}
           </Button>
         </div>
       </div>

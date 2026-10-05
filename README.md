@@ -61,6 +61,8 @@ Contributions are welcome! Open an issue to talk about an idea or send a pull re
 Want to use another player? Every player is a plugin that follows the same contract: see
 [Player plugins](docs/player-plugins.md).
 
+Want the app in your language? Every text comes from a catalog per language: see [Translating](docs/translating.md).
+
 ## License and credits
 
 LingoReel is distributed under the [MIT license](LICENSE): you may use, copy, modify and distribute the project,

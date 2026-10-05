@@ -17,15 +17,15 @@ import (
 
 // Messages of the editor.
 var (
-	errEditPlaying  = errors.New("Pause o vídeo para corrigir uma legenda.")
-	errNoLineNow    = errors.New("Não há fala nesta legenda agora.")
-	errNotSelected  = errors.New("Escolha uma fala antes: clique nela no vídeo pausado.")
-	errEmptyLine    = errors.New("A fala não pode ficar vazia.")
-	errLongLine     = errors.New("A fala pode ter até 2000 letras.")
-	errLineTimes    = errors.New("O fim precisa vir depois do início, e o início não pode ser antes do começo do vídeo.")
-	errEditClock    = errors.New("Escreva os tempos como 1:02:03,456 ou 2:03,456.")
-	errNothingToSay = errors.New("Esta legenda não tem falas para exportar.")
-	errExport       = errors.New("Não foi possível gravar a legenda exportada.")
+	errEditPlaying  = worded(func() string { return ptbr.T("error.edit.playing") })
+	errNoLineNow    = worded(func() string { return ptbr.T("error.edit.noLine") })
+	errNotSelected  = worded(func() string { return ptbr.T("error.edit.notSelected") })
+	errEmptyLine    = worded(func() string { return ptbr.T("error.edit.empty") })
+	errLongLine     = worded(func() string { return ptbr.T("error.edit.tooLong") })
+	errLineTimes    = worded(func() string { return ptbr.T("error.edit.times") })
+	errEditClock    = worded(func() string { return ptbr.T("error.edit.clock") })
+	errNothingToSay = worded(func() string { return ptbr.T("error.export.empty") })
+	errExport       = worded(func() string { return ptbr.T("error.export.failed") })
 )
 
 // edit runs an editing command and reports the new state, wording the
@@ -56,7 +56,7 @@ func (a *API) edit(command func(*watching) error) error {
 		return err
 	}
 	a.logger.Warn("editing failed", "error", err)
-	return errors.New("Não foi possível corrigir a fala.")
+	return errors.New(ptbr.T("error.edit.failed"))
 }
 
 // SelectLine picks the line on screen ("primary" or "translation") for
@@ -144,11 +144,11 @@ func (a *API) ExportSubtitle(line string) error {
 	if ui == nil {
 		return ErrNotReady
 	}
-	suggested := strings.TrimSuffix(filepath.Base(current.video), filepath.Ext(current.video)) + " (corrigida).srt"
+	suggested := ptbr.T("export.fileName", "video", strings.TrimSuffix(filepath.Base(current.video), filepath.Ext(current.video)))
 	path, err := ui.SaveSubtitleDialog(suggested)
 	if err != nil {
 		a.logger.Warn("save dialog failed", "error", err)
-		return errors.New("Não foi possível abrir a janela para salvar o arquivo.")
+		return errors.New(ptbr.T("error.export.dialog"))
 	}
 	if path == "" {
 		return nil // cancelled

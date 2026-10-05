@@ -186,6 +186,10 @@ export function SetKaraokeIndicator(arg1) {
   return window['go']['app']['API']['SetKaraokeIndicator'](arg1);
 }
 
+export function SetLanguage(arg1) {
+  return window['go']['app']['API']['SetLanguage'](arg1);
+}
+
 export function SetLineRepeats(arg1) {
   return window['go']['app']['API']['SetLineRepeats'](arg1);
 }

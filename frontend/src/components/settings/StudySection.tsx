@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { KaraokeSettings } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
@@ -22,115 +23,86 @@ export function StudySection(props: SectionProps) {
 
   return (
     <>
-      <Card title="Modo de estudo">
+      <Card title={t("ui.settings.study.mode.title")}>
         <Segmented
-          label="Ao abrir um vídeo"
+          label={t("ui.settings.study.mode.label")}
           value={draft.mode}
           options={view.options.modes.map((option) => ({ value: option.value, label: option.label }))}
           onChange={change(setDraft, "mode")}
-          help={
-            <HelpTip topic="Modo de estudo">
-              Dupla mostra as duas legendas, e a tecla da tradução esconde e mostra a de baixo. Tradução sob demanda, o modo recomendado
-              para estudar, começa só com a legenda de cima: a tecla mostra a tradução quando você precisar. Tradução sempre visível nunca
-              esconde a de baixo. Na tela da sessão e no painel dá para trocar o modo de um vídeo só.
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.settings.study.mode.topic")}>{t("ui.settings.study.mode.help")}</HelpTip>}
         />
       </Card>
       <Card
-        title="Modo Karaokê"
-        aside={
-          <HelpTip topic="Modo Karaokê">
-            Mostra a próxima fala antes da hora, para você se preparar e falar junto com o ator, e pinta o texto enquanto ele fala. Também
-            dá para ligar e desligar pelo painel enquanto o filme toca.
-          </HelpTip>
-        }
+        title={t("ui.settings.study.karaoke.title")}
+        aside={<HelpTip topic={t("ui.settings.study.karaoke.topic")}>{t("ui.settings.study.karaoke.help")}</HelpTip>}
       >
         <div className="flex flex-col gap-5">
-          <Toggle label="Ligar o Modo Karaokê ao abrir um vídeo" checked={karaoke.enabled} onChange={set("enabled")} />
+          <Toggle label={t("ui.settings.study.karaoke.enable")} checked={karaoke.enabled} onChange={set("enabled")} />
           <div className="grid gap-4 sm:grid-cols-2">
             <NumberField
-              label="Lacuna mínima"
+              label={t("ui.settings.study.minGap.label")}
               value={karaoke.minGap}
               min={limits.gapMin}
               max={limits.gapMax}
               step={1}
               unit="s"
               onChange={set("minGap")}
-              help={
-                <HelpTip topic="Lacuna mínima">
-                  A prévia só aparece depois de uma pausa sem fala pelo menos deste tamanho. Em diálogos rápidos ela não aparece.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.settings.study.minGap.topic")}>{t("ui.settings.study.minGap.help")}</HelpTip>}
             />
             <NumberField
-              label="Antecedência"
+              label={t("ui.settings.study.lead.label")}
               value={karaoke.lead}
               min={limits.leadMin}
               max={limits.leadMax}
               step={0.5}
               unit="s"
               onChange={set("lead")}
-              help={
-                <HelpTip topic="Antecedência">
-                  Quanto antes da fala a prévia aparece. Ela nunca cobre a fala anterior: numa pausa mais curta, aparece só no fim da pausa.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.settings.study.lead.topic")}>{t("ui.settings.study.lead.help")}</HelpTip>}
             />
             <Segmented
-              label="Tempo até a fala"
+              label={t("ui.settings.study.indicator.label")}
               value={karaoke.indicator}
               options={[
-                { value: "bar", label: "Barra" },
-                { value: "countdown", label: "Contagem regressiva" },
+                { value: "bar", label: t("ui.settings.study.indicator.bar") },
+                { value: "countdown", label: t("ui.settings.study.indicator.countdown") },
               ]}
               onChange={set("indicator")}
-              help={
-                <HelpTip topic="Tempo até a fala">
-                  Uma barra fina que diminui até a fala, ou os segundos que faltam (5… 4… 3…), em tempo real.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.settings.study.indicator.topic")}>{t("ui.settings.study.indicator.help")}</HelpTip>}
             />
-            <ColorField label="Cor da prévia" value={karaoke.previewColor} onChange={set("previewColor")} />
+            <ColorField label={t("ui.settings.study.previewColor")} value={karaoke.previewColor} onChange={set("previewColor")} />
             <Toggle
-              label="Pintar o texto enquanto o ator fala"
+              label={t("ui.settings.study.fill.label")}
               checked={karaoke.fill}
               onChange={set("fill")}
-              help={
-                <HelpTip topic="Preenchimento">
-                  O texto é pintado da esquerda para a direita. É uma estimativa pelo número de letras: a legenda não traz o tempo de cada
-                  palavra.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.settings.study.fill.topic")}>{t("ui.settings.study.fill.help")}</HelpTip>}
             />
-            <ColorField label="Cor do preenchimento" value={karaoke.fillColor} disabled={!karaoke.fill} onChange={set("fillColor")} />
+            <ColorField
+              label={t("ui.settings.study.fillColor")}
+              value={karaoke.fillColor}
+              disabled={!karaoke.fill}
+              onChange={set("fillColor")}
+            />
             <NumberField
-              label="Repetir cada fala"
+              label={t("ui.settings.study.repeat.label")}
               value={karaoke.repeat}
               min={0}
               max={limits.repeatMax}
               step={1}
               unit="×"
               onChange={set("repeat")}
-              help={<HelpTip topic="Repetir cada fala">Quantas vezes cada fala toca de novo antes de seguir. 0 desliga.</HelpTip>}
+              help={<HelpTip topic={t("ui.settings.study.repeat.topic")}>{t("ui.settings.study.repeat.help")}</HelpTip>}
             />
           </div>
         </div>
       </Card>
       <Card
-        title="Tecla da tradução"
-        aside={
-          <HelpTip topic="Tecla da tradução">
-            Na janela do filme e no painel, esta tecla mostra e esconde a legenda de baixo. Desmarcada a caixa, cada toque alterna: aperta e
-            mostra, aperta de novo e esconde. Marcada, na Tradução sob demanda, a tradução aparece só enquanto a tecla está pressionada. Na
-            Tradução sempre visível a tecla não faz nada.
-          </HelpTip>
-        }
+        title={t("ui.settings.study.key.title")}
+        aside={<HelpTip topic={t("ui.settings.study.key.topic")}>{t("ui.settings.study.key.help")}</HelpTip>}
       >
         <div className="flex flex-col gap-4">
           {translationKey && (
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-fg">Tecla</span>
+              <span className="text-sm text-fg">{t("ui.settings.study.key.label")}</span>
               <ShortcutCapture
                 name={translationKey.name}
                 label={translationKey.label}
@@ -146,7 +118,7 @@ export function StudySection(props: SectionProps) {
             </div>
           )}
           <Toggle
-            label="Mostrar a tradução só enquanto a tecla estiver pressionada"
+            label={t("ui.settings.study.key.hold")}
             checked={draft.reveal === "hold"}
             onChange={(hold) => change(setDraft, "reveal")(hold ? "hold" : "toggle")}
           />

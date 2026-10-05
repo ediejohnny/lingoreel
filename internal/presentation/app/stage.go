@@ -1,10 +1,9 @@
 package app
 
 import (
-	"errors"
-
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // The video inside the app's window: the screens tell where their controls
@@ -17,8 +16,8 @@ const (
 )
 
 var (
-	errBadVideoLayout = errors.New("Não foi possível posicionar o vídeo na janela.")
-	errBadPanel       = errors.New("Largura do painel fora do permitido.")
+	errBadVideoLayout = worded(func() string { return ptbr.T("error.videoLayout") })
+	errBadPanel       = worded(func() string { return ptbr.T("error.panelWidth") })
 )
 
 // VideoLayout is the room the screen's controls leave the video, in pixels

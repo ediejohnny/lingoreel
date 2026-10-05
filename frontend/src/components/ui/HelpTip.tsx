@@ -1,5 +1,6 @@
 import { CircleHelp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { t } from "../../i18n";
 
 interface HelpTipProps {
   /** topic names what the help is about, for screen readers. */
@@ -38,7 +39,7 @@ export function HelpTip({ topic, children }: HelpTipProps) {
     <span ref={root} className="relative inline-flex">
       <button
         type="button"
-        aria-label={`Ajuda: ${topic}`}
+        aria-label={t("ui.help.label", { topic })}
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((value) => !value)}

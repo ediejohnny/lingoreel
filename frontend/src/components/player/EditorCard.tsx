@@ -1,6 +1,7 @@
 import { CircleDot, FileDown, Flag, PencilLine, Redo2, RotateCcw, Save, Undo2, X } from "lucide-react";
 import { useId, useState } from "react";
 import { editClock } from "../../format";
+import { t } from "../../i18n";
 import { withKey } from "../../keys";
 import { backend } from "../../services/backend";
 import type { Editing, Line, Playback } from "../../services/backend";
@@ -8,9 +9,6 @@ import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
-
-/** pausedOnly is why the editor's buttons are off while the video plays. */
-const pausedOnly = "Pause o vídeo para corrigir uma legenda";
 
 interface EditorCardProps {
   state: Playback;
@@ -28,23 +26,15 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
   const playing = state.status === "playing";
   const pick = (line: Line) => onCommand(() => backend.selectLine(line));
   const exportLine = (line: Line) => onCommand(() => backend.exportSubtitle(line));
+  // pausedOnly is why the editor's buttons are off while the video plays.
+  const pausedOnly = t("ui.editor.pausedOnly");
 
   return (
-    <Card
-      title="Corrigir legendas"
-      aside={
-        <HelpTip topic="corrigir legendas">
-          Com o vídeo pausado, clique numa legenda na janela do filme, ou use os botões abaixo, para corrigir o texto ou os tempos da fala.
-          O original nunca se perde, e as correções ficam gravadas num arquivo ao lado do vídeo, que nunca é alterado.
-        </HelpTip>
-      }
-    >
+    <Card title={t("ui.editor.title")} aside={<HelpTip topic={t("ui.editor.topic")}>{t("ui.editor.help")}</HelpTip>}>
       <div className="@container flex flex-col gap-4">
         {editing.staleEdits > 0 && (
           <p role="status" className="text-sm text-warning">
-            {editing.staleEdits === 1
-              ? "Uma correção gravada não vale mais: a fala original mudou no arquivo da legenda."
-              : `${editing.staleEdits} correções gravadas não valem mais: as falas originais mudaram no arquivo da legenda.`}
+            {t("ui.editor.stale", { count: editing.staleEdits })}
           </p>
         )}
         {editing.active ? (
@@ -58,10 +48,10 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
         ) : (
           <div className="grid gap-2 @md:grid-cols-2">
             <Button icon={PencilLine} disabled={playing} title={playing ? pausedOnly : undefined} onClick={() => pick("primary")}>
-              Corrigir a legenda de cima
+              {t("ui.editor.fix.top")}
             </Button>
             <Button icon={PencilLine} disabled={playing} title={playing ? pausedOnly : undefined} onClick={() => pick("translation")}>
-              Corrigir a de baixo
+              {t("ui.editor.fix.bottom")}
             </Button>
           </div>
         )}
@@ -69,31 +59,28 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
           <Button
             icon={Undo2}
             disabled={playing || !editing.canUndo}
-            title={playing ? pausedOnly : withKey("Desfazer a última correção", label("undo"))}
+            title={playing ? pausedOnly : withKey(t("ui.editor.undo.tip"), label("undo"))}
             onClick={() => onCommand(backend.undoEdit)}
           >
-            Desfazer
+            {t("ui.editor.undo.label")}
           </Button>
           <Button
             icon={Redo2}
             disabled={playing || !editing.canRedo}
-            title={playing ? pausedOnly : withKey("Refazer a correção desfeita", label("redo"))}
+            title={playing ? pausedOnly : withKey(t("ui.editor.redo.tip"), label("redo"))}
             onClick={() => onCommand(backend.redoEdit)}
           >
-            Refazer
+            {t("ui.editor.redo.label")}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Button icon={FileDown} variant="ghost" onClick={() => exportLine("primary")}>
-            Exportar a legenda de cima
+            {t("ui.editor.export.top")}
           </Button>
           <Button icon={FileDown} variant="ghost" onClick={() => exportLine("translation")}>
-            Exportar a de baixo
+            {t("ui.editor.export.bottom")}
           </Button>
-          <HelpTip topic="exportar legenda">
-            Grava a legenda como você a vê, com as correções e a sincronização, num arquivo .srt ou .ass que você escolhe. Serve para usar
-            em outro player.
-          </HelpTip>
+          <HelpTip topic={t("ui.editor.export.topic")}>{t("ui.editor.export.help")}</HelpTip>
         </div>
       </div>
     </Card>
@@ -116,8 +103,8 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
   const unsaved = text !== editing.text || start !== editing.start || end !== editing.end;
 
   const now = (set: (value: string) => void) => (
-    <Button icon={Flag} onClick={() => set(editClock(position))} title="Usar a posição atual do vídeo">
-      Posição atual
+    <Button icon={Flag} onClick={() => set(editClock(position))} title={t("ui.editor.now.tip")}>
+      {t("ui.editor.now.label")}
     </Button>
   );
 
@@ -128,19 +115,19 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
         {unsaved && (
           <p role="status" className="flex items-center gap-1.5 text-sm text-warning">
             <CircleDot aria-hidden className="size-3.5" />
-            Não salvo
+            {t("ui.editor.unsaved")}
           </p>
         )}
       </div>
       <div className="rounded-control border border-line bg-surface-sunken p-3 text-sm">
         <p className="mb-1 text-xs font-medium tracking-wide text-fg-muted uppercase">
-          Original · {editing.originalStart} – {editing.originalEnd}
+          {t("ui.editor.original", { start: editing.originalStart, end: editing.originalEnd })}
         </p>
         <p className="whitespace-pre-wrap text-fg-secondary">{editing.original}</p>
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor={textId} className="text-sm font-medium text-fg">
-          Sua versão
+          {t("ui.editor.yourVersion")}
         </label>
         <textarea
           id={textId}
@@ -151,29 +138,29 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <TextField label="Início" value={start} onChange={setStart} placeholder="1:02:03,456" action={now(setStart)} />
-        <TextField label="Fim" value={end} onChange={setEnd} placeholder="1:02:05,000" action={now(setEnd)} />
+        <TextField label={t("ui.editor.start")} value={start} onChange={setStart} placeholder="1:02:03,456" action={now(setStart)} />
+        <TextField label={t("ui.editor.end")} value={end} onChange={setEnd} placeholder="1:02:05,000" action={now(setEnd)} />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="primary"
           icon={Save}
           disabled={playing || !unsaved}
-          title={playing ? "Pause o vídeo para salvar" : undefined}
+          title={playing ? t("ui.editor.pausedToSave") : undefined}
           onClick={() => onCommand(() => backend.editLine({ text, start, end }))}
         >
-          Salvar
+          {t("ui.common.save")}
         </Button>
         <Button icon={X} onClick={() => onCommand(backend.clearSelection)}>
-          Cancelar
+          {t("ui.common.cancel")}
         </Button>
         <Button
           icon={RotateCcw}
           disabled={playing || !editing.edited}
-          title={playing ? pausedOnly : "Volta a fala ao texto e aos tempos do arquivo da legenda"}
+          title={playing ? t("ui.editor.pausedOnly") : t("ui.editor.restore.tip")}
           onClick={() => onCommand(backend.restoreLine)}
         >
-          Restaurar o original
+          {t("ui.editor.restore.label")}
         </Button>
       </div>
     </div>

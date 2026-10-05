@@ -23,6 +23,11 @@ type GeneralSettings struct {
 	ActiveProfile string `json:"activeProfile"`
 	// Recommendations tells some player install suggestions are hidden.
 	RecommendationsHidden bool `json:"recommendationsHidden"`
+	// Language is the interface's language as chosen, empty for the
+	// Windows display language; Languages are the ones the app speaks,
+	// each named in itself.
+	Language  string   `json:"language"`
+	Languages []Option `json:"languages"`
 }
 
 // ProfileSettings are the active profile's choices.

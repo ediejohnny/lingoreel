@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { t } from "../i18n";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -16,7 +17,7 @@ export function nextTheme(theme: Theme): Theme {
 
 /** themeLabel names a theme in the interface. */
 export function themeLabel(theme: Theme): string {
-  return { system: "Tema do Windows", light: "Tema claro", dark: "Tema escuro" }[theme];
+  return { system: t("ui.theme.system"), light: t("ui.theme.light"), dark: t("ui.theme.dark") }[theme];
 }
 
 const darkQuery = "(prefers-color-scheme: dark)";

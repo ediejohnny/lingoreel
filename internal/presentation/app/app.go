@@ -196,7 +196,16 @@ type Lifecycle struct {
 }
 
 // ErrNotReady reports a call before the window started.
-var ErrNotReady = errors.New("A janela do app ainda está abrindo. Tente de novo em instantes.")
+var ErrNotReady = worded(func() string { return ptbr.T("error.notReady") })
+
+// message is an error the user reads, worded each time it is shown so it is
+// in the interface's language; each one is a value of its own for errors.Is.
+type message struct{ text func() string }
+
+func (m *message) Error() string { return m.text() }
+
+// worded makes an error of a catalog text.
+func worded(text func() string) error { return &message{text: text} }
 
 // New creates the API and its lifecycle.
 func New(deps Deps) (*API, Lifecycle) {
@@ -383,7 +392,7 @@ func (a *API) saveConfig() error {
 	}
 	if err := a.deps.Settings.SaveConfig(a.config); err != nil {
 		a.logger.Warn("settings could not be saved", "error", err)
-		return errors.New("Não foi possível salvar as configurações.")
+		return errors.New(ptbr.T("error.settings.notSaved"))
 	}
 	return nil
 }
@@ -394,7 +403,7 @@ func (a *API) saveProfiles() error {
 	}
 	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil {
 		a.logger.Warn("profiles could not be saved", "error", err)
-		return errors.New("Não foi possível salvar o perfil.")
+		return errors.New(ptbr.T("error.profile.notSaved"))
 	}
 	return nil
 }

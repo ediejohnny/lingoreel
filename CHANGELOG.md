@@ -6,6 +6,22 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-05
+
+The app is ready for translations.
+
+### Added
+
+- Every text of the interface comes from a catalog per language, read by the Go side and the screens alike; Brazilian
+  Portuguese is the complete one. Adding a language is adding a folder, with no code changes: see
+  [Translating](docs/translating.md).
+- The interface's language: the Windows display language when the app speaks it, and a field in Configurações › Geral as
+  soon as there is more than one.
+- Telling a subtitle's language from its text also knows German and Italian; each language's words are a data file.
+
+### Fixed
+
+- "1 voltas" and "Meta de 1 repetições concluída" now read in the singular.
 ## [0.18.0] - 2026-10-05
 
 One window: with VLC, the video plays inside the app's window, with the panel beside it.
@@ -347,7 +363,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...v0.17.0
 [0.16.3]: https://github.com/ediejohnny/lingoreel/compare/v0.16.2...v0.16.3

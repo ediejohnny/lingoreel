@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { t } from "../../i18n";
 import { panelWidth } from "../../stage";
 
 export type PanelTab = "playback" | "settings";
@@ -13,11 +14,6 @@ interface SidePanelProps {
   settings: ReactNode;
 }
 
-const tabs: { id: PanelTab; label: string }[] = [
-  { id: "playback", label: "Reprodução" },
-  { id: "settings", label: "Configurações" },
-];
-
 /**
  * SidePanel is the panel beside the video: the playback controls the bar
  * over the video has no room for, and the settings. Its left edge drags to
@@ -28,13 +24,21 @@ export function SidePanel({ width, tab, onTab, onWidth, playback, settings }: Si
   const dragging = useRef(false);
   const shown = dragged ?? panelWidth(width, window.innerWidth);
   const widthAt = (clientX: number) => panelWidth(window.innerWidth - clientX, window.innerWidth);
+  const tabs: { id: PanelTab; label: string }[] = [
+    { id: "playback", label: t("ui.panel.playback") },
+    { id: "settings", label: t("ui.panel.settings") },
+  ];
 
   return (
-    <aside aria-label="Painel" style={{ width: shown }} className="relative flex min-h-0 shrink-0 flex-col border-l border-line bg-bg">
+    <aside
+      aria-label={t("ui.panel.label")}
+      style={{ width: shown }}
+      className="relative flex min-h-0 shrink-0 flex-col border-l border-line bg-bg"
+    >
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Largura do painel"
+        aria-label={t("ui.panel.width")}
         className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-accent-soft"
         onPointerDown={(event) => {
           dragging.current = true;
@@ -52,7 +56,7 @@ export function SidePanel({ width, tab, onTab, onWidth, playback, settings }: Si
           onWidth(chosen);
         }}
       />
-      <div role="tablist" aria-label="Seções do painel" className="flex shrink-0 gap-1 border-b border-line bg-surface px-3 pt-2">
+      <div role="tablist" aria-label={t("ui.panel.tabs")} className="flex shrink-0 gap-1 border-b border-line bg-surface px-3 pt-2">
         {tabs.map((item) => (
           <button
             key={item.id}

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { t } from "../../i18n";
 import type { ShortcutSetting } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
@@ -38,21 +39,15 @@ export function ShortcutsSection(props: SectionProps) {
 
   return (
     <>
-      <p className="text-sm leading-relaxed text-fg-secondary">
-        Os atalhos valem na janela do filme e, enquanto o vídeo toca, no painel do app (fora dos campos de texto). Clique num atalho e
-        pressione as novas teclas: até três, como Ctrl+Shift+P. Alt+Shift não é aceito, porque troca o idioma do teclado no Windows. O ×
-        deixa um comando sem atalho.
-      </p>
+      <p className="text-sm leading-relaxed text-fg-secondary">{t("ui.settings.shortcuts.intro")}</p>
       {[...groups.entries()].map(([category, items]) => (
         <Card
           key={category}
           title={category}
           aside={
-            category === "Sincronização das legendas" ? (
-              <HelpTip topic="Atalhos de sincronização">
-                Estes funcionam com a janela do filme ou o painel do app em primeiro plano: nos outros programas as mesmas teclas continuam
-                digitando normalmente.
-              </HelpTip>
+            // The sync group, known by its commands: its name comes translated.
+            items.some((item) => item.command.startsWith("sync-")) ? (
+              <HelpTip topic={t("ui.settings.shortcuts.syncTopic")}>{t("ui.settings.shortcuts.syncHelp")}</HelpTip>
             ) : undefined
           }
         >

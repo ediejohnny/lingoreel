@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { t } from "../../i18n";
 import { backend, messageOf, type StyleSettings } from "../../services/backend";
 import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
@@ -31,14 +32,14 @@ function SubtitlesLayout({
   return (
     <div className="@container">
       <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
-        <aside aria-label="Prévia das legendas" className="flex flex-col gap-3 @2xl:sticky @2xl:top-4 @2xl:order-2">
+        <aside aria-label={t("ui.settings.subtitles.preview")} className="flex flex-col gap-3 @2xl:sticky @2xl:top-4 @2xl:order-2">
           {onView && (
             <Segmented
-              label="Prévia"
+              label={t("ui.settings.subtitles.view.label")}
               value={view}
               options={[
-                { value: "", label: "Normal" },
-                { value: "fill", label: "Modo Karaokê" },
+                { value: "", label: t("ui.settings.subtitles.view.normal") },
+                { value: "fill", label: t("ui.settings.subtitles.view.karaoke") },
               ]}
               onChange={(next) => onView(next === "fill" ? "fill" : "")}
             />
@@ -78,7 +79,8 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
   const languages = draft.languages;
   const languageOptions = options.languages.map((option) => ({ value: option.value, label: option.label }));
   const language = lineLanguage(line, languages[line], options.languages);
-  const title = line === "primary" ? `Legenda de cima · ${language}` : `Legenda de baixo · ${language}`;
+  const title =
+    line === "primary" ? t("ui.settings.subtitles.top.title", { language }) : t("ui.settings.subtitles.bottom.title", { language });
 
   return (
     <SubtitlesLayout
@@ -91,23 +93,21 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
         <div className="flex flex-col gap-5">
           {line === "primary" ? (
             <Select
-              label="Idioma preferido"
+              label={t("ui.settings.subtitles.language")}
               value={languages.primary}
               options={languageOptions}
               onChange={(primary) => change(setDraft, "languages")({ ...languages, primary })}
-              help={
-                <HelpTip topic="Idioma preferido">
-                  O idioma que o app escolhe sozinho para a legenda de cima ao abrir um vídeo: o que você estuda.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.settings.subtitles.top.languageTopic")}>{t("ui.settings.subtitles.top.languageHelp")}</HelpTip>}
             />
           ) : (
             <Select
-              label="Idioma preferido"
+              label={t("ui.settings.subtitles.language")}
               value={languages.translation}
-              options={[{ value: "", label: "Nenhum (sem tradução)" }, ...languageOptions]}
+              options={[{ value: "", label: t("ui.settings.subtitles.bottom.none") }, ...languageOptions]}
               onChange={(translation) => change(setDraft, "languages")({ ...languages, translation })}
-              help={<HelpTip topic="Idioma da tradução">O idioma que o app escolhe sozinho para a legenda de baixo, a tradução.</HelpTip>}
+              help={
+                <HelpTip topic={t("ui.settings.subtitles.bottom.languageTopic")}>{t("ui.settings.subtitles.bottom.languageHelp")}</HelpTip>
+              }
             />
           )}
           {problem && <p className="text-sm text-error">{problem}</p>}
@@ -116,16 +116,12 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
       </Card>
       {line === "primary" && (
         <Card
-          title="Modo Karaokê"
-          aside={
-            <HelpTip topic="Cor do preenchimento">
-              Cor da parte da frase que o ator já falou. É a mesma de Estudo › Modo Karaokê, onde também se liga o preenchimento.
-            </HelpTip>
-          }
+          title={t("ui.settings.subtitles.karaoke.title")}
+          aside={<HelpTip topic={t("ui.settings.subtitles.karaoke.topic")}>{t("ui.settings.subtitles.karaoke.help")}</HelpTip>}
         >
           <div className="flex flex-col gap-2">
             <ColorField
-              label="Cor do preenchimento"
+              label={t("ui.settings.subtitles.karaoke.fillColor")}
               value={karaoke.fillColor}
               disabled={!karaoke.fill}
               onChange={(fillColor) => {
@@ -133,9 +129,7 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
                 setPreviewView("fill");
               }}
             />
-            {!karaoke.fill && (
-              <p className="text-sm text-fg-muted">O preenchimento está desligado. Ligue em Estudo › Modo Karaokê para escolher a cor.</p>
-            )}
+            {!karaoke.fill && <p className="text-sm text-fg-muted">{t("ui.settings.subtitles.karaoke.off")}</p>}
           </div>
         </Card>
       )}
@@ -151,16 +145,20 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
   const languages = draft.languages;
   const keyOf = (command: string) => draft.shortcuts.find((item) => item.command === command)?.label ?? "";
   const lines: { line: SubtitleLine; label: string }[] = [
-    { line: "primary", label: `Legenda de cima · ${lineLanguage("primary", languages.primary, options.languages)}` },
-    { line: "translation", label: `Legenda de baixo · ${lineLanguage("translation", languages.translation, options.languages)}` },
+    {
+      line: "primary",
+      label: t("ui.settings.subtitles.top.title", { language: lineLanguage("primary", languages.primary, options.languages) }),
+    },
+    {
+      line: "translation",
+      label: t("ui.settings.subtitles.bottom.title", { language: lineLanguage("translation", languages.translation, options.languages) }),
+    },
   ];
 
   return (
     <SubtitlesLayout draft={draft} highlight="">
-      <Card title="As duas legendas">
-        <p className="mb-3 text-sm text-fg-secondary">
-          Cada legenda tem a sua fonte, o seu tamanho, as suas cores e a sua posição. Escolha qual mudar:
-        </p>
+      <Card title={t("ui.settings.subtitles.both.title")}>
+        <p className="mb-3 text-sm text-fg-secondary">{t("ui.settings.subtitles.both.intro")}</p>
         <div className="flex flex-wrap gap-2">
           {lines.map((item) => (
             <button
@@ -175,17 +173,12 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
         </div>
       </Card>
       <Card
-        title="Margens"
-        aside={
-          <HelpTip topic="Margens">
-            A área onde as legendas podem ficar, valendo para as duas. Os valores são partes do vídeo, então continuam certos em qualquer
-            tamanho de janela.
-          </HelpTip>
-        }
+        title={t("ui.settings.subtitles.margins.title")}
+        aside={<HelpTip topic={t("ui.settings.subtitles.margins.topic")}>{t("ui.settings.subtitles.margins.help")}</HelpTip>}
       >
         <div className="grid gap-4 @lg:grid-cols-2">
           <NumberField
-            label="Margem esquerda"
+            label={t("ui.settings.subtitles.margins.left")}
             value={layout.marginLeft}
             min={0}
             max={options.limits.marginMax}
@@ -195,7 +188,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             onChange={(marginLeft) => setLayout({ ...layout, marginLeft })}
           />
           <NumberField
-            label="Margem direita"
+            label={t("ui.settings.subtitles.margins.right")}
             value={layout.marginRight}
             min={0}
             max={options.limits.marginMax}
@@ -205,7 +198,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             onChange={(marginRight) => setLayout({ ...layout, marginRight })}
           />
           <NumberField
-            label="Margem de cima"
+            label={t("ui.settings.subtitles.margins.top")}
             value={layout.marginTop}
             min={0}
             max={options.limits.marginMax}
@@ -215,7 +208,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             onChange={(marginTop) => setLayout({ ...layout, marginTop })}
           />
           <NumberField
-            label="Margem de baixo"
+            label={t("ui.settings.subtitles.margins.bottom")}
             value={layout.marginBottom}
             min={0}
             max={options.limits.marginMax}
@@ -225,7 +218,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             onChange={(marginBottom) => setLayout({ ...layout, marginBottom })}
           />
           <NumberField
-            label="Largura máxima do texto"
+            label={t("ui.settings.subtitles.margins.maxWidth")}
             value={layout.maxWidth}
             min={0.01}
             max={1}
@@ -237,16 +230,21 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
         </div>
       </Card>
       <Card
-        title="Sincronização"
+        title={t("ui.settings.subtitles.sync.title")}
         aside={
-          <HelpTip topic="Passos da sincronização">
-            {`Quanto cada toque nos atalhos de sincronia (${keyOf("sync-primary-earlier")} e ${keyOf("sync-primary-later")} para a legenda de cima; ${keyOf("sync-translation-earlier")} e ${keyOf("sync-translation-later")} para a de baixo) move a legenda. Segurando a tecla por 1 segundo, vale o passo maior.`}
+          <HelpTip topic={t("ui.settings.subtitles.sync.topic")}>
+            {t("ui.settings.subtitles.sync.help", {
+              primaryEarlier: keyOf("sync-primary-earlier"),
+              primaryLater: keyOf("sync-primary-later"),
+              translationEarlier: keyOf("sync-translation-earlier"),
+              translationLater: keyOf("sync-translation-later"),
+            })}
           </HelpTip>
         }
       >
         <div className="grid gap-4 @lg:grid-cols-2">
           <NumberField
-            label="Passo de cada toque"
+            label={t("ui.settings.subtitles.sync.step")}
             value={draft.syncStep}
             min={options.limits.syncStepMin}
             max={options.limits.syncStepMax}
@@ -255,7 +253,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             onChange={(syncStep) => change(setDraft, "syncStep")(syncStep)}
           />
           <NumberField
-            label="Passo segurando"
+            label={t("ui.settings.subtitles.sync.fastStep")}
             value={draft.syncFastStep}
             min={options.limits.syncStepMin}
             max={options.limits.syncFastStepMax}

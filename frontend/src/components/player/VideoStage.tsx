@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { hiddenVideo, videoLayout } from "../../stage";
 
@@ -36,5 +37,5 @@ export function VideoStage() {
     };
   }, []);
 
-  return <div ref={box} aria-label="Vídeo" className="min-h-0 min-w-0 flex-1 bg-black" />;
+  return <div ref={box} aria-label={t("ui.video.label")} className="min-h-0 min-w-0 flex-1 bg-black" />;
 }

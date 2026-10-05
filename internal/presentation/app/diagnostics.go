@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
@@ -34,18 +33,18 @@ type Fact struct {
 func (a *API) Diagnostics() Diagnostics {
 	var facts []Fact
 	add := func(label, value string) { facts = append(facts, Fact{label, value}) }
-	add("LingoReel", cmpOr(a.deps.About.Version, "desconhecida"))
-	add("Windows", cmpOr(a.deps.About.Windows, "desconhecido"))
+	add("LingoReel", cmpOr(a.deps.About.Version, ptbr.T("diagnostics.unknownVersion")))
+	add("Windows", cmpOr(a.deps.About.Windows, ptbr.T("diagnostics.unknownWindows")))
 	for i, monitor := range a.monitors() {
-		add(fmt.Sprintf("Monitor %d", i+1), monitor)
+		add(ptbr.T("diagnostics.monitor", "number", i+1), monitor)
 	}
 	if current := a.current(); current != nil && current.session != nil {
 		a.describeSession(current, add)
 	} else {
-		add("Sessão", "nenhum vídeo tocando")
+		add(ptbr.T("diagnostics.session"), ptbr.T("diagnostics.noSession"))
 	}
-	add("Pasta dos registros", cmpOr(a.deps.LogDir, "sem registros"))
-	add("Pasta das configurações", cmpOr(a.deps.SettingsDir, "desconhecida"))
+	add(ptbr.T("diagnostics.logDir"), cmpOr(a.deps.LogDir, ptbr.T("diagnostics.noLogs")))
+	add(ptbr.T("diagnostics.settingsDir"), cmpOr(a.deps.SettingsDir, ptbr.T("diagnostics.unknownFolder")))
 
 	lines := make([]string, len(facts))
 	for i, fact := range facts {
@@ -60,20 +59,22 @@ func (a *API) describeSession(current *watching, add func(label, value string)) 
 	if state.Duration <= 0 {
 		state.Duration = current.duration // the player has not told it yet
 	}
-	add("Vídeo", filepath.Base(current.video))
-	add("Player", fmt.Sprintf("%s (%s)", current.player.ID, current.player.Path))
-	add("Conexão com o player", connectionText(s.Health()))
-	add("Estado", fmt.Sprintf("%s a %s, posição %s de %s", statusText(state.Status),
-		speedText(float64(state.Speed)), ptbr.EditClock(state.Position), ptbr.Clock(state.Duration)))
-	add("Quadros por segundo", fpsText(current.frameRate))
+	add(ptbr.T("diagnostics.video"), filepath.Base(current.video))
+	add(ptbr.T("diagnostics.player"), fmt.Sprintf("%s (%s)", current.player.ID, current.player.Path))
+	add(ptbr.T("diagnostics.connection"), connectionText(s.Health()))
+	add(ptbr.T("diagnostics.state"), ptbr.T("diagnostics.stateValue", "status", statusText(state.Status),
+		"speed", ptbr.Speed(state.Speed), "position", ptbr.EditClock(state.Position), "duration", ptbr.Clock(state.Duration)))
+	add(ptbr.T("diagnostics.frameRate"), fpsText(current.frameRate))
 	shown := s.Shown()
-	add(current.names[session.LinePrimary], fmt.Sprintf("offset %s, fala %s", ptbr.Offset(s.Offset(session.LinePrimary)), eventIDs(shown.Primary)))
-	add(current.names[session.LineTranslation], fmt.Sprintf("offset %s, fala %s", ptbr.Offset(s.Offset(session.LineTranslation)), eventIDs(shown.Translation)))
-	overlay := "ativa"
+	add(current.names[session.LinePrimary], ptbr.T("diagnostics.line",
+		"offset", ptbr.Offset(s.Offset(session.LinePrimary)), "lines", eventIDs(shown.Primary)))
+	add(current.names[session.LineTranslation], ptbr.T("diagnostics.line",
+		"offset", ptbr.Offset(s.Offset(session.LineTranslation)), "lines", eventIDs(shown.Translation)))
+	overlay := ptbr.T("diagnostics.overlayOn")
 	if !s.HasDisplay() {
-		overlay = "inativa"
+		overlay = ptbr.T("diagnostics.overlayOff")
 	}
-	add("Camada das legendas", overlay)
+	add(ptbr.T("diagnostics.overlay"), overlay)
 }
 
 // monitors words each screen: "1920×1080 em (0, 0), escala 100% (principal)".
@@ -84,13 +85,14 @@ func (a *API) monitors() []string {
 	found, err := a.deps.Monitors()
 	if err != nil {
 		a.logger.Warn("monitors could not be listed", "error", err)
-		return []string{"não foi possível listar"}
+		return []string{ptbr.T("diagnostics.monitorsFailed")}
 	}
 	words := make([]string, len(found))
 	for i, m := range found {
-		words[i] = fmt.Sprintf("%d×%d em (%d, %d), escala %d%%", m.Width, m.Height, m.X, m.Y, m.DPI*100/layout.BaseDPI)
+		words[i] = ptbr.T("diagnostics.monitorValue", "width", m.Width, "height", m.Height,
+			"x", m.X, "y", m.Y, "scale", m.DPI*100/layout.BaseDPI)
 		if m.Primary {
-			words[i] += " (principal)"
+			words[i] = ptbr.T("diagnostics.primaryMonitor", "monitor", words[i])
 		}
 	}
 	return words
@@ -99,34 +101,29 @@ func (a *API) monitors() []string {
 func connectionText(health watch.Health) string {
 	switch health {
 	case watch.HealthReconnecting:
-		return "reconectando"
+		return ptbr.T("diagnostics.reconnecting")
 	case watch.HealthStalled:
-		return "conectado, mas a posição não anda (travado?)"
+		return ptbr.T("diagnostics.stalled")
 	}
-	return "conectado"
+	return ptbr.T("diagnostics.connected")
 }
 
 func statusText(status playback.Status) string {
 	switch status {
 	case playback.StatusPlaying:
-		return "tocando"
+		return ptbr.T("diagnostics.playing")
 	case playback.StatusPaused:
-		return "pausado"
+		return ptbr.T("diagnostics.paused")
 	case playback.StatusStopped:
-		return "parado"
+		return ptbr.T("diagnostics.stopped")
 	}
-	return "desconhecido"
-}
-
-// speedText shows a speed as "1,00×".
-func speedText(speed float64) string {
-	return strings.Replace(strconv.FormatFloat(speed, 'f', 2, 64), ".", ",", 1) + "×"
+	return ptbr.T("diagnostics.unknownStatus")
 }
 
 // eventIDs names the lines on screen by their IDs ("#483"), never by text.
 func eventIDs(events []subtitle.Event) string {
 	if len(events) == 0 {
-		return "nenhuma na tela"
+		return ptbr.T("diagnostics.noLines")
 	}
 	ids := make([]string, len(events))
 	for i, event := range events {
@@ -137,9 +134,9 @@ func eventIDs(events []subtitle.Event) string {
 
 func fpsText(rate float64) string {
 	if rate <= 0 {
-		return "desconhecido"
+		return ptbr.T("diagnostics.unknownFrameRate")
 	}
-	return strings.Replace(strconv.FormatFloat(rate, 'f', 3, 64), ".", ",", 1)
+	return ptbr.Number(rate, 3)
 }
 
 func frameRateOf(info media.Info) float64 {

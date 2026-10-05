@@ -1,6 +1,9 @@
 package media
 
 import (
+	"embed"
+	"io/fs"
+	"path"
 	"strings"
 	"unicode"
 )
@@ -13,30 +16,26 @@ const (
 	minDetectionLead  = 2.0
 )
 
-// frequentWords are common words of each language. Words shared by more than
-// one language ("que", "de", "no") are dropped at start-up, so every hit is
-// evidence for exactly one language.
-var frequentWords = map[string][]string{
-	"en": {"the", "and", "you", "what", "this", "that", "with", "have", "are", "was", "your", "just",
-		"know", "don", "get", "there", "they", "here", "all", "out", "how", "why", "can", "will", "would",
-		"right", "okay", "yeah", "he", "she", "it", "is", "not", "for", "of", "to"},
-	"pt": {"não", "você", "eu", "isso", "está", "vou", "tem", "aqui", "tudo", "sim", "então", "também",
-		"agora", "fazer", "ele", "ela", "meu", "minha", "nós", "vamos", "muito", "obrigado", "quem",
-		"onde", "como", "uma", "com", "para", "mas", "do", "da", "é", "são", "foi"},
-	"es": {"qué", "está", "estoy", "eso", "esto", "yo", "sí", "bien", "aquí", "pero", "tengo", "vamos",
-		"ahora", "nada", "usted", "muy", "gracias", "dónde", "cómo", "el", "los", "las", "una", "con",
-		"para", "del", "es", "son", "fue", "y"},
-	"fr": {"je", "tu", "vous", "est", "pas", "une", "ce", "ça", "il", "elle", "nous", "qui", "mais",
-		"pour", "avec", "suis", "oui", "bien", "très", "rien", "merci", "où", "comment", "les", "des",
-		"du", "et", "sont"},
-}
+// frequentWords are common words of each language, one file per language
+// tag under words/: a language is added by adding its file. Words shared by
+// more than one language ("que", "de", "no") are dropped at start-up, so
+// every hit is evidence for exactly one language.
+//
+//go:embed words/*.txt
+var frequentWords embed.FS
 
 var wordLanguage = buildWordLanguage()
 
 func buildWordLanguage() map[string]string {
 	owners := map[string]map[string]bool{}
-	for language, words := range frequentWords {
-		for _, word := range words {
+	files, _ := fs.Glob(frequentWords, "words/*.txt") // the pattern is well formed
+	for _, file := range files {
+		data, err := frequentWords.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		language := strings.TrimSuffix(path.Base(file), ".txt")
+		for _, word := range strings.Fields(string(data)) {
 			if owners[word] == nil {
 				owners[word] = map[string]bool{}
 			}
