@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 const movie = `D:\Filmes\Movie.mkv`
@@ -201,11 +203,11 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	if err := r.api.SavePassage("   "); err != nil {
 		t.Fatal(err)
 	}
-	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0].Name != "Trecho 0:10–0:20" || saved[0].Summary != "Pausa no fim" {
+	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0].Name != ptbr.PassageName(10*time.Second, 20*time.Second) || saved[0].Summary != "Pausa no fim" {
 		t.Fatalf("saved without a name = %+v", saved)
 	}
 	wantMessage(t, "SavePassage with a long name", r.api.SavePassage(strings.Repeat("a", project.MaxPassageNameLen+1)), "Dê um nome")
-	if err := errors.Join(r.api.DeletePassage("Trecho 0:10–0:20"), r.api.SavePassage("Rua")); err != nil {
+	if err := errors.Join(r.api.DeletePassage(ptbr.PassageName(10*time.Second, 20*time.Second)), r.api.SavePassage("Rua")); err != nil {
 		t.Fatal(err)
 	}
 	// The same name, in any case, replaces the passage, with its plan.

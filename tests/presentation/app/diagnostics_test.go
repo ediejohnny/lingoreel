@@ -58,13 +58,14 @@ func TestDiagnosticsOfASession(t *testing.T) {
 	d := r.api.Diagnostics()
 	state := r.api.PlaybackState()
 	want := map[string]string{
-		"Vídeo":                 "Movie.mkv",
-		"Player":                `fake (C:\fake\fake.exe)`,
-		"Conexão com o player":  "conectado",
-		"Estado":                "pausado a 1,00×, posição 0:01,500 de 1:30:00",
-		"Quadros por segundo":   "24,000",
-		state.Lines.Primary:     "offset " + state.PrimaryOffset + ", fala #1",
-		state.Lines.Translation: "offset " + state.TranslationOffset + ", fala #1",
+		"Vídeo":                "Movie.mkv",
+		"Player":               `fake (C:\fake\fake.exe)`,
+		"Conexão com o player": "conectado",
+		"Estado":               "pausado a 1,00×, posição 0:01,500 de 1:30:00",
+		"Quadros por segundo":  "24,000",
+		// One step earlier for the translation: 50 ms, the profile's step.
+		state.Lines.Primary:     "offset +0,000 s, fala #1",
+		state.Lines.Translation: "offset −0,050 s, fala #1",
 		"Camada das legendas":   "ativa",
 	}
 	for label, value := range want {
