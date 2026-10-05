@@ -262,6 +262,7 @@
   "notice.passage.marked": "Início do trecho: {time}",
   "notice.passage.saved": "Salvo: {name}",
   "notice.practice.atEnd": "Fim do trecho · Reproduzir para repetir",
+  "notice.practice.failed": "O player não respondeu ao trecho.",
   "notice.practice.finished": {
     "one": "Meta de {count} repetição concluída",
     "other": "Meta de {count} repetições concluída"
