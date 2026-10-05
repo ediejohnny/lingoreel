@@ -20,8 +20,9 @@ import (
 )
 
 // Version is the current version of the project file. Version 2 added how
-// the video was left (Last) and each passage's study plan.
-const Version = 2
+// the video was left (Last) and each passage's study plan; version 3 the
+// subtitle files picked from elsewhere (AddedFiles).
+const Version = 3
 
 // Limits of a project read from disk, which is not trusted: a hand-edited or
 // hostile file cannot make the app hold more than this.
@@ -32,6 +33,8 @@ const (
 	MaxKeyRunes       = 512
 	MaxPassages       = 500
 	MaxPassageNameLen = 80
+	// MaxAddedFiles bounds the subtitle files picked for one video.
+	MaxAddedFiles = 16
 	// MaxTime bounds every time in the file, far above any film.
 	MaxTime = 100 * time.Hour
 )
@@ -68,6 +71,10 @@ type Project struct {
 	Choice   Choice           `json:"choice"`
 	Passages []Passage        `json:"passages"`
 	Last     Last             `json:"last"`
+	// AddedFiles are the subtitle files picked from outside the video's
+	// folder, as the persistence adapter writes their paths, so they come
+	// back the next time the video opens.
+	AddedFiles []string `json:"addedFiles"`
 }
 
 // Last is how the video was left: where, at what speed and with which Modo
@@ -123,7 +130,7 @@ func (p PassagePlan) Practice() study.PracticePlan {
 
 // New is an empty project.
 func New() Project {
-	return Project{Tracks: map[string]Track{}, Passages: []Passage{}}
+	return Project{Tracks: map[string]Track{}, Passages: []Passage{}, AddedFiles: []string{}}
 }
 
 // Choice is what the user last picked for the video; empty keys and mode
@@ -306,6 +313,14 @@ func (p Project) Validate() error {
 	for _, passage := range p.Passages {
 		if err := passage.Validate(); err != nil {
 			return err
+		}
+	}
+	if len(p.AddedFiles) > MaxAddedFiles {
+		return fmt.Errorf("%w: %d added files", ErrInvalid, len(p.AddedFiles))
+	}
+	for _, path := range p.AddedFiles {
+		if err := validKey(path); err != nil {
+			return fmt.Errorf("added file: %w", err)
 		}
 	}
 	return p.Last.validate()

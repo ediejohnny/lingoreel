@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -208,10 +209,6 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media
 	return tracks, contents, nil
 }
 
-// maxAddedFiles bounds the subtitle files picked for one video; the
-// video's project keeps a bounded number of tracks too.
-const maxAddedFiles = 16
-
 // ErrTooManyFiles reports one subtitle file too many picked for a video.
 var ErrTooManyFiles = errors.New("too many subtitle files added to the video")
 
@@ -238,7 +235,7 @@ func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path s
 			added++
 		}
 	}
-	if added >= maxAddedFiles {
+	if added >= project.MaxAddedFiles {
 		return analysis, media.Track{}, ErrTooManyFiles
 	}
 	format, content, err := s.files.Load(path)
