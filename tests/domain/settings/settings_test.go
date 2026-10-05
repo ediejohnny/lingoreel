@@ -47,6 +47,8 @@ func TestConfigValidate(t *testing.T) {
 		{"empty player id", func(c *settings.Config) { c.PlayerPaths[""] = `C:\vlc.exe` }, false},
 		{"dismissed valid ids", func(c *settings.Config) { c.InstallRecommendations.Dismissed = []string{"mpv", "potplayer"} }, true},
 		{"dismissed invalid id", func(c *settings.Config) { c.InstallRecommendations.Dismissed = []string{"mpv", "Pot Player"} }, false},
+		{"interface language", func(c *settings.Config) { c.Language = "fr-CA" }, true},
+		{"hostile interface language", func(c *settings.Config) { c.Language = "../fr" }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -61,6 +61,7 @@ func (a *API) Settings() (SettingsView, error) {
 		General: GeneralSettings{
 			Theme: string(config.Theme), SyncNotice: config.SyncNotice, ActiveProfile: profile.Name,
 			RecommendationsHidden: config.InstallRecommendations.DismissAll || len(config.InstallRecommendations.Dismissed) > 0,
+			Language:              config.Language, Languages: interfaceLanguages(),
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar),
 		Players: a.playerSettings(config), Options: a.settingsOptions(), Folder: a.deps.SettingsDir,

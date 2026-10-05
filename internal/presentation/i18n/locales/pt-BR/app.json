@@ -1,4 +1,5 @@
 {
+  "app.languageName": "Português (Brasil)",
   "app.title": "LingoReel",
   "app.windowTitle": "{video} — LingoReel",
   "bar.entry.markEndNoStart": "Marcar o fim e salvar (marque o início antes)",
@@ -30,7 +31,10 @@
   "bar.status.suspended": "Trecho {span} · fora do intervalo",
   "bar.stepper.gap": "Intervalo entre as voltas",
   "bar.stepper.goal": "Meta",
-  "bar.stepper.goalValue": "{goal} voltas",
+  "bar.stepper.goalValue": {
+    "one": "{count} volta",
+    "other": "{count} voltas"
+  },
   "bar.stepper.lead": "Antecedência da prévia",
   "bar.stepper.minGap": "Pausa mínima antes da fala",
   "bar.stepper.noGoal": "sem meta",
@@ -170,6 +174,7 @@
   "error.start.launch": "O {player} não abriu a tempo. Clique em Assistir para tentar de novo; se continuar, feche outras janelas do {player}.",
   "error.start.notFound": "O {player} não foi encontrado em {path}. Confira o caminho em Configurações › Player, ou instale-o de novo.",
   "error.start.subtitles": "Não foi possível ler as legendas escolhidas. Escolha outra legenda ou confira o arquivo dela.",
+  "error.unknownLanguage": "O app não fala esse idioma.",
   "error.unknownLine": "Legenda desconhecida.",
   "error.unknownMode": "Escolha um modo de estudo.",
   "error.unknownPreset": "Estilo desconhecido.",
@@ -216,7 +221,10 @@
   "notice.passage.marked": "Início do trecho: {time}",
   "notice.passage.saved": "Salvo: {name}",
   "notice.practice.atEnd": "Fim do trecho · Reproduzir para repetir",
-  "notice.practice.finished": "Meta de {goal} repetições concluída",
+  "notice.practice.finished": {
+    "one": "Meta de {count} repetição concluída",
+    "other": "Meta de {count} repetições concluída"
+  },
   "notice.practice.lap": "Trecho {span} · repetição {lap}",
   "notice.practice.lapOfGoal": "Trecho {span} · repetição {lap} de {goal}",
   "notice.practice.suspended": "Trecho pausado — fora do intervalo",

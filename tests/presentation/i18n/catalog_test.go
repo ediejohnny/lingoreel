@@ -70,7 +70,8 @@ func TestEveryCatalogMatchesTheFallback(t *testing.T) {
 	}
 }
 
-// usedKeys are the catalog keys written in source files: T("…") in Go, t("…")
+// usedKeys are the catalog keys written in source files: T("…") or a
+// catalog's Text("…") in Go, t("…")
 // in the screens.
 func usedKeys(t *testing.T, dir string, extensions []string, call *regexp.Regexp) map[string]bool {
 	t.Helper()
@@ -108,7 +109,7 @@ func TestTheCatalogHoldsExactlyTheKeysInUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inGo := usedKeys(t, "internal", []string{".go"}, regexp.MustCompile(`\bT\("([a-zA-Z0-9_.]+)"`))
+	inGo := usedKeys(t, "internal", []string{".go"}, regexp.MustCompile(`\b(?:T|Text)\("([a-zA-Z0-9_.]+)"`))
 	inScreens := usedKeys(t, filepath.Join("frontend", "src"), []string{".ts", ".tsx"}, regexp.MustCompile(`\bt\("([a-zA-Z0-9_.]+)"`))
 	for key := range inGo {
 		if _, found := fallback.Entry(key); !found {
@@ -135,6 +136,15 @@ func TestTheLanguageAndItsTexts(t *testing.T) {
 	for _, tag := range []string{"pt-BR", "PT-br", "pt", "pt-PT"} {
 		if got, found := i18n.Match(tag); !found || got != "pt-BR" {
 			t.Errorf("Match(%q) = %q, %v", tag, got, found)
+		}
+	}
+	// The configured language comes first, then the system's, each only with
+	// a catalog; else the fallback.
+	for _, c := range []struct{ configured, system, want string }{
+		{"", "pt-BR", "pt-BR"}, {"pt-PT", "en-US", "pt-BR"}, {"xx", "yy", i18n.Fallback}, {"", "", i18n.Fallback},
+	} {
+		if got := i18n.Choose(c.configured, c.system); got != c.want {
+			t.Errorf("Choose(%q, %q) = %q, want %q", c.configured, c.system, got, c.want)
 		}
 	}
 	if _, found := i18n.Match("xx"); found {

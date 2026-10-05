@@ -38,6 +38,26 @@ func Use(c *i18n.Catalog) {
 	EditHint, EditEmpty = T("edit.hint"), T("edit.empty")
 }
 
+// Language is the interface's language, the tag of its catalog.
+func Language() string {
+	if c := catalog.Load(); c != nil {
+		return c.Tag()
+	}
+	return fallbackCatalog().Tag()
+}
+
+// Languages are the interface's possible languages, each named in itself
+// ("Português (Brasil)"), by tag.
+func Languages() map[string]string {
+	names := map[string]string{}
+	for _, tag := range i18n.Available() {
+		if c, err := i18n.Load(tag); err == nil {
+			names[tag] = c.Text("app.languageName")
+		}
+	}
+	return names
+}
+
 // T is a key's text in the interface's language, with its parameters (a
 // name, then its value). Keys are always written whole, never built, so a
 // test can find each one in the catalog.

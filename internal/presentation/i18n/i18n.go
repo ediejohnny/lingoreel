@@ -89,6 +89,20 @@ func Match(tag string) (string, bool) {
 	return "", false
 }
 
+// Choose is the interface's language: the one the user configured, else the
+// system's, each only when there is a catalog for it, else the fallback.
+func Choose(configured, system string) string {
+	for _, tag := range []string{configured, system} {
+		if tag == "" {
+			continue
+		}
+		if matched, found := Match(tag); found {
+			return matched
+		}
+	}
+	return Fallback
+}
+
 // Load reads a language's catalog, backed by the fallback's for texts it
 // lacks; a language without one gets the fallback.
 func Load(tag string) (*Catalog, error) {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -18,7 +19,7 @@ func (a *API) Preferences() Preferences {
 	for i, step := range steps {
 		speeds[i] = float64(step)
 	}
-	return Preferences{Theme: string(theme), Speeds: speeds, Panel: PanelState{Open: panel.Open, Width: panel.Width}}
+	return Preferences{Theme: string(theme), Speeds: speeds, Panel: PanelState{Open: panel.Open, Width: panel.Width}, Language: ptbr.Language()}
 }
 
 // SetTheme changes the color theme: "system", "light" or "dark".
@@ -32,4 +33,33 @@ func (a *API) SetTheme(theme string) error {
 	defer a.mu.Unlock()
 	a.config.Theme = settings.Theme(theme)
 	return a.saveConfig()
+}
+
+// interfaceLanguages are the languages the app speaks, by tag, each named in
+// itself.
+func interfaceLanguages() []Option {
+	names := ptbr.Languages()
+	tags := make([]string, 0, len(names))
+	for tag := range names {
+		tags = append(tags, tag)
+	}
+	slices.Sort(tags)
+	options := make([]Option, len(tags))
+	for i, tag := range tags {
+		options[i] = Option{Value: tag, Label: names[tag]}
+	}
+	return options
+}
+
+// SetLanguage keeps the interface's language, a tag the app speaks or empty
+// for the Windows display language. It applies the next time the app opens.
+func (a *API) SetLanguage(tag string) error {
+	if _, speaks := ptbr.Languages()[tag]; tag != "" && !speaks {
+		return errors.New(ptbr.T("error.unknownLanguage"))
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	next := a.config
+	next.Language = tag
+	return a.commitConfig(next)
 }

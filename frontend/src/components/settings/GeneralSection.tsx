@@ -11,7 +11,7 @@ import type { SectionProps } from "./section";
 
 type Editing = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
 
-/** GeneralSection holds the profiles and the sync notice. */
+/** GeneralSection holds the profiles, the interface's language (with more than one) and the sync notice. */
 export function GeneralSection({ view, dirty, run }: SectionProps) {
   const [editing, setEditing] = useState<Editing>({ kind: "none" });
   const active = view.general.activeProfile;
@@ -95,6 +95,20 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
           )}
         </div>
       </Card>
+      {view.general.languages.length > 1 && (
+        <Card title={t("ui.settings.language.title")}>
+          <Select
+            label={t("ui.settings.language.label")}
+            value={view.general.language}
+            options={[
+              { value: "", label: t("ui.settings.language.windows") },
+              ...view.general.languages.map((language) => ({ value: language.value, label: language.label })),
+            ]}
+            onChange={(language) => void run(() => backend.setLanguage(language), t("ui.settings.language.saved"))}
+            help={<HelpTip topic={t("ui.settings.language.topic")}>{t("ui.settings.language.help")}</HelpTip>}
+          />
+        </Card>
+      )}
       <Card title={t("ui.settings.notices.title")}>
         <Toggle
           label={t("ui.settings.notices.sync")}

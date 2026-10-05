@@ -12,7 +12,7 @@ import { backend, messageOf, type PanelState, type Playback, type Players, type 
 import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
-import { t } from "./i18n";
+import { t, setLanguage } from "./i18n";
 
 type Screen = "home" | "session" | "playing" | "settings";
 
@@ -68,6 +68,7 @@ export function App() {
     backend
       .preferences()
       .then((preferences) => {
+        setLanguage(preferences.language);
         setTheme(asTheme(preferences.theme));
         setSpeeds(preferences.speeds);
         setPanel(preferences.panel);

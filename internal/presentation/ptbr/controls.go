@@ -197,7 +197,7 @@ func stepperText(field controlbar.Field, s controlbar.StudyState) controlbar.Ent
 	case controlbar.FieldGoal:
 		value := T("bar.stepper.noGoal")
 		if s.Options.Goal > 0 {
-			value = T("bar.stepper.goalValue", "goal", s.Options.Goal)
+			value = T("bar.stepper.goalValue", "count", s.Options.Goal)
 		}
 		return controlbar.EntryText{Text: T("bar.stepper.goal"), Value: value}
 	case controlbar.FieldMinGap:

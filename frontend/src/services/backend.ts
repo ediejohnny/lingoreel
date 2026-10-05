@@ -124,6 +124,7 @@ export const backend = {
   exportSubtitle: (line: Line) => api.ExportSubtitle(line),
   preferences: () => api.Preferences(),
   setTheme: (theme: string) => api.SetTheme(theme),
+  setLanguage: (tag: string) => api.SetLanguage(tag),
   installPlayer: (id: string) => api.InstallPlayer(id),
   openDownloadPage: (id: string) => api.OpenDownloadPage(id),
   dismissRecommendation: (id: string) => api.DismissRecommendation(id),
