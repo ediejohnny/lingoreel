@@ -6,6 +6,26 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-05
+
+One window: with VLC, the video plays inside the app's window, with the panel beside it.
+
+### Added
+
+- The video plays under the header of the app's window; the panel beside it (▤) holds the playback controls, the
+  corrections, the Modo Karaokê, the passages and the settings, its edge dragged wider and its state remembered.
+- Fullscreen (F, double click, the bar's button) leaves only the video; Esc comes back.
+- Closing the window, or Alt+F4 on the video, closes everything, the video's work saved first; "Encerrar" goes back to
+  the session screen. The window's title names the video.
+- With PotPlayer, which keeps its own window, closing PotPlayer closes the app too.
+
+### Changed
+
+- Corners of boxes, buttons and the video bar's menus are nearly square (at most 0.1rem).
+
+### Fixed
+
+- A right click on the video no longer sends the app's window a message that waits for it.
 ## [0.17.0] - 2026-10-05
 
 The volume goes up to 200% on VLC, gradually while a key is held.
@@ -327,7 +347,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...v0.17.0
 [0.16.3]: https://github.com/ediejohnny/lingoreel/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/ediejohnny/lingoreel/compare/v0.16.1...v0.16.2
