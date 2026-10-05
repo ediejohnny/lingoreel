@@ -66,8 +66,8 @@ func TestDiagnosticsOfASession(t *testing.T) {
 		"Estado":               "pausado a 1,00×, posição 0:01,500 de 1:30:00",
 		"Quadros por segundo":  "24,000",
 		// One step earlier for the translation: 50 ms, the profile's step.
-		state.Lines.Primary:     "offset +0,000 s, fala #1",
-		state.Lines.Translation: "offset −0,050 s, fala #1",
+		state.Lines.Primary:     "deslocamento +0,000 s, fala #1",
+		state.Lines.Translation: "deslocamento −0,050 s, fala #1",
 		"Camada das legendas":   "ativa",
 	}
 	for label, value := range want {
