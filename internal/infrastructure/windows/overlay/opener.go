@@ -12,7 +12,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 )
 
-// Look is how the subtitles are drawn.
+// Look is how the subtitles and the marks around them are drawn.
 type Look = session.Look
 
 // The overlay changes its look while it shows.
@@ -22,12 +22,7 @@ var _ session.Restyler = (*Overlay)(nil)
 // player, drawing with the look look returns at that moment.
 func Opener(look func() Look, logger *slog.Logger) func(context.Context, players.Running, media.Info) (session.Display, error) {
 	return func(ctx context.Context, running players.Running, info media.Info) (session.Display, error) {
-		current := look()
-		options := Options{
-			ProcessID: running.ProcessID(), Layout: current.Layout,
-			Primary: current.Primary, Translation: current.Translation, Logger: logger,
-			PreviewColor: current.PreviewColor, FillColor: current.FillColor,
-		}
+		options := Options{ProcessID: running.ProcessID(), Look: look(), Logger: logger}
 		options.VideoWidth, options.VideoHeight = placement.VideoSize(info)
 		// A plugin that knows its player's windows names them itself; the
 		// others leave the largest window of the process to be found.

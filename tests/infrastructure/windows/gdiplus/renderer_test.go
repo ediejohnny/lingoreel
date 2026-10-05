@@ -235,10 +235,14 @@ func TestBackgroundFillsTheBlockBounds(t *testing.T) {
 func TestNoticeIsDrawnInItsCornerWithItsBox(t *testing.T) {
 	r := newRenderer(t)
 	dib := newDIB(t, 640, 360)
-	notice := appearance.NoticeStyle()
+	look := appearance.DefaultNoticeLook()
+	notice := look.Style()
 	frame := layout.Compute(layout.Input{
 		Video: layout.Rect{W: 640, H: 360}, DPI: 96, Layout: appearance.DefaultLayout(),
-		Notice: layout.Text{Style: notice, Content: "Legenda de cima (inglês): −0,150 s"},
+		Notice: layout.Notice{
+			Text:   layout.Text{Style: notice, Content: "Legenda de cima (inglês): −0,150 s"},
+			Margin: look.Margin, MaxWidth: look.MaxWidth,
+		},
 	}, r)
 	if frame.Notice == nil {
 		t.Fatal("no notice laid out")

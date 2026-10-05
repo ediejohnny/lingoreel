@@ -84,10 +84,10 @@ type Projects interface {
 	ResolveAdded(video, added string) string
 }
 
-// Previewer draws sample subtitles for the settings screen and lists the
-// fonts they may use.
+// Previewer draws sample subtitles for the settings screen, with a sample
+// notice when it is not empty, and lists the fonts they may use.
 type Previewer interface {
-	Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error)
+	Preview(look session.Look, width, height, dpi int, screen session.Screen, notice string) ([]byte, error)
 	Fonts() ([]string, error)
 }
 

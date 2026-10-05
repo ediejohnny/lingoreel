@@ -194,6 +194,9 @@ export namespace app {
 	    fill: boolean;
 	    fillColor: string;
 	    repeat: number;
+	    barThickness: number;
+	    barColor: string;
+	    countdownSize: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new KaraokeSettings(source);
@@ -209,6 +212,9 @@ export namespace app {
 	        this.fill = source["fill"];
 	        this.fillColor = source["fillColor"];
 	        this.repeat = source["repeat"];
+	        this.barThickness = source["barThickness"];
+	        this.barColor = source["barColor"];
+	        this.countdownSize = source["countdownSize"];
 	    }
 	}
 	export class LanguageSettings {
@@ -233,6 +239,7 @@ export namespace app {
 	    marginTop: number;
 	    marginBottom: number;
 	    maxWidth: number;
+	    lineGap: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new LayoutSettings(source);
@@ -245,6 +252,7 @@ export namespace app {
 	        this.marginTop = source["marginTop"];
 	        this.marginBottom = source["marginBottom"];
 	        this.maxWidth = source["maxWidth"];
+	        this.lineGap = source["lineGap"];
 	    }
 	}
 	export class LineNames {
@@ -261,6 +269,85 @@ export namespace app {
 	        this.translation = source["translation"];
 	    }
 	}
+	export class SelectionSettings {
+	    color: string;
+	    edge: string;
+	    width: number;
+	    gap: number;
+	    radius: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SelectionSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.color = source["color"];
+	        this.edge = source["edge"];
+	        this.width = source["width"];
+	        this.gap = source["gap"];
+	        this.radius = source["radius"];
+	    }
+	}
+	export class NoticeSettings {
+	    fontFamily: string;
+	    fontSize: number;
+	    color: string;
+	    background: string;
+	    side: string;
+	    margin: number;
+	    maxWidth: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NoticeSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.fontFamily = source["fontFamily"];
+	        this.fontSize = source["fontSize"];
+	        this.color = source["color"];
+	        this.background = source["background"];
+	        this.side = source["side"];
+	        this.margin = source["margin"];
+	        this.maxWidth = source["maxWidth"];
+	    }
+	}
+	export class MarkSettings {
+	    notice: NoticeSettings;
+	    noticeDuration: number;
+	    selection: SelectionSettings;
+	
+	    static createFrom(source: any = {}) {
+	        return new MarkSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.notice = this.convertValues(source["notice"], NoticeSettings);
+	        this.noticeDuration = source["noticeDuration"];
+	        this.selection = this.convertValues(source["selection"], SelectionSettings);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	
 	export class PanelState {
 	    open: boolean;
@@ -738,6 +825,7 @@ export namespace app {
 	    position: number;
 	    alignment: string;
 	    maxLines: number;
+	    lineSpacing: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new StyleSettings(source);
@@ -766,6 +854,7 @@ export namespace app {
 	        this.position = source["position"];
 	        this.alignment = source["alignment"];
 	        this.maxLines = source["maxLines"];
+	        this.lineSpacing = source["lineSpacing"];
 	    }
 	}
 	export class PreviewRequest {
@@ -777,7 +866,8 @@ export namespace app {
 	    scale: number;
 	    highlight: string;
 	    view: string;
-	    fillColor: string;
+	    karaoke: KaraokeSettings;
+	    marks: MarkSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new PreviewRequest(source);
@@ -793,7 +883,8 @@ export namespace app {
 	        this.scale = source["scale"];
 	        this.highlight = source["highlight"];
 	        this.view = source["view"];
-	        this.fillColor = source["fillColor"];
+	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
+	        this.marks = this.convertValues(source["marks"], MarkSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -841,6 +932,7 @@ export namespace app {
 	    primary: StyleSettings;
 	    translation: StyleSettings;
 	    layout: LayoutSettings;
+	    marks: MarkSettings;
 	    speed: number;
 	    syncStep: number;
 	    syncFastStep: number;
@@ -862,6 +954,7 @@ export namespace app {
 	        this.primary = this.convertValues(source["primary"], StyleSettings);
 	        this.translation = this.convertValues(source["translation"], StyleSettings);
 	        this.layout = this.convertValues(source["layout"], LayoutSettings);
+	        this.marks = this.convertValues(source["marks"], MarkSettings);
 	        this.speed = source["speed"];
 	        this.syncStep = source["syncStep"];
 	        this.syncFastStep = source["syncFastStep"];
@@ -908,6 +1001,7 @@ export namespace app {
 	}
 	
 	
+	
 	export class SettingsLimits {
 	    fontSizeMin: number;
 	    fontSizeMax: number;
@@ -929,6 +1023,22 @@ export namespace app {
 	    profileNameMax: number;
 	    precisionStepMin: number;
 	    precisionStepMax: number;
+	    lineSpacingMin: number;
+	    lineSpacingMax: number;
+	    lineGapMax: number;
+	    noticeSizeMax: number;
+	    noticeMarginMax: number;
+	    noticeWidthMin: number;
+	    noticeDurationMin: number;
+	    noticeDurationMax: number;
+	    selectionWidthMin: number;
+	    selectionWidthMax: number;
+	    selectionGapMax: number;
+	    selectionRadiusMax: number;
+	    barThicknessMin: number;
+	    barThicknessMax: number;
+	    countdownSizeMin: number;
+	    countdownSizeMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -956,6 +1066,22 @@ export namespace app {
 	        this.profileNameMax = source["profileNameMax"];
 	        this.precisionStepMin = source["precisionStepMin"];
 	        this.precisionStepMax = source["precisionStepMax"];
+	        this.lineSpacingMin = source["lineSpacingMin"];
+	        this.lineSpacingMax = source["lineSpacingMax"];
+	        this.lineGapMax = source["lineGapMax"];
+	        this.noticeSizeMax = source["noticeSizeMax"];
+	        this.noticeMarginMax = source["noticeMarginMax"];
+	        this.noticeWidthMin = source["noticeWidthMin"];
+	        this.noticeDurationMin = source["noticeDurationMin"];
+	        this.noticeDurationMax = source["noticeDurationMax"];
+	        this.selectionWidthMin = source["selectionWidthMin"];
+	        this.selectionWidthMax = source["selectionWidthMax"];
+	        this.selectionGapMax = source["selectionGapMax"];
+	        this.selectionRadiusMax = source["selectionRadiusMax"];
+	        this.barThicknessMin = source["barThicknessMin"];
+	        this.barThicknessMax = source["barThicknessMax"];
+	        this.countdownSizeMin = source["countdownSizeMin"];
+	        this.countdownSizeMax = source["countdownSizeMax"];
 	    }
 	}
 	export class SettingsOptions {

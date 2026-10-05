@@ -30,6 +30,11 @@ func TestLayoutValidateRanges(t *testing.T) {
 		{"width above full", func(l *appearance.Layout) { l.MaxWidth = 1.01 }, false},
 		{"width NaN", func(l *appearance.Layout) { l.MaxWidth = nan }, false},
 		{"width infinite", func(l *appearance.Layout) { l.MaxWidth = math.Inf(1) }, false},
+		{"no gap between the lines", func(l *appearance.Layout) { l.LineGap = 0 }, true},
+		{"widest gap", func(l *appearance.Layout) { l.LineGap = appearance.MaxLineGap }, true},
+		{"gap past the widest", func(l *appearance.Layout) { l.LineGap = appearance.MaxLineGap + 0.01 }, false},
+		{"negative gap", func(l *appearance.Layout) { l.LineGap = -0.01 }, false},
+		{"gap NaN", func(l *appearance.Layout) { l.LineGap = nan }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

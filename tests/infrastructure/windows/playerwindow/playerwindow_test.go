@@ -16,6 +16,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
@@ -35,6 +36,9 @@ var (
 // Every window here opens off screen and never takes the focus: the user
 // keeps working while the tests run.
 var offScreen = player.Placement{X: -3000, Y: 100, Width: 640, Height: 360}
+
+// defaultLook is how a new profile draws the subtitles and their marks.
+func defaultLook() session.Look { return watch.LookOf(settings.DefaultProfile()) }
 
 // recordingPlayer is a player whose commands are recorded; the controls
 // call it from the window's worker goroutine.

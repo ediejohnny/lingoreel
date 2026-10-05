@@ -27,7 +27,11 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 	r := newRenderer(t)
 	plain := draw(t, r, appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle(), true)
 	box := plain.frame.Primary.Bounds
-	outline := &gdiplus.Outline{Box: layout.Rect{X: box.X - 4, Y: box.Y - 4, W: box.W + 8, H: box.H + 8}, Width: 1.5, Radius: 6}
+	selection := appearance.DefaultSelectionLook()
+	outline := &gdiplus.Outline{
+		Box:   layout.Rect{X: box.X - 4, Y: box.Y - 4, W: box.W + 8, H: box.H + 8},
+		Width: 1.5, Radius: 6, Color: selection.Color, Edge: selection.Edge,
+	}
 	look := plain.look
 	look.Highlight = outline
 	framed := newDIB(t, 640, 360)
@@ -64,6 +68,18 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 		t.Fatalf("light stroke %v, dark stroke %v: want both", light, dark)
 	}
 
+	// The strokes take the colors asked for.
+	orange := appearance.Color{R: 0xFF, G: 0x8C, B: 0x00, A: 0xFF}
+	look.Highlight = &gdiplus.Outline{Box: outline.Box, Width: 2, Radius: 6, Color: orange, Edge: orange}
+	tinted := newDIB(t, 640, 360)
+	if err := r.Draw(tinted, plain.frame, look); err != nil {
+		t.Fatal(err)
+	}
+	frame := layout.Rect{X: outline.Box.X - 3, Y: outline.Box.Y - 3, W: outline.Box.W + 6, H: outline.Box.H + 6}
+	if colored(tinted, frame, orange) == 0 {
+		t.Fatal("the outline is not in the color asked for")
+	}
+
 	// No box or no width draws no outline.
 	for _, none := range []*gdiplus.Outline{{Width: 1.5, Radius: 6}, {Box: outline.Box, Width: 0, Radius: 6}} {
 		look.Highlight = none
@@ -77,33 +93,35 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 	}
 }
 
-func TestOutlineAroundGrowsWithTheScaling(t *testing.T) {
+func TestOutlineAroundFollowsItsLookAndTheScaling(t *testing.T) {
 	box := layout.Rect{X: 100, Y: 50, W: 200, H: 40}
-	at100, at200 := gdiplus.OutlineAround(box, 96), gdiplus.OutlineAround(box, 192)
+	look := appearance.SelectionLook{
+		Color: appearance.Color{R: 0xFF, A: 0xFF}, Edge: appearance.Color{B: 0xFF, A: 0x80}, Width: 3, Gap: 10, Radius: 5,
+	}
+	at100, at200 := gdiplus.OutlineAround(box, 96, look), gdiplus.OutlineAround(box, 192, look)
 	if at100 == nil || at200 == nil {
 		t.Fatalf("no outline around a box: %v, %v", at100, at200)
 	}
-	// A few pixels outside the box on every side, twice as far at 200%.
-	gaps := [2]float64{}
+	// The look's gap outside the box on every side, twice as far at 200%.
 	for i, outline := range []*gdiplus.Outline{at100, at200} {
-		gap := box.X - outline.Box.X
-		if !(gap >= 2 && gap <= 16) || box.Y-outline.Box.Y != gap || outline.Box.W != box.W+2*gap || outline.Box.H != box.H+2*gap {
-			t.Fatalf("the outline %+v does not frame %+v evenly", outline.Box, box)
+		gap := look.Gap * float64(i+1)
+		want := layout.Rect{X: box.X - gap, Y: box.Y - gap, W: box.W + 2*gap, H: box.H + 2*gap}
+		if outline.Box != want {
+			t.Fatalf("the outline %+v does not frame %+v %v away", outline.Box, box, gap)
 		}
-		gaps[i] = gap
-	}
-	if gaps[1] != 2*gaps[0] {
-		t.Fatalf("the gap is %v at 100%% and %v at 200%%: want twice as far", gaps[0], gaps[1])
-	}
-	if at200.Width != 2*at100.Width || at200.Radius != 2*at100.Radius || !(at100.Width > 0) || !(at100.Radius > 0) {
-		t.Fatalf("stroke %v/%v and corners %v/%v do not follow the scaling", at100.Width, at200.Width, at100.Radius, at200.Radius)
+		if outline.Width != look.Width*float64(i+1) || outline.Radius != look.Radius*float64(i+1) {
+			t.Fatalf("stroke %v and corners %v at %d00%%", outline.Width, outline.Radius, i+1)
+		}
+		if outline.Color != look.Color || outline.Edge != look.Edge {
+			t.Fatalf("colors %v/%v, want the look's %v/%v", outline.Color, outline.Edge, look.Color, look.Edge)
+		}
 	}
 	// A broken scaling reads as 100%; no box, no outline.
-	if broken := gdiplus.OutlineAround(box, 0); broken == nil || *broken != *at100 {
+	if broken := gdiplus.OutlineAround(box, 0, look); broken == nil || *broken != *at100 {
 		t.Fatalf("at 0 dpi: %+v, want %+v", broken, at100)
 	}
 	for _, empty := range []layout.Rect{{}, {X: 1, Y: 1, W: 0, H: 10}, {W: 10, H: -1}} {
-		if got := gdiplus.OutlineAround(empty, 96); got != nil {
+		if got := gdiplus.OutlineAround(empty, 96, look); got != nil {
 			t.Fatalf("an outline %+v around the empty box %+v", got, empty)
 		}
 	}

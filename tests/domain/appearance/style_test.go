@@ -70,6 +70,10 @@ func TestStyleValidateRanges(t *testing.T) {
 		{"one line", func(s *appearance.SubtitleStyle) { s.MaxLines = appearance.MinLines }, true},
 		{"maximum lines", func(s *appearance.SubtitleStyle) { s.MaxLines = appearance.MaxLines }, true},
 		{"too many lines", func(s *appearance.SubtitleStyle) { s.MaxLines = appearance.MaxLines + 1 }, false},
+		{"tightest line spacing", func(s *appearance.SubtitleStyle) { s.LineSpacing = appearance.MinLineSpacing }, true},
+		{"widest line spacing", func(s *appearance.SubtitleStyle) { s.LineSpacing = appearance.MaxLineSpacing }, true},
+		{"no line spacing (an older profile)", func(s *appearance.SubtitleStyle) { s.LineSpacing = 0 }, false},
+		{"line spacing NaN", func(s *appearance.SubtitleStyle) { s.LineSpacing = nan }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

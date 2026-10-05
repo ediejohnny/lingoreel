@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
@@ -30,12 +31,40 @@ const (
 	maxPreviewScale = 5
 )
 
-// The Modo Karaokê view of the preview paints the line on top as half
-// spoken, so the fill color shows next to the line's own.
+// The preview's views besides the plain one. The Modo Karaokê's fill paints
+// the line on top as half spoken, so the fill color shows next to the
+// line's own; its cue shows that line before its time, halfway through the
+// bar or three seconds before it; the notice shows a notice as a sync
+// shortcut would.
 const (
-	previewViewFill = "fill"
-	previewSpoken   = 0.5
+	previewViewFill   = "fill"
+	previewViewCue    = "cue"
+	previewViewNotice = "notice"
+	previewSpoken     = 0.5
+	previewCueLeft    = 0.5
+	previewCueSeconds = 3
+	// previewNoticeOffset is the sample notice's sync step.
+	previewNoticeOffset = subtitle.Offset(-150 * time.Millisecond)
 )
+
+// previewCue shows the line on top before its time, as the Modo Karaokê
+// does, with the indicator and the look the screen sent.
+func previewCue(view KaraokeSettings, look *session.Look, screen *session.Screen) error {
+	color, err := appearance.ParseColor(view.PreviewColor)
+	if err != nil {
+		return refuse(ptbr.T("error.karaoke.previewColor"))
+	}
+	indicator := study.Indicator(view.Indicator)
+	if !indicator.Valid() {
+		return refuse(ptbr.T("error.karaoke.indicator"))
+	}
+	if look.Cue, err = cueFrom(view); err != nil {
+		return err
+	}
+	look.PreviewColor = color
+	screen.Cue = &session.CueScreen{Indicator: indicator, Progress: previewCueLeft, Seconds: previewCueSeconds}
+	return nil
+}
 
 var (
 	errNoPreview  = worded(func() string { return ptbr.T("error.preview.unavailable") })
@@ -89,6 +118,14 @@ func (a *API) settingsOptions() SettingsOptions {
 			SyncFastStepMax: int(subtitle.MaxFastNudgeStep.Milliseconds()), ProfileNameMax: settings.MaxProfileNameRunes,
 			PrecisionStepMin: int(settings.MinPrecisionSeekStep.Milliseconds()),
 			PrecisionStepMax: int(settings.MaxPrecisionSeekStep.Milliseconds()),
+			LineSpacingMin:   appearance.MinLineSpacing, LineSpacingMax: appearance.MaxLineSpacing,
+			LineGapMax: appearance.MaxLineGap, NoticeSizeMax: appearance.MaxNoticeFontSize,
+			NoticeMarginMax: appearance.MaxNoticeMargin, NoticeWidthMin: appearance.MinNoticeMaxWidth,
+			NoticeDurationMin: settings.MinNoticeDuration.Seconds(), NoticeDurationMax: settings.MaxNoticeDuration.Seconds(),
+			SelectionWidthMin: appearance.MinSelectionWidth, SelectionWidthMax: appearance.MaxSelectionWidth,
+			SelectionGapMax: appearance.MaxSelectionGap, SelectionRadiusMax: appearance.MaxSelectionCurve,
+			BarThicknessMin: appearance.MinCueThickness, BarThicknessMax: appearance.MaxCueThickness,
+			CountdownSizeMin: appearance.MinCountdownSize, CountdownSizeMax: appearance.MaxCountdownSize,
 		},
 	}
 	if a.deps.Preview != nil {
@@ -287,30 +324,41 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	margins := appearance.Layout{
-		MarginLeft: request.Layout.MarginLeft, MarginRight: request.Layout.MarginRight,
-		MarginTop: request.Layout.MarginTop, MarginBottom: request.Layout.MarginBottom, MaxWidth: request.Layout.MaxWidth,
-	}
-	if err := margins.Validate(); err != nil {
-		return "", refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
+	margins, err := layoutFrom(request.Layout)
+	if err != nil {
+		return "", err
 	}
 	screen := session.Screen{Primary: previewPrimary, Translation: ptbr.T("preview.translation"), TranslationVisible: true}
+	look := session.Look{Layout: margins, Primary: primary, Translation: translation}
 	if request.Highlight != "" {
 		line, err := lineOf(request.Highlight)
 		if err != nil {
 			return "", err
 		}
+		if look.Selection, err = selectionFrom(request.Marks.Selection); err != nil {
+			return "", err
+		}
 		screen.Highlighted, screen.Highlight = true, line
 	}
-	look := session.Look{Layout: margins, Primary: primary, Translation: translation}
+	notice := ""
 	switch request.View {
 	case "":
 	case previewViewFill:
-		fill, err := appearance.ParseColor(request.FillColor)
+		fill, err := appearance.ParseColor(request.Karaoke.FillColor)
 		if err != nil {
 			return "", refuse(ptbr.T("error.karaoke.fillColor"))
 		}
 		look.FillColor, screen.Fill = fill, previewSpoken
+	case previewViewCue:
+		if err := previewCue(request.Karaoke, &look, &screen); err != nil {
+			return "", err
+		}
+	case previewViewNotice:
+		if look.Notice, err = noticeFrom(request.Marks.Notice); err != nil {
+			return "", err
+		}
+		names := ptbr.LineNames{ptbr.T("line.primary"), ptbr.T("line.translation")}
+		notice = names.Notice(session.LinePrimary, previewNoticeOffset)
 	default:
 		return "", errors.New(ptbr.T("error.preview.unknown"))
 	}
@@ -318,7 +366,7 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if !(scale >= minPreviewScale && scale <= maxPreviewScale) {
 		scale = 1
 	}
-	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(layout.BaseDPI*scale)), screen)
+	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(layout.BaseDPI*scale)), screen, notice)
 	if err != nil {
 		a.logger.Warn("the preview was not drawn", "error", err)
 		return "", errBadPreview

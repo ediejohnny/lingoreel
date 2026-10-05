@@ -15,7 +15,6 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
@@ -37,10 +36,9 @@ const (
 	// player ties the overlay's thread to the player's: a hung player can
 	// block it, and the session must not hang with it.
 	uiTimeout = 3 * time.Second
-	// noticeDuration is how long a notice stays, counted on the wall clock:
-	// it is about the user's action, not about the video.
-	noticeDuration = 1500 * time.Millisecond
-	// noticeTimer identifies the window timer that removes the notice.
+	// noticeTimer identifies the window timer that removes the notice. A
+	// notice's time is counted on the wall clock: it is about the user's
+	// action, not about the video.
 	noticeTimer = 1
 )
 
@@ -66,12 +64,8 @@ type Options struct {
 	// text inside the picture when the window has black bars; zero fills the
 	// window.
 	VideoWidth, VideoHeight int
-	Layout                  appearance.Layout
-	Primary                 appearance.SubtitleStyle
-	Translation             appearance.SubtitleStyle
-	// PreviewColor and FillColor are the Modo Karaokê's colors: a line
-	// shown before its time, and the part of a line already spoken.
-	PreviewColor, FillColor appearance.Color
+	// Look is how the subtitles, the notices and the selection are drawn.
+	Look Look
 	// FindTimeout bounds the wait for the player window; zero means 10 s.
 	FindTimeout time.Duration
 	// Logger receives the errors that have no caller, such as a failure to
@@ -134,7 +128,6 @@ var (
 	winEventProc      = syscall.NewCallback(dispatchWinEvent)
 	callbacks         = &callbackTable{windows: map[windows.HWND]*Overlay{}, hooks: map[windows.Handle]*Overlay{}}
 	classNameUTF16, _ = windows.UTF16PtrFromString(className)
-	noticeStyle       = appearance.NoticeStyle()
 )
 
 // Open waits for the player's video window and puts the overlay over it.
@@ -320,9 +313,9 @@ func (o *Overlay) drawPending() {
 	}
 }
 
-// Notify shows a notice in the top left corner of the video for
-// noticeDuration; a new notice replaces the current one and starts the time
-// again. Like Show, it never waits for the drawing.
+// Notify shows a notice at the top of the video for the look's notice
+// duration; a new notice replaces the current one and starts the time again.
+// Like Show, it never waits for the drawing.
 func (o *Overlay) Notify(text string) error {
 	return o.thread.Post(func() {
 		if o.window == 0 {
@@ -331,7 +324,7 @@ func (o *Overlay) Notify(text string) error {
 		o.notice = text
 		err := o.redraw()
 		if err == nil {
-			err = win32.SetTimer(o.window, noticeTimer, uint32(noticeDuration/time.Millisecond))
+			err = win32.SetTimer(o.window, noticeTimer, uint32(o.options.Look.NoticeDuration/time.Millisecond))
 		}
 		if err != nil {
 			o.logger.Warn("overlay could not show a notice", "error", err)
@@ -354,12 +347,12 @@ func (o *Overlay) ReserveBottom(pixels int) error {
 	})
 }
 
-// Restyle draws the subtitles with a new look from now on. Like Show, it
-// never waits for the drawing.
+// Restyle draws the subtitles, the notices and the selection with a new look
+// from now on; a notice on screen keeps its time. Like Show, it never waits
+// for the drawing.
 func (o *Overlay) Restyle(look Look) error {
 	return o.thread.Post(func() {
-		o.options.Layout, o.options.Primary, o.options.Translation = look.Layout, look.Primary, look.Translation
-		o.options.PreviewColor, o.options.FillColor = look.PreviewColor, look.FillColor
+		o.options.Look = look
 		if o.window == 0 {
 			return
 		}
@@ -522,22 +515,27 @@ func (o *Overlay) redraw() error {
 	if o.reserve > 0 {
 		floor = float64(height - o.reserve)
 	}
+	style := o.options.Look
+	notice := style.Notice.Style()
 	frame := layout.Compute(layout.Input{
 		Floor:       floor,
 		Video:       layout.VideoRect(area, o.options.VideoWidth, o.options.VideoHeight),
 		DPI:         o.dpi,
-		Layout:      o.options.Layout,
-		Primary:     layout.Text{Style: o.options.Primary, Content: o.content.Primary},
-		Translation: layout.Text{Style: o.options.Translation, Content: o.content.Translation},
-		Notice:      layout.Text{Style: noticeStyle, Content: o.notice},
+		Layout:      style.Layout,
+		Primary:     layout.Text{Style: style.Primary, Content: o.content.Primary},
+		Translation: layout.Text{Style: style.Translation, Content: o.content.Translation},
+		Notice: layout.Notice{
+			Text:   layout.Text{Style: notice, Content: o.notice},
+			Margin: style.Notice.Margin, MaxWidth: style.Notice.MaxWidth,
+		},
 	}, o.renderer)
 	look := gdiplus.Look{
-		Primary: o.options.Primary, Translation: o.options.Translation,
-		TranslationVisible: o.content.TranslationVisible, Notice: noticeStyle,
-		PrimaryHidden: o.content.PrimaryHidden, Preview: o.options.PreviewColor, FillColor: o.options.FillColor,
+		Primary: style.Primary, Translation: style.Translation,
+		TranslationVisible: o.content.TranslationVisible, Notice: notice,
+		PrimaryHidden: o.content.PrimaryHidden, Preview: style.PreviewColor, FillColor: style.FillColor,
 	}
 	if cue := o.content.Cue; cue != nil {
-		look.Cue = &gdiplus.CueLook{Indicator: cue.Indicator, Progress: cue.Progress, Seconds: cue.Seconds}
+		look.Cue = &gdiplus.CueLook{Indicator: cue.Indicator, Progress: cue.Progress, Seconds: cue.Seconds, Style: style.Cue}
 	} else if o.content.Fill > 0 {
 		look.FillWidths = layout.FillWidths(frame.Primary, o.content.Fill, o.renderer)
 	}
@@ -553,7 +551,7 @@ func (o *Overlay) redraw() error {
 	o.boxes, o.fonts = boxes, fonts
 	o.boxesMu.Unlock()
 	if o.content.Highlighted {
-		look.Highlight = gdiplus.OutlineAround(boxes[o.content.Highlight], o.dpi)
+		look.Highlight = gdiplus.OutlineAround(boxes[o.content.Highlight], o.dpi, style.Selection)
 	}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
 		return fmt.Errorf("drawing the subtitles: %w", err)

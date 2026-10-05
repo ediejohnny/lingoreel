@@ -17,7 +17,7 @@ const (
 	configVersion = 1
 	// profilesVersion 2 added the Modo Karaokê, 3 moved the subtitles to the
 	// app's own font and 4 made room for the passage marks (migrations.go).
-	profilesVersion = 4
+	profilesVersion = 5
 )
 
 // Dir is where the app keeps its settings: %APPDATA%\LingoReel.

@@ -14,7 +14,6 @@ import (
 	"image/png"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
@@ -55,15 +54,17 @@ func Start() (*Renderer, error) {
 
 // Preview draws the screen's two lines with a look on a picture of width ×
 // height pixels at a display scaling (96 is 100%), as PNG. Both lines show;
-// the screen's highlight outlines the line being edited, and its fill paints
-// that share of the line on top in the look's fill color.
-func (r *Renderer) Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error) {
+// the screen's highlight outlines the line being edited, its cue shows the
+// line on top before its time, and its fill paints that share of the line
+// in the look's fill color. A notice, when not empty, shows as the video's
+// would.
+func (r *Renderer) Preview(look session.Look, width, height, dpi int, screen session.Screen, notice string) ([]byte, error) {
 	if width < minSide || height < minSide || width > maxSide || height > maxSide || dpi < minDPI || dpi > maxDPI {
 		return nil, fmt.Errorf("%w: %d×%d at %d dpi", ErrInvalidSize, width, height, dpi)
 	}
 	var picture *image.RGBA
 	var drawErr error
-	if err := r.thread.Do(func() { picture, drawErr = r.draw(look, width, height, dpi, screen) }); err != nil {
+	if err := r.thread.Do(func() { picture, drawErr = r.draw(look, width, height, dpi, screen, notice) }); err != nil {
 		return nil, err
 	}
 	if drawErr != nil {
@@ -77,28 +78,34 @@ func (r *Renderer) Preview(look session.Look, width, height, dpi int, screen ses
 }
 
 // draw runs on the renderer's thread.
-func (r *Renderer) draw(look session.Look, width, height, dpi int, screen session.Screen) (*image.RGBA, error) {
+func (r *Renderer) draw(look session.Look, width, height, dpi int, screen session.Screen, noticeText string) (*image.RGBA, error) {
 	dib, err := win32.NewDIB(width, height)
 	if err != nil {
 		return nil, fmt.Errorf("creating the preview bitmap: %w", err)
 	}
 	defer dib.Close()
 	area := layout.Rect{W: float64(width), H: float64(height)}
-	notice := appearance.NoticeStyle()
+	notice := look.Notice.Style()
 	frame := layout.Compute(layout.Input{
 		Video: area, DPI: dpi, Layout: look.Layout,
 		Primary:     layout.Text{Style: look.Primary, Content: screen.Primary},
 		Translation: layout.Text{Style: look.Translation, Content: screen.Translation},
-		Notice:      layout.Text{Style: notice},
+		Notice: layout.Notice{
+			Text:   layout.Text{Style: notice, Content: noticeText},
+			Margin: look.Notice.Margin, MaxWidth: look.Notice.MaxWidth,
+		},
 	}, r.renderer)
 	drawn := gdiplus.Look{
-		Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice, FillColor: look.FillColor,
+		Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice,
+		Preview: look.PreviewColor, FillColor: look.FillColor,
 	}
-	if screen.Fill > 0 {
+	if cue := screen.Cue; cue != nil {
+		drawn.Cue = &gdiplus.CueLook{Indicator: cue.Indicator, Progress: cue.Progress, Seconds: cue.Seconds, Style: look.Cue}
+	} else if screen.Fill > 0 {
 		drawn.FillWidths = layout.FillWidths(frame.Primary, screen.Fill, r.renderer)
 	}
 	if screen.Highlighted {
-		drawn.Highlight = gdiplus.OutlineAround(boxOf(frame, screen.Highlight), dpi)
+		drawn.Highlight = gdiplus.OutlineAround(boxOf(frame, screen.Highlight), dpi, look.Selection)
 	}
 	if err := r.renderer.Draw(dib, frame, drawn); err != nil {
 		return nil, fmt.Errorf("drawing the preview: %w", err)

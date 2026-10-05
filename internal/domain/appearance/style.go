@@ -53,6 +53,9 @@ const (
 	MinLines         = 1
 	MaxLines         = 5
 	MaxFontNameRunes = 100
+	// The line spacing multiplies the font's own distance between lines.
+	MinLineSpacing = 0.8
+	MaxLineSpacing = 2.0
 )
 
 // Outline draws a stroke around each glyph.
@@ -96,15 +99,15 @@ type SubtitleStyle struct {
 	VerticalPosition float64   `json:"verticalPosition"`
 	Alignment        Alignment `json:"alignment"`
 	MaxLines         int       `json:"maxLines"`
+	// LineSpacing spreads the lines of a block: 1 keeps the font's own
+	// spacing, and the extra room is split above and below each line.
+	LineSpacing float64 `json:"lineSpacing"`
 }
 
 // Validate checks every field against its allowed range.
 func (s SubtitleStyle) Validate() error {
 	family := strings.TrimSpace(s.FontFamily)
-	checks := []struct {
-		ok    bool
-		field string
-	}{
+	checks := []check{
 		{family != "" && len([]rune(family)) <= MaxFontNameRunes, "fontFamily"},
 		{s.FontSize >= MinFontSize && s.FontSize <= MaxFontSize, "fontSize"},
 		{s.SizeMode == SizeFixed || s.SizeMode == SizeResponsive, "sizeMode"},
@@ -117,10 +120,23 @@ func (s SubtitleStyle) Validate() error {
 		{s.VerticalPosition > 0 && s.VerticalPosition <= 1, "verticalPosition"},
 		{s.Alignment == AlignLeft || s.Alignment == AlignCenter || s.Alignment == AlignRight, "alignment"},
 		{s.MaxLines >= MinLines && s.MaxLines <= MaxLines, "maxLines"},
+		{inRange(s.LineSpacing, MinLineSpacing, MaxLineSpacing), "lineSpacing"},
 	}
-	for _, check := range checks {
-		if !check.ok {
-			return &FieldError{Field: check.field, kind: ErrInvalidStyle}
+	return firstFailure(checks, ErrInvalidStyle)
+}
+
+// check is one row of a validation table: the field it names fails when ok
+// is false. Every row is written as "inside the range", so NaN fails it.
+type check struct {
+	ok    bool
+	field string
+}
+
+// firstFailure returns the first failing row as a FieldError of kind.
+func firstFailure(checks []check, kind error) error {
+	for _, c := range checks {
+		if !c.ok {
+			return &FieldError{Field: c.field, kind: kind}
 		}
 	}
 	return nil

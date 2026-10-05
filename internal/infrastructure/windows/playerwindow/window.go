@@ -209,11 +209,9 @@ func Open(ctx context.Context, options Options) (*Window, error) {
 		return nil, errors.Join(err, setupErr)
 	}
 	go w.runActions()
-	look := options.Look
 	covered := overlay.Options{
 		Target: uintptr(w.host), VideoWidth: options.VideoWidth, VideoHeight: options.VideoHeight,
-		Layout: look.Layout, Primary: look.Primary, Translation: look.Translation, Logger: logger,
-		PreviewColor: look.PreviewColor, FillColor: look.FillColor,
+		Look: options.Look, Logger: logger,
 	}
 	if options.Stage != nil {
 		// Over the video only: the app's controls around it stay uncovered.

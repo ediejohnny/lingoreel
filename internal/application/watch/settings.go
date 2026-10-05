@@ -134,11 +134,13 @@ func (s *Session) SetShortcuts(keys shortcut.Map) error {
 	return closeErr
 }
 
-// LookOf is how a profile draws the subtitles.
+// LookOf is how a profile draws the subtitles and the marks around them.
 func LookOf(profile settings.Profile) session.Look {
+	karaoke, marks := profile.Study.Karaoke, profile.Marks
 	return session.Look{
 		Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation,
-		PreviewColor: profile.Study.Karaoke.PreviewColor, FillColor: profile.Study.Karaoke.FillColor,
+		PreviewColor: karaoke.PreviewColor, FillColor: karaoke.FillColor, Cue: karaoke.Cue,
+		Notice: marks.Notice, NoticeDuration: time.Duration(marks.NoticeDuration), Selection: marks.Selection,
 	}
 }
 
