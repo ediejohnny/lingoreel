@@ -62,6 +62,9 @@ type UI interface {
 	// SetAlwaysOnTop keeps the window in front of the other programs', or
 	// lets it go behind them.
 	SetAlwaysOnTop(on bool)
+	// HideWindow takes the window off the screen at once; the app keeps
+	// running until it quits.
+	HideWindow()
 	// Quit closes the app.
 	Quit()
 }
@@ -346,7 +349,9 @@ func (l Lifecycle) Shutdown() {
 // EndBeforeClosing ends a running session before the window closes, so a
 // video drawn inside the window never outlives the window's message loop;
 // then it calls quit. It reports whether the window must wait for that
-// (true), or may close now: no session (false).
+// (true), or may close now: no session (false). The window is hidden at
+// once, so the app looks closed while the player quits and the project is
+// saved behind it.
 func (l Lifecycle) EndBeforeClosing(quit func()) bool {
 	a := l.api
 	a.mu.Lock()
@@ -360,6 +365,7 @@ func (l Lifecycle) EndBeforeClosing(quit func()) bool {
 	if !running {
 		return false
 	}
+	a.ui.HideWindow()
 	go func() {
 		// The window is closing: a failure to end the session has no one to tell.
 		_ = a.StopWatching()

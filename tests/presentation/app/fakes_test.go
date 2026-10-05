@@ -121,6 +121,8 @@ type fakeRunning struct {
 	// reconnecting is what Reconnecting answers; lost makes Err report a lost player.
 	reconnecting atomic.Bool
 	lost         atomic.Bool
+	// closeDelay (nanoseconds) is how long Close takes, like a player slow to quit.
+	closeDelay atomic.Int64
 }
 
 func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
@@ -173,6 +175,7 @@ func (r *fakeRunning) Err() error {
 	return nil
 }
 func (r *fakeRunning) Close() error {
+	time.Sleep(time.Duration(r.closeDelay.Load()))
 	r.once.Do(func() { close(r.samples) })
 	return nil
 }
@@ -239,8 +242,22 @@ type fakeUI struct {
 	// to close.
 	titles []string
 	quits  int
+	// hides counts the window hidden.
+	hides int
 	// onTop is what the window was told about staying in front, in order.
 	onTop []bool
+}
+
+func (u *fakeUI) HideWindow() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.hides++
+}
+
+func (u *fakeUI) hidden() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.hides
 }
 
 func (u *fakeUI) SetTitle(title string) {

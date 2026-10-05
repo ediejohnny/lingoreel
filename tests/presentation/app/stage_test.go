@@ -188,6 +188,25 @@ func TestAVideoInsideTheAppWindowStaysWithTheApp(t *testing.T) {
 	}
 }
 
+// Alt+F4 with a video playing: the window disappears at once, even with a
+// player slow to quit; the video ends behind it.
+func TestClosingHidesTheWindowAtOnce(t *testing.T) {
+	r, _ := stageRig(t)
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
+		t.Fatal(err)
+	}
+	r.plugin.current().closeDelay.Store(int64(300 * time.Millisecond))
+	start := time.Now()
+	r.lifecycle.EndBeforeClosing(func() {})
+	if hidden, after := r.ui.hidden(), time.Since(start); hidden != 1 || after > 100*time.Millisecond {
+		t.Fatalf("the window was hidden %d times, %v after the close", hidden, after)
+	}
+	if !r.api.PlaybackState().Active {
+		t.Fatal("the video ended before the window was hidden")
+	}
+	testkit.Eventually(t, "the video to end behind the hidden window", func() bool { return !r.api.PlaybackState().Active })
+}
+
 // Closing the window with a video playing ends the video first (it is drawn
 // inside the window), then quits; asked again meanwhile, the window still
 // waits; with nothing playing it closes at once.
