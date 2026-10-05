@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -24,6 +26,24 @@ type fakeStage struct {
 	mu          sync.Mutex
 	places      []place
 	fullscreens []bool
+	chromes     []chrome
+}
+
+type chrome struct {
+	bar  settings.BarPreferences
+	edit appearance.EditStyle
+}
+
+func (s *fakeStage) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.chromes = append(s.chromes, chrome{bar, edit})
+}
+
+func (s *fakeStage) styled() []chrome {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.chromes)
 }
 
 type place struct {

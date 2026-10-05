@@ -65,7 +65,7 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		w.trackLeave(0, hwnd)
 		w.showCursor()
 		point := win32.PointOf(lparam)
-		w.pointer(controlbar.InZone(w.clientArea(), float64(point.Y), w.scale()))
+		w.pointer(controlbar.InZone(w.clientArea(), float64(point.Y), w.barScale()))
 		return 0
 	case win32.WM_MOUSELEAVE:
 		w.tracking[0] = false
@@ -263,7 +263,7 @@ func (w *Window) cursorInZone() bool {
 	if !area.Contains(x, y) {
 		return false
 	}
-	return controlbar.InZone(area, y, w.scale()) || (w.barShown && w.layout.Covers(x, y))
+	return controlbar.InZone(area, y, w.barScale()) || (w.barShown && w.layout.Covers(x, y))
 }
 
 func (w *Window) clientArea() layout.Rect {
@@ -276,6 +276,19 @@ func (w *Window) clientArea() layout.Rect {
 
 func (w *Window) scale() float64 {
 	return controlbar.Scale(win32.DpiForWindow(w.host))
+}
+
+// barScale is the bar's scale: the display's, times the size the user
+// picked for the bar.
+func (w *Window) barScale() float64 {
+	return w.scale() * w.chrome.Bar.Size
+}
+
+// setChrome takes a new look for the controls. Runs on the UI thread, or
+// before the window has one.
+func (w *Window) setChrome(chrome Chrome) {
+	w.chrome = chrome
+	w.visibility.Delay = chrome.HideDelay
 }
 
 // inClient converts a point of the bar window into the player window's
@@ -474,7 +487,7 @@ func (w *Window) drawBar(remote watch.Remote) bool {
 		return false
 	}
 	state := w.state(remote)
-	bar := controlbar.Layout(w.clientArea(), w.scale(), state)
+	bar := controlbar.Layout(w.clientArea(), w.barScale(), state)
 	if !bar.Band.Valid() {
 		return false
 	}
@@ -512,7 +525,7 @@ func (w *Window) drawBar(remote watch.Remote) bool {
 
 func (w *Window) look(bar controlbar.Bar, state controlbar.State) gdiplus.BarLook {
 	labels := w.options.Labels
-	look := gdiplus.BarLook{Hover: w.hover, Label: func(controlbar.Item) string { return "" }}
+	look := gdiplus.BarLook{Style: w.chrome.Bar, Hover: w.hover, Label: func(controlbar.Item) string { return "" }}
 	if labels.Item != nil {
 		look.Label = labels.Item
 	}

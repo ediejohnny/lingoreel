@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
@@ -34,6 +35,9 @@ func drawWide(t *testing.T, state controlbar.State, look gdiplus.BarLook) wideBa
 	dib := newDIB(t, 1280, int(bar.Band.H))
 	if look.Label == nil {
 		look.Label = func(controlbar.Item) string { return "1,00×" }
+	}
+	if look.Style == (appearance.BarStyle{}) {
+		look.Style = appearance.DefaultBarStyle()
 	}
 	if err := r.DrawBar(dib, bar, look); err != nil {
 		t.Fatalf("DrawBar: %v", err)
@@ -71,6 +75,57 @@ func TestBarWritesTheStudyText(t *testing.T) {
 	}
 	if got := with.inked(with.bar.Status); got < 60 {
 		t.Fatalf("only %d pixels of the study text", got)
+	}
+}
+
+// Two colors no one picks come from the style: the study text is the accent
+// two fifths of the way to white (orange ff8c00 gives ffba66), and a
+// disabled item is the icons' color dimmed, never opaque like an enabled one.
+func TestTheStudyTextAndTheDisabledItemsFollowTheStyle(t *testing.T) {
+	style := appearance.DefaultBarStyle()
+	style.Accent = appearance.RGB(0xFF, 0x8C, 0x00)
+	w := drawWide(t, controlbar.State{}, gdiplus.BarLook{Style: style, Status: "Início do trecho: 10:38"})
+	// The text is antialiased over the dark panel: its well covered pixels
+	// (red above d0) keep most of the blue of ffba66, none of ff8c00's.
+	lighter, plain := 0, 0
+	status := w.bar.Status
+	for y := int(status.Y); y < int(status.Bottom()); y++ {
+		for x := int(status.X); x < int(status.Right()); x++ {
+			switch b, _, r, _ := w.pixel(x, y); {
+			case r > 0xd0 && b > 0x50:
+				lighter++
+			case r > 0xd0 && b < 0x30:
+				plain++
+			}
+		}
+	}
+	if lighter < 10 || plain > 0 {
+		t.Fatalf("study text: %d pixels like ffba66, %d like the plain accent; want the lighter one only", lighter, plain)
+	}
+	opaque := func(rect layout.Rect) bool {
+		for y := int(rect.Y); y < int(rect.Bottom()); y++ {
+			for x := int(rect.X); x < int(rect.Right()); x++ {
+				if _, _, _, a := w.pixel(x, y); a == 0xff {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	disabled := 0
+	for _, it := range w.bar.Items {
+		switch {
+		case !it.Enabled:
+			disabled++
+			if opaque(it.Bounds) {
+				t.Fatalf("the disabled item %v is drawn opaque, as if it worked", it.Action)
+			}
+		case it.Action == controlbar.ActionPlayPause && !opaque(it.Bounds):
+			t.Fatal("the play button is not drawn opaque")
+		}
+	}
+	if disabled == 0 {
+		t.Fatal("no disabled item in the bar; the check above needs one")
 	}
 }
 

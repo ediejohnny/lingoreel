@@ -18,14 +18,14 @@ type CueLook struct {
 	// Progress goes from 1 when the preview begins to 0 at the line.
 	Progress float64
 	Seconds  int
+	// Style is the bar's thickness and color and the seconds' size.
+	Style appearance.CueStyle
 }
 
 // Indicator geometry, in style units (scaled like the text).
 const (
-	cueBarThickness = 5.0
 	cueBarMinPixels = 3.0
 	cueGap          = 8.0
-	countdownScale  = 0.8
 )
 
 // drawPrimary draws the line on top: as a preview with its indicator, or
@@ -55,7 +55,7 @@ func (r *Renderer) drawCue(c *canvas, target *win32.DIB, block *layout.Block, st
 		}
 		text := strconv.Itoa(cue.Seconds)
 		font := block.Font
-		font.Size *= countdownScale
+		font.Size *= cue.Style.CountdownSize
 		width, height := r.Width(text, font), r.LineHeight(font)
 		number := &layout.Block{Font: font, Scale: block.Scale, Lines: []layout.Line{{
 			Text: text, X: bounds.X + (bounds.W-width)/2, Y: bounds.Y - gap - height, Width: width, Height: height,
@@ -68,14 +68,15 @@ func (r *Renderer) drawCue(c *canvas, target *win32.DIB, block *layout.Block, st
 	if progress <= 0 {
 		return nil
 	}
-	thickness := math.Max(cueBarThickness*block.Scale, cueBarMinPixels)
+	thickness := math.Max(cue.Style.BarThickness*block.Scale, cueBarMinPixels)
 	// The bar fades with the line's opacity, as the text does.
-	alpha := float64(style.Color.A) * math.Max(0, math.Min(style.Opacity, 1))
+	color := cue.Style.BarColor
+	alpha := float64(color.A) * math.Max(0, math.Min(style.Opacity, 1))
 	if alpha < 1 {
 		return nil
 	}
 	bar := layout.Rect{X: bounds.X, Y: bounds.Y - gap - thickness, W: bounds.W * progress, H: thickness}
-	return newShape().rounded(bar, math.Min(thickness/2, barRadius*block.Scale)).fill(c.graphics, style.Color.WithAlpha(uint8(math.Round(alpha))))
+	return newShape().rounded(bar, math.Min(thickness/2, barRadius*block.Scale)).fill(c.graphics, color.WithAlpha(uint8(math.Round(alpha))))
 }
 
 // drawFill paints the spoken part of each line over the text's path,

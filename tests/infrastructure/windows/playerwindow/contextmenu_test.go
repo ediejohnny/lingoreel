@@ -12,11 +12,9 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
-	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
@@ -74,7 +72,7 @@ func openMenuWindow(t *testing.T, app playerwindow.AppActions) *menuWindow {
 	m := &menuWindow{}
 	options := playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
-		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
+		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 		NoActivate: true,
 		Choose: func(menu uintptr, x, y int32) uint32 {
@@ -173,7 +171,7 @@ func TestAWindowOnTheStageReachesTheApp(t *testing.T) {
 	settings := make(chan bool, 1)
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
-		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
+		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 		NoActivate: true, Stage: stage,
 		Choose: func(menu uintptr, _, _ int32) uint32 {

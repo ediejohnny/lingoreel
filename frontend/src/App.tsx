@@ -1,5 +1,5 @@
 import { ArrowLeft, PanelRight, Settings } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { SidePanel, type PanelTab } from "./components/player/SidePanel";
 import { VideoStage } from "./components/player/VideoStage";
@@ -11,6 +11,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import {
   backend,
   messageOf,
+  type InterfaceSettings,
   type Line,
   type PanelState,
   type Playback,
@@ -25,10 +26,15 @@ import { t, setLanguage } from "./i18n";
 
 type Screen = "home" | "session" | "playing" | "settings";
 
+/** waitBeforeKeeping lets a slider move before the app's look is saved. */
+const waitBeforeKeeping = 300;
+
 /** App holds which screen is open; each screen keeps its own controls. */
 export function App() {
   const [theme, setTheme] = useState<Theme>("system");
-  useAppliedTheme(theme);
+  // look is the app's own accent, font and text size over the theme.
+  const [look, setLook] = useState<InterfaceSettings>({ accent: "", fontFamily: "", textSize: 1 });
+  useAppliedTheme(theme, look);
   const [speeds, setSpeeds] = useState<number[]>([1]);
   const [screen, setScreen] = useState<Screen>("home");
   // returnTo is the screen the settings go back to.
@@ -79,6 +85,7 @@ export function App() {
       .then((preferences) => {
         setLanguage(preferences.language);
         setTheme(asTheme(preferences.theme));
+        setLook(preferences.interface);
         setSpeeds(preferences.speeds);
         setPanel(preferences.panel);
       })
@@ -133,6 +140,15 @@ export function App() {
     setTheme(next);
     // The theme still changes when saving fails; it is only not remembered.
     backend.setTheme(next).catch(() => undefined);
+  };
+
+  const lookTimer = useRef<number | undefined>(undefined);
+  const chooseLook = (next: InterfaceSettings) => {
+    setLook(next);
+    // A slider sends many sizes: the last one is kept. The look still
+    // changes when saving fails; it is only not remembered.
+    window.clearTimeout(lookTimer.current);
+    lookTimer.current = window.setTimeout(() => backend.setInterface(next).catch(() => undefined), waitBeforeKeeping);
   };
 
   const chooseVideo = useCallback(async () => {
@@ -299,12 +315,12 @@ export function App() {
                   commands={commands}
                 />
               }
-              settings={<SettingsPage theme={theme} onTheme={chooseTheme} section={settingsPage} narrow />}
+              settings={<SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} section={settingsPage} narrow />}
             />
           )}
         </div>
       ) : screen === "settings" ? (
-        <SettingsPage theme={theme} onTheme={chooseTheme} />
+        <SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} />
       ) : screen === "playing" && video && state ? (
         <PlayingPage
           name={video.name}

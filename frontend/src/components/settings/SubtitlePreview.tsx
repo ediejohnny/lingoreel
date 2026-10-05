@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
-import { backend, messageOf, type LayoutSettings, type StyleSettings } from "../../services/backend";
+import {
+  backend,
+  messageOf,
+  type KaraokeSettings,
+  type LayoutSettings,
+  type MarkSettings,
+  type StyleSettings,
+} from "../../services/backend";
 import type { PreviewView, SubtitleLine } from "../../settings";
 
 /** waitBeforeDrawing lets a slider move before the picture is asked again. */
@@ -10,18 +17,22 @@ interface SubtitlePreviewProps {
   primary: StyleSettings;
   translation: StyleSettings;
   layout: LayoutSettings;
-  /** highlight outlines the line being edited; "" outlines none. */
+  /** highlight outlines the line being edited, as marks say; "" outlines none. */
   highlight: SubtitleLine | "";
-  /** view "fill" paints half the line on top in fillColor, as the Modo Karaokê does while the actor speaks. */
+  /**
+   * view "fill" paints half the line on top in the karaoke's fill color, as while the actor speaks; "cue" shows
+   * it before its time with the karaoke's indicator; "notice" adds a notice as marks say.
+   */
   view?: PreviewView;
-  fillColor?: string;
+  karaoke: KaraokeSettings;
+  marks: MarkSettings;
 }
 
 /**
  * SubtitlePreview shows the two lines as the video will, drawn by the same
  * renderer as the overlay, at the picture's real size on screen.
  */
-export function SubtitlePreview({ primary, translation, layout, highlight, view = "", fillColor = "" }: SubtitlePreviewProps) {
+export function SubtitlePreview({ primary, translation, layout, highlight, view = "", karaoke, marks }: SubtitlePreviewProps) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [picture, setPicture] = useState("");
@@ -55,7 +66,8 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
           scale,
           highlight,
           view,
-          fillColor: view === "fill" ? fillColor : "",
+          karaoke,
+          marks,
         })
         .then((next) => {
           if (current) {
@@ -69,13 +81,27 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
       current = false;
       window.clearTimeout(timer);
     };
-  }, [primary, translation, layout, highlight, view, fillColor, width]);
+  }, [primary, translation, layout, highlight, view, karaoke, marks, width]);
 
   const marked =
     highlight === "primary" ? t("ui.settings.preview.markedTop") : highlight === "translation" ? t("ui.settings.preview.markedBottom") : "";
-  const filled = view === "fill" ? t("ui.settings.preview.filled") : "";
-  const caption = [t("ui.settings.preview.caption"), marked, filled].filter((sentence) => sentence !== "").join(" ");
-  const alt = view === "fill" ? t("ui.settings.preview.altFill") : t("ui.settings.preview.alt");
+  const scene =
+    view === "fill"
+      ? t("ui.settings.preview.filled")
+      : view === "cue"
+        ? t("ui.settings.preview.cued")
+        : view === "notice"
+          ? t("ui.settings.preview.noticed")
+          : "";
+  const caption = [t("ui.settings.preview.caption"), marked, scene].filter((sentence) => sentence !== "").join(" ");
+  const alt =
+    view === "fill"
+      ? t("ui.settings.preview.altFill")
+      : view === "cue"
+        ? t("ui.settings.preview.altCue")
+        : view === "notice"
+          ? t("ui.settings.preview.altNotice")
+          : t("ui.settings.preview.alt");
   return (
     <figure className="flex flex-col gap-2">
       <div ref={box} className="relative aspect-video w-full overflow-hidden rounded-card border border-line bg-sunken">

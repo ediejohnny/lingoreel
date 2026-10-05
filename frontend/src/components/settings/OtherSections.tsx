@@ -4,11 +4,10 @@ import { speedLabel } from "../../format";
 import { t } from "../../i18n";
 import { both, keyLabel } from "../../keys";
 import { backend } from "../../services/backend";
-import { themeLabel, type Theme } from "../../stores/theme";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
-import { NumberField, Segmented } from "../ui/Inputs";
+import { NumberField } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { AssociationCard } from "./AssociationCard";
 import { DiagnosticsCard } from "./DiagnosticsCard";
@@ -57,27 +56,6 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
         />
       </Card>
     </>
-  );
-}
-
-interface AppearanceSectionProps {
-  theme: Theme;
-  onTheme: (theme: Theme) => void;
-}
-
-/** AppearanceSection holds the app's theme. */
-export function AppearanceSection({ theme, onTheme }: AppearanceSectionProps) {
-  const themes: Theme[] = ["system", "light", "dark"];
-  return (
-    <Card title={t("ui.settings.appearance.title")}>
-      <Segmented
-        label={t("ui.settings.appearance.theme")}
-        value={theme}
-        options={themes.map((value) => ({ value, label: themeLabel(value) }))}
-        onChange={(value) => onTheme(value as Theme)}
-        help={<HelpTip topic={t("ui.settings.appearance.topic")}>{t("ui.settings.appearance.help")}</HelpTip>}
-      />
-    </Card>
   );
 }
 

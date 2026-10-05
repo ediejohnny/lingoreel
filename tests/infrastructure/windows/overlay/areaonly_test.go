@@ -11,7 +11,6 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
@@ -57,8 +56,7 @@ func TestAnAreaOnlyOverlayHidesWithItsArea(t *testing.T) {
 
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		Target: uintptr(app), Area: func() uintptr { return uintptr(video) }, AreaOnly: true,
-		VideoWidth: 1280, VideoHeight: 720, Layout: appearance.DefaultLayout(),
-		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		VideoWidth: 1280, VideoHeight: 720, Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

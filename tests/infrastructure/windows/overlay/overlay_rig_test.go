@@ -18,14 +18,18 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // The overlay tests' rig: a fake player window run as a child process, the
 // scene of an overlay over it, and readings of what the screen shows.
+
+// defaultLook is how a new profile draws the subtitles and their marks.
+func defaultLook() overlay.Look { return watch.LookOf(settings.DefaultProfile()) }
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")
 
@@ -286,7 +290,7 @@ func openOver(t *testing.T, processID int) *scene {
 	t.Helper()
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		ProcessID: processID, VideoWidth: 320, VideoHeight: 180,
-		Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -530,7 +534,7 @@ func openOverAnother(t *testing.T, processID int, existing windows.HWND) *scene 
 	t.Helper()
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		ProcessID: processID, VideoWidth: 320, VideoHeight: 180,
-		Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

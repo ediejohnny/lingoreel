@@ -6,6 +6,30 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-05
+
+What shows on the screen can be made one's own: the subtitles' spacing, the marks over the video, the control bar and
+its menus, the correction box and the app itself.
+
+### Added
+
+- Each subtitle's line spacing ("Entrelinha"), and the least distance between the two subtitles when they meet.
+- "Avisos no vídeo": the font, size, colors, side at the top, margin and width of the short notices, and how long they
+  stay.
+- "Fala selecionada": the colors, width, gap and corners of the frame around the line being corrected.
+- Modo Karaokê: the thickness and color of the bar before a line and the size of the countdown; the preview can show a
+  line before its time.
+- Settings › Aparência:
+  - the control bar and its menus: colors, font, size (75% to 200%) and how long the bar stays, with a picture of it;
+  - the correction box: its colors and the hint's size, with a sample;
+  - the app's own accent color, font and text size (85% to 150%).
+- "Restaurar o padrão" on each of these groups.
+
+### Changed
+
+- The defaults are the looks of 0.20.1, so nothing changes until a choice is made. `profiles.json` moves to version 5:
+  every profile keeps its look, and the karaoke bar keeps the color it had (the profile's preview color).
+
 ## [0.20.1] - 2026-10-05
 
 A review of 0.20.0: the menu reaches the app, and smaller fixes.
@@ -412,7 +436,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/ediejohnny/lingoreel/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/ediejohnny/lingoreel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...v0.19.0

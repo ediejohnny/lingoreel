@@ -23,6 +23,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -241,6 +242,10 @@ type stagePort struct{ *playerwindow.Stage }
 
 func (s stagePort) Place(visible bool, insets layout.Insets) {
 	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
+}
+
+func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle) {
+	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit})
 }
 
 // restoreWindow puts the app window back where it was when it closed and

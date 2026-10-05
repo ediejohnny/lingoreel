@@ -21,6 +21,63 @@ var profilesMigrations = map[int]jsonstore.Migration{
 	1: addKaraoke,
 	2: useTheAppFont,
 	3: freeThePassageMarks,
+	4: addLooks,
+}
+
+// addLooks (version 4 to 5) gives every profile the looks that were fixed
+// before: the line spacing and the gap between the subtitles, the marks and
+// the Modo Karaokê's indicator, whose bar takes the profile's preview color
+// as it did. A value a profile somehow has stays.
+func addLooks(document map[string]any) error {
+	defaults := settings.DefaultProfile()
+	marks, err := asObject(defaults.Marks)
+	if err != nil {
+		return err
+	}
+	items, _ := document["profiles"].([]any)
+	for i, item := range items {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d is not an object", i)
+		}
+		for _, name := range []string{"primaryStyle", "translationStyle"} {
+			style, ok := profile[name].(map[string]any)
+			if !ok {
+				return fmt.Errorf("profile %d has no %s", i, name)
+			}
+			keep(style, "lineSpacing", defaults.Primary.LineSpacing)
+		}
+		layout, ok := profile["layout"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d has no layout", i)
+		}
+		keep(layout, "lineGap", defaults.Layout.LineGap)
+		keep(profile, "marks", marks)
+		study, _ := profile["study"].(map[string]any)
+		karaoke, ok := study["karaoke"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d has no karaoke preferences", i)
+		}
+		cue := defaults.Study.Karaoke.Cue
+		if text, _ := karaoke["previewColor"].(string); text != "" {
+			if color, err := appearance.ParseColor(text); err == nil {
+				cue.BarColor = color
+			}
+		}
+		object, err := asObject(cue)
+		if err != nil {
+			return err
+		}
+		keep(karaoke, "cue", object)
+	}
+	return nil
+}
+
+// keep sets key to value unless the object already has it.
+func keep(object map[string]any, key string, value any) {
+	if _, present := object[key]; !present {
+		object[key] = value
+	}
 }
 
 // newDefaults are the commands whose default chord came in a later version:

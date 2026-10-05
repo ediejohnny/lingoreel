@@ -61,16 +61,20 @@ type KaraokePreferences struct {
 	FillColor appearance.Color `json:"fillColor"`
 	// Repeat plays each line again that many times; 0 is off.
 	Repeat int `json:"repeat"`
+	// Cue is how the time left before a previewed line looks.
+	Cue appearance.CueStyle `json:"cue"`
 }
 
 // DefaultKaraoke is off, with a 10 s gap, a 5 s lead, the bar, a light grey
 // preview and the karaoke yellow fill.
 func DefaultKaraoke() KaraokePreferences {
 	rules := study.DefaultCueRules()
+	previewGrey := appearance.Color{R: 0xC8, G: 0xCD, B: 0xD4, A: 0xFF}
 	return KaraokePreferences{
 		MinGap: Duration(rules.MinGap), Lead: Duration(rules.Lead), Indicator: study.IndicatorBar,
-		PreviewColor: appearance.Color{R: 0xC8, G: 0xCD, B: 0xD4, A: 0xFF},
+		PreviewColor: previewGrey,
 		Fill:         true, FillColor: appearance.Color{R: 0xFF, G: 0xD2, B: 0x3F, A: 0xFF},
+		Cue: appearance.DefaultCueStyle(previewGrey),
 	}
 }
 
@@ -88,6 +92,44 @@ func (k KaraokePreferences) validate() error {
 	}
 	if k.Repeat < 0 || k.Repeat > study.MaxRepeats {
 		return fmt.Errorf("%w: karaoke repeat %d outside 0..%d", ErrInvalidSettings, k.Repeat, study.MaxRepeats)
+	}
+	if err := k.Cue.Validate(); err != nil {
+		return fmt.Errorf("karaoke: %w", err)
+	}
+	return nil
+}
+
+// Ranges of how long a notice stays over the video.
+const (
+	MinNoticeDuration = 500 * time.Millisecond
+	MaxNoticeDuration = 10 * time.Second
+)
+
+// MarkPreferences are the marks drawn over the video besides the
+// subtitles: the short notices and the frame of the line being corrected.
+type MarkPreferences struct {
+	Notice         appearance.NoticeLook    `json:"notice"`
+	NoticeDuration Duration                 `json:"noticeDuration"`
+	Selection      appearance.SelectionLook `json:"selection"`
+}
+
+// DefaultMarks shows each notice for 1.5 s.
+func DefaultMarks() MarkPreferences {
+	return MarkPreferences{
+		Notice: appearance.DefaultNoticeLook(), NoticeDuration: Duration(1500 * time.Millisecond),
+		Selection: appearance.DefaultSelectionLook(),
+	}
+}
+
+func (m MarkPreferences) validate() error {
+	if err := m.Notice.Validate(); err != nil {
+		return fmt.Errorf("marks: %w", err)
+	}
+	if !m.NoticeDuration.within(MinNoticeDuration, MaxNoticeDuration) {
+		return fmt.Errorf("%w: noticeDuration", ErrInvalidSettings)
+	}
+	if err := m.Selection.Validate(); err != nil {
+		return fmt.Errorf("marks: %w", err)
 	}
 	return nil
 }
@@ -114,6 +156,7 @@ type Profile struct {
 	Primary         appearance.SubtitleStyle `json:"primaryStyle"`
 	Translation     appearance.SubtitleStyle `json:"translationStyle"`
 	Layout          appearance.Layout        `json:"layout"`
+	Marks           MarkPreferences          `json:"marks"`
 	Study           StudyPreferences         `json:"study"`
 	Speed           playback.Speed           `json:"speed"`
 	Sync            SyncPreferences          `json:"sync"`
@@ -130,6 +173,7 @@ func DefaultProfile() Profile {
 		Primary:     appearance.DefaultPrimaryStyle(),
 		Translation: appearance.DefaultTranslationStyle(),
 		Layout:      appearance.DefaultLayout(),
+		Marks:       DefaultMarks(),
 		Study:       StudyPreferences{Mode: study.ModeOnDemand, Reveal: study.RevealToggle, Karaoke: DefaultKaraoke()},
 		Speed:       playback.NormalSpeed,
 		Sync: SyncPreferences{
@@ -162,6 +206,9 @@ func (p Profile) Validate() error {
 		return fmt.Errorf("translationStyle: %w", err)
 	}
 	if err := p.Layout.Validate(); err != nil {
+		return err
+	}
+	if err := p.Marks.validate(); err != nil {
 		return err
 	}
 	if !p.Study.Mode.Valid() || !p.Study.Reveal.Valid() {

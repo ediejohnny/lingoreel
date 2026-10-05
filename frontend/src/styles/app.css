@@ -27,6 +27,9 @@
   --sp-info: #1f66d1;
   --sp-focus: #1f66d1;
   --sp-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.06);
+  /* The app's font and the size of every text, which the user may change (interface.ts). */
+  --sp-font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --sp-text-size: 1;
 }
 
 :root[data-theme="dark"] {
@@ -75,7 +78,7 @@
   --color-error-soft: var(--sp-error-soft);
   --color-focus: var(--sp-focus);
   --shadow-card: var(--sp-shadow);
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--sp-font);
   --radius-control: 0.1rem;
   --radius-card: 0.1rem;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
@@ -98,6 +101,11 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* Every size is in rem: the root's size scales the whole interface. */
+html {
+  font-size: calc(100% * var(--sp-text-size));
 }
 
 body {

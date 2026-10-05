@@ -14,6 +14,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -70,7 +71,7 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 	r := start(t)
 	profile := settings.DefaultProfile()
 	look := watch.LookOf(profile)
-	data, err := r.Preview(look, 1280, 720, 96, sample)
+	data, err := r.Preview(look, 1280, 720, 96, sample, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 
 	// A yellow primary line: yellow appears, only in its band.
 	profile.Primary.Color = appearance.RGB(0xFF, 0xE6, 0x00)
-	data, err = r.Preview(watch.LookOf(profile), 1280, 720, 96, sample)
+	data, err = r.Preview(watch.LookOf(profile), 1280, 720, 96, sample, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,14 +118,14 @@ func TestThePreviewRefusesSizesOutsideTheLimits(t *testing.T) {
 	r := start(t)
 	look := watch.LookOf(settings.DefaultProfile())
 	for _, c := range []struct{ w, h, dpi int }{{0, 360, 96}, {640, 8, 96}, {5000, 360, 96}, {640, 360, 0}, {640, 360, 1000}, {-1, -1, -1}} {
-		if _, err := r.Preview(look, c.w, c.h, c.dpi, session.Screen{Primary: "a", Translation: "b"}); !errors.Is(err, preview.ErrInvalidSize) {
+		if _, err := r.Preview(look, c.w, c.h, c.dpi, session.Screen{Primary: "a", Translation: "b"}, ""); !errors.Is(err, preview.ErrInvalidSize) {
 			t.Errorf("Preview(%d×%d at %d) = %v", c.w, c.h, c.dpi, err)
 		}
 	}
 	// Hostile text is drawn, not refused, and so is the outline of a line
 	// that has no text.
 	hostile := session.Screen{Primary: "\x00�" + string(make([]byte, 2000)), Highlighted: true, Highlight: session.LineTranslation}
-	if _, err := r.Preview(look, 320, 180, 144, hostile); err != nil {
+	if _, err := r.Preview(look, 320, 180, 144, hostile, ""); err != nil {
 		t.Fatalf("hostile text: %v", err)
 	}
 }
@@ -150,7 +151,7 @@ func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
 	look := watch.LookOf(settings.DefaultProfile())
 	render := func(screen session.Screen) *image.RGBA {
 		t.Helper()
-		data, err := r.Preview(look, 1280, 720, 96, screen)
+		data, err := r.Preview(look, 1280, 720, 96, screen, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,7 +208,7 @@ func TestThePreviewPaintsTheSpokenPartInTheFillColor(t *testing.T) {
 		t.Helper()
 		screen := sample
 		screen.Fill = fill
-		data, err := r.Preview(look, 1280, 720, 96, screen)
+		data, err := r.Preview(look, 1280, 720, 96, screen, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -227,6 +228,63 @@ func TestThePreviewPaintsTheSpokenPartInTheFillColor(t *testing.T) {
 	}
 	if first, last := columns(render(0), 560, 720, 0xFF, 0x8C, 0x00); first <= last {
 		t.Fatalf("nothing spoken, yet orange in columns %d-%d", first, last)
+	}
+}
+
+func TestThePreviewShowsANoticeAsTheVideoWould(t *testing.T) {
+	testkit.Slow(t)
+	r := start(t)
+	look := watch.LookOf(settings.DefaultProfile())
+	look.Notice.Color, look.Notice.Side = appearance.RGB(0xFF, 0x8C, 0x00), appearance.AlignRight
+	render := func(notice string) *image.RGBA {
+		t.Helper()
+		data, err := r.Preview(look, 1280, 720, 96, sample, notice)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	// The notice is at the top, on the right, in its own color; the
+	// subtitles are lower down (see above).
+	shown := render("Legenda de cima: −0,150 s")
+	first, last := columns(shown, 0, 120, 0xFF, 0x8C, 0x00)
+	if first > last || first < 640 {
+		t.Fatalf("orange in columns %d-%d of the top rows; want the notice on the right half", first, last)
+	}
+	if first, last := columns(render(""), 0, 120, 0xFF, 0x8C, 0x00); first <= last {
+		t.Fatalf("no notice, yet orange in columns %d-%d", first, last)
+	}
+}
+
+// The bar's preview: the bar at the bottom of the sample picture, in its
+// style's colors, and larger with a larger size.
+func TestTheBarsPreviewShowsTheStyleAtItsSize(t *testing.T) {
+	testkit.Slow(t)
+	r := start(t)
+	style := appearance.DefaultBarStyle()
+	style.Accent = appearance.RGB(0xFF, 0x8C, 0x00)
+	render := func(size float64) *image.RGBA {
+		t.Helper()
+		style.Size = size
+		data, err := r.PreviewBar(style, 640, 360, 96, "15:00 / 1:00:00", func(playback.Speed) string { return "1,00×" })
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	normal, double := render(1), render(2)
+	if n := count(normal, 0, 180, 0xFF, 0x8C, 0x00); n != 0 {
+		t.Fatalf("%d orange pixels in the top half; the bar belongs at the bottom", n)
+	}
+	// The played part of the track crosses column 60 at both sizes (it runs
+	// from the bar's left padding to a quarter of the track); a larger bar
+	// has a thicker track.
+	thickness := func(picture *image.RGBA) int {
+		column := image.Rect(60, 180, 61, 360)
+		return count(picture.SubImage(column).(*image.RGBA), 180, 360, 0xFF, 0x8C, 0x00)
+	}
+	if small, large := thickness(normal), thickness(double); small == 0 || large < small*3/2 {
+		t.Fatalf("the played track is %d px thick at 1×, %d px at 2×; want it thicker at 2×", small, large)
 	}
 }
 

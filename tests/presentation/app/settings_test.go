@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
@@ -80,6 +81,9 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.Shortcuts[0].Chord = "KeyP"
 	view.Shortcuts[shortcutAt(t, view, shortcut.Mute)].Chord = "" // no shortcut
 	view.PrecisionStep = 250
+	view.Primary.LineSpacing, view.Layout.LineGap = 1.4, 1
+	view.Marks.Notice.Side, view.Marks.NoticeDuration, view.Marks.Selection.Width = "right", 3, 3
+	view.Karaoke.BarThickness, view.Karaoke.CountdownSize = 9, 1.2
 	if view.Mode != "on-demand" {
 		t.Fatalf("mode = %q, want the default on-demand", view.Mode)
 	}
@@ -101,7 +105,9 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	}
 	// The video being watched took the new look at once.
 	look, looks := r.display.lastLook()
-	if looks != 1 || look.Primary.FontSize != 40 || look.FillColor.String() != "#00FF00" || look.Layout.MarginBottom != 0.1 {
+	if looks != 1 || look.Primary.FontSize != 40 || look.FillColor.String() != "#00FF00" || look.Layout.MarginBottom != 0.1 ||
+		look.Primary.LineSpacing != 1.4 || look.Layout.LineGap != 1 || look.Notice.Side != appearance.AlignRight ||
+		look.NoticeDuration != 3*time.Second || look.Selection.Width != 3 || look.Cue.BarThickness != 9 || look.Cue.CountdownSize != 1.2 {
 		t.Fatalf("display looks %d, last %+v", looks, look)
 	}
 	again := settingsOf(t, r).Profile
@@ -204,6 +210,12 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
 		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
+		{"line spacing", func(p *app.ProfileSettings) { p.Primary.LineSpacing = 3 }, "Legenda de cima: a entrelinha"},
+		{"gap", func(p *app.ProfileSettings) { p.Layout.LineGap = math.NaN() }, "Margens: a distância entre as legendas"},
+		{"notice", func(p *app.ProfileSettings) { p.Marks.Notice.FontSize = 0 }, "Avisos no vídeo: o tamanho da fonte"},
+		{"notice time", func(p *app.ProfileSettings) { p.Marks.NoticeDuration = 0.1 }, "Avisos no vídeo: a duração"},
+		{"selection", func(p *app.ProfileSettings) { p.Marks.Selection.Edge = "preto" }, `Fala selecionada: a cor "preto"`},
+		{"bar", func(p *app.ProfileSettings) { p.Karaoke.BarThickness = 50 }, "Modo Karaokê: a espessura da barra"},
 	}
 	for _, c := range cases {
 		view := base
@@ -374,7 +386,9 @@ func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
-	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	request := app.PreviewRequest{
+		Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Marks: view.Marks, Width: 640, Height: 360, Scale: 1,
+	}
 	for i, c := range []struct {
 		highlight string
 		want      session.Line
@@ -412,7 +426,7 @@ func TestThePreviewShowsTheKaraokeFill(t *testing.T) {
 	r.attach(t)
 	view := settingsOf(t, r).Profile
 	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
-	request.View, request.FillColor = "fill", "#FF8C00"
+	request.View, request.Karaoke.FillColor = "fill", "#FF8C00"
 	if _, err := r.api.PreviewSubtitles(request); err != nil {
 		t.Fatalf("fill view: %v", err)
 	}
@@ -422,7 +436,7 @@ func TestThePreviewShowsTheKaraokeFill(t *testing.T) {
 		t.Fatalf("fill view drew look %+v, screen %+v", call.look, call.screen)
 	}
 	// Between lines nothing is spoken, whatever color comes along.
-	request.View, request.FillColor = "", "#12"
+	request.View, request.Karaoke.FillColor = "", "#12"
 	if _, err := r.api.PreviewSubtitles(request); err != nil || r.preview.requests[1].screen.Fill != 0 {
 		t.Fatalf("plain view: %v, fill %v", err, r.preview.requests[1].screen.Fill)
 	}
@@ -435,16 +449,56 @@ func TestThePreviewRefusesAnUnknownViewOrFill(t *testing.T) {
 	view := settingsOf(t, r).Profile
 	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
 	for _, c := range []struct{ view, fill string }{
-		{"karaoke", "#FF8C00"}, {"Fill", "#FF8C00"}, {" fill", "#FF8C00"}, {"cue", "#FF8C00"},
+		{"karaoke", "#FF8C00"}, {"Fill", "#FF8C00"}, {" fill", "#FF8C00"}, {"Cue", "#FF8C00"},
 		{"fill", "#12"}, {"fill", ""}, {"fill", "amarelo"},
 	} {
-		request.View, request.FillColor = c.view, c.fill
+		request.View, request.Karaoke.FillColor = c.view, c.fill
 		if _, err := r.api.PreviewSubtitles(request); err == nil {
 			t.Errorf("view %q with fill %q was drawn", c.view, c.fill)
 		}
 	}
 	if len(r.preview.requests) != 0 {
 		t.Fatalf("%d refused previews reached the renderer", len(r.preview.requests))
+	}
+}
+
+func TestThePreviewShowsTheMarksAsTheDraftHasThem(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	view.Karaoke.Indicator, view.Karaoke.BarThickness, view.Karaoke.BarColor = "countdown", 12, "#FF8C00"
+	view.Marks.Notice.Side, view.Marks.Selection.Width = "right", 4
+	request := app.PreviewRequest{
+		Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1,
+		Karaoke: view.Karaoke, Marks: view.Marks,
+	}
+	request.View = "cue"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatalf("cue view: %v", err)
+	}
+	orange, _ := appearance.ParseColor("#FF8C00")
+	call := r.preview.requests[0]
+	if cue := call.screen.Cue; cue == nil || cue.Indicator != study.IndicatorCountdown || cue.Seconds <= 0 ||
+		call.look.Cue.BarThickness != 12 || call.look.Cue.BarColor != orange || call.notice != "" {
+		t.Fatalf("cue view drew look %+v, screen %+v, notice %q", call.look.Cue, call.screen.Cue, call.notice)
+	}
+	request.View, request.Highlight = "notice", "translation"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatalf("notice view: %v", err)
+	}
+	call = r.preview.requests[1]
+	if call.notice == "" || call.look.Notice.Side != appearance.AlignRight || call.look.Selection.Width != 4 || call.screen.Cue != nil {
+		t.Fatalf("notice view drew notice %q, look %+v / %+v", call.notice, call.look.Notice, call.look.Selection)
+	}
+	// Each part is read only by the view that shows it.
+	request.View, request.Highlight, request.Karaoke.BarColor = "notice", "", "laranja"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatalf("a bad bar color stopped the notice view: %v", err)
+	}
+	request.View = "cue"
+	if _, err := r.api.PreviewSubtitles(request); err == nil || len(r.preview.requests) != 3 {
+		t.Fatal("a cue with a bad bar color was drawn")
 	}
 }
 

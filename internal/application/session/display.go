@@ -1,6 +1,8 @@
 package session
 
 import (
+	"time"
+
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
@@ -34,14 +36,21 @@ type CueScreen struct {
 	Seconds int
 }
 
-// Look is how a display draws the subtitles.
+// Look is how a display draws the subtitles and the marks around them.
 type Look struct {
 	Layout      appearance.Layout
 	Primary     appearance.SubtitleStyle
 	Translation appearance.SubtitleStyle
 	// PreviewColor and FillColor are the Modo Karaokê's colors: a line
-	// shown before its time, and the part of a line already spoken.
+	// shown before its time, and the part of a line already spoken. Cue is
+	// how the time left before such a line shows.
 	PreviewColor, FillColor appearance.Color
+	Cue                     appearance.CueStyle
+	// Notice is how a notice looks, and NoticeDuration how long it stays.
+	Notice         appearance.NoticeLook
+	NoticeDuration time.Duration
+	// Selection frames the line being corrected.
+	Selection appearance.SelectionLook
 }
 
 // Restyler is a display that can change its look while it shows, so a

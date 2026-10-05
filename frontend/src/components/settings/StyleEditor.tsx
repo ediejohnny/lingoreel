@@ -197,6 +197,16 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           step={1}
           onChange={set("maxLines")}
         />
+        <NumberField
+          label={t("ui.settings.style.lineSpacing.label")}
+          value={style.lineSpacing}
+          min={limits.lineSpacingMin}
+          max={limits.lineSpacingMax}
+          step={0.05}
+          unit="×"
+          onChange={set("lineSpacing")}
+          help={<HelpTip topic={t("ui.settings.style.lineSpacing.label")}>{t("ui.settings.style.lineSpacing.help")}</HelpTip>}
+        />
         <Segmented
           label={t("ui.settings.style.position.align")}
           value={style.alignment}

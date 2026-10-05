@@ -49,6 +49,11 @@ func TestConfigValidate(t *testing.T) {
 		{"dismissed invalid id", func(c *settings.Config) { c.InstallRecommendations.Dismissed = []string{"mpv", "Pot Player"} }, false},
 		{"interface language", func(c *settings.Config) { c.Language = "fr-CA" }, true},
 		{"hostile interface language", func(c *settings.Config) { c.Language = "../fr" }, false},
+		{"bar that stays the longest", func(c *settings.Config) { c.Bar.HideDelay = settings.Duration(settings.MaxBarHideDelay) }, true},
+		{"bar that never stays", func(c *settings.Config) { c.Bar.HideDelay = 0 }, false},
+		{"bar too small", func(c *settings.Config) { c.Bar.Style.Size = 0 }, false},
+		{"box hint too small", func(c *settings.Config) { c.Edit.HintSize = 1 }, false},
+		{"app text too large", func(c *settings.Config) { c.Interface.TextSize = 3 }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

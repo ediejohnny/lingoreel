@@ -124,7 +124,9 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 	}
 	files := settingsfile.Open(dir)
 	config, err := files.LoadConfig()
-	if err != nil || !config.SyncNotice || config.Theme != settings.ThemeDark || config.Window.Saved() {
+	defaults := settings.DefaultConfig()
+	if err != nil || !config.SyncNotice || config.Theme != settings.ThemeDark || config.Window.Saved() ||
+		config.Bar != defaults.Bar || config.Edit != defaults.Edit || config.Interface != defaults.Interface {
 		t.Fatalf("old config = %+v, %v", config, err)
 	}
 	config.SyncNotice = false
@@ -267,6 +269,70 @@ func TestOldProfilesFollowTheAppFont(t *testing.T) {
 		if got.Primary.FontFamily != want || got.Translation.FontFamily != want {
 			t.Fatalf("profile %q fonts = %q and %q, want %q",
 				got.Name, got.Primary.FontFamily, got.Translation.FontFamily, want)
+		}
+	}
+}
+
+// Profiles saved before the looks over the video could change (version 4)
+// get them as they were drawn: the line spacing, the gap, the marks and the
+// karaoke's bar in the profile's own preview color. A value a profile has
+// stays. Two profiles and more: decoding over the default list, only the
+// first one would inherit the defaults anyway.
+func TestOldProfilesKeepTheLooksTheyHad(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	version4 := func(name, preview string, gap any) map[string]any {
+		var profile map[string]any
+		data, err := json.Marshal(settings.DefaultProfile())
+		if err == nil {
+			err = json.Unmarshal(data, &profile)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		profile["name"] = name
+		delete(profile, "marks")
+		delete(profile["primaryStyle"].(map[string]any), "lineSpacing")
+		delete(profile["translationStyle"].(map[string]any), "lineSpacing")
+		delete(profile["layout"].(map[string]any), "lineGap")
+		if gap != nil {
+			profile["layout"].(map[string]any)["lineGap"] = gap
+		}
+		karaoke := profile["study"].(map[string]any)["karaoke"].(map[string]any)
+		delete(karaoke, "cue")
+		karaoke["previewColor"] = preview
+		return profile
+	}
+	old, err := json.Marshal(map[string]any{"version": 4, "profiles": []any{
+		version4("Padrão", "#C8CDD4", nil), version4("Azul", "#3366FF", nil), version4("Afastado", "#C8CDD4", 1.5),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 4 file: %v", err)
+	}
+	defaults := settings.DefaultProfile()
+	for i, want := range []struct {
+		bar string
+		gap float64
+	}{{"#C8CDD4", 0.2}, {"#3366FF", 0.2}, {"#C8CDD4", 1.5}} {
+		got := profiles.Items[i]
+		cue := got.Study.Karaoke.Cue
+		if cue.BarColor.String() != want.bar || cue.BarThickness != defaults.Study.Karaoke.Cue.BarThickness ||
+			cue.CountdownSize != defaults.Study.Karaoke.Cue.CountdownSize {
+			t.Errorf("profile %q: karaoke cue %+v, want the default with a %s bar", got.Name, cue, want.bar)
+		}
+		if got.Layout.LineGap != want.gap || got.Primary.LineSpacing != 1 || got.Translation.LineSpacing != 1 {
+			t.Errorf("profile %q: gap %v, spacings %v/%v; want gap %v and spacing 1",
+				got.Name, got.Layout.LineGap, got.Primary.LineSpacing, got.Translation.LineSpacing, want.gap)
+		}
+		if got.Marks != defaults.Marks {
+			t.Errorf("profile %q: marks %+v, want the defaults", got.Name, got.Marks)
 		}
 	}
 }

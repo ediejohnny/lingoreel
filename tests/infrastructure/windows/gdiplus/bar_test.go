@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
@@ -31,6 +32,9 @@ func drawBar(t *testing.T, look gdiplus.BarLook) (*win32.DIB, controlbar.Bar) {
 	dib := newDIB(t, 640, 92)
 	if look.Label == nil {
 		look.Label = func(controlbar.Item) string { return "1,00×" }
+	}
+	if look.Style == (appearance.BarStyle{}) {
+		look.Style = appearance.DefaultBarStyle()
 	}
 	if err := r.DrawBar(dib, bar, look); err != nil {
 		t.Fatalf("DrawBar: %v", err)
@@ -106,6 +110,45 @@ func TestBarTipShowsAboveItsItem(t *testing.T) {
 	}
 }
 
+// The bar paints in its style's colors: the panel, the played part of the
+// track, the icons, and the tip in the menus' color.
+func TestTheBarTakesItsStyle(t *testing.T) {
+	style := appearance.DefaultBarStyle()
+	style.Panel = appearance.RGB(0x00, 0x80, 0x00).WithAlpha(0xB8)
+	style.Accent = appearance.RGB(0xFF, 0x8C, 0x00)
+	style.Icon = appearance.RGB(0x00, 0xFF, 0xFF)
+	style.Menu = appearance.RGB(0x00, 0x00, 0xC0).WithAlpha(0xF0)
+	dib, bar := drawBar(t, gdiplus.BarLook{Style: style})
+	// Premultiplied: the panel's green at alpha b8 is 0x80*0xb8/0xff = 0x5c.
+	if b, g, r, a := pixel(dib, 450, 340); a != 0xb8 || r > 0x08 || b > 0x08 || g < 0x54 || g > 0x64 {
+		t.Fatalf("panel pixel = %02x%02x%02x alpha %02x, want green at alpha b8", r, g, b, a)
+	}
+	if b, g, r, _ := pixel(dib, 80, 310); r < 0xf0 || g < 0x80 || g > 0x98 || b > 0x10 {
+		t.Fatalf("played track pixel %02x%02x%02x, want the orange accent", r, g, b)
+	}
+	if b, g, r, _ := pixel(dib, 28, 338); r > 0x30 || g < 0xd0 || b < 0xd0 {
+		t.Fatalf("pause icon pixel %02x%02x%02x, want cyan", r, g, b)
+	}
+	var play controlbar.Item
+	for _, it := range bar.Items {
+		if it.Action == controlbar.ActionPlayPause {
+			play = it
+		}
+	}
+	tipped, _ := drawBar(t, gdiplus.BarLook{Style: style, Hover: play, Tip: "Pausar (Espaço)"})
+	blue := 0
+	for y := 268; y < 302; y++ {
+		for x := 0; x < 200; x++ {
+			if b, g, r, a := pixel(tipped, x, y); a >= 0xe0 && b > 0xa0 && r < 0x30 && g < 0x30 {
+				blue++
+			}
+		}
+	}
+	if blue < 200 {
+		t.Fatalf("the tip has %d pixels in the menus' blue, want a box of it", blue)
+	}
+}
+
 func TestDrawBarRejectsAMissingBitmap(t *testing.T) {
 	r := newRenderer(t)
 	bar := controlbar.Layout(layout.Rect{W: 640, H: 360}, 1, controlbar.State{})
@@ -132,7 +175,7 @@ func TestTheVolumePastFullIsAmber(t *testing.T) {
 		}
 		bar := controlbar.Layout(layout.Rect{W: 1280, H: 360}, 1, state)
 		dib := newDIB(t, 1280, 92)
-		if err := r.DrawBar(dib, bar, gdiplus.BarLook{Label: func(controlbar.Item) string { return "1,00×" }}); err != nil {
+		if err := r.DrawBar(dib, bar, gdiplus.BarLook{Style: appearance.DefaultBarStyle(), Label: func(controlbar.Item) string { return "1,00×" }}); err != nil {
 			t.Fatal(err)
 		}
 		line, n := bar.VolumeTrack, 0

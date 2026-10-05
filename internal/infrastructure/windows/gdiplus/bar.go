@@ -12,22 +12,37 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
-// Colors of the control bar: the dark theme's tokens, since the bar
-// always sits over a video.
+// The bar's see-through white: under a hovered item, and the empty part of
+// its lines. They read on any panel the user picks.
 var (
-	barPanel    = appearance.Color{R: 0x0e, G: 0x12, B: 0x17, A: 0xb8}
-	barMenu     = appearance.Color{R: 0x1b, G: 0x22, B: 0x2b, A: 0xf0}
-	barTip      = appearance.Color{R: 0x1b, G: 0x22, B: 0x2b, A: 0xf0}
-	barHover    = appearance.Color{R: 0xff, G: 0xff, B: 0xff, A: 0x2e}
-	barRail     = appearance.Color{R: 0xff, G: 0xff, B: 0xff, A: 0x55}
-	barAccent   = appearance.Color{R: 0x5b, G: 0x9b, B: 0xff, A: 0xff}
-	barIcon     = appearance.Color{R: 0xe7, G: 0xea, B: 0xef, A: 0xff}
-	barDisabled = appearance.Color{R: 0xe7, G: 0xea, B: 0xef, A: 0x5c}
-	// barLoud is the volume past 100%, where the player amplifies.
-	barLoud = appearance.Color{R: 0xf5, G: 0xa5, B: 0x24, A: 0xff}
-	// barAccentText is the study text: light enough on the dark panel.
-	barAccentText = appearance.Color{R: 0x9c, G: 0xc3, B: 0xff, A: 0xff}
+	barHover = appearance.Color{R: 0xff, G: 0xff, B: 0xff, A: 0x2e}
+	barRail  = appearance.Color{R: 0xff, G: 0xff, B: 0xff, A: 0x55}
 )
+
+// disabledAlpha dims the icons' color for what the player cannot do.
+const disabledAlpha = 0x5c
+
+// barPalette is every color the bar draws with, from its style: the tips sit
+// on the menus' color, a disabled item is the icons' color dimmed, and the
+// study text is the accent made lighter, to read on a dark panel.
+type barPalette struct {
+	panel, menu, tip, hover, rail, accent, icon, disabled, loud, accentText appearance.Color
+}
+
+func paletteOf(style appearance.BarStyle) barPalette {
+	return barPalette{
+		panel: style.Panel, menu: style.Menu, tip: style.Menu, hover: barHover, rail: barRail,
+		accent: style.Accent, icon: style.Icon, loud: style.Loud,
+		disabled:   style.Icon.WithAlpha(uint8(int(style.Icon.A) * disabledAlpha / 0xff)),
+		accentText: lighter(style.Accent),
+	}
+}
+
+// lighter moves a color two fifths of the way to white.
+func lighter(c appearance.Color) appearance.Color {
+	up := func(v uint8) uint8 { return v + uint8((0xff-int(v))*2/5) }
+	return appearance.Color{R: up(c.R), G: up(c.G), B: up(c.B), A: c.A}
+}
 
 // Bar geometry at 100% scaling, in pixels.
 const (
@@ -40,12 +55,18 @@ const (
 	barStroke      = 2.0
 	barTipPadding  = 6.0
 	barTipGap      = 6.0
-	barFont        = "Segoe UI"
+	// iconFont writes the letters inside icons ("CC"), the bar's and the
+	// menu's alike, whatever the bar's own font.
+	iconFont = "Segoe UI"
 )
 
 // BarLook is what the bar shows besides its layout: texts already worded
-// for the user and the item under the mouse.
+// for the user, the item under the mouse, and its colors and font.
 type BarLook struct {
+	// Style is the bar's colors and font; its size is in the layout's scale.
+	Style appearance.BarStyle
+	// palette is Style's colors, worked out once per drawing.
+	palette barPalette
 	// Time is the "current / total" text.
 	Time string
 	// Label words an item: the speed on its button and in the list.
@@ -80,9 +101,11 @@ func (r *Renderer) DrawBar(target *win32.DIB, bar controlbar.Bar, look BarLook) 
 		return err
 	}
 	g, s := c.graphics, bar.Scale
-	font := layout.Font{Family: barFont, Size: barFontSize * s}
+	look.palette = paletteOf(look.Style)
+	p := look.palette
+	font := layout.Font{Family: look.Style.FontFamily, Size: barFontSize * s}
 
-	if err := fillRect(g, barPanel, bar.Panel); err != nil {
+	if err := fillRect(g, p.panel, bar.Panel); err != nil {
 		return err
 	}
 	if err := r.drawTrack(g, bar, look); err != nil {
@@ -94,12 +117,12 @@ func (r *Renderer) DrawBar(target *win32.DIB, bar controlbar.Bar, look BarLook) 
 		}
 	}
 	if bar.Time.Valid() && look.Time != "" {
-		if err := r.writeLine(g, look.Time, font, bar.Time, false, barIcon); err != nil {
+		if err := r.writeLine(g, look.Time, font, bar.Time, false, p.icon); err != nil {
 			return err
 		}
 	}
 	if bar.Status.Valid() && look.Status != "" {
-		if err := r.writeFitted(g, look.Status, font, bar.Status, barAccentText); err != nil {
+		if err := r.writeFitted(g, look.Status, font, bar.Status, p.accentText); err != nil {
 			return err
 		}
 	}
@@ -109,7 +132,7 @@ func (r *Renderer) DrawBar(target *win32.DIB, bar controlbar.Bar, look BarLook) 
 		}
 	}
 	if bar.Menu.Valid() {
-		if err := newShape().rounded(bar.Menu, barRadius*s).fill(g, barMenu); err != nil {
+		if err := newShape().rounded(bar.Menu, barRadius*s).fill(g, p.menu); err != nil {
 			return err
 		}
 		for _, item := range bar.Items {
@@ -130,8 +153,9 @@ func (r *Renderer) DrawBar(target *win32.DIB, bar controlbar.Bar, look BarLook) 
 
 // drawMenuPanel draws the open menu: its background, then each entry.
 func (r *Renderer) drawMenuPanel(g uintptr, bar controlbar.Bar, look BarLook, font layout.Font) error {
+	p := look.palette
 	s := bar.Scale
-	if err := newShape().rounded(bar.MenuPanel, barRadius*s).fill(g, barMenu); err != nil {
+	if err := newShape().rounded(bar.MenuPanel, barRadius*s).fill(g, p.menu); err != nil {
 		return err
 	}
 	for _, item := range bar.MenuItems {
@@ -145,12 +169,13 @@ func (r *Renderer) drawMenuPanel(g uintptr, bar controlbar.Bar, look BarLook, fo
 // drawEntry draws one entry of a menu: a line, a title, or a row with its
 // mark (a check, a choice dot), its text, and its value, key or buttons.
 func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item, look BarLook, font layout.Font) error {
+	p := look.palette
 	s := bar.Scale
 	b := item.Bounds
 	entry := item.Entry
-	color := barIcon
+	color := p.icon
 	if !item.Enabled {
-		color = barDisabled
+		color = p.disabled
 	}
 	text := controlbar.EntryText{}
 	if look.Entry != nil {
@@ -159,18 +184,18 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	switch {
 	case entry.Kind == controlbar.EntrySeparator:
 		y := b.Y + b.H/2
-		return fillRect(g, barRail, layout.Rect{X: b.X + menuTextPad*s, Y: y, W: b.W - 2*menuTextPad*s, H: math.Max(s, 1)})
+		return fillRect(g, p.rail, layout.Rect{X: b.X + menuTextPad*s, Y: y, W: b.W - 2*menuTextPad*s, H: math.Max(s, 1)})
 	case entry.Kind == controlbar.EntryLabel:
 		small := font
 		small.Size, small.Bold = font.Size*menuLabelFont, true
-		return r.writeLine(g, text.Text, small, layout.Rect{X: b.X + menuTextPad*s, Y: b.Y, W: b.W - 2*menuTextPad*s, H: b.H}, false, barDisabled)
+		return r.writeLine(g, text.Text, small, layout.Rect{X: b.X + menuTextPad*s, Y: b.Y, W: b.W - 2*menuTextPad*s, H: b.H}, false, p.disabled)
 	case entry.Kind == controlbar.EntryStepper && entry.Delta != 0:
 		return r.drawStepButton(g, bar, item, look, color)
 	}
 	hovered := item.Action == controlbar.ActionEntry && item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == entry
 	if hovered {
 		inset := layout.Rect{X: b.X + menuHoverInset*s, Y: b.Y + s, W: b.W - 2*menuHoverInset*s, H: b.H - 2*s}
-		if err := newShape().rounded(inset, barRadius*s).fill(g, barHover); err != nil {
+		if err := newShape().rounded(inset, barRadius*s).fill(g, p.hover); err != nil {
 			return err
 		}
 	}
@@ -178,12 +203,12 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	mark := layout.Rect{X: left, Y: b.Y + (b.H-menuCheck*s)/2, W: menuCheck * s, H: menuCheck * s}
 	switch entry.Kind {
 	case controlbar.EntryToggle:
-		if err := r.drawCheck(g, mark, entry.Checked, color, s); err != nil {
+		if err := r.drawCheck(g, p, mark, entry.Checked, color, s); err != nil {
 			return err
 		}
 		left = mark.Right() + menuCheckGap*s
 	case controlbar.EntryChoice:
-		if err := r.drawDot(g, mark, entry.Checked, color, s); err != nil {
+		if err := r.drawDot(g, p, mark, entry.Checked, color, s); err != nil {
 			return err
 		}
 		left = mark.Right() + menuCheckGap*s
@@ -199,7 +224,7 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	}
 	if trailing != "" {
 		width := r.Width(trailing, font)
-		if err := r.writeLine(g, trailing, font, layout.Rect{X: right - width, Y: b.Y, W: width, H: b.H}, false, barDisabled); err != nil {
+		if err := r.writeLine(g, trailing, font, layout.Rect{X: right - width, Y: b.Y, W: width, H: b.H}, false, p.disabled); err != nil {
 			return err
 		}
 		right -= width + menuCheckGap*s
@@ -242,11 +267,12 @@ const (
 
 // drawStepButton draws a stepper's [−] or [+].
 func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar.Item, look BarLook, color appearance.Color) error {
+	p := look.palette
 	s := bar.Scale
 	b := item.Bounds
-	background := barRail
+	background := p.rail
 	if item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == item.Entry {
-		background = barAccent
+		background = p.accent
 	}
 	if err := newShape().rounded(b, barRadius*s).fill(g, background.WithAlpha(stepButtonAlpha)); err != nil {
 		return err
@@ -260,21 +286,21 @@ func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar
 }
 
 // drawCheck draws a toggle's box, with a check when on.
-func (r *Renderer) drawCheck(g uintptr, box layout.Rect, on bool, color appearance.Color, s float64) error {
+func (r *Renderer) drawCheck(g uintptr, p barPalette, box layout.Rect, on bool, color appearance.Color, s float64) error {
 	if on {
-		if err := newShape().rounded(box, barRadius*s).fill(g, barAccent); err != nil {
+		if err := newShape().rounded(box, barRadius*s).fill(g, p.accent); err != nil {
 			return err
 		}
 		return newShape().
 			line(box.X+box.W*checkLeftX, box.Y+box.H*checkLeftY, box.X+box.W*checkLowX, box.Y+box.H*checkLowY).
 			line(box.X+box.W*checkLowX, box.Y+box.H*checkLowY, box.X+box.W*checkRightX, box.Y+box.H*checkRightY).
-			stroke(g, barIcon, barStroke*s)
+			stroke(g, p.icon, barStroke*s)
 	}
 	return newShape().rounded(box, barRadius*s).stroke(g, color, barStroke*s*thinStroke)
 }
 
 // drawDot draws a choice's ring, filled when chosen.
-func (r *Renderer) drawDot(g uintptr, box layout.Rect, on bool, color appearance.Color, s float64) error {
+func (r *Renderer) drawDot(g uintptr, p barPalette, box layout.Rect, on bool, color appearance.Color, s float64) error {
 	if err := newShape().ellipse(box).stroke(g, color, barStroke*s*thinStroke); err != nil {
 		return err
 	}
@@ -282,7 +308,7 @@ func (r *Renderer) drawDot(g uintptr, box layout.Rect, on bool, color appearance
 		return nil
 	}
 	inner := layout.Rect{X: box.X + box.W*dotInset, Y: box.Y + box.H*dotInset, W: box.W * dotSize, H: box.H * dotSize}
-	return newShape().ellipse(inner).fill(g, barAccent)
+	return newShape().ellipse(inner).fill(g, p.accent)
 }
 
 // writeFitted writes one line, left aligned, cut with "…" when it does not
@@ -305,17 +331,18 @@ func (r *Renderer) writeFitted(g uintptr, text string, font layout.Font, box lay
 }
 
 func (r *Renderer) drawTrack(g uintptr, bar controlbar.Bar, look BarLook) error {
+	p := look.palette
 	track := bar.Track
 	if !track.Valid() {
 		return nil
 	}
-	if err := fillRect(g, barRail, track); err != nil {
+	if err := fillRect(g, p.rail, track); err != nil {
 		return err
 	}
 	played := track
 	played.W = track.W * bar.Played
 	if played.W > 0 {
-		if err := fillRect(g, barAccent, played); err != nil {
+		if err := fillRect(g, p.accent, played); err != nil {
 			return err
 		}
 	}
@@ -324,21 +351,22 @@ func (r *Renderer) drawTrack(g uintptr, bar controlbar.Bar, look BarLook) error 
 	}
 	radius := barThumbRadius * bar.Scale
 	center := layout.Rect{X: played.Right() - radius, Y: track.Y + track.H/2 - radius, W: 2 * radius, H: 2 * radius}
-	return newShape().ellipse(center).fill(g, barAccent)
+	return newShape().ellipse(center).fill(g, p.accent)
 }
 
 func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item, look BarLook, font layout.Font) error {
+	p := look.palette
 	s := bar.Scale
 	b := item.Bounds
-	color := barIcon
+	color := p.icon
 	if !item.Enabled {
-		color = barDisabled
+		color = p.disabled
 	}
 	hovered := item.Enabled && look.Hover.Action == item.Action && look.Hover.Menu == item.Menu && look.Hover.Action != controlbar.ActionSpeedChoice
 	// The speed list or the item's menu is open.
 	open := (item.Action == controlbar.ActionSpeed || item.Action == controlbar.ActionMenu) && item.Active
 	if (hovered || open) && item.Action != controlbar.ActionVolume && item.Action != controlbar.ActionTrack {
-		if err := newShape().rounded(b, barRadius*s).fill(g, barHover); err != nil {
+		if err := newShape().rounded(b, barRadius*s).fill(g, p.hover); err != nil {
 			return err
 		}
 	}
@@ -360,11 +388,11 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 		// Muted: a cross instead of the waves.
 		return drawSpeaker(g, box, color, stroke, item.Active)
 	case controlbar.ActionVolume:
-		return r.drawVolume(g, bar, item, hovered)
+		return r.drawVolume(g, p, bar, item, hovered)
 	case controlbar.ActionTranslation:
 		frame := layout.Rect{X: b.X + translationInsetX*s, Y: b.Y + translationInsetY*s, W: b.W - 2*translationInsetX*s, H: b.H - 2*translationInsetY*s}
 		if item.Active {
-			if err := newShape().rounded(frame, barRadius*s).fill(g, barAccent); err != nil {
+			if err := newShape().rounded(frame, barRadius*s).fill(g, p.accent); err != nil {
 				return err
 			}
 		} else if err := newShape().rounded(frame, barRadius*s).stroke(g, color, stroke*thinStroke); err != nil {
@@ -423,14 +451,14 @@ func (r *Renderer) drawCorners(g uintptr, box layout.Rect, inward bool, color ap
 	return sh.stroke(g, color, stroke)
 }
 
-func (r *Renderer) drawVolume(g uintptr, bar controlbar.Bar, item controlbar.Item, hovered bool) error {
+func (r *Renderer) drawVolume(g uintptr, p barPalette, bar controlbar.Bar, item controlbar.Item, hovered bool) error {
 	line := bar.VolumeTrack
 	if !line.Valid() {
 		return nil
 	}
-	rail, fillColor := barRail, barIcon
+	rail, fillColor := p.rail, p.icon
 	if !item.Enabled {
-		rail, fillColor = barDisabled, barDisabled
+		rail, fillColor = p.disabled, p.disabled
 	}
 	if err := fillRect(g, rail, line); err != nil {
 		return err
@@ -447,12 +475,12 @@ func (r *Renderer) drawVolume(g uintptr, bar controlbar.Bar, item controlbar.Ite
 	if full := bar.VolumeFull; full > 0 && full < 1 && item.Enabled {
 		at := line.X + line.W*full
 		if loud := level.Right() - at; loud > 0 {
-			if err := fillRect(g, barLoud, layout.Rect{X: at, Y: line.Y, W: loud, H: line.H}); err != nil {
+			if err := fillRect(g, p.loud, layout.Rect{X: at, Y: line.Y, W: loud, H: line.H}); err != nil {
 				return err
 			}
 		}
 		mark := math.Max(1, bar.Scale)
-		if err := fillRect(g, barIcon, layout.Rect{X: at - mark/2, Y: line.Y - 2*mark, W: mark, H: line.H + 4*mark}); err != nil {
+		if err := fillRect(g, p.icon, layout.Rect{X: at - mark/2, Y: line.Y - 2*mark, W: mark, H: line.H + 4*mark}); err != nil {
 			return err
 		}
 	}
@@ -464,23 +492,25 @@ func (r *Renderer) drawVolume(g uintptr, bar controlbar.Bar, item controlbar.Ite
 }
 
 func (r *Renderer) drawChoice(g uintptr, bar controlbar.Bar, item controlbar.Item, look BarLook, font layout.Font) error {
+	p := look.palette
 	b := item.Bounds
 	inset := layout.Rect{X: b.X + 2*bar.Scale, Y: b.Y + 2*bar.Scale, W: b.W - 4*bar.Scale, H: b.H - 4*bar.Scale}
 	switch {
 	case item.Active:
-		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, barAccent); err != nil {
+		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, p.accent); err != nil {
 			return err
 		}
 	case look.Hover.Action == controlbar.ActionSpeedChoice && look.Hover.Speed == item.Speed:
-		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, barHover); err != nil {
+		if err := newShape().rounded(inset, barRadius*bar.Scale).fill(g, p.hover); err != nil {
 			return err
 		}
 	}
-	return r.writeLine(g, look.Label(item), font, b, true, barIcon)
+	return r.writeLine(g, look.Label(item), font, b, true, p.icon)
 }
 
 // drawTip shows the hovered item's tip above it, kept inside the band.
 func (r *Renderer) drawTip(g uintptr, bar controlbar.Bar, look BarLook, font layout.Font) error {
+	p := look.palette
 	s := bar.Scale
 	width := r.Width(look.Tip, font) + 2*barTipPadding*s
 	height := r.LineHeight(font) + 2*barTipPadding*s
@@ -492,10 +522,10 @@ func (r *Renderer) drawTip(g uintptr, bar controlbar.Bar, look BarLook, font lay
 		y = bar.Track.Y - barTipGap*s - height
 	}
 	box := layout.Rect{X: x, Y: math.Max(y, bar.Band.Y), W: width, H: height}
-	if err := newShape().rounded(box, barRadius*s).fill(g, barTip); err != nil {
+	if err := newShape().rounded(box, barRadius*s).fill(g, p.tip); err != nil {
 		return err
 	}
-	return r.writeLine(g, look.Tip, font, box, true, barIcon)
+	return r.writeLine(g, look.Tip, font, box, true, p.icon)
 }
 
 // writeLine writes one line inside a box, vertically centered and either

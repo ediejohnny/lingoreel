@@ -16,8 +16,10 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -67,6 +69,9 @@ type UI interface {
 type Stage interface {
 	Place(visible bool, insets layout.Insets)
 	SetFullscreen(on bool)
+	// SetChrome changes how the controls over the video look: the bar, and
+	// the box for corrections.
+	SetChrome(bar settings.BarPreferences, edit appearance.EditStyle)
 }
 
 // Projects keeps each video's project: the user's corrections, the offsets,
@@ -84,10 +89,14 @@ type Projects interface {
 	ResolveAdded(video, added string) string
 }
 
-// Previewer draws sample subtitles for the settings screen and lists the
-// fonts they may use.
+// Previewer draws sample subtitles for the settings screen, with a sample
+// notice when it is not empty, and lists the fonts they may use.
 type Previewer interface {
-	Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error)
+	Preview(look session.Look, width, height, dpi int, screen session.Screen, notice string) ([]byte, error)
+	// PreviewBar draws the control bar in a style at the bottom of a sample
+	// picture, with its speed list open; clock is its time text, and speed
+	// words a speed.
+	PreviewBar(style appearance.BarStyle, width, height, dpi int, clock string, speed func(playback.Speed) string) ([]byte, error)
 	Fonts() ([]string, error)
 }
 
@@ -261,6 +270,9 @@ func (l Lifecycle) Attach(ctx context.Context, ui UI) {
 		a.logger.Warn("settings could not be read; using the defaults", "error", err)
 	} else {
 		a.config = config
+	}
+	if a.deps.Stage != nil {
+		a.deps.Stage.SetChrome(a.config.Bar, a.config.Edit)
 	}
 	if profiles, err := a.deps.Settings.LoadProfiles(); err != nil {
 		a.logger.Warn("profiles could not be read; using the defaults", "error", err)

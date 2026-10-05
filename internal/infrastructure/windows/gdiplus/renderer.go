@@ -45,29 +45,18 @@ type Look struct {
 }
 
 // Outline is a discreet rounded frame around a line: a light stroke over a
-// dark one, so it shows on bright and dark pictures alike.
+// dark one twice as wide, so it shows on bright and dark pictures alike.
 type Outline struct {
 	Box layout.Rect
 	// Width is the light stroke's width in pixels; Radius rounds the corners.
 	Width, Radius float64
+	// Color is the light stroke's, Edge the dark one's.
+	Color, Edge appearance.Color
 }
 
-// Colors of the outline.
-var (
-	outlineLight = appearance.Color{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xD9}
-	outlineDark  = appearance.Color{R: 0x00, G: 0x00, B: 0x00, A: 0x8C}
-)
-
-// Sizes of the outline of a line being edited, at 100% scaling.
-const (
-	outlineGap    = 4.0
-	outlineWidth  = 1.5
-	outlineRadius = 1.6
-)
-
-// OutlineAround frames a line's box a little outside it, at a display
-// scaling (96 is 100%); nil for no box.
-func OutlineAround(box layout.Rect, dpi int) *Outline {
+// OutlineAround frames a line's box a little outside it, as the selection
+// look says, at a display scaling (96 is 100%); nil for no box.
+func OutlineAround(box layout.Rect, dpi int, look appearance.SelectionLook) *Outline {
 	if box.W <= 0 || box.H <= 0 {
 		return nil
 	}
@@ -75,10 +64,10 @@ func OutlineAround(box layout.Rect, dpi int) *Outline {
 	if scale <= 0 {
 		scale = 1
 	}
-	gap := outlineGap * scale
+	gap := look.Gap * scale
 	return &Outline{
 		Box:   layout.Rect{X: box.X - gap, Y: box.Y - gap, W: box.W + 2*gap, H: box.H + 2*gap},
-		Width: outlineWidth * scale, Radius: outlineRadius * scale,
+		Width: look.Width * scale, Radius: look.Radius * scale, Color: look.Color, Edge: look.Edge,
 	}
 }
 
@@ -254,10 +243,10 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 		}
 	}
 	if outline := look.Highlight; outline != nil && outline.Box.W > 0 && outline.Box.H > 0 && outline.Width > 0 {
-		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outlineDark, outline.Width*2); err != nil {
+		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outline.Edge, outline.Width*2); err != nil {
 			return err
 		}
-		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outlineLight, outline.Width); err != nil {
+		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outline.Color, outline.Width); err != nil {
 			return err
 		}
 	}

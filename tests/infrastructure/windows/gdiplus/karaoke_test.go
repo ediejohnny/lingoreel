@@ -28,8 +28,11 @@ func karaokeFrame(t testing.TB, r *gdiplus.Renderer) (layout.Frame, gdiplus.Look
 	if frame.Primary == nil || len(frame.Primary.Lines) != 1 {
 		t.Fatalf("layout: %+v", frame.Primary)
 	}
-	return frame, gdiplus.Look{Primary: style, Notice: appearance.NoticeStyle(), Preview: previewGrey, FillColor: fillYellow}
+	return frame, gdiplus.Look{Primary: style, Notice: appearance.DefaultNoticeLook().Style(), Preview: previewGrey, FillColor: fillYellow}
 }
+
+// cueStyle is the default look of the time left, its bar in the preview's grey.
+var cueStyle = appearance.DefaultCueStyle(previewGrey)
 
 // colored counts the opaque pixels of a rectangle close to a color.
 func colored(dib *win32.DIB, area layout.Rect, c appearance.Color) int {
@@ -67,22 +70,72 @@ func TestPreviewBarShrinksWithTheTimeLeft(t *testing.T) {
 		}
 		return dib
 	}
-	half := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0.5})
+	half := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0.5, Style: cueStyle})
 	if colored(half, left, previewGrey) == 0 || colored(half, right, previewGrey) != 0 {
 		t.Fatalf("half way: left %d, right %d preview pixels; want the bar on the left half only",
 			colored(half, left, previewGrey), colored(half, right, previewGrey))
 	}
-	if done := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0}); colored(done, strip, previewGrey) != 0 {
+	if done := draw(&gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 0, Style: cueStyle}); colored(done, strip, previewGrey) != 0 {
 		t.Fatal("a bar at the line's start")
 	}
 	// The text itself is in the preview color, not the style's.
 	if colored(half, bounds, previewGrey) == 0 || colored(half, bounds, look.Primary.Color) > colored(half, bounds, previewGrey) {
 		t.Fatal("the preview text is not in the preview color")
 	}
-	count := draw(&gdiplus.CueLook{Indicator: study.IndicatorCountdown, Seconds: 3})
+	count := draw(&gdiplus.CueLook{Indicator: study.IndicatorCountdown, Seconds: 3, Style: cueStyle})
 	centre := layout.Rect{X: bounds.X + bounds.W/2 - 40, Y: bounds.Y - 80, W: 80, H: 80}
 	if colored(count, centre, previewGrey) == 0 || colored(count, left, previewGrey) != 0 {
 		t.Fatal("the countdown is not a number centered above the line")
+	}
+}
+
+// inkRows counts the rows of an area with a pixel close to a color.
+func inkRows(dib *win32.DIB, area layout.Rect, c appearance.Color) int {
+	rows := 0
+	for y := int(area.Y); y < int(area.Bottom()); y++ {
+		if colored(dib, layout.Rect{X: area.X, Y: float64(y), W: area.W, H: 1}, c) > 0 {
+			rows++
+		}
+	}
+	return rows
+}
+
+func TestTheTimeLeftTakesItsOwnLook(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	bounds := frame.Primary.Bounds
+	above := layout.Rect{X: bounds.X, Y: bounds.Y - 120, W: bounds.W, H: 120}
+	orange := appearance.Color{R: 0xFF, G: 0x8C, B: 0x00, A: 0xFF}
+	draw := func(cue gdiplus.CueLook) *win32.DIB {
+		t.Helper()
+		look.Cue = &cue
+		dib := newDIB(t, 1920, 1080)
+		if err := r.Draw(dib, frame, look); err != nil {
+			t.Fatal(err)
+		}
+		return dib
+	}
+	bar := func(thickness float64) *win32.DIB {
+		return draw(gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 1,
+			Style: appearance.CueStyle{BarThickness: thickness, BarColor: orange, CountdownSize: 0.8}})
+	}
+	// At 1080 lines a style unit is a pixel; the edge rows are antialiased
+	// (not fully opaque), so the solid rows may be one fewer.
+	thin, thick := bar(5), bar(15)
+	thinRows, thickRows := inkRows(thin, above, orange), inkRows(thick, above, orange)
+	if thinRows < 4 || thinRows > 6 || thickRows-thinRows < 9 || thickRows-thinRows > 11 {
+		t.Fatalf("a 5 unit bar covers %d solid rows and a 15 unit one %d; want 10 more", thinRows, thickRows)
+	}
+	if colored(thick, above, previewGrey) != 0 {
+		t.Fatal("the bar kept the preview's color")
+	}
+	countdown := func(size float64) int {
+		dib := draw(gdiplus.CueLook{Indicator: study.IndicatorCountdown, Seconds: 3,
+			Style: appearance.CueStyle{BarThickness: 5, BarColor: orange, CountdownSize: size}})
+		return inkRows(dib, above, previewGrey)
+	}
+	if small, large := countdown(0.8), countdown(1.6); small == 0 || large < small*3/2 {
+		t.Fatalf("the countdown is %d rows tall at 80%% and %d at 160%%; want it to grow with its size", small, large)
 	}
 }
 
@@ -144,7 +197,7 @@ func TestTheFillAndTheBarFollowTheLinesOpacity(t *testing.T) {
 	bounds := frame.Primary.Bounds
 	strip := layout.Rect{X: bounds.X, Y: bounds.Y - 30, W: bounds.W, H: 22}
 	look.FillWidths = nil
-	bar := draw(0.5, &gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 1})
+	bar := draw(0.5, &gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 1, Style: cueStyle})
 	if a := maxAlpha(bar, strip); a < 118 || a > 138 {
 		t.Fatalf("at 50%% the bar has alpha %d; want about 128", a)
 	}

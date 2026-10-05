@@ -10,21 +10,22 @@ import (
 func TestVisibility(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
-	var v controlbar.Visibility
+	const delay = 2 * time.Second
+	v := controlbar.Visibility{Delay: delay}
 	if shown, recheck := v.Update(start, false); shown || recheck != 0 {
 		t.Fatalf("never wanted: shown %v recheck %v", shown, recheck)
 	}
 	if shown, recheck := v.Update(start, true); !shown || recheck != 0 {
 		t.Fatalf("wanted: shown %v recheck %v", shown, recheck)
 	}
-	// The mouse leaves: it stays HideDelay (2 s) and asks to be checked again.
+	// The mouse leaves: it stays the delay (2 s) and asks to be checked again.
 	if shown, recheck := v.Update(start.Add(500*time.Millisecond), false); !shown || recheck != 1500*time.Millisecond {
 		t.Fatalf("after leaving: shown %v recheck %v", shown, recheck)
 	}
-	if shown, recheck := v.Update(start.Add(controlbar.HideDelay-time.Nanosecond), false); !shown || recheck != time.Nanosecond {
+	if shown, recheck := v.Update(start.Add(delay-time.Nanosecond), false); !shown || recheck != time.Nanosecond {
 		t.Fatalf("1 ns before the delay: shown %v recheck %v", shown, recheck)
 	}
-	if shown, _ := v.Update(start.Add(controlbar.HideDelay), false); shown || v.Shown() {
+	if shown, _ := v.Update(start.Add(delay), false); shown || v.Shown() {
 		t.Fatal("still shown when the delay is over")
 	}
 	// Coming back before the delay starts it again from the last activity.

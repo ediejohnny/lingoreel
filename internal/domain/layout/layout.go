@@ -21,9 +21,6 @@ const (
 	minShrink = 0.8
 	// shrinkStep is the size reduction tried at each step toward minShrink.
 	shrinkStep = 0.05
-	// minGapLines is the smallest gap between the two blocks, in translation
-	// line heights.
-	minGapLines = 0.2
 	// maxTextAreaShare is the most of the picture height one block may take
 	// (long subtitles must not cover the screen); past it the block
 	// keeps shrinking down to the minimum size.
@@ -56,6 +53,15 @@ type Text struct {
 	Content string
 }
 
+// Notice is a short message along the top of the picture, on the side its
+// style's alignment names.
+type Notice struct {
+	Text
+	// Margin keeps it off the picture's edges, as a share of the picture
+	// height; MaxWidth is the most of the picture width it may take.
+	Margin, MaxWidth float64
+}
+
 // Input is everything the layout depends on.
 type Input struct {
 	// Video is the picture area, in overlay pixels.
@@ -65,8 +71,7 @@ type Input struct {
 	Layout      appearance.Layout
 	Primary     Text
 	Translation Text
-	// Notice is a short message for the top left corner of the picture.
-	Notice Text
+	Notice      Notice
 	// Floor is the lowest y the subtitles may reach, in overlay pixels, so
 	// controls shown at the bottom never cover them; zero means no limit.
 	Floor float64
@@ -119,26 +124,26 @@ func Compute(in Input, m Measurer) Frame {
 		}
 	}
 	if primary != nil && translation != nil {
-		placeTranslation(primary, translation, area, m)
+		placeTranslation(primary, translation, area, in.Layout.LineGap, m)
 	}
 	return Frame{Primary: primary.finish(area), Translation: translation.finish(area), Notice: placeNotice(in, m)}
 }
 
-const (
-	// noticeMargin keeps the notice off the picture's edges, as a share of
-	// its height.
-	noticeMargin = 0.03
-	// noticeMaxWidth is the most of the picture width the notice may take.
-	noticeMaxWidth = 0.6
-)
-
-// placeNotice puts the notice in the top left corner of the picture, away
-// from the subtitles, whatever their margins.
+// placeNotice puts the notice at the top of the picture, on its side, away
+// from the subtitles whatever their margins.
 func placeNotice(in Input, m Measurer) *Block {
 	video := in.Video
-	margin := noticeMargin * video.H
-	area := Rect{X: video.X + margin, Y: video.Y + margin, W: noticeMaxWidth * video.W, H: math.Max(video.H-2*margin, 0)}
-	notice := wrapBlock(in.Notice, in, area, m)
+	margin := in.Notice.Margin * video.H
+	width := math.Min(in.Notice.MaxWidth*video.W, math.Max(video.W-2*margin, 0))
+	left := video.X + margin
+	switch in.Notice.Style.Alignment {
+	case appearance.AlignCenter:
+		left = video.X + (video.W-width)/2
+	case appearance.AlignRight:
+		left = video.Right() - margin - width
+	}
+	area := Rect{X: left, Y: video.Y + margin, W: width, H: math.Max(video.H-2*margin, 0)}
+	notice := wrapBlock(in.Notice.Text, in, area, m)
 	if notice == nil {
 		return nil
 	}
@@ -162,7 +167,10 @@ type shaped struct {
 	fittedSize float64
 	lines      []string
 	widths     []float64
+	// lineHeight is the distance between lines, the font's own (natural)
+	// times the style's line spacing.
 	lineHeight float64
+	natural    float64
 	padding    float64
 	bottom     float64
 }
@@ -183,7 +191,17 @@ func (s *shaped) resize(size float64, m Measurer) {
 	for i, line := range s.lines {
 		s.widths[i] = m.Width(line, s.font)
 	}
-	s.lineHeight = m.LineHeight(s.font)
+	s.natural = m.LineHeight(s.font)
+	s.lineHeight = s.natural * spacingOf(s.style)
+}
+
+// spacingOf is the style's line spacing; a validated style always has one,
+// anything else keeps the font's own.
+func spacingOf(style appearance.SubtitleStyle) float64 {
+	if !isFinitePositive(style.LineSpacing) {
+		return 1
+	}
+	return style.LineSpacing
 }
 
 // shrinkTo lowers the font in steps of the base size until fits holds or the
@@ -249,12 +267,12 @@ func wrapBlock(text Text, in Input, area Rect, m Measurer) *shaped {
 // then tries the other side, then shrinks down to the minimum size. When
 // nothing fits even then, it stays on its side at the edge of the safe area
 // and may overlap the primary, which still does not move.
-func placeTranslation(primary, translation *shaped, area Rect, m Measurer) {
+func placeTranslation(primary, translation *shaped, area Rect, gapLines float64, m Measurer) {
 	sides := []bool{translation.bottom >= primary.bottom, translation.bottom < primary.bottom}
 	for _, floor := range []float64{translation.baseSize * minShrink, translation.minSize} {
 		for _, below := range sides {
 			translation.resize(translation.fittedSize, m)
-			if translation.shrinkTo(floor, m, func() bool { return translation.fitBeside(primary, below, area) }) {
+			if translation.shrinkTo(floor, m, func() bool { return translation.fitBeside(primary, below, area, gapLines) }) {
 				return
 			}
 		}
@@ -267,9 +285,10 @@ func placeTranslation(primary, translation *shaped, area Rect, m Measurer) {
 }
 
 // fitBeside places the block below or above the primary, as close to its own
-// anchor as the gap allows, and reports whether it stays inside the area.
-func (s *shaped) fitBeside(primary *shaped, below bool, area Rect) bool {
-	gap := minGapLines * s.lineHeight
+// anchor as the gap (in its own line heights) allows, and reports whether it
+// stays inside the area.
+func (s *shaped) fitBeside(primary *shaped, below bool, area Rect, gapLines float64) bool {
+	gap := gapLines * s.lineHeight
 	anchored := clampBottom(s.anchor, s.height(), area)
 	if below {
 		s.bottom = math.Max(anchored, primary.bottom+gap+s.height())
@@ -292,13 +311,16 @@ func (s *shaped) finish(area Rect) *Block {
 	}
 	top := s.bottom - s.height() + s.padding
 	block := &Block{Font: s.font, Scale: s.scale, Lines: make([]Line, len(s.lines))}
+	// The room the line spacing adds goes half above and half below each
+	// line, as CSS does.
+	leading := (s.lineHeight - s.natural) / 2
 	widest := 0.0
 	for i, text := range s.lines {
 		width := s.widths[i]
 		widest = math.Max(widest, width)
 		block.Lines[i] = Line{
 			Text: text, X: alignX(s.style.Alignment, width, area, s.padding),
-			Y: top + float64(i)*s.lineHeight, Width: width, Height: s.lineHeight,
+			Y: top + float64(i)*s.lineHeight + leading, Width: width, Height: s.natural,
 		}
 	}
 	left := alignX(s.style.Alignment, widest, area, s.padding)

@@ -10,8 +10,11 @@ type SettingsView struct {
 	General  GeneralSettings `json:"general"`
 	Profiles []string        `json:"profiles"`
 	Profile  ProfileSettings `json:"profile"`
-	Players  []PlayerSetting `json:"players"`
-	Options  SettingsOptions `json:"options"`
+	// Appearance is how the controls over the video look, for every
+	// profile.
+	Appearance AppearanceSettings `json:"appearance"`
+	Players    []PlayerSetting    `json:"players"`
+	Options    SettingsOptions    `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
 }
@@ -38,6 +41,7 @@ type ProfileSettings struct {
 	Primary         StyleSettings    `json:"primary"`
 	Translation     StyleSettings    `json:"translation"`
 	Layout          LayoutSettings   `json:"layout"`
+	Marks           MarkSettings     `json:"marks"`
 	Speed           float64          `json:"speed"`
 	SyncStep        int              `json:"syncStep"`
 	SyncFastStep    int              `json:"syncFastStep"`
@@ -80,27 +84,113 @@ type StyleSettings struct {
 	Position         float64 `json:"position"`
 	Alignment        string  `json:"alignment"`
 	MaxLines         int     `json:"maxLines"`
+	// LineSpacing multiplies the font's own distance between lines.
+	LineSpacing float64 `json:"lineSpacing"`
 }
 
-// LayoutSettings are the margins and the text width, shares of the video.
+// LayoutSettings are the margins and the text width, shares of the video,
+// and the least gap between the two lines, in lines.
 type LayoutSettings struct {
 	MarginLeft   float64 `json:"marginLeft"`
 	MarginRight  float64 `json:"marginRight"`
 	MarginTop    float64 `json:"marginTop"`
 	MarginBottom float64 `json:"marginBottom"`
 	MaxWidth     float64 `json:"maxWidth"`
+	LineGap      float64 `json:"lineGap"`
 }
 
-// KaraokeSettings are the Modo Karaokê's choices.
+// MarkSettings are the marks over the video besides the subtitles.
+type MarkSettings struct {
+	Notice NoticeSettings `json:"notice"`
+	// NoticeDuration is how long a notice stays, in seconds.
+	NoticeDuration float64           `json:"noticeDuration"`
+	Selection      SelectionSettings `json:"selection"`
+}
+
+// NoticeSettings is how the notices over the video look. The size is in
+// pixels at 1080 lines; Side is "left", "center" or "right".
+type NoticeSettings struct {
+	FontFamily string  `json:"fontFamily"`
+	FontSize   float64 `json:"fontSize"`
+	Color      string  `json:"color"`
+	Background string  `json:"background"`
+	Side       string  `json:"side"`
+	Margin     float64 `json:"margin"`
+	MaxWidth   float64 `json:"maxWidth"`
+}
+
+// SelectionSettings is the frame of the line being corrected, in pixels at
+// 100% scaling.
+type SelectionSettings struct {
+	Color  string  `json:"color"`
+	Edge   string  `json:"edge"`
+	Width  float64 `json:"width"`
+	Gap    float64 `json:"gap"`
+	Radius float64 `json:"radius"`
+}
+
+// KaraokeSettings are the Modo Karaokê's choices. The bar's thickness is in
+// pixels at 1080 lines; CountdownSize is a share of the line's size.
 type KaraokeSettings struct {
-	Enabled      bool    `json:"enabled"`
-	MinGap       float64 `json:"minGap"`
-	Lead         float64 `json:"lead"`
-	Indicator    string  `json:"indicator"`
-	PreviewColor string  `json:"previewColor"`
-	Fill         bool    `json:"fill"`
-	FillColor    string  `json:"fillColor"`
-	Repeat       int     `json:"repeat"`
+	Enabled       bool    `json:"enabled"`
+	MinGap        float64 `json:"minGap"`
+	Lead          float64 `json:"lead"`
+	Indicator     string  `json:"indicator"`
+	PreviewColor  string  `json:"previewColor"`
+	Fill          bool    `json:"fill"`
+	FillColor     string  `json:"fillColor"`
+	Repeat        int     `json:"repeat"`
+	BarThickness  float64 `json:"barThickness"`
+	BarColor      string  `json:"barColor"`
+	CountdownSize float64 `json:"countdownSize"`
+}
+
+// AppearanceSettings are the controls over the video: the bar and its menus,
+// and the box that corrects a line.
+type AppearanceSettings struct {
+	Bar  BarSettings  `json:"bar"`
+	Edit EditSettings `json:"edit"`
+}
+
+// BarSettings is how the control bar looks. Icon is the icons' and texts'
+// color, Loud the volume past 100%; Size multiplies the bar's size;
+// HideDelay is in seconds.
+type BarSettings struct {
+	Panel      string  `json:"panel"`
+	Menu       string  `json:"menu"`
+	Accent     string  `json:"accent"`
+	Icon       string  `json:"icon"`
+	Loud       string  `json:"loud"`
+	FontFamily string  `json:"fontFamily"`
+	Size       float64 `json:"size"`
+	HideDelay  float64 `json:"hideDelay"`
+}
+
+// EditSettings is how the box that corrects a line looks; HintSize is in
+// pixels at 100%.
+type EditSettings struct {
+	Background string  `json:"background"`
+	Text       string  `json:"text"`
+	Hint       string  `json:"hint"`
+	HintSize   float64 `json:"hintSize"`
+}
+
+// InterfaceSettings is the app's own look over its theme: Accent is "" for
+// each theme's own blue; FontFamily is "" for the app's font; TextSize
+// multiplies every size of the interface.
+type InterfaceSettings struct {
+	Accent     string  `json:"accent"`
+	FontFamily string  `json:"fontFamily"`
+	TextSize   float64 `json:"textSize"`
+}
+
+// BarPreviewRequest asks for a picture of the bar in a style; Width and
+// Height are in screen pixels, Scale is the display scaling.
+type BarPreviewRequest struct {
+	Bar    BarSettings `json:"bar"`
+	Width  int         `json:"width"`
+	Height int         `json:"height"`
+	Scale  float64     `json:"scale"`
 }
 
 // ShortcutSetting is one command and its keys.
@@ -139,6 +229,12 @@ type SettingsOptions struct {
 	Modes     []Option        `json:"modes"`
 	Limits    SettingsLimits  `json:"limits"`
 	Defaults  ProfileSettings `json:"defaults"`
+	// AppearanceDefaults are the controls' default look; EditHint is the
+	// box's hint, for its sample.
+	AppearanceDefaults AppearanceSettings `json:"appearanceDefaults"`
+	EditHint           string             `json:"editHint"`
+	// InterfaceDefaults is the app's default look over its theme.
+	InterfaceDefaults InterfaceSettings `json:"interfaceDefaults"`
 }
 
 // Option is a value and its name.
@@ -168,8 +264,34 @@ type SettingsLimits struct {
 	SyncFastStepMax int     `json:"syncFastStepMax"`
 	ProfileNameMax  int     `json:"profileNameMax"`
 	// PrecisionStepMin and PrecisionStepMax bound the precision step, in ms.
-	PrecisionStepMin int `json:"precisionStepMin"`
-	PrecisionStepMax int `json:"precisionStepMax"`
+	PrecisionStepMin int     `json:"precisionStepMin"`
+	PrecisionStepMax int     `json:"precisionStepMax"`
+	LineSpacingMin   float64 `json:"lineSpacingMin"`
+	LineSpacingMax   float64 `json:"lineSpacingMax"`
+	LineGapMax       float64 `json:"lineGapMax"`
+	NoticeSizeMax    float64 `json:"noticeSizeMax"`
+	NoticeMarginMax  float64 `json:"noticeMarginMax"`
+	NoticeWidthMin   float64 `json:"noticeWidthMin"`
+	// NoticeDurationMin and NoticeDurationMax are in seconds.
+	NoticeDurationMin  float64 `json:"noticeDurationMin"`
+	NoticeDurationMax  float64 `json:"noticeDurationMax"`
+	SelectionWidthMin  float64 `json:"selectionWidthMin"`
+	SelectionWidthMax  float64 `json:"selectionWidthMax"`
+	SelectionGapMax    float64 `json:"selectionGapMax"`
+	SelectionRadiusMax float64 `json:"selectionRadiusMax"`
+	BarThicknessMin    float64 `json:"barThicknessMin"`
+	BarThicknessMax    float64 `json:"barThicknessMax"`
+	CountdownSizeMin   float64 `json:"countdownSizeMin"`
+	CountdownSizeMax   float64 `json:"countdownSizeMax"`
+	BarSizeMin         float64 `json:"barSizeMin"`
+	BarSizeMax         float64 `json:"barSizeMax"`
+	// HideDelayMin and HideDelayMax are in seconds.
+	HideDelayMin float64 `json:"hideDelayMin"`
+	HideDelayMax float64 `json:"hideDelayMax"`
+	HintSizeMin  float64 `json:"hintSizeMin"`
+	HintSizeMax  float64 `json:"hintSizeMax"`
+	TextSizeMin  float64 `json:"textSizeMin"`
+	TextSizeMax  float64 `json:"textSizeMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.
@@ -182,11 +304,14 @@ type PreviewRequest struct {
 	Width  int     `json:"width"`
 	Height int     `json:"height"`
 	Scale  float64 `json:"scale"`
-	// Highlight outlines the line being edited: "primary", "translation",
-	// or "" for none.
+	// Highlight outlines the line being edited, as Marks' selection says:
+	// "primary", "translation", or "" for none.
 	Highlight string `json:"highlight"`
-	// View is "" for the subtitles as they look between lines, or "fill"
-	// for the Modo Karaokê's fill, painted in FillColor ("#RRGGBB").
-	View      string `json:"view"`
-	FillColor string `json:"fillColor"`
+	// View is "" for the subtitles as they look between lines, "fill" for
+	// the Modo Karaokê's fill, "cue" for a line shown before its time with
+	// the time left, both as Karaoke says, or "notice" for a notice as
+	// Marks says. Each part is read only by the view that shows it.
+	View    string          `json:"view"`
+	Karaoke KaraokeSettings `json:"karaoke"`
+	Marks   MarkSettings    `json:"marks"`
 }

@@ -102,6 +102,10 @@ export function Preferences() {
   return window['go']['app']['API']['Preferences']();
 }
 
+export function PreviewBar(arg1) {
+  return window['go']['app']['API']['PreviewBar'](arg1);
+}
+
 export function PreviewSubtitles(arg1) {
   return window['go']['app']['API']['PreviewSubtitles'](arg1);
 }
@@ -174,12 +178,20 @@ export function SelectLine(arg1) {
   return window['go']['app']['API']['SelectLine'](arg1);
 }
 
+export function SetAppearance(arg1) {
+  return window['go']['app']['API']['SetAppearance'](arg1);
+}
+
 export function SetFileAssociation(arg1) {
   return window['go']['app']['API']['SetFileAssociation'](arg1);
 }
 
 export function SetFullscreen(arg1) {
   return window['go']['app']['API']['SetFullscreen'](arg1);
+}
+
+export function SetInterface(arg1) {
+  return window['go']['app']['API']['SetInterface'](arg1);
 }
 
 export function SetKaraoke(arg1) {

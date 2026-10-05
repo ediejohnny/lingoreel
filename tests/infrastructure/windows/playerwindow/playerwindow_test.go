@@ -13,9 +13,9 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
-	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
@@ -35,6 +35,9 @@ var (
 // Every window here opens off screen and never takes the focus: the user
 // keeps working while the tests run.
 var offScreen = player.Placement{X: -3000, Y: 100, Width: 640, Height: 360}
+
+// defaultLook is how a new profile draws the subtitles and their marks.
+func defaultLook() session.Look { return watch.LookOf(settings.DefaultProfile()) }
 
 // recordingPlayer is a player whose commands are recorded; the controls
 // call it from the window's worker goroutine.
@@ -430,7 +433,7 @@ func TestTheBarShowsAtTheBottomAndTakesClicks(t *testing.T) {
 	// The real mouse is elsewhere: the bar leaves after its delay.
 	start := time.Now()
 	testkit.Eventually(t, "the bar to hide", func() bool { return !windows.IsWindowVisible(bar) })
-	if waited := time.Since(start); waited < controlbar.HideDelay/2 {
+	if waited := time.Since(start); waited < settings.DefaultBar().HideDelay.Std()/2 {
 		t.Fatalf("the bar left after %v, before its delay", waited)
 	}
 }

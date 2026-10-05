@@ -8,8 +8,11 @@ export type { KeyPress } from "./keys";
 /** SubtitleLine is one of the two subtitle lines: on top, or the translation below. */
 export type SubtitleLine = "primary" | "translation";
 
-/** PreviewView is what the preview shows: the lines as they look, or the Modo Karaokê's fill. */
-export type PreviewView = "" | "fill";
+/**
+ * PreviewView is what the preview shows: the lines as they look, the Modo
+ * Karaokê's fill or the line shown before its time, or a notice.
+ */
+export type PreviewView = "" | "fill" | "cue" | "notice";
 
 /** SectionId names a page of the settings screen. */
 export type SectionId =

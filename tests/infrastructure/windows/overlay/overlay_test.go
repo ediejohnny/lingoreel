@@ -64,8 +64,7 @@ func TestOverlayCoversTheVideoAreaThePluginNames(t *testing.T) {
 		ProcessID:  fake.pid(),
 		Window:     func() uintptr { return uintptr(main) },
 		Area:       func() uintptr { return uintptr(area) },
-		VideoWidth: 320, VideoHeight: 180, Layout: appearance.DefaultLayout(),
-		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		VideoWidth: 320, VideoHeight: 180, Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -119,8 +118,7 @@ func TestOpenerUsesTheWindowsThePluginNames(t *testing.T) {
 	area := waitForChildOf(t, main, fakeAreaClass)
 
 	look := func() overlay.Look {
-		return overlay.Look{Layout: appearance.DefaultLayout(),
-			Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()}
+		return defaultLook()
 	}
 	running := &windowedRunning{processID: fake.pid(), window: main, area: area}
 	display, err := overlay.Opener(look, nil)(t.Context(), running, media.Info{})
@@ -225,8 +223,7 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
-		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
-		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		ProcessID: player.pid(), Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -296,9 +293,9 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 func TestRestyleRedrawsTheSubtitles(t *testing.T) {
 	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
-	look := overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()}
+	look := defaultLook()
 	screen, err := overlay.Open(t.Context(), overlay.Options{
-		ProcessID: player.pid(), Layout: look.Layout, Primary: look.Primary, Translation: look.Translation,
+		ProcessID: player.pid(), Look: look,
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -357,8 +354,7 @@ func TestNoticeShowsAndLeavesByItself(t *testing.T) {
 	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
-		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
-		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		ProcessID: player.pid(), Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

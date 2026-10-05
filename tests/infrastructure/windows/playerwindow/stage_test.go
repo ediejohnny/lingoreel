@@ -13,11 +13,9 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
-	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
@@ -164,7 +162,7 @@ func openOn(t *testing.T, stage *playerwindow.Stage) *playerwindow.Window {
 	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
-		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
+		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty},
 		NoActivate: true, Stage: stage,
 		// No menu ever shows on screen in the tests.
@@ -295,6 +293,37 @@ func TestTheVideoFollowsTheAppWindow(t *testing.T) {
 	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: layout.Insets{Top: 56}})
 	placedAt(t, host, videoPlace(t, app, layout.Insets{Top: 56}, false), "the video back")
 	testkit.Eventually(t, "the video to show again", func() bool { return windows.IsWindowVisible(host) })
+}
+
+// The controls' look set on the stage reaches the windows on it, the open
+// one at once: a bar twice the size is twice as tall.
+func TestTheStagesLookReachesItsWindows(t *testing.T) {
+	app := newFakeApp(t, offScreenApp, true)
+	stage := stageFor(app, nil)
+	// Before the window opens: the bar stays long enough for the test.
+	chrome := playerwindow.DefaultChrome()
+	chrome.HideDelay = 10 * time.Second
+	stage.SetChrome(chrome)
+	w := openOn(t, stage)
+	host := windows.HWND(w.Handle())
+	w.Attach(newRemote(&recordingPlayer{}))
+	placedAt(t, host, videoPlace(t, app, panelOpen, false), "the video in place")
+	bar := controlBar(app.hwnd)
+	client, _ := win32.ClientRectOnScreen(host)
+	post(t, host, win32.WM_MOUSEMOVE, 0, at(int(client.Right-client.Left)/2, int(client.Bottom-client.Top)-20))
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	before, err := win32.WindowRect(bar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chrome.Bar.Size = 2
+	stage.SetChrome(chrome)
+	// Whole pixels: the bar's band is rounded once.
+	testkit.Eventually(t, "the bar twice as tall", func() bool {
+		after, err := win32.WindowRect(bar)
+		grown := (after.Bottom - after.Top) - 2*(before.Bottom-before.Top)
+		return err == nil && windows.IsWindowVisible(bar) && grown >= -1 && grown <= 1
+	})
 }
 
 func TestTheVideoStaysAboveTheAppsOwnChildren(t *testing.T) {

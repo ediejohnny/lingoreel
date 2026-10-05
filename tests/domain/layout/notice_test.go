@@ -10,8 +10,46 @@ import (
 )
 
 func withNotice(in layout.Input, notice string) layout.Input {
-	in.Notice = layout.Text{Style: appearance.NoticeStyle(), Content: notice}
+	return withNoticeLook(in, notice, appearance.DefaultNoticeLook())
+}
+
+func withNoticeLook(in layout.Input, notice string, look appearance.NoticeLook) layout.Input {
+	in.Notice = layout.Notice{
+		Text:   layout.Text{Style: look.Style(), Content: notice},
+		Margin: look.Margin, MaxWidth: look.MaxWidth,
+	}
 	return in
+}
+
+func TestNoticeSitsOnItsSideWithinItsMargin(t *testing.T) {
+	t.Parallel()
+	v := video(1920, 1080)
+	look := appearance.DefaultNoticeLook()
+	look.Margin, look.MaxWidth = 0.05, 0.3
+	margin := 0.05 * 1080
+	for _, side := range []appearance.Alignment{appearance.AlignLeft, appearance.AlignCenter, appearance.AlignRight} {
+		look.Side = side
+		block := layout.Compute(withNoticeLook(defaults(v, "", ""), "Aviso", look), monoMeasurer{}).Notice
+		if block == nil {
+			t.Fatalf("%s: no notice", side)
+		}
+		box := block.Bounds
+		if !near(box.Y, margin) || box.X < margin-eps || box.Right() > v.W-margin+eps {
+			t.Fatalf("%s: box %+v, want it %v from the top and inside the side margins", side, box, margin)
+		}
+		var off float64
+		switch side {
+		case appearance.AlignLeft:
+			off = box.X - margin
+		case appearance.AlignCenter:
+			off = (box.X + box.W/2) - v.W/2
+		case appearance.AlignRight:
+			off = (v.W - margin) - box.Right()
+		}
+		if math.Abs(off) > eps {
+			t.Fatalf("%s: box %+v is %v off its side", side, box, off)
+		}
+	}
 }
 
 func TestNoticeSitsInTheTopLeftCorner(t *testing.T) {

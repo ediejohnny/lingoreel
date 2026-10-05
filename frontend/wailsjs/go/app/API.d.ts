@@ -52,6 +52,8 @@ export function Players():Promise<app.Players>;
 
 export function Preferences():Promise<app.Preferences>;
 
+export function PreviewBar(arg1:app.BarPreviewRequest):Promise<string>;
+
 export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 
 export function RedoEdit():Promise<void>;
@@ -88,9 +90,13 @@ export function SeekTo(arg1:number):Promise<void>;
 
 export function SelectLine(arg1:string):Promise<void>;
 
+export function SetAppearance(arg1:app.AppearanceSettings):Promise<void>;
+
 export function SetFileAssociation(arg1:boolean):Promise<void>;
 
 export function SetFullscreen(arg1:boolean):Promise<void>;
+
+export function SetInterface(arg1:app.InterfaceSettings):Promise<void>;
 
 export function SetKaraoke(arg1:boolean):Promise<void>;
 

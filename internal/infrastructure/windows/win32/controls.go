@@ -17,7 +17,18 @@ var (
 	procCreateSolidBrush = gdi32.NewProc("CreateSolidBrush")
 	procSetTextColor     = gdi32.NewProc("SetTextColor")
 	procSetBkColor       = gdi32.NewProc("SetBkColor")
+	procFillRect         = user32.NewProc("FillRect")
 )
+
+// FillClient paints a window's client area with a brush, on the device
+// context Windows gave it to erase its background.
+func FillClient(hwnd windows.HWND, dc uintptr, brush windows.Handle) {
+	var r Rect
+	if ok, _, _ := procGetClientRect.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&r))); ok == 0 {
+		return
+	}
+	procFillRect.Call(dc, uintptr(unsafe.Pointer(&r)), uintptr(brush))
+}
 
 // Messages and styles of the controls.
 const (

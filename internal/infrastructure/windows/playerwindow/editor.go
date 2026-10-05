@@ -33,11 +33,10 @@ import (
 const (
 	editorClass = "LingoReelEditor"
 	// Sizes at 100% scaling: the narrowest box, the space around the text
-	// and the hint below it, and the hint's font.
+	// and the hint below it (its font's size is the chrome's).
 	editorMinWidth = 360.0
 	editorPadding  = 8.0
 	editorHint     = 22.0
-	editorHintSize = 13.0
 	// editorLines is how many lines of text the box has room for at least,
 	// each lineSpacing times the font size tall.
 	editorLines = 2
@@ -59,18 +58,16 @@ type editor struct {
 	line              session.Line
 	original          string
 	font, hintFont    windows.Handle
+	// brush paints the box; text, hintText and background are its colors,
+	// from the chrome when it opened.
+	brush                      windows.Handle
+	text, hintText, background uint32
 }
 
 var (
 	editorProc      = syscall.NewCallback(dispatchEditor)
 	editProc        = syscall.NewCallback(dispatchEdit)
 	editorClassName *uint16
-	// editorBrush paints the box; made once, with the class.
-	editorBrush windows.Handle
-	// editorColors: the text, the hint and the background.
-	editorText       = win32.RGB(0xFF, 0xFF, 0xFF)
-	editorHintText   = win32.RGB(0xA8, 0xA8, 0xB0)
-	editorBackground = win32.RGB(0x1C, 0x1C, 0x1E)
 	// subclassed keeps each edit control's own procedure until it is gone:
 	// its last messages come after the box forgot it.
 	subclassed = struct {
@@ -79,14 +76,19 @@ var (
 	}{m: map[windows.HWND]uintptr{}}
 )
 
+// registerEditor registers the box's class, without a background: each box
+// paints its own color (WM_ERASEBKGND).
 func registerEditor() error {
 	editorClassName, _ = windows.UTF16PtrFromString(editorClass)
-	editorBrush = win32.SolidBrush(editorBackground)
 	_, err := win32.RegisterClass(&win32.WndClassEx{
-		WndProc: editorProc, Instance: win32.ModuleHandle(), Cursor: win32.ArrowCursor(),
-		Background: editorBrush, ClassName: editorClassName,
+		WndProc: editorProc, Instance: win32.ModuleHandle(), Cursor: win32.ArrowCursor(), ClassName: editorClassName,
 	})
 	return err
+}
+
+// colorRef is a color as GDI takes it; the box is opaque.
+func colorRef(c appearance.Color) uint32 {
+	return win32.RGB(c.R, c.G, c.B)
 }
 
 // editAt opens the box over the line under a double click, when the video
@@ -151,7 +153,12 @@ func (w *Window) openEditor(line session.Line, text string, spot overlay.Spot) {
 		w.logger.Warn("could not open the box to correct a line", "error", err)
 		return
 	}
-	e := &editor{popup: popup, line: line, original: text}
+	look := w.chrome.Edit
+	e := &editor{
+		popup: popup, line: line, original: text,
+		text: colorRef(look.Text), hintText: colorRef(look.Hint), background: colorRef(look.Background),
+	}
+	e.brush = win32.SolidBrush(e.background)
 	width, height := bounds.Right-bounds.Left, bounds.Bottom-bounds.Top
 	pad, hint := int32(math.Round(editorPadding*scale)), int32(math.Round(editorHint*scale))
 	e.edit, err = win32.CreateChild("EDIT", win32.ES_MULTILINE|win32.ES_CENTER|win32.ES_AUTOVSCROLL, popup,
@@ -164,7 +171,7 @@ func (w *Window) openEditor(line session.Line, text string, spot overlay.Spot) {
 		e.font, err = win32.CreateFont(spot.Font.Family, int32(math.Round(spot.Font.Size)), spot.Font.Bold, spot.Font.Italic)
 	}
 	if err == nil {
-		e.hintFont, err = win32.CreateFont(appearance.AppFont, int32(math.Round(editorHintSize*scale)), false, false)
+		e.hintFont, err = win32.CreateFont(appearance.AppFont, int32(math.Round(look.HintSize*scale)), false, false)
 	}
 	if err != nil {
 		w.logger.Warn("could not open the box to correct a line", "error", err)
@@ -241,6 +248,7 @@ func (e *editor) destroy() {
 	}
 	win32.DeleteObject(e.font)
 	win32.DeleteObject(e.hintFont)
+	win32.DeleteObject(e.brush)
 }
 
 // editorBounds places the box over a line's block, on screen: its first line
@@ -259,15 +267,32 @@ func editorBounds(client win32.Rect, box layout.Rect, fontSize, scale float64) w
 	return win32.Rect{Left: left, Top: top, Right: left + int32(math.Round(width)), Bottom: top + int32(math.Round(height))}
 }
 
+// editorOf is the box whose window hwnd is, if it is still open.
+func editorOf(hwnd windows.HWND) *editor {
+	w := lookup(hwnd)
+	if w == nil || w.editing == nil || w.editing.popup != hwnd {
+		return nil
+	}
+	return w.editing
+}
+
 // dispatchEditor is the window procedure of the box.
 func dispatchEditor(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uintptr {
 	switch message {
-	case win32.WM_CTLCOLOREDIT:
-		win32.SetColors(wparam, editorText, editorBackground)
-		return uintptr(editorBrush)
-	case win32.WM_CTLCOLORSTATIC:
-		win32.SetColors(wparam, editorHintText, editorBackground)
-		return uintptr(editorBrush)
+	case win32.WM_CTLCOLOREDIT, win32.WM_CTLCOLORSTATIC:
+		if e := editorOf(hwnd); e != nil {
+			text := e.text
+			if message == win32.WM_CTLCOLORSTATIC {
+				text = e.hintText
+			}
+			win32.SetColors(wparam, text, e.background)
+			return uintptr(e.brush)
+		}
+	case win32.WM_ERASEBKGND:
+		if e := editorOf(hwnd); e != nil {
+			win32.FillClient(hwnd, wparam, e.brush)
+			return 1
+		}
 	case win32.WM_CLOSE:
 		// Alt+F4 on the box, or an edit control asking its parent to close.
 		if w := lookup(hwnd); w != nil {

@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -78,8 +77,7 @@ func TestTheOutlineReachesTheScreen(t *testing.T) {
 	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
-		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
-		Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle(),
+		ProcessID: player.pid(), Look: defaultLook(),
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

@@ -123,7 +123,7 @@ func (r *Renderer) DrawIcon(target *win32.DIB, icon contextmenu.Icon, color appe
 	size := inner / iconExtent(icon)
 	offset := pad + (inner-size)/2
 	box := layout.Rect{X: offset, Y: offset, W: size, H: size}
-	font := layout.Font{Family: barFont, Size: barFontSize * box.W / barIcon16}
+	font := layout.Font{Family: iconFont, Size: barFontSize * box.W / barIcon16}
 	return r.drawIcon(c.graphics, icon, box, color, box.W*iconStrokeRatio, font)
 }
 

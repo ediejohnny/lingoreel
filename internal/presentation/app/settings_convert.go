@@ -28,7 +28,9 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 		Layout: LayoutSettings{
 			MarginLeft: profile.Layout.MarginLeft, MarginRight: profile.Layout.MarginRight,
 			MarginTop: profile.Layout.MarginTop, MarginBottom: profile.Layout.MarginBottom, MaxWidth: profile.Layout.MaxWidth,
+			LineGap: profile.Layout.LineGap,
 		},
+		Marks:         marksView(profile.Marks),
 		Speed:         float64(profile.Speed),
 		SyncStep:      int(profile.Sync.OffsetStep.Std() / time.Millisecond),
 		SyncFastStep:  int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
@@ -38,11 +40,28 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 			Enabled: karaoke.Enabled, MinGap: karaoke.MinGap.Std().Seconds(), Lead: karaoke.Lead.Std().Seconds(),
 			Indicator: string(karaoke.Indicator), PreviewColor: karaoke.PreviewColor.String(),
 			Fill: karaoke.Fill, FillColor: karaoke.FillColor.String(), Repeat: karaoke.Repeat,
+			BarThickness: karaoke.Cue.BarThickness, BarColor: karaoke.Cue.BarColor.String(),
+			CountdownSize: karaoke.Cue.CountdownSize,
 		},
 		Reveal:    string(profile.Study.Reveal),
 		Shortcuts: shortcutViews(profile.Shortcuts.Resolved(), char),
 	}
 	return view
+}
+
+func marksView(marks settings.MarkPreferences) MarkSettings {
+	notice, selection := marks.Notice, marks.Selection
+	return MarkSettings{
+		Notice: NoticeSettings{
+			FontFamily: notice.FontFamily, FontSize: notice.FontSize, Color: notice.Color.String(),
+			Background: notice.Background.String(), Side: string(notice.Side), Margin: notice.Margin, MaxWidth: notice.MaxWidth,
+		},
+		NoticeDuration: marks.NoticeDuration.Std().Seconds(),
+		Selection: SelectionSettings{
+			Color: selection.Color.String(), Edge: selection.Edge.String(),
+			Width: selection.Width, Gap: selection.Gap, Radius: selection.Radius,
+		},
+	}
 }
 
 func styleView(style appearance.SubtitleStyle) StyleSettings {
@@ -55,6 +74,7 @@ func styleView(style appearance.SubtitleStyle) StyleSettings {
 		Background: style.Background.Enabled, BackgroundColor: style.Background.Color.String(),
 		BackgroundMargin: style.Background.Padding,
 		Position:         style.VerticalPosition, Alignment: string(style.Alignment), MaxLines: style.MaxLines,
+		LineSpacing: style.LineSpacing,
 	}
 }
 
@@ -79,12 +99,13 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 	if err != nil {
 		return settings.Profile{}, err
 	}
-	layout := appearance.Layout{
-		MarginLeft: view.Layout.MarginLeft, MarginRight: view.Layout.MarginRight,
-		MarginTop: view.Layout.MarginTop, MarginBottom: view.Layout.MarginBottom, MaxWidth: view.Layout.MaxWidth,
+	layout, err := layoutFrom(view.Layout)
+	if err != nil {
+		return settings.Profile{}, err
 	}
-	if err := layout.Validate(); err != nil {
-		return settings.Profile{}, refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
+	marks, err := marksFrom(view.Marks)
+	if err != nil {
+		return settings.Profile{}, err
 	}
 	karaoke, err := karaokeFrom(view.Karaoke)
 	if err != nil {
@@ -99,7 +120,7 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 	profile.Languages = settings.LanguagePreferences{
 		Audio: view.Languages.Audio, Primary: view.Languages.Primary, Translation: view.Languages.Translation,
 	}
-	profile.Primary, profile.Translation, profile.Layout = primary, translation, layout
+	profile.Primary, profile.Translation, profile.Layout, profile.Marks = primary, translation, layout, marks
 	profile.Study.Mode = study.Mode(view.Mode)
 	profile.Study.Reveal, profile.Study.Karaoke = study.RevealBehavior(view.Reveal), karaoke
 	profile.Speed = playback.Speed(view.Speed)
@@ -135,27 +156,95 @@ func styleFrom(view StyleSettings, line string) (appearance.SubtitleStyle, error
 		Shadow:           appearance.Shadow{Enabled: view.Shadow, OffsetX: view.ShadowX, OffsetY: view.ShadowY, Blur: view.ShadowBlur},
 		Background:       appearance.Background{Enabled: view.Background, Padding: view.BackgroundMargin},
 		VerticalPosition: view.Position, Alignment: appearance.Alignment(view.Alignment), MaxLines: view.MaxLines,
+		LineSpacing: view.LineSpacing,
 	}
 	if view.Responsive {
 		style.SizeMode = appearance.SizeResponsive
 	}
-	for _, color := range []struct {
-		text   string
-		target *appearance.Color
-	}{
-		{view.Color, &style.Color}, {view.OutlineColor, &style.Outline.Color},
-		{view.ShadowColor, &style.Shadow.Color}, {view.BackgroundColor, &style.Background.Color},
-	} {
-		parsed, err := appearance.ParseColor(color.text)
-		if err != nil {
-			return style, refuse(ptbr.T("error.settings.color", "line", line, "color", fmt.Sprintf("%q", color.text)))
-		}
-		*color.target = parsed
+	if err := parseColors(line,
+		colorField{view.Color, &style.Color}, colorField{view.OutlineColor, &style.Outline.Color},
+		colorField{view.ShadowColor, &style.Shadow.Color}, colorField{view.BackgroundColor, &style.Background.Color},
+	); err != nil {
+		return style, err
 	}
 	if err := style.Validate(); err != nil {
 		return style, refuse(ptbr.T("error.settings.style", "line", line, "problem", fieldProblem(err)))
 	}
 	return style, nil
+}
+
+func layoutFrom(view LayoutSettings) (appearance.Layout, error) {
+	layout := appearance.Layout{
+		MarginLeft: view.MarginLeft, MarginRight: view.MarginRight,
+		MarginTop: view.MarginTop, MarginBottom: view.MarginBottom, MaxWidth: view.MaxWidth, LineGap: view.LineGap,
+	}
+	if err := layout.Validate(); err != nil {
+		return layout, refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
+	}
+	return layout, nil
+}
+
+func marksFrom(view MarkSettings) (settings.MarkPreferences, error) {
+	notice, err := noticeFrom(view.Notice)
+	if err != nil {
+		return settings.MarkPreferences{}, err
+	}
+	selection, err := selectionFrom(view.Selection)
+	if err != nil {
+		return settings.MarkPreferences{}, err
+	}
+	duration := seconds(view.NoticeDuration)
+	if !(duration.Std() >= settings.MinNoticeDuration && duration.Std() <= settings.MaxNoticeDuration) {
+		return settings.MarkPreferences{}, refuse(ptbr.T("error.settings.noticeDuration",
+			"min", ptbr.Number(settings.MinNoticeDuration.Seconds(), -1), "max", ptbr.Number(settings.MaxNoticeDuration.Seconds(), -1)))
+	}
+	return settings.MarkPreferences{Notice: notice, NoticeDuration: duration, Selection: selection}, nil
+}
+
+func noticeFrom(view NoticeSettings) (appearance.NoticeLook, error) {
+	part := ptbr.T("part.notice")
+	notice := appearance.NoticeLook{
+		FontFamily: view.FontFamily, FontSize: view.FontSize, Side: appearance.Alignment(view.Side),
+		Margin: view.Margin, MaxWidth: view.MaxWidth,
+	}
+	if err := parseColors(part, colorField{view.Color, &notice.Color}, colorField{view.Background, &notice.Background}); err != nil {
+		return notice, err
+	}
+	if err := notice.Validate(); err != nil {
+		return notice, refuse(ptbr.T("error.settings.style", "line", part, "problem", fieldProblem(err)))
+	}
+	return notice, nil
+}
+
+func selectionFrom(view SelectionSettings) (appearance.SelectionLook, error) {
+	part := ptbr.T("part.selection")
+	selection := appearance.SelectionLook{Width: view.Width, Gap: view.Gap, Radius: view.Radius}
+	if err := parseColors(part, colorField{view.Color, &selection.Color}, colorField{view.Edge, &selection.Edge}); err != nil {
+		return selection, err
+	}
+	if err := selection.Validate(); err != nil {
+		return selection, refuse(ptbr.T("error.settings.style", "line", part, "problem", fieldProblem(err)))
+	}
+	return selection, nil
+}
+
+// colorField is a color as the screen sent it, and where it goes once read.
+type colorField struct {
+	text   string
+	target *appearance.Color
+}
+
+// parseColors reads each color, refusing the first that is not one; part
+// names what the colors are of.
+func parseColors(part string, fields ...colorField) error {
+	for _, field := range fields {
+		parsed, err := appearance.ParseColor(field.text)
+		if err != nil {
+			return refuse(ptbr.T("error.settings.color", "line", part, "color", fmt.Sprintf("%q", field.text)))
+		}
+		*field.target = parsed
+	}
+	return nil
 }
 
 // fieldProblem words which value of a style or layout is out of range.
@@ -166,14 +255,48 @@ func fieldProblem(err error) string {
 	}
 	limit := func(value float64) string { return ptbr.Number(value, -1) }
 	switch field.Field {
-	case "fontFamily":
+	case "fontFamily", "notice.fontFamily":
 		return ptbr.T("settings.problem.fontFamily")
 	case "fontSize":
 		return ptbr.T("settings.problem.fontSize", "min", limit(appearance.MinFontSize), "max", limit(appearance.MaxFontSize))
+	case "notice.fontSize":
+		return ptbr.T("settings.problem.fontSize", "min", limit(appearance.MinFontSize), "max", limit(appearance.MaxNoticeFontSize))
 	case "sizeMode":
 		return ptbr.T("settings.problem.sizeMode")
 	case "opacity":
 		return ptbr.T("settings.problem.opacity")
+	case "lineSpacing":
+		return ptbr.T("settings.problem.lineSpacing", "min", limit(appearance.MinLineSpacing), "max", limit(appearance.MaxLineSpacing))
+	case "lineGap":
+		return ptbr.T("settings.problem.lineGap", "max", limit(appearance.MaxLineGap))
+	case "notice.margin":
+		return ptbr.T("settings.problem.noticeMargin", "max", limit(appearance.MaxNoticeMargin*100))
+	case "notice.maxWidth":
+		return ptbr.T("settings.problem.noticeWidth", "min", limit(appearance.MinNoticeMaxWidth*100))
+	case "selection.width":
+		return ptbr.T("settings.problem.selectionWidth",
+			"min", limit(appearance.MinSelectionWidth), "max", limit(appearance.MaxSelectionWidth))
+	case "selection.gap":
+		return ptbr.T("settings.problem.selectionGap", "max", limit(appearance.MaxSelectionGap))
+	case "selection.radius":
+		return ptbr.T("settings.problem.selectionRadius", "max", limit(appearance.MaxSelectionCurve))
+	case "cue.barThickness":
+		return ptbr.T("settings.problem.barThickness", "min", limit(appearance.MinCueThickness), "max", limit(appearance.MaxCueThickness))
+	case "cue.countdownSize":
+		return ptbr.T("settings.problem.countdownSize",
+			"min", limit(appearance.MinCountdownSize*100), "max", limit(appearance.MaxCountdownSize*100))
+	case "bar.fontFamily":
+		return ptbr.T("settings.problem.fontFamily")
+	case "bar.size":
+		return ptbr.T("settings.problem.barSize", "min", limit(appearance.MinBarSize*100), "max", limit(appearance.MaxBarSize*100))
+	case "edit.hintSize":
+		return ptbr.T("settings.problem.hintSize", "min", limit(appearance.MinEditHintSize), "max", limit(appearance.MaxEditHintSize))
+	case "interface.accent":
+		return ptbr.T("settings.problem.accent")
+	case "interface.fontFamily":
+		return ptbr.T("settings.problem.fontFamily")
+	case "interface.textSize":
+		return ptbr.T("settings.problem.textSize", "min", limit(appearance.MinTextSize*100), "max", limit(appearance.MaxTextSize*100))
 	case "outline.width":
 		return ptbr.T("settings.problem.outlineWidth", "max", limit(appearance.MaxOutlineWidth))
 	case "shadow.offsetX", "shadow.offsetY":
@@ -184,7 +307,7 @@ func fieldProblem(err error) string {
 		return ptbr.T("settings.problem.padding", "max", limit(appearance.MaxPadding))
 	case "verticalPosition":
 		return ptbr.T("settings.problem.position")
-	case "alignment":
+	case "alignment", "notice.side":
 		return ptbr.T("settings.problem.alignment")
 	case "maxLines":
 		return ptbr.T("settings.problem.maxLines", "min", appearance.MinLines, "max", appearance.MaxLines)
@@ -205,9 +328,14 @@ func karaokeFrom(view KaraokeSettings) (settings.KaraokePreferences, error) {
 	if err != nil {
 		return settings.KaraokePreferences{}, refuse(ptbr.T("error.karaoke.fillColor"))
 	}
+	cue, err := cueFrom(view)
+	if err != nil {
+		return settings.KaraokePreferences{}, err
+	}
 	karaoke := settings.KaraokePreferences{
 		Enabled: view.Enabled, MinGap: seconds(view.MinGap), Lead: seconds(view.Lead),
 		Indicator: study.Indicator(view.Indicator), PreviewColor: preview, Fill: view.Fill, FillColor: fill, Repeat: view.Repeat,
+		Cue: cue,
 	}
 	switch {
 	case karaoke.Rules().Validate() != nil:
@@ -220,6 +348,19 @@ func karaokeFrom(view KaraokeSettings) (settings.KaraokePreferences, error) {
 		return karaoke, refuse(ptbr.T("error.karaoke.repeat", "max", study.MaxRepeats))
 	}
 	return karaoke, nil
+}
+
+// cueFrom reads how the time left before a previewed line looks.
+func cueFrom(view KaraokeSettings) (appearance.CueStyle, error) {
+	bar, err := appearance.ParseColor(view.BarColor)
+	if err != nil {
+		return appearance.CueStyle{}, refuse(ptbr.T("error.karaoke.barColor"))
+	}
+	cue := appearance.CueStyle{BarThickness: view.BarThickness, BarColor: bar, CountdownSize: view.CountdownSize}
+	if err := cue.Validate(); err != nil {
+		return cue, refuse(ptbr.T("error.settings.style", "line", ptbr.T("part.karaoke"), "problem", fieldProblem(err)))
+	}
+	return cue, nil
 }
 
 // seconds converts the screen's seconds, NaN and infinities becoming zero

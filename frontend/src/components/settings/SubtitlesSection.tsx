@@ -1,14 +1,23 @@
 import { useState, type ReactNode } from "react";
 import { t } from "../../i18n";
-import { backend, messageOf, type StyleSettings } from "../../services/backend";
+import { backend, messageOf, type KaraokeSettings, type StyleSettings } from "../../services/backend";
 import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { MarksCards } from "./MarksCards";
+import { RestoreButton } from "./RestoreButton";
 import { change, type SectionProps } from "./section";
 import { StyleEditor } from "./StyleEditor";
 import { SubtitlePreview } from "./SubtitlePreview";
+
+/** Chooser offers what the preview shows, above it. */
+interface Chooser {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}
 
 /**
  * SubtitlesLayout puts the preview beside the fields, where it stays in
@@ -20,28 +29,27 @@ function SubtitlesLayout({
   draft,
   highlight,
   view = "",
-  onView,
+  karaoke = draft.karaoke,
+  chooser,
   children,
 }: Pick<SectionProps, "draft"> & {
   highlight: SubtitleLine | "";
-  /** view and onView offer the Modo Karaokê view of the preview, on the page of the line it paints. */
   view?: PreviewView;
-  onView?: (view: PreviewView) => void;
+  /** karaoke is what a "cue" view shows, when it is not the draft's. */
+  karaoke?: KaraokeSettings;
+  chooser?: Chooser;
   children: ReactNode;
 }) {
   return (
     <div className="@container">
       <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
         <aside aria-label={t("ui.settings.subtitles.preview")} className="flex flex-col gap-3 @2xl:sticky @2xl:top-4 @2xl:order-2">
-          {onView && (
+          {chooser && (
             <Segmented
               label={t("ui.settings.subtitles.view.label")}
-              value={view}
-              options={[
-                { value: "", label: t("ui.settings.subtitles.view.normal") },
-                { value: "fill", label: t("ui.settings.subtitles.view.karaoke") },
-              ]}
-              onChange={(next) => onView(next === "fill" ? "fill" : "")}
+              value={chooser.value}
+              options={chooser.options}
+              onChange={chooser.onChange}
             />
           )}
           <SubtitlePreview
@@ -50,7 +58,8 @@ function SubtitlesLayout({
             layout={draft.layout}
             highlight={highlight}
             view={view}
-            fillColor={draft.karaoke.fillColor}
+            karaoke={karaoke}
+            marks={draft.marks}
           />
         </aside>
         <div className="flex min-w-0 flex-col gap-5 @container @2xl:order-1">{children}</div>
@@ -59,14 +68,26 @@ function SubtitlesLayout({
   );
 }
 
+/** KaraokeView is what the preview of the line on top shows. */
+type KaraokeView = "" | "fill" | "cue";
+
 /** SubtitleLineSection edits how one subtitle line looks, and its language. */
 export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProps & { line: SubtitleLine }) {
   const [problem, setProblem] = useState("");
-  const [previewView, setPreviewView] = useState<PreviewView>("");
+  const [previewView, setPreviewView] = useState<KaraokeView>("");
+  // indicator is the one the "cue" view shows: the one last styled, at first the profile's.
+  const [indicator, setIndicator] = useState(draft.karaoke.indicator);
   const karaoke = draft.karaoke;
   const options = view.options;
+  const defaults = options.defaults;
+  const limits = options.limits;
   const style = draft[line];
   const setStyle = (next: StyleSettings) => setDraft((current) => (current ? { ...current, [line]: next } : current));
+  const setKaraoke = (next: Partial<KaraokeSettings>, shows: KaraokeView, shown = indicator) => {
+    change(setDraft, "karaoke")({ ...karaoke, ...next });
+    setPreviewView(shows);
+    setIndicator(shown);
+  };
   const preset = (name: string) => {
     backend
       .applyPreset(style, name)
@@ -81,15 +102,28 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
   const language = lineLanguage(line, languages[line], options.languages);
   const title =
     line === "primary" ? t("ui.settings.subtitles.top.title", { language }) : t("ui.settings.subtitles.bottom.title", { language });
+  const chooser: Chooser | undefined =
+    line === "primary"
+      ? {
+          value: previewView,
+          options: [
+            { value: "", label: t("ui.settings.subtitles.view.normal") },
+            { value: "fill", label: t("ui.settings.subtitles.view.fill") },
+            { value: "cue", label: t("ui.settings.subtitles.view.cue") },
+          ],
+          onChange: (next) => setPreviewView(next === "fill" || next === "cue" ? next : ""),
+        }
+      : undefined;
 
   return (
     <SubtitlesLayout
       draft={draft}
       highlight={line}
       view={line === "primary" ? previewView : ""}
-      onView={line === "primary" ? setPreviewView : undefined}
+      karaoke={{ ...karaoke, indicator }}
+      chooser={chooser}
     >
-      <Card title={title}>
+      <Card title={title} aside={<RestoreButton onRestore={() => setStyle(defaults[line])} />}>
         <div className="flex flex-col gap-5">
           {line === "primary" ? (
             <Select
@@ -117,19 +151,60 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
       {line === "primary" && (
         <Card
           title={t("ui.settings.subtitles.karaoke.title")}
-          aside={<HelpTip topic={t("ui.settings.subtitles.karaoke.topic")}>{t("ui.settings.subtitles.karaoke.help")}</HelpTip>}
+          aside={
+            <div className="flex items-center gap-1">
+              <RestoreButton
+                onRestore={() =>
+                  setKaraoke(
+                    {
+                      fillColor: defaults.karaoke.fillColor,
+                      barColor: defaults.karaoke.barColor,
+                      barThickness: defaults.karaoke.barThickness,
+                      countdownSize: defaults.karaoke.countdownSize,
+                    },
+                    previewView,
+                  )
+                }
+              />
+              <HelpTip topic={t("ui.settings.subtitles.karaoke.topic")}>{t("ui.settings.subtitles.karaoke.help")}</HelpTip>
+            </div>
+          }
         >
-          <div className="flex flex-col gap-2">
+          <div className="grid gap-4 @lg:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <ColorField
+                label={t("ui.settings.subtitles.karaoke.fillColor")}
+                value={karaoke.fillColor}
+                disabled={!karaoke.fill}
+                onChange={(fillColor) => setKaraoke({ fillColor }, "fill")}
+              />
+              {!karaoke.fill && <p className="text-sm text-fg-muted">{t("ui.settings.subtitles.karaoke.off")}</p>}
+            </div>
             <ColorField
-              label={t("ui.settings.subtitles.karaoke.fillColor")}
-              value={karaoke.fillColor}
-              disabled={!karaoke.fill}
-              onChange={(fillColor) => {
-                change(setDraft, "karaoke")({ ...karaoke, fillColor });
-                setPreviewView("fill");
-              }}
+              label={t("ui.settings.subtitles.karaoke.barColor")}
+              value={karaoke.barColor}
+              alpha
+              onChange={(barColor) => setKaraoke({ barColor }, "cue", "bar")}
             />
-            {!karaoke.fill && <p className="text-sm text-fg-muted">{t("ui.settings.subtitles.karaoke.off")}</p>}
+            <NumberField
+              label={t("ui.settings.subtitles.karaoke.barThickness")}
+              value={karaoke.barThickness}
+              min={limits.barThicknessMin}
+              max={limits.barThicknessMax}
+              step={1}
+              unit="px"
+              onChange={(barThickness) => setKaraoke({ barThickness }, "cue", "bar")}
+            />
+            <NumberField
+              label={t("ui.settings.subtitles.karaoke.countdownSize")}
+              value={karaoke.countdownSize}
+              min={limits.countdownSizeMin}
+              max={limits.countdownSizeMax}
+              step={0.05}
+              scale={100}
+              unit="%"
+              onChange={(countdownSize) => setKaraoke({ countdownSize }, "cue", "countdown")}
+            />
           </div>
         </Card>
       )}
@@ -137,8 +212,12 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
   );
 }
 
-/** SubtitlesSection holds what the two lines share: the margins and the sync steps. */
+/** CommonScene is what the preview of the common page shows. */
+type CommonScene = "" | "notice" | "selection";
+
+/** SubtitlesSection holds what the two lines share: the margins, the marks over the video and the sync steps. */
 export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) {
+  const [scene, setScene] = useState<CommonScene>("");
   const options = view.options;
   const setLayout = change(setDraft, "layout");
   const layout = draft.layout;
@@ -154,9 +233,23 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
       label: t("ui.settings.subtitles.bottom.title", { language: lineLanguage("translation", languages.translation, options.languages) }),
     },
   ];
+  const chooser: Chooser = {
+    value: scene,
+    options: [
+      { value: "", label: t("ui.settings.subtitles.view.normal") },
+      { value: "notice", label: t("ui.settings.subtitles.view.notice") },
+      { value: "selection", label: t("ui.settings.subtitles.view.selection") },
+    ],
+    onChange: (next) => setScene(next === "notice" || next === "selection" ? next : ""),
+  };
 
   return (
-    <SubtitlesLayout draft={draft} highlight="">
+    <SubtitlesLayout
+      draft={draft}
+      highlight={scene === "selection" ? "primary" : ""}
+      view={scene === "notice" ? "notice" : ""}
+      chooser={chooser}
+    >
       <Card title={t("ui.settings.subtitles.both.title")}>
         <p className="mb-3 text-sm text-fg-secondary">{t("ui.settings.subtitles.both.intro")}</p>
         <div className="flex flex-wrap gap-2">
@@ -174,7 +267,17 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
       </Card>
       <Card
         title={t("ui.settings.subtitles.margins.title")}
-        aside={<HelpTip topic={t("ui.settings.subtitles.margins.topic")}>{t("ui.settings.subtitles.margins.help")}</HelpTip>}
+        aside={
+          <div className="flex items-center gap-1">
+            <RestoreButton
+              onRestore={() => {
+                setLayout(options.defaults.layout);
+                setScene("");
+              }}
+            />
+            <HelpTip topic={t("ui.settings.subtitles.margins.topic")}>{t("ui.settings.subtitles.margins.help")}</HelpTip>
+          </div>
+        }
       >
         <div className="grid gap-4 @lg:grid-cols-2">
           <NumberField
@@ -227,8 +330,18 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             unit="%"
             onChange={(maxWidth) => setLayout({ ...layout, maxWidth })}
           />
+          <NumberField
+            label={t("ui.settings.subtitles.gap.label")}
+            value={layout.lineGap}
+            min={0}
+            max={options.limits.lineGapMax}
+            step={0.05}
+            onChange={(lineGap) => setLayout({ ...layout, lineGap })}
+            help={<HelpTip topic={t("ui.settings.subtitles.gap.label")}>{t("ui.settings.subtitles.gap.help")}</HelpTip>}
+          />
         </div>
       </Card>
+      <MarksCards view={view} draft={draft} setDraft={setDraft} onShow={setScene} />
       <Card
         title={t("ui.settings.subtitles.sync.title")}
         aside={
