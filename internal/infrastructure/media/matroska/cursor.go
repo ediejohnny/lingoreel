@@ -30,25 +30,12 @@ func (c *cursor) position() int64 {
 	return c.pos
 }
 
-func (c *cursor) atEnd() bool {
-	return c.pos >= c.size
-}
-
 // seek moves to an absolute offset inside the file.
 func (c *cursor) seek(offset int64) error {
 	if offset < 0 || offset > c.size {
 		return fmt.Errorf("%w: offset %d outside the file", ErrCorrupt, offset)
 	}
 	c.pos = offset
-	return nil
-}
-
-// skip moves forward by n bytes.
-func (c *cursor) skip(n int64) error {
-	if n < 0 || n > c.size-c.pos {
-		return fmt.Errorf("%w: element runs past the end of the file", ErrCorrupt)
-	}
-	c.pos += n
 	return nil
 }
 

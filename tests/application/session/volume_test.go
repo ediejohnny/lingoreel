@@ -2,7 +2,6 @@ package session_test
 
 import (
 	"errors"
-	"math"
 	"testing"
 	"time"
 
@@ -54,20 +53,6 @@ func TestVolumeStartsFullAndClamps(t *testing.T) {
 	}
 }
 
-func TestChangeVolumeSteps(t *testing.T) {
-	t.Parallel()
-	controls, player := newVolumeControls(t)
-	if err := controls.ChangeVolume(-playback.VolumeStep); err != nil {
-		t.Fatal(err)
-	}
-	if volume, _ := controls.Volume(); math.Abs(float64(volume)-0.99) > 1e-9 {
-		t.Fatalf("one step down from full = %v", volume)
-	}
-	if err := controls.ChangeVolume(10); err != nil || player.levels[len(player.levels)-1] != 1 {
-		t.Fatalf("a big step up must stop at full: %v %v", err, player.levels)
-	}
-}
-
 func TestMuteKeepsTheLevel(t *testing.T) {
 	t.Parallel()
 	controls, player := newVolumeControls(t)
@@ -88,7 +73,7 @@ func TestMuteKeepsTheLevel(t *testing.T) {
 	}
 	// Changing the level while muted brings the sound back at the new level.
 	_ = controls.ToggleMute()
-	if err := controls.ChangeVolume(playback.VolumeStep); err != nil {
+	if err := controls.StepVolume(time.Now(), false, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, muted := controls.Volume(); muted || player.levels[len(player.levels)-1] == 0 {
