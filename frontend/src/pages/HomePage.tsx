@@ -9,7 +9,7 @@ interface HomePageProps {
   onDismissError: () => void;
 }
 
-/** HomePage is the empty state: what to do to start (DESIGN §30). */
+/** HomePage is the empty state: what to do to start. */
 export function HomePage({ loading, error, onChoose, onDismissError }: HomePageProps) {
   return (
     <main className="flex flex-1 items-center justify-center p-8">

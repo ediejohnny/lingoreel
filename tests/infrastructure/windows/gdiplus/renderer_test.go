@@ -13,7 +13,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
-func newRenderer(t *testing.T) *gdiplus.Renderer {
+func newRenderer(t testing.TB) *gdiplus.Renderer {
 	t.Helper()
 	r, err := gdiplus.NewRenderer()
 	if err != nil {
@@ -23,7 +23,7 @@ func newRenderer(t *testing.T) *gdiplus.Renderer {
 	return r
 }
 
-func newDIB(t *testing.T, w, h int) *win32.DIB {
+func newDIB(t testing.TB, w, h int) *win32.DIB {
 	t.Helper()
 	dib, err := win32.NewDIB(w, h)
 	if err != nil {

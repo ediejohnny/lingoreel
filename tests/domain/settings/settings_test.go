@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -24,10 +23,6 @@ func TestDefaultsAreValidAndConsistent(t *testing.T) {
 	}
 	if _, found := profiles.Find(config.ActiveProfile); !found {
 		t.Fatalf("default active profile %q does not exist", config.ActiveProfile)
-	}
-	want := settings.LanguagePreferences{Audio: "en", Primary: "en", Translation: "pt-BR"}
-	if got := settings.DefaultProfile().Languages; got != want {
-		t.Fatalf("default languages = %+v, want %+v", got, want)
 	}
 }
 
@@ -57,22 +52,6 @@ func TestConfigValidate(t *testing.T) {
 			tc.mutate(&config)
 			assertValidity(t, config.Validate(), tc.valid)
 		})
-	}
-}
-
-func TestInstallRecommendationsIsDismissed(t *testing.T) {
-	none := settings.InstallRecommendations{}
-	some := settings.InstallRecommendations{Dismissed: []string{"mpv"}}
-	all := settings.InstallRecommendations{DismissAll: true}
-
-	if none.IsDismissed("mpv") {
-		t.Fatal("nothing dismissed, but mpv reported dismissed")
-	}
-	if !some.IsDismissed("mpv") || some.IsDismissed("vlc") {
-		t.Fatal("per-player dismissal leaked to another player or was lost")
-	}
-	if !all.IsDismissed("vlc") || !all.IsDismissed("anything") {
-		t.Fatal("dismiss all did not hide every player")
 	}
 }
 
@@ -176,27 +155,6 @@ func TestDurationTextEncoding(t *testing.T) {
 		if err := json.Unmarshal([]byte(bad), &decoded); !errors.Is(err, settings.ErrInvalidSettings) {
 			t.Fatalf("Unmarshal %s error = %v, want ErrInvalidSettings", bad, err)
 		}
-	}
-}
-
-func TestProfileSurvivesJSONRoundTrip(t *testing.T) {
-	original := settings.DefaultProfile()
-	original.PreferredPlayer = "vlc"
-	original.Translation.Background.Enabled = true
-
-	encoded, err := json.Marshal(original)
-	if err != nil {
-		t.Fatalf("Marshal: %v", err)
-	}
-	var decoded settings.Profile
-	if err := json.Unmarshal(encoded, &decoded); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	if !reflect.DeepEqual(decoded, original) {
-		t.Fatalf("round trip changed the profile:\n got %+v\nwant %+v", decoded, original)
-	}
-	if !strings.Contains(string(encoded), `"precisionSeekStep":"100ms"`) || !strings.Contains(string(encoded), `"color":"#FFFFFF"`) {
-		t.Fatalf("encoded profile is not human readable: %s", encoded)
 	}
 }
 

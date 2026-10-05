@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // rhythm returns n start instants of a film-like dialogue: from 30 s on,
@@ -262,6 +263,7 @@ func TestAlignOrderAndJunkDoNotMatter(t *testing.T) {
 }
 
 func TestAlignHostileInputsFinish(t *testing.T) {
+	testkit.Slow(t)
 	same := make([]time.Duration, 50_000)
 	got := subtitle.Align(same, same, 0)
 	if got.Score < 0 || got.Score > 1 || !(got.Rate > 0) {

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 type sample struct {
@@ -66,7 +67,7 @@ func (c checked) Validate() error {
 }
 
 // A hand-edited document with bad values must not reach the app: Load returns
-// the defaults and says why (RNF-020).
+// the defaults and says why.
 func TestLoadValidatesValuesThatCheckThemselves(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	store := jsonstore.New(path, 1, func() checked { return checked{Limit: 5} }, nil)
@@ -213,6 +214,7 @@ func TestLoadRejectsBadDocuments(t *testing.T) {
 }
 
 func TestLoadRejectsOversizedDocumentButAcceptsTheLimit(t *testing.T) {
+	testkit.Slow(t)
 	store, path := newSampleStore(t, 1, nil)
 	prefix, suffix := `{"version": 1, "name": "`, `"}`
 

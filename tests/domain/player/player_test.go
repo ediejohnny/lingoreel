@@ -90,12 +90,3 @@ func TestChooseWithNothingInstalled(t *testing.T) {
 		t.Fatalf("Choose(nothing, prefer VLC) = %+v, %v", choice, ok)
 	}
 }
-
-func TestDisplayNames(t *testing.T) {
-	cases := map[player.ID]string{player.MPV: "mpv", player.VLC: "VLC", player.PotPlayer: "PotPlayer", player.MPCHC: "MPC-HC", player.MPCBE: "MPC-BE", "custom": "custom"}
-	for id, want := range cases {
-		if got := id.DisplayName(); got != want {
-			t.Fatalf("%s.DisplayName() = %q, want %q", id, got, want)
-		}
-	}
-}

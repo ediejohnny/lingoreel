@@ -11,7 +11,7 @@ interface StyleEditorProps {
   onPreset: (preset: string) => void;
 }
 
-/** StyleEditor edits how one subtitle line looks (RF-054 to RF-063). */
+/** StyleEditor edits how one subtitle line looks. */
 export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorProps) {
   const set =
     <K extends keyof StyleSettings>(key: K) =>

@@ -40,9 +40,8 @@ func TestVolumeStartsFullAndClamps(t *testing.T) {
 	if volume, muted := controls.Volume(); volume != playback.MaxVolume || muted {
 		t.Fatalf("start = %v muted %v, want full and not muted", volume, muted)
 	}
-	for _, c := range []struct{ asked, sent playback.Volume }{
-		{0.4, 0.4}, {1.5, 1}, {-1, 0}, {playback.Volume(math.NaN()), 0},
-	} {
+	// The limits themselves are the domain's; here, that they apply.
+	for _, c := range []struct{ asked, sent playback.Volume }{{0.4, 0.4}, {1.5, 1}} {
 		if err := controls.SetVolume(c.asked); err != nil {
 			t.Fatal(err)
 		}

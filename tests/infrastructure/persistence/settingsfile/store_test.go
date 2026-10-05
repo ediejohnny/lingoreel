@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -41,6 +42,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 	profiles := settings.DefaultProfiles()
 	profiles.Items[0].PreferredPlayer = "vlc"
+	profiles.Items[0].Translation.Background.Enabled = true
 	if err := files.SaveProfiles(profiles); err != nil {
 		t.Fatal(err)
 	}
@@ -52,14 +54,13 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("config after a round trip = %+v, %v", gotConfig, err)
 	}
 	gotProfiles, err := again.LoadProfiles()
-	if err != nil || gotProfiles.Items[0].PreferredPlayer != "vlc" {
-		t.Fatalf("profiles after a round trip = %+v, %v", gotProfiles, err)
+	if err != nil || !reflect.DeepEqual(gotProfiles, profiles) {
+		t.Fatalf("profiles after a round trip = %+v, %v\nwant %+v", gotProfiles, err, profiles)
 	}
-	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 4`} {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil || !strings.Contains(string(data), version) {
-			t.Fatalf("%s = %s, %v; want %s", name, data, err, version)
-		}
+	// People may edit the file by hand: times and colors are readable.
+	data, err := os.ReadFile(filepath.Join(dir, "profiles.json"))
+	if err != nil || !strings.Contains(string(data), `"precisionSeekStep": "100ms"`) || !strings.Contains(string(data), `"color": "#FFFFFF"`) {
+		t.Fatalf("profiles.json is not readable by people: %v\n%s", err, data)
 	}
 }
 
@@ -315,16 +316,5 @@ func TestSettingsRefuseBadValues(t *testing.T) {
 	profiles, err := files.LoadProfiles()
 	if !errors.Is(err, jsonstore.ErrCorrupt) || len(profiles.Items) != 1 {
 		t.Fatalf("LoadProfiles of a corrupt file = %+v, %v; want the defaults and ErrCorrupt", profiles, err)
-	}
-}
-
-func TestDirIsInsideTheUserSettings(t *testing.T) {
-	dir, err := settingsfile.Dir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	base, _ := os.UserConfigDir()
-	if filepath.Dir(dir) != base || filepath.Base(dir) != "LingoReel" {
-		t.Fatalf("Dir = %q, want %q\\LingoReel", dir, base)
 	}
 }

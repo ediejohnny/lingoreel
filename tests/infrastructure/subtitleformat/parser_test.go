@@ -7,6 +7,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestNewParserSelectsStrategyByFormat(t *testing.T) {
@@ -58,6 +59,7 @@ func TestDetectFormat(t *testing.T) {
 }
 
 func TestParsersRejectOversizedInputButAcceptTheLimit(t *testing.T) {
+	testkit.Slow(t)
 	huge := bytes.Repeat([]byte("a"), subtitleformat.MaxInputBytes+1)
 	for _, parser := range []subtitleformat.Parser{subtitleformat.SRTParser{}, subtitleformat.ASSParser{}, subtitleformat.WebVTTParser{}} {
 		if _, err := parser.Parse(huge); !errors.Is(err, subtitleformat.ErrInputTooLarge) {

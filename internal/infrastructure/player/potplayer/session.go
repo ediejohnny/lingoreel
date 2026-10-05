@@ -31,7 +31,7 @@ const (
 	pollInterval = 100 * time.Millisecond
 	// While PotPlayer runs but stops answering, the poller tries again
 	// after firstRetry, doubling up to maxRetry; after reconnectLimit
-	// without an answer the session is lost (RNF-013).
+	// without an answer the session is lost.
 	firstRetry     = 250 * time.Millisecond
 	maxRetry       = 2 * time.Second
 	reconnectLimit = 10 * time.Second

@@ -6,11 +6,14 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // seekTo moves the paused video and waits for the panel to show it there.
@@ -18,11 +21,11 @@ import (
 // a seek before it would be undone by it.
 func seekTo(t *testing.T, r *rig, seconds float64) {
 	t.Helper()
-	eventually(t, "the player's first report", func() bool { return r.api.PlaybackState().Duration > 0 })
+	testkit.Eventually(t, "the player's first report", func() bool { return r.api.PlaybackState().Duration > 0 })
 	if err := r.api.SeekTo(seconds); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-seconds) < 0.01 })
+	testkit.Eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-seconds) < 0.01 })
 }
 
 func (d *recordingDisplay) lastNotice() string {
@@ -46,22 +49,22 @@ func TestTheEndMarkSavesThePassageNamedByItsTimes(t *testing.T) {
 	if err := r.api.RunShortcut("passage-mark-end", false); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the passage saved", func() bool { stored, _ := r.projects.stored(t, movie); return len(stored.Passages) == 1 })
+	testkit.Eventually(t, "the passage saved", func() bool { stored, _ := r.projects.stored(t, movie); return len(stored.Passages) == 1 })
 	stored, _ := r.projects.stored(t, movie)
 	saved := stored.Passages[0]
 	// Fitted to the lines: half a second of lead-in before the start, which
 	// the name, in whole seconds, does not show.
-	if saved.Name != "Trecho 0:20–0:35" || saved.Start != 19_500 || saved.End != 35_000 {
+	if saved.Name != ptbr.PassageName(20*time.Second, 35*time.Second) || saved.Start != 19_500 || saved.End != 35_000 {
 		t.Fatalf("saved %+v", saved)
 	}
 	if saved.Plan == nil || saved.Plan.Loop || saved.Plan.Goal != 0 {
 		t.Fatalf("saved plan %+v, want pausing at the end", saved.Plan)
 	}
 	state := r.api.PlaybackState()
-	if !state.Passage.Active || len(state.SavedPassages) != 1 || state.SavedPassages[0].Name != "Trecho 0:20–0:35" {
+	if !state.Passage.Active || len(state.SavedPassages) != 1 || state.SavedPassages[0].Name != ptbr.PassageName(20*time.Second, 35*time.Second) {
 		t.Fatalf("panel: passage %+v, saved %+v", state.Passage, state.SavedPassages)
 	}
-	if notice := r.display.lastNotice(); notice != "Salvo: Trecho 0:20–0:35" {
+	if notice := r.display.lastNotice(); notice != "Salvo: "+ptbr.PassageName(20*time.Second, 35*time.Second) {
 		t.Fatalf("notice %q", notice)
 	}
 
@@ -74,8 +77,8 @@ func TestTheEndMarkSavesThePassageNamedByItsTimes(t *testing.T) {
 	if err := r.api.RunShortcut("passage-mark-end", false); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the second passage", func() bool { stored, _ := r.projects.stored(t, movie); return len(stored.Passages) == 2 })
-	if stored, _ := r.projects.stored(t, movie); stored.Passages[1].Name != "Trecho 0:20–0:35 (2)" {
+	testkit.Eventually(t, "the second passage", func() bool { stored, _ := r.projects.stored(t, movie); return len(stored.Passages) == 2 })
+	if stored, _ := r.projects.stored(t, movie); stored.Passages[1].Name != ptbr.PassageName(20*time.Second, 35*time.Second)+" (2)" {
 		t.Fatalf("second name %q", stored.Passages[1].Name)
 	}
 
@@ -107,7 +110,7 @@ func TestTheEndMarkRespectsThePassageLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	_, before := r.projects.stored(t, movie)
 	seekTo(t, r, 20)
 	if err := r.api.RunShortcut("passage-mark-start", false); err != nil {
@@ -117,7 +120,7 @@ func TestTheEndMarkRespectsThePassageLimit(t *testing.T) {
 	if err := r.api.RunShortcut("passage-mark-end", false); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the refusal on the video", func() bool { return r.display.lastNotice() != "" })
+	testkit.Eventually(t, "the refusal on the video", func() bool { return r.display.lastNotice() != "" })
 	stored, after := r.projects.stored(t, movie)
 	if len(stored.Passages) != project.MaxPassages || after != before {
 		t.Fatalf("a full project took a passage: %d passages, %d saves (was %d)", len(stored.Passages), after, before)
@@ -175,7 +178,7 @@ func TestTheBarMenuListsTheSavedPassages(t *testing.T) {
 	same := func(want ...string) func() bool {
 		return func() bool { return slices.Equal(window.names(), want) }
 	}
-	eventually(t, "the kept passage in the menu", same("Loja"))
+	testkit.Eventually(t, "the kept passage in the menu", same("Loja"))
 
 	seekTo(t, r, 30)
 	if err := r.api.RunShortcut("passage-mark-start", false); err != nil {
@@ -185,17 +188,17 @@ func TestTheBarMenuListsTheSavedPassages(t *testing.T) {
 	if err := r.api.RunShortcut("passage-mark-end", false); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the marked passage in the menu", same("Loja", "Trecho 0:30–0:36"))
+	testkit.Eventually(t, "the marked passage in the menu", same("Loja", ptbr.PassageName(30*time.Second, 36*time.Second)))
 	if err := r.api.RenamePassage("Loja", "Na loja"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the renamed passage in the menu", same("Na loja", "Trecho 0:30–0:36"))
+	testkit.Eventually(t, "the renamed passage in the menu", same("Na loja", ptbr.PassageName(30*time.Second, 36*time.Second)))
 	if err := r.api.DeletePassage("Na loja"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the deleted passage gone from the menu", same("Trecho 0:30–0:36"))
+	testkit.Eventually(t, "the deleted passage gone from the menu", same(ptbr.PassageName(30*time.Second, 36*time.Second)))
 	if err := r.api.SavePassage("Rua"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the saved passage in the menu", same("Trecho 0:30–0:36", "Rua"))
+	testkit.Eventually(t, "the saved passage in the menu", same(ptbr.PassageName(30*time.Second, 36*time.Second), "Rua"))
 }

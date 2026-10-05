@@ -15,6 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -103,8 +104,8 @@ func TestVLCClosesWithTheAppWindow(t *testing.T) {
 	defer session.Close()
 	pid := session.ProcessID()
 
-	eventually(t, "VLC's video window inside the app's window", func() bool { return childrenOf(host)[uint32(pid)] > 0 })
-	eventually(t, "the picture inside the app's window", func() bool { return litPixels(t, host) > 100 })
+	testkit.Eventually(t, "VLC's video window inside the app's window", func() bool { return childrenOf(host)[uint32(pid)] > 0 })
+	testkit.Eventually(t, "the picture inside the app's window", func() bool { return litPixels(t, host) > 100 })
 	if hasVisibleTopLevel(uint32(pid)) {
 		t.Fatal("VLC opened a window of its own")
 	}

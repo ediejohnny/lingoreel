@@ -25,7 +25,7 @@ const (
 	// line heights.
 	minGapLines = 0.2
 	// maxTextAreaShare is the most of the picture height one block may take
-	// (PRD §34: long subtitles must not cover the screen); past it the block
+	// (long subtitles must not cover the screen); past it the block
 	// keeps shrinking down to the minimum size.
 	maxTextAreaShare = 0.35
 	// sizeEpsilon absorbs float error when comparing sizes and positions.
@@ -99,7 +99,7 @@ type Frame struct {
 
 // Compute places both subtitles. The primary is placed from its own style
 // alone, so it never moves when a translation appears, disappears or grows
-// (DESIGN §23); the translation finds room around it. The translation also
+// so the reader's eyes stay put; the translation finds room around it. The translation also
 // takes its space from its text whether it is visible or not.
 func Compute(in Input, m Measurer) Frame {
 	video := in.Video

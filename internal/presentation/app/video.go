@@ -95,7 +95,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 }
 
 // languageNote tells when the video has subtitles but none in a language
-// the profile asks for (PRD §52, "idioma não encontrado").
+// the profile asks for.
 func languageNote(info media.Info, suggested media.Selection, preferences media.Preferences) string {
 	readable := 0
 	for _, track := range info.TracksOf(media.TrackSubtitle) {

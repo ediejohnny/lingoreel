@@ -122,7 +122,7 @@ type Profile struct {
 	Shortcuts shortcut.Map `json:"shortcuts"`
 }
 
-// DefaultProfile returns the English study profile described in the PRD.
+// DefaultProfile returns the English study profile the app starts with.
 func DefaultProfile() Profile {
 	return Profile{
 		Name:        DefaultProfileName,

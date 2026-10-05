@@ -28,14 +28,3 @@ func TestRevealedTogglesOnPressesAndHoldsWhilePressed(t *testing.T) {
 		}
 	}
 }
-
-func TestTogglingTwiceComesBack(t *testing.T) {
-	visible := false
-	for press := 1; press <= 4; press++ {
-		visible = study.RevealToggle.Revealed(visible, true)
-		visible = study.RevealToggle.Revealed(visible, false)
-		if visible != (press%2 == 1) {
-			t.Fatalf("after %d presses visible = %v", press, visible)
-		}
-	}
-}

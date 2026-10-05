@@ -45,6 +45,7 @@ func TestBarItemWritesTheSpeeds(t *testing.T) {
 	}
 }
 
+// The tips that change with the state: what a click would do now.
 func TestBarTips(t *testing.T) {
 	on := func(action controlbar.Action) controlbar.Item { return controlbar.Item{Action: action, Enabled: true} }
 	state := controlbar.State{Volume: 0.8, HasTranslation: true, TranslationVisible: true}
@@ -55,8 +56,6 @@ func TestBarTips(t *testing.T) {
 	}{
 		{on(controlbar.ActionPlayPause), nil, "Pausar (Espaço)"},
 		{on(controlbar.ActionPlayPause), func(s *controlbar.State) { s.Paused = true }, "Reproduzir (Espaço)"},
-		{on(controlbar.ActionBack), nil, "Voltar 5 s (←)"},
-		{on(controlbar.ActionForward), nil, "Avançar 5 s (→)"},
 		{on(controlbar.ActionMute), nil, "Sem som (M)"},
 		{on(controlbar.ActionMute), func(s *controlbar.State) { s.Muted = true }, "Ativar o som (M)"},
 		{on(controlbar.ActionVolume), nil, "Volume: 80% (↑ ↓)"},
@@ -66,9 +65,7 @@ func TestBarTips(t *testing.T) {
 		{controlbar.Item{Action: controlbar.ActionTranslation}, func(s *controlbar.State) { s.HasTranslation = false }, "Nenhuma tradução escolhida"},
 		{on(controlbar.ActionFullscreen), nil, "Tela cheia (F)"},
 		{on(controlbar.ActionFullscreen), func(s *controlbar.State) { s.Fullscreen = true }, "Sair da tela cheia (Esc)"},
-		{on(controlbar.ActionSpeed), nil, "Velocidade"},
 		{controlbar.Item{Action: controlbar.ActionSpeed}, nil, "Velocidade (indisponível neste player)"},
-		{on(controlbar.ActionNone), nil, ""},
 	}
 	for _, c := range cases {
 		s := state

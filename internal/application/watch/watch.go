@@ -303,7 +303,7 @@ type Session struct {
 // ErrNoPlugin reports a player the registry cannot drive.
 var ErrNoPlugin = errors.New("player not supported")
 
-// Why a session did not start, for the app to word it (PRD §52).
+// Why a session did not start, for the app to word it.
 var (
 	// ErrSubtitles: the chosen subtitles could not be read.
 	ErrSubtitles = errors.New("the subtitles could not be loaded")

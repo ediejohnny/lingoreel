@@ -54,7 +54,7 @@ interface SettingsPageProps {
 /**
  * SettingsPage edits the active profile as a draft: the preview follows
  * every change, and nothing reaches the profile or the video until "Salvar"
- * (DESIGN §34). Choices outside the profile (theme, profiles, players) apply
+ * is pressed. Choices outside the profile (theme, profiles, players) apply
  * at once.
  */
 export function SettingsPage({ theme, onTheme }: SettingsPageProps) {

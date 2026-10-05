@@ -10,18 +10,9 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
-// At scale 1 in a 1280x720 window (sizes in controlbar.go):
-//
-//	panel: y 720-58 = 662, height 58; inner: x 12, width 1280-2*12 = 1256
-//	track: y 662+(16-4)/2 = 668, height 4; its hit area: y 662, height 16
-//	buttons row: y 662+16 = 678, height 40
-//	left: play 12, back 12+44 = 56, forward 100, frame back 144, frame forward
-//	      188, mute 232, volume 276 (72 wide, line 280..344), time 276+76 =
-//	      352 (124 wide)
-//	right: fullscreen 1268-40 = 1228, speed 1224-60 = 1164, translation
-//	       1160-40 = 1120, then the menus: subtitles 1076, karaoke 1032,
-//	       passage 988
-//	study text: from 352+128 = 480 to 988-4 = 984
+// The tests check how the parts relate (order, no overlap, inside the panel,
+// a click finds its item), not the pixel each one sits at, so the sizes in
+// controlbar.go can change without them.
 var wide = layout.Rect{W: 1280, H: 720}
 
 func fullState() controlbar.State {
@@ -52,124 +43,142 @@ func has(bar controlbar.Bar, action controlbar.Action) bool {
 	return false
 }
 
-func TestLayoutPlacesEveryPart(t *testing.T) {
+func inside(outer, inner layout.Rect) bool {
+	return inner.X >= outer.X && inner.Right() <= outer.Right() && inner.Y >= outer.Y && inner.Bottom() <= outer.Bottom()
+}
+
+func overlap(a, b layout.Rect) bool {
+	return a.X < b.Right() && b.X < a.Right() && a.Y < b.Bottom() && b.Y < a.Bottom()
+}
+
+func center(r layout.Rect) (float64, float64) { return r.X + r.W/2, r.Y + r.H/2 }
+
+func TestTheBarIsLaidOutInOrder(t *testing.T) {
 	bar := controlbar.Layout(wide, 1, fullState())
-	if bar.Panel != (layout.Rect{X: 0, Y: 662, W: 1280, H: 58}) {
-		t.Fatalf("panel = %+v", bar.Panel)
+	if bar.Panel.X != 0 || bar.Panel.W != wide.W || bar.Panel.Bottom() != wide.H || !(bar.Panel.H > 0) {
+		t.Fatalf("panel = %+v, want the window's whole bottom", bar.Panel)
 	}
-	if bar.Track != (layout.Rect{X: 12, Y: 668, W: 1256, H: 4}) || bar.Played != 0.25 {
-		t.Fatalf("track = %+v played %v", bar.Track, bar.Played)
+	// The band holds the panel and the tips above it.
+	if !(bar.Band.Y < bar.Panel.Y) || bar.Band.Bottom() != bar.Panel.Bottom() {
+		t.Fatalf("band = %+v, panel %+v", bar.Band, bar.Panel)
 	}
-	want := map[controlbar.Action]float64{
-		controlbar.ActionPlayPause: 12, controlbar.ActionBack: 56, controlbar.ActionForward: 100,
-		controlbar.ActionFrameBack: 144, controlbar.ActionFrameForward: 188, controlbar.ActionMute: 232, controlbar.ActionVolume: 276,
-		controlbar.ActionFullscreen: 1228, controlbar.ActionSpeed: 1164, controlbar.ActionTranslation: 1120,
+	if bar.Played != 0.25 {
+		t.Fatalf("played = %v, want 25 s of 100", bar.Played)
 	}
-	for action, x := range want {
-		if got := item(t, bar, action).Bounds; got.X != x || got.Y != 678 || got.H != 40 {
-			t.Errorf("item %d at %+v, want x %v, y 678, height 40", action, got, x)
-		}
-	}
-	if bar.Time != (layout.Rect{X: 352, Y: 678, W: 124, H: 40}) {
-		t.Fatalf("time = %+v", bar.Time)
-	}
-	if bar.Status != (layout.Rect{X: 480, Y: 678, W: 504, H: 40}) {
-		t.Fatalf("study text = %+v", bar.Status)
-	}
-	menus := map[controlbar.Menu]float64{controlbar.MenuPassage: 988, controlbar.MenuKaraoke: 1032, controlbar.MenuSubtitles: 1076}
+
+	parts := []layout.Rect{bar.Time, bar.Status}
 	for _, it := range bar.Items {
-		if it.Action == controlbar.ActionMenu {
-			if x, ok := menus[it.Menu]; !ok || it.Bounds.X != x || !it.Enabled || it.Active {
-				t.Errorf("menu button %+v", it)
+		if !inside(bar.Panel, it.Bounds) {
+			t.Errorf("item %d at %+v leaves the panel %+v", it.Action, it.Bounds, bar.Panel)
+		}
+		parts = append(parts, it.Bounds)
+	}
+	for i := range parts {
+		for j := i + 1; j < len(parts); j++ {
+			if overlap(parts[i], parts[j]) {
+				t.Errorf("%+v overlaps %+v", parts[i], parts[j])
 			}
-			delete(menus, it.Menu)
 		}
 	}
-	if len(menus) != 0 {
-		t.Errorf("menu buttons missing: %v", menus)
+
+	row := []layout.Rect{
+		item(t, bar, controlbar.ActionPlayPause).Bounds, item(t, bar, controlbar.ActionBack).Bounds,
+		item(t, bar, controlbar.ActionForward).Bounds, item(t, bar, controlbar.ActionFrameBack).Bounds,
+		item(t, bar, controlbar.ActionFrameForward).Bounds, item(t, bar, controlbar.ActionMute).Bounds,
+		item(t, bar, controlbar.ActionVolume).Bounds, bar.Time, bar.Status,
+		menuButton(t, bar, controlbar.MenuPassage).Bounds, menuButton(t, bar, controlbar.MenuKaraoke).Bounds,
+		menuButton(t, bar, controlbar.MenuSubtitles).Bounds, item(t, bar, controlbar.ActionTranslation).Bounds,
+		item(t, bar, controlbar.ActionSpeed).Bounds, item(t, bar, controlbar.ActionFullscreen).Bounds,
 	}
-	if bar.VolumeTrack != (layout.Rect{X: 280, Y: 678 + 18, W: 64, H: 4}) || bar.VolumeLevel != 0.5 {
-		t.Fatalf("volume line = %+v level %v", bar.VolumeTrack, bar.VolumeLevel)
+	for i := 1; i < len(row); i++ {
+		if !row[i].Valid() || row[i].X < row[i-1].Right() || row[i].Y != row[0].Y || row[i].H != row[0].H {
+			t.Errorf("part %d of the row at %+v, after %+v", i, row[i], row[i-1])
+		}
 	}
-	// The band starts 34 pixels above the panel, for the tips.
-	if bar.Band != (layout.Rect{X: 0, Y: 628, W: 1280, H: 92}) {
-		t.Fatalf("band = %+v", bar.Band)
+	// The track runs above the buttons; the volume line sits in its button.
+	track := item(t, bar, controlbar.ActionTrack).Bounds
+	if !inside(track, bar.Track) || track.Bottom() > row[0].Y {
+		t.Fatalf("track %+v in its hit area %+v, buttons from y %v", bar.Track, track, row[0].Y)
+	}
+	if volume := item(t, bar, controlbar.ActionVolume).Bounds; !inside(volume, bar.VolumeTrack) || bar.VolumeLevel != 0.5 {
+		t.Fatalf("volume line %+v level %v in %+v", bar.VolumeTrack, bar.VolumeLevel, volume)
 	}
 }
 
-func TestHitTestEdges(t *testing.T) {
+// Every item takes the clicks at its center, at its top-left corner and just
+// inside its far edges; the gaps and the padding take none.
+func TestHitTestFindsEachItem(t *testing.T) {
 	bar := controlbar.Layout(wide, 1, fullState())
-	cases := []struct {
-		x, y float64
-		want controlbar.Action
-	}{
-		{12, 678, controlbar.ActionPlayPause},       // top left corner is inside
-		{51.99, 717.99, controlbar.ActionPlayPause}, // just before the far edges
-		{52, 700, controlbar.ActionNone},            // the gap after play
-		{56, 700, controlbar.ActionBack},
-		{1228, 700, controlbar.ActionFullscreen},
-		{1268, 700, controlbar.ActionNone}, // right padding
-		{600, 662, controlbar.ActionTrack},
-		{600, 677.99, controlbar.ActionTrack},
-		{600, 678, controlbar.ActionNone}, // between the time and the translation
-		{600, 661.99, controlbar.ActionNone},
-		{math.NaN(), 700, controlbar.ActionNone},
-	}
-	for _, c := range cases {
-		if got := bar.HitTest(c.x, c.y).Action; got != c.want {
-			t.Errorf("HitTest(%v, %v) = %d, want %d", c.x, c.y, got, c.want)
+	for _, it := range bar.Items {
+		b := it.Bounds
+		cx, cy := center(b)
+		for _, p := range [][2]float64{{cx, cy}, {b.X, b.Y}, {b.Right() - 0.01, b.Bottom() - 0.01}} {
+			if got := bar.HitTest(p[0], p[1]); got.Action != it.Action || got.Menu != it.Menu {
+				t.Errorf("HitTest(%v, %v) = %d, want item %d", p[0], p[1], got.Action, it.Action)
+			}
 		}
 	}
-	if !bar.Covers(5, 700) || bar.Covers(5, 661) {
+	play, back, full := item(t, bar, controlbar.ActionPlayPause), item(t, bar, controlbar.ActionBack), item(t, bar, controlbar.ActionFullscreen)
+	_, y := center(play.Bounds)
+	for _, x := range []float64{(play.Bounds.Right() + back.Bounds.X) / 2, play.Bounds.Right(), full.Bounds.Right(), math.NaN()} {
+		if got := bar.HitTest(x, y); got.Action != controlbar.ActionNone {
+			t.Errorf("HitTest(%v, %v) = %d, want nothing", x, y, got.Action)
+		}
+	}
+	if !bar.Covers(5, y) || bar.Covers(5, bar.Panel.Y-0.01) {
 		t.Fatal("Covers must follow the panel")
 	}
 }
 
+// As the window narrows, the parts leave in a fixed order and never come
+// back; play and fullscreen always stay.
 func TestNarrowWindowsDropPartsInOrder(t *testing.T) {
-	// Widths needed at scale 1 (inner width = window - 24): everything 872;
-	// without the study text 872-124 = 748; without the volume line 748-76 =
-	// 672; without the frame steps 672-88 = 584; without the jumps 584-88 =
-	// 496; without the time 496-128 = 368; without the speed 368-64 = 304;
-	// without the translation 304-44 = 260; without the mute 260-44 = 216;
-	// without the menus, play and fullscreen alone 216-132 = 84.
-	steps := []struct {
-		inner   float64
-		dropped []controlbar.Action
-		kept    []controlbar.Action
+	present := func(action controlbar.Action) func(controlbar.Bar) bool {
+		return func(bar controlbar.Bar) bool { return has(bar, action) }
+	}
+	parts := []struct {
+		name    string
+		group   int // parts of a group leave together
+		present func(controlbar.Bar) bool
 	}{
-		{872, nil, []controlbar.Action{controlbar.ActionVolume, controlbar.ActionFrameBack, controlbar.ActionMenu}},
-		{747, []controlbar.Action{controlbar.ActionVolume}, []controlbar.Action{controlbar.ActionFrameBack, controlbar.ActionBack}},
-		{671, []controlbar.Action{controlbar.ActionFrameBack, controlbar.ActionFrameForward}, []controlbar.Action{controlbar.ActionBack}},
-		{583, []controlbar.Action{controlbar.ActionBack, controlbar.ActionForward}, []controlbar.Action{controlbar.ActionSpeed, controlbar.ActionMenu}},
-		{367, []controlbar.Action{controlbar.ActionSpeed}, []controlbar.Action{controlbar.ActionTranslation, controlbar.ActionMute, controlbar.ActionMenu}},
-		{303, []controlbar.Action{controlbar.ActionTranslation}, []controlbar.Action{controlbar.ActionMute, controlbar.ActionMenu}},
-		{259, []controlbar.Action{controlbar.ActionMute}, []controlbar.Action{controlbar.ActionMenu}},
-		{215, []controlbar.Action{controlbar.ActionMenu}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen, controlbar.ActionTrack}},
-		{10, []controlbar.Action{controlbar.ActionMenu}, []controlbar.Action{controlbar.ActionPlayPause, controlbar.ActionFullscreen}},
+		{"study text", 0, func(bar controlbar.Bar) bool { return bar.Status.Valid() }},
+		{"volume", 1, present(controlbar.ActionVolume)},
+		{"frame back", 2, present(controlbar.ActionFrameBack)},
+		{"frame forward", 2, present(controlbar.ActionFrameForward)},
+		{"back", 3, present(controlbar.ActionBack)},
+		{"forward", 3, present(controlbar.ActionForward)},
+		{"time", 4, func(bar controlbar.Bar) bool { return bar.Time.Valid() }},
+		{"speed", 5, present(controlbar.ActionSpeed)},
+		{"translation", 6, present(controlbar.ActionTranslation)},
+		{"mute", 7, present(controlbar.ActionMute)},
+		{"menus", 8, present(controlbar.ActionMenu)},
 	}
-	for _, step := range steps {
-		bar := controlbar.Layout(layout.Rect{W: step.inner + 24, H: 400}, 1, fullState())
-		for _, action := range step.dropped {
-			if has(bar, action) {
-				t.Errorf("inner width %v kept item %d", step.inner, action)
+	gone := make([]float64, len(parts)) // the widest window without the part
+	for width := 1300.0; width >= 10; width-- {
+		bar := controlbar.Layout(layout.Rect{W: width, H: 400}, 1, fullState())
+		if !has(bar, controlbar.ActionPlayPause) || !has(bar, controlbar.ActionFullscreen) {
+			t.Fatalf("width %v lost play or fullscreen", width)
+		}
+		for i, part := range parts {
+			switch shown := part.present(bar); {
+			case gone[i] == 0 && !shown:
+				gone[i] = width
+			case gone[i] != 0 && shown:
+				t.Fatalf("%s came back at width %v after leaving at %v", part.name, width, gone[i])
 			}
 		}
-		for _, action := range step.kept {
-			if !has(bar, action) {
-				t.Errorf("inner width %v dropped item %d", step.inner, action)
-			}
-		}
 	}
-	// The study text goes first, between 872 and 871; the time between 496
-	// and 495.
-	for _, c := range []struct {
-		inner  float64
-		status bool
-		time   bool
-	}{{872, true, true}, {871, false, true}, {496, false, true}, {495, false, false}} {
-		bar := controlbar.Layout(layout.Rect{W: c.inner + 24, H: 400}, 1, fullState())
-		if bar.Status.Valid() != c.status || bar.Time.Valid() != c.time {
-			t.Errorf("inner width %v: study text %v (want %v), time %v (want %v)", c.inner, bar.Status.Valid(), c.status, bar.Time.Valid(), c.time)
+	for i, part := range parts {
+		if gone[i] == 0 {
+			t.Errorf("%s never left", part.name)
+			continue
+		}
+		if i == 0 {
+			continue
+		}
+		together := part.group == parts[i-1].group
+		if together && gone[i] != gone[i-1] || !together && !(gone[i] < gone[i-1]) {
+			t.Errorf("%s left at width %v, %s at %v", parts[i-1].name, gone[i-1], part.name, gone[i])
 		}
 	}
 }
@@ -241,41 +250,37 @@ func TestToggles(t *testing.T) {
 	}
 }
 
+// The speed list opens above its button, inside the window, with every speed
+// and the current one marked; a click on a cell picks its speed.
 func TestSpeedList(t *testing.T) {
 	state := fullState()
 	state.SpeedMenuOpen = true
 	bar := controlbar.Layout(wide, 1, state)
-	// 13 speeds in rows of 3: 5 rows. Width 3*58+2*6 = 186, height 5*28+2*6 =
-	// 152; right edge on the speed button's (1224): x 1038; y 662-152-4 = 506.
-	if bar.Menu != (layout.Rect{X: 1038, Y: 506, W: 186, H: 152}) {
-		t.Fatalf("menu = %+v", bar.Menu)
+	speed := item(t, bar, controlbar.ActionSpeed)
+	if !inside(wide, bar.Menu) || bar.Menu.Bottom() > bar.Panel.Y || bar.Menu.Right() != speed.Bounds.Right() {
+		t.Fatalf("list %+v, panel %+v, speed button %+v", bar.Menu, bar.Panel, speed.Bounds)
+	}
+	if !(bar.Band.Y < bar.Menu.Y) {
+		t.Fatalf("band top %v leaves no room for the tips above the list at %v", bar.Band.Y, bar.Menu.Y)
 	}
 	choices := 0
 	for _, it := range bar.Items {
-		if it.Action == controlbar.ActionSpeedChoice {
-			choices++
-			if it.Active != (it.Speed == 1) {
-				t.Errorf("speed %v active = %v", it.Speed, it.Active)
-			}
+		if it.Action != controlbar.ActionSpeedChoice {
+			continue
+		}
+		choices++
+		if !inside(bar.Menu, it.Bounds) || it.Active != (it.Speed == 1) {
+			t.Errorf("speed %v at %+v, active %v", it.Speed, it.Bounds, it.Active)
+		}
+		if got := bar.HitTest(center(it.Bounds)); got.Action != controlbar.ActionSpeedChoice || got.Speed != it.Speed {
+			t.Errorf("the cell of %v picked %+v", it.Speed, got)
 		}
 	}
 	if choices != len(playback.SpeedSteps()) {
 		t.Fatalf("%d choices, want %d", choices, len(playback.SpeedSteps()))
 	}
-	// First cell (0.25) at 1044,512; the 8th (1.0) is row 2, column 1:
-	// 1044+58 = 1102, 512+2*28 = 568.
-	if got := bar.HitTest(1050, 515); got.Action != controlbar.ActionSpeedChoice || got.Speed != 0.25 {
-		t.Fatalf("first cell hit %+v", got)
-	}
-	if got := bar.HitTest(1110, 575); got.Speed != 1 {
-		t.Fatalf("cell of 1x hit %+v", got)
-	}
-	if !bar.Covers(1100, 600) {
+	if !bar.Covers(center(bar.Menu)) {
 		t.Fatal("the open list must take the mouse")
-	}
-	// The band grows to hold the list and the tips above it: 506-34 = 472.
-	if bar.Band.Y != 472 {
-		t.Fatalf("band top = %v", bar.Band.Y)
 	}
 	// Without the speed capability the list never opens.
 	state.Capabilities.Speed = false
@@ -297,11 +302,12 @@ func TestSpeedListStaysInsideASmallWindow(t *testing.T) {
 func TestTrackPosition(t *testing.T) {
 	bar := controlbar.Layout(wide, 1, fullState())
 	duration := 100 * time.Second
+	track := bar.Track
 	cases := []struct {
 		x    float64
 		want time.Duration
 	}{
-		{12, 0}, {1268, duration}, {12 + 628, 50 * time.Second}, {-5, 0}, {99999, duration},
+		{track.X, 0}, {track.Right(), duration}, {track.X + track.W/2, 50 * time.Second}, {-5, 0}, {99999, duration},
 		{math.NaN(), 0}, {math.Inf(1), duration}, {math.Inf(-1), 0},
 	}
 	for _, c := range cases {
@@ -322,8 +328,8 @@ func TestTrackPosition(t *testing.T) {
 
 func TestVolumeAt(t *testing.T) {
 	bar := controlbar.Layout(wide, 1, fullState())
-	// Volume line from 280, 64 wide.
-	for x, want := range map[float64]playback.Volume{280: 0, 312: 0.5, 344: 1, 100: 0, 500: 1} {
+	line := bar.VolumeTrack
+	for x, want := range map[float64]playback.Volume{line.X: 0, line.X + line.W/2: 0.5, line.Right(): 1, line.X - 50: 0, line.Right() + 50: 1} {
 		if got := bar.VolumeAt(x); got != want {
 			t.Errorf("VolumeAt(%v) = %v, want %v", x, got, want)
 		}
@@ -355,9 +361,11 @@ func TestScale(t *testing.T) {
 			t.Errorf("Scale(%d) = %v, want %v", dpi, got, want)
 		}
 	}
-	bar := controlbar.Layout(wide, 2, fullState())
-	if bar.Panel.H != 116 || bar.Panel.Y != 720-116 || item(t, bar, controlbar.ActionPlayPause).Bounds.W != 80 {
-		t.Fatalf("scale 2: panel %+v", bar.Panel)
+	// At 200% everything is twice as big.
+	one, two := controlbar.Layout(wide, 1, fullState()), controlbar.Layout(wide, 2, fullState())
+	if two.Panel.H != 2*one.Panel.H || two.Panel.Bottom() != wide.H ||
+		item(t, two, controlbar.ActionPlayPause).Bounds.W != 2*item(t, one, controlbar.ActionPlayPause).Bounds.W {
+		t.Fatalf("scale 2: panel %+v, at scale 1 %+v", two.Panel, one.Panel)
 	}
 }
 
@@ -375,17 +383,16 @@ func TestLayoutRejectsUnusableInput(t *testing.T) {
 	}
 }
 
+// The bar shows when the mouse is in the bottom fifth of the video, or in
+// the two panels' height at the bottom when that is taller.
 func TestInZone(t *testing.T) {
-	// 720 high: the zone is max(20% of 720, 2*58) = 144 pixels: from 576.
-	for y, want := range map[float64]bool{576: true, 575.99: false, 719.99: true, 720: false, 0: false, math.NaN(): false} {
-		if got := controlbar.InZone(wide, y, 1); got != want {
-			t.Errorf("InZone(%v) = %v, want %v", y, got, want)
+	for _, area := range []layout.Rect{wide, {W: 300, H: 200}} {
+		top := area.H - math.Max(0.2*area.H, 2*controlbar.PanelHeight(1))
+		for y, want := range map[float64]bool{top: true, top - 0.01: false, area.H - 0.01: true, area.H: false, 0: false, math.NaN(): false} {
+			if got := controlbar.InZone(area, y, 1); got != want {
+				t.Errorf("InZone(%v high, %v) = %v, want %v", area.H, y, got, want)
+			}
 		}
-	}
-	// 200 high: 20% is 40, less than two panels (116): from 84.
-	small := layout.Rect{W: 300, H: 200}
-	if !controlbar.InZone(small, 84, 1) || controlbar.InZone(small, 83.9, 1) {
-		t.Error("a small window's zone must be two panels high")
 	}
 	if controlbar.InZone(layout.Rect{}, 0, 1) {
 		t.Error("an empty window has no zone")

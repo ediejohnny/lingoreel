@@ -11,6 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // The rig's lines: on top "Hello there." (e1), below "Olá." (p1), both
@@ -24,7 +25,7 @@ func playbackAt(position time.Duration) playback.Sample {
 // screenShows waits until the display's latest screen passes check.
 func screenShows(t *testing.T, r *rig, what string, check func(session.Screen) bool) {
 	t.Helper()
-	eventually(t, what, func() bool {
+	testkit.Eventually(t, what, func() bool {
 		screen, shown, _, _ := r.display.last()
 		return shown > 0 && check(screen)
 	})
@@ -254,7 +255,7 @@ func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
 	}
 	s := r.start(t)
 	r.running.samples <- playbackAt(2 * time.Second)
-	eventually(t, "the position", func() bool { return s.State().Position >= 2*time.Second })
+	testkit.Eventually(t, "the position", func() bool { return s.State().Position >= 2*time.Second })
 
 	selection, err := s.Select(session.LinePrimary)
 	if err != nil || selection.Offset.PlaybackTime(selection.Event.Start) != 1500*time.Millisecond {
@@ -317,7 +318,13 @@ func TestEveryEditReachesTheScreen(t *testing.T) {
 	if _, err := s.Select(session.LinePrimary); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 300 {
+	// The race it guards against shows only now and then: the full check
+	// tries many times, the quick one a few.
+	tries := 300
+	if testing.Short() {
+		tries = 30
+	}
+	for i := range tries {
 		text := fmt.Sprintf("Edit number %d.", i)
 		if err := s.Edit(watch.EditChange{Text: &text}); err != nil {
 			t.Fatal(err)

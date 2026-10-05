@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Design tokens (DESIGN §4, §5, §57). Components use only these names, so a
+ * Design tokens. Components use only these names, so a
  * theme changes the tokens and never the components.
  */
 :root {
@@ -81,7 +81,7 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* Motion tokens (DESIGN §45) and reduced motion (§46). */
+/* Motion tokens and reduced motion. */
 :root {
   --duration-fast: 120ms;
   --duration-normal: 200ms;
@@ -108,7 +108,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Focus is always visible (DESIGN §21). */
+/* Focus is always visible. */
 :focus-visible {
   outline: 2px solid var(--sp-focus);
   outline-offset: 2px;

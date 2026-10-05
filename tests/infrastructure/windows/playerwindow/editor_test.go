@@ -19,6 +19,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -84,7 +85,7 @@ func newEditorRig(t *testing.T) *editorRig {
 	if err := w.Show(session.Screen{Primary: "That's sick!", TranslationVisible: true}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the line drawn", func() bool {
+	testkit.Eventually(t, "the line drawn", func() bool {
 		box, ok := w.LineBounds(session.LinePrimary)
 		r.box = box
 		return ok
@@ -132,7 +133,7 @@ func editorBox() windows.HWND {
 func (r *editorRig) open() (box, field windows.HWND) {
 	r.t.Helper()
 	r.onTheLine()
-	eventually(r.t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
+	testkit.Eventually(r.t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
 	field = child(box, "Edit")
 	if field == 0 {
 		r.t.Fatal("the box has no text field")
@@ -160,7 +161,7 @@ func setText(hwnd windows.HWND, text string) {
 // gone waits for the box to close.
 func (r *editorRig) gone(box windows.HWND) {
 	r.t.Helper()
-	eventually(r.t, "the box to close", func() bool { return !windows.IsWindow(box) })
+	testkit.Eventually(r.t, "the box to close", func() bool { return !windows.IsWindow(box) })
 }
 
 // noEditsSince checks no text was saved beyond the first n, a moment later.
@@ -176,6 +177,7 @@ func (r *editorRig) noEditsSince(n int, what string) {
 // Two clicks on a line of the paused video open the box over it, with the
 // line's text, instead of the fullscreen; closing the window closes it.
 func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	before, err := win32.WindowRect(r.host)
 	if err != nil {
@@ -246,13 +248,14 @@ func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
 // text save nothing, an empty text keeps the box open on Enter and is dropped
 // when the box loses the keys, and losing the keys saves a real change.
 func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 
 	box, field := r.open()
 	setText(field, "Que loucura!\r\nDe verdade")
 	post(t, field, wmChar, charEnterKey, 0)
 	r.gone(box)
-	eventually(t, "the text saved", func() bool { return len(r.remote.edited()) == 1 })
+	testkit.Eventually(t, "the text saved", func() bool { return len(r.remote.edited()) == 1 })
 	if got := r.remote.edited()[0]; got != "Que loucura!\nDe verdade" {
 		t.Fatalf("saved %q", got)
 	}
@@ -284,7 +287,7 @@ func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
 	setText(field, "Fixed.")
 	post(t, field, wmKillFocus, 0, 0)
 	r.gone(box)
-	eventually(t, "the text saved on leaving", func() bool { return len(r.remote.edited()) == 2 })
+	testkit.Eventually(t, "the text saved on leaving", func() bool { return len(r.remote.edited()) == 2 })
 	if got := r.remote.edited()[1]; got != "Fixed." {
 		t.Fatalf("saved %q on leaving", got)
 	}
@@ -293,6 +296,7 @@ func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
 // A line of two lines opens as two lines (the field breaks only on CR LF),
 // and saved untouched it changes nothing.
 func TestALineOfTwoLinesOpensAsTwo(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	r.remote.mu.Lock()
 	r.remote.lineText = "Line one\nLine two"
@@ -309,6 +313,7 @@ func TestALineOfTwoLinesOpensAsTwo(t *testing.T) {
 // A line is corrected with the video paused: the box closes, saving
 // nothing, once it plays.
 func TestTheBoxClosesWhenTheVideoPlays(t *testing.T) {
+	testkit.Slow(t)
 	r := newEditorRig(t)
 	box, field := r.open()
 	setText(field, "Halfway")
@@ -331,7 +336,7 @@ func TestTwoClicksOnAPlayingLineGoFullscreen(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.onTheLine()
-	eventually(t, "the fullscreen", func() bool { rect, err := win32.WindowRect(r.host); return err == nil && rect == monitor })
+	testkit.Eventually(t, "the fullscreen", func() bool { rect, err := win32.WindowRect(r.host); return err == nil && rect == monitor })
 	if box := editorBox(); box != 0 {
 		t.Fatal("two clicks on a playing line opened the box")
 	}

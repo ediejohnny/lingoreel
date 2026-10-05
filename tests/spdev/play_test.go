@@ -198,7 +198,7 @@ func TestPlayFollowsSubtitlesWithRealVLC(t *testing.T) {
 	// The printed position is the session clock's own reading when the change
 	// fires, so it only proves the runner wakes at the boundaries of that
 	// clock; how far the clock is from VLC's picture is measured in the
-	// hardening phase. The wall-clock gaps are the independent check: at 1x,
+	// real-VLC tests. The wall-clock gaps are the independent check: at 1x,
 	// the real time between two changes must match the video time between
 	// them, which fails if the clock drifts from VLC or jumps on re-anchoring.
 	const clockTolerance = 150 * time.Millisecond

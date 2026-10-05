@@ -149,7 +149,7 @@ func TestLongTranslationNeverCoversThePrimary(t *testing.T) {
 	}
 }
 
-// DESIGN §23: the English line never moves when the translation appears, not
+// The English line never moves when the translation appears, not
 // even when the translation does not fit on its side. At 1280x720 the
 // primary (82%) has about 97 px below it; this translation needs more even at
 // 80%, so it must go above the primary, which stays put.
@@ -192,7 +192,7 @@ func TestPrimaryStaysEvenWhenNothingFits(t *testing.T) {
 	}
 }
 
-// PRD §34: a block may not take more than 35% of the picture height; past
+// A block may not take more than 35% of the picture height; past
 // the line limit it keeps shrinking (never cut) until it fits or reaches the
 // minimum. 400 words at 1920x1080: at 80% (25.6 px) they need 15 lines of
 // 32 px = 480 px, more than 378 px (35%).

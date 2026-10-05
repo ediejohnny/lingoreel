@@ -52,7 +52,7 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
 }
 
-/** IconButton has a comfortable click area larger than its icon (DESIGN §48). */
+/** IconButton has a comfortable click area larger than its icon. */
 export function IconButton({ icon: Icon, label, size = "md", active = false, className = "", ...rest }: IconButtonProps) {
   const sizing = size === "lg" ? "size-12" : "size-9";
   const tone = active ? "bg-accent-soft text-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg";

@@ -9,7 +9,7 @@ interface HelpTipProps {
 
 /**
  * HelpTip is the (?) next to a control whose effect is not obvious
- * (DESIGN §22.1): it opens with a click, Enter or Space and closes with Esc
+ * on its own: it opens with a click, Enter or Space and closes with Esc
  * or a click elsewhere.
  */
 export function HelpTip({ topic, children }: HelpTipProps) {

@@ -107,7 +107,7 @@ func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 		t.Fatalf("container read again when loading: %v", reader.requested)
 	}
 	// The analysis already read the file to learn its language; loading it
-	// again would parse up to 32 MB twice (RNF-011).
+	// again would parse up to 32 MB twice.
 	if len(files.loaded) != 0 {
 		t.Fatalf("files read again when loading: %v", files.loaded)
 	}

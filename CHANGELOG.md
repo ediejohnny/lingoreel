@@ -97,9 +97,9 @@ Robustness and packaging.
 - Daily logs with the session's events
 - One app at a time, a second launch opens its video here
 - Wait for a silent player, and hold the subtitles of a frozen one
-- Say what went wrong and what to do (PRD §52)
-- Diagnostics in the advanced settings (RNF-032)
-- Optional "Abrir com" and context menu entry for videos (RF-001)
+- Say what went wrong and what to do
+- Diagnostics in the advanced settings
+- Optional "Abrir com" and context menu entry for videos
 
 ### Changed
 
