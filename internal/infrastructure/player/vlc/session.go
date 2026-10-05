@@ -120,6 +120,18 @@ func (s *Session) ReportedVolume() (playback.Volume, bool, error) {
 	return playback.Volume(current.Volume / vlcFullVolume), true, nil
 }
 
+// ReportedAudioTrack is the playing audio track by its position among the
+// audio tracks, as SelectAudioTrack counts them; false for none.
+func (s *Session) ReportedAudioTrack() (int, bool, error) {
+	ctx, cancel := context.WithTimeout(s.pollCtx, requestTimeout)
+	defer cancel()
+	current, err := s.client.call(ctx, nil)
+	if err != nil {
+		return 0, false, err
+	}
+	return current.Audio, current.Audio >= 0, nil
+}
+
 // ProcessID identifies the VLC process, whose window the overlay follows.
 func (s *Session) ProcessID() int {
 	return s.cmd.Process.Pid

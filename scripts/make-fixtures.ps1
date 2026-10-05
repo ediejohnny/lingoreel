@@ -140,17 +140,17 @@ function New-StudySample([string]$Vlc, [string]$Mkvmerge, [string]$Destination) 
 $mkvmerge = Find-Mkvmerge
 Write-Host "Using $mkvmerge"
 
-Write-Host "[1/4] subtitles.mkv (no compression)..."
+Write-Host "[1/5] subtitles.mkv (no compression)..."
 $plain = Join-Path $fixtures "subtitles.mkv"
 Invoke-Native -FilePath $mkvmerge -Arguments (@("--quiet", "--no-date", "--output", $plain, "--compression", "-1:none") + (Get-SubtitleArguments)) `
     -FailureMessage "mkvmerge failed to generate subtitles.mkv"
 
-Write-Host "[2/4] subtitles-zlib.mkv (zlib compression)..."
+Write-Host "[2/5] subtitles-zlib.mkv (zlib compression)..."
 $compressed = Join-Path $fixtures "subtitles-zlib.mkv"
 Invoke-Native -FilePath $mkvmerge -Arguments (@("--quiet", "--no-date", "--output", $compressed, "--compression", "-1:zlib") + (Get-SubtitleArguments)) `
     -FailureMessage "mkvmerge failed to generate subtitles-zlib.mkv"
 
-Write-Host "[3/4] study-sample.mkv (synthetic video with audio and subtitles)..."
+Write-Host "[3/5] study-sample.mkv (synthetic video with audio and subtitles)..."
 $studySample = Join-Path $root "tests\testdata\video\study-sample.mkv"
 $vlc = Find-Vlc
 if (-not $vlc) {
@@ -163,10 +163,16 @@ else {
 # Positions past 2^31 microseconds (35 min 47 s) overflow 32-bit integers;
 # stretching the sample's timestamps 120 times gives a 40-minute file of a
 # few kilobytes to test them.
-Write-Host "[4/4] long-sample.mkv (40 minutes, video only)..."
+Write-Host "[4/5] long-sample.mkv (40 minutes, video only)..."
 Invoke-Native -FilePath $mkvmerge -Arguments @("--quiet", "--no-date", "--output", (Join-Path $root "tests\testdata\video\long-sample.mkv"),
     "--no-audio", "--no-subtitles", "--sync", "-1:0,120", $studySample) `
     -FailureMessage "mkvmerge failed to generate long-sample.mkv"
+
+# Switching the audio while the video plays needs two audio tracks: the
+# sample's own (English) and the same sound again, as Portuguese.
+Write-Host "[5/5] dual-audio-sample.mkv (two audio tracks)..."
+Invoke-Native -FilePath $mkvmerge -Arguments @("--quiet", "--no-date", "--regenerate-track-uids", "--output", (Join-Path $root "tests\testdata\video\dual-audio-sample.mkv"),
+    "--no-subtitles", $studySample, "--no-video", "--no-subtitles", "--language", "1:por", $studySample) `n    -FailureMessage "mkvmerge failed to generate dual-audio-sample.mkv"
 
 Write-Host ""
 Write-Host "Fixtures generated in $fixtures" -ForegroundColor Green

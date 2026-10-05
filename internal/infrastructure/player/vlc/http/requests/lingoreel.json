@@ -68,13 +68,27 @@ else
   end
 
   if input then
+    -- The playing audio track by its position among the audio tracks, as
+    -- the "audio" command counts them; -1 for none.
+    local audio = -1
+    local okList, ids = pcall(vlc.var.get_list, input, "audio-es")
+    local okCurrent, current = pcall(vlc.var.get, input, "audio-es")
+    if okList and okCurrent and ids then
+      local position = 0
+      for _, id in ipairs(ids) do
+        if id >= 0 then
+          if id == current then audio = position end
+          position = position + 1
+        end
+      end
+    end
     -- %.0f, not %d: VLC's Lua formats %d as a 32-bit int, which overflows
     -- at 2^31 microseconds (35 min 47 s).
-    print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f,"volume":%.0f}',
+    print(string.format('{"status":"%s","time":%.0f,"length":%.0f,"rate":%.4f,"volume":%.0f,"audio":%.0f}',
       vlc.playlist.status(), math.floor(vlc.var.get(input, "time")),
-      math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate"), vlc.volume.get()))
+      math.floor(vlc.var.get(input, "length")), vlc.var.get(input, "rate"), vlc.volume.get(), audio))
   else
-    print('{"status":"stopped","time":0,"length":0,"rate":1}')
+    print('{"status":"stopped","time":0,"length":0,"rate":1,"audio":-1}')
   end
 end
 ?>
