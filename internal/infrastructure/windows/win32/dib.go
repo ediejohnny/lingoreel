@@ -70,6 +70,21 @@ func (d *DIB) Clear() {
 	clear(d.Pixels)
 }
 
+// Release hands the bitmap over and frees the device context: a bitmap
+// still selected into a DC shows nowhere else (a menu item's picture, for
+// one). The caller then owns the bitmap and frees it with DeleteBitmap; the
+// DIB is empty afterwards.
+func (d *DIB) Release() windows.Handle {
+	if d == nil || d.DC == 0 {
+		return 0
+	}
+	bitmap := d.bitmap
+	procSelectObject.Call(uintptr(d.DC), d.old)
+	procDeleteDC.Call(uintptr(d.DC))
+	d.Pixels, d.DC, d.bitmap = nil, 0, 0
+	return bitmap
+}
+
 // Close releases the bitmap and its device context.
 func (d *DIB) Close() {
 	if d == nil || d.DC == 0 {
