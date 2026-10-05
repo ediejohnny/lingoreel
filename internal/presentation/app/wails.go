@@ -51,3 +51,11 @@ func (w wailsUI) SaveSubtitleDialog(name string) (string, error) {
 func (w wailsUI) OpenURL(url string) {
 	runtime.BrowserOpenURL(w.ctx, url)
 }
+
+func (w wailsUI) SetTitle(title string) {
+	runtime.WindowSetTitle(w.ctx, title)
+}
+
+func (w wailsUI) Quit() {
+	runtime.Quit(w.ctx)
+}

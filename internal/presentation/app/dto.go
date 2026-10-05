@@ -107,7 +107,10 @@ type WatchRequest struct {
 
 // Playback is the state of the session, sent a few times per second.
 type Playback struct {
-	Active   bool    `json:"active"`
+	Active bool `json:"active"`
+	// Embedded tells the video is drawn inside the app's window, beside its
+	// panel; otherwise the player shows it in a window of its own.
+	Embedded bool    `json:"embedded"`
 	Status   string  `json:"status"`
 	Position float64 `json:"position"`
 	Duration float64 `json:"duration"`
@@ -261,6 +264,8 @@ type Ended struct {
 type Preferences struct {
 	Theme  string    `json:"theme"`
 	Speeds []float64 `json:"speeds"`
+	// Panel is how the panel beside the video was left.
+	Panel PanelState `json:"panel"`
 }
 
 // InstallProgress reports an installation; Done with an empty Error is a

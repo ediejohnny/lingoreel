@@ -66,18 +66,25 @@ const windowCommands = new Set(["fullscreen", "exit-fullscreen"]);
 
 /**
  * panelCommand is the command a key going down runs on the panel, or ""
- * when none: a chord no command has, or a command of the player window.
+ * when none: a chord no command has, or a command of a player window of its
+ * own. With the video inside the app's window (embedded), the panel runs the
+ * fullscreen keys too.
  */
-export function panelCommand(press: KeyPress, keys: CommandKey[]): string {
+export function panelCommand(press: KeyPress, keys: CommandKey[], embedded = false): string {
   const chord = chordOf(press);
   if (chord === "") {
     return "";
   }
   const found = keys.find((key) => key.chord === chord);
-  if (!found || windowCommands.has(found.command)) {
+  if (!found || (!embedded && windowCommands.has(found.command))) {
     return "";
   }
   return found.command;
+}
+
+/** fullscreenOf tells the commands the window runs itself: fullscreen on, or off. */
+export function fullscreenOf(command: string): boolean | undefined {
+  return command === "fullscreen" ? true : command === "exit-fullscreen" ? false : undefined;
 }
 
 /** keyLabel is a command's keys as shown ("Shift+,"), or "" without a shortcut. */

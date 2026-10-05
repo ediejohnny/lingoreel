@@ -15,7 +15,7 @@ export function HomePage({ loading, error, onChoose, onDismissError }: HomePageP
     <main className="flex flex-1 items-center justify-center p-8">
       <div className="flex w-full max-w-xl flex-col gap-4">
         <div className="flex flex-col items-center gap-5 rounded-card border-2 border-dashed border-line-strong bg-surface px-8 py-14 text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <span className="flex size-14 items-center justify-center rounded-control bg-accent-soft text-accent">
             <Clapperboard aria-hidden className="size-7" />
           </span>
           {loading ? (

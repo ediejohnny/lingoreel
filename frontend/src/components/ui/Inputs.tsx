@@ -150,7 +150,7 @@ export function Segmented({ label, value, options, onChange, help }: SegmentedPr
             role="radio"
             aria-checked={option.value === value}
             onClick={() => onChange(option.value)}
-            className={`h-8 rounded-[calc(var(--radius-control)-2px)] px-3 text-sm transition-colors duration-[var(--duration-fast)] ${
+            className={`h-8 rounded-control px-3 text-sm transition-colors duration-[var(--duration-fast)] ${
               option.value === value ? "bg-accent text-on-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg"
             }`}
           >

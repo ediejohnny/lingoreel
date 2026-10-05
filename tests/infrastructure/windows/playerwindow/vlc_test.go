@@ -27,7 +27,7 @@ var (
 func vlcExecutable(t *testing.T) string {
 	t.Helper()
 	if os.Getenv("LINGOREEL_VLC_TEST") != "1" {
-		t.Skip("defina LINGOREEL_VLC_TEST=1 para abrir o VLC de verdade")
+		t.Skip("set LINGOREEL_VLC_TEST=1 to run against the installed VLC")
 	}
 	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, []discovery.Hints{vlc.Plugin{}.Hints()}, nil) {
 		if installation.ID == player.VLC {
@@ -148,4 +148,38 @@ func hasVisibleTopLevel(pid uint32) bool {
 	})
 	_ = windows.EnumWindows(callback, unsafe.Pointer(nil))
 	return found
+}
+
+// On a stage, VLC draws inside the host that is a child of the app's
+// window, with no window of its own, and leaves with the session.
+func TestVLCDrawsInsideTheAppWindow(t *testing.T) {
+	executable := vlcExecutable(t)
+	video, err := filepath.Abs(sampleVideo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := newFakeApp(t, offScreenApp, true)
+	w := openOn(t, stageFor(app, nil))
+	host := windows.HWND(w.Handle())
+	if parent, _, _ := getParent.Call(uintptr(host)); windows.HWND(parent) != app.hwnd {
+		t.Fatalf("the video's window has parent %#x, want the app's window %#x", parent, app.hwnd)
+	}
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, Start: 4500 * time.Millisecond, Host: w.Handle()})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	pid := session.ProcessID()
+	testkit.Eventually(t, "VLC's video window inside the app's window", func() bool { return childrenOf(host)[uint32(pid)] > 0 })
+	if hasVisibleTopLevel(uint32(pid)) {
+		t.Fatal("VLC opened a window of its own")
+	}
+	if err := session.Close(); err != nil {
+		t.Fatalf("closing VLC: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("closing the window: %v", err)
+	}
+	if processRunning(pid) {
+		t.Fatal("VLC is still running after the session ended")
+	}
 }

@@ -88,11 +88,15 @@ export function SelectLine(arg1:string):Promise<void>;
 
 export function SetFileAssociation(arg1:boolean):Promise<void>;
 
+export function SetFullscreen(arg1:boolean):Promise<void>;
+
 export function SetKaraoke(arg1:boolean):Promise<void>;
 
 export function SetKaraokeIndicator(arg1:string):Promise<void>;
 
 export function SetLineRepeats(arg1:number):Promise<void>;
+
+export function SetPanel(arg1:app.PanelState):Promise<void>;
 
 export function SetPassageOptions(arg1:app.PassageOptions):Promise<void>;
 
@@ -107,6 +111,8 @@ export function SetSyncNotice(arg1:boolean):Promise<void>;
 export function SetTheme(arg1:string):Promise<void>;
 
 export function SetTranslationVisible(arg1:boolean):Promise<void>;
+
+export function SetVideoLayout(arg1:app.VideoLayout):Promise<void>;
 
 export function Settings():Promise<app.SettingsView>;
 

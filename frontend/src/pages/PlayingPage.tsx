@@ -9,7 +9,7 @@ import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
 import { isTyping, speedLabel } from "../format";
-import { keyLabel, panelCommand, translationCommand, withKey } from "../keys";
+import { fullscreenOf, keyLabel, panelCommand, translationCommand, withKey } from "../keys";
 import { backend, type Choice, type Line, type Playback, type ShortcutSetting } from "../services/backend";
 
 /** seekStep is the jump of the back and forward buttons, in seconds. */
@@ -20,6 +20,8 @@ const alwaysMode = "always";
 
 interface PlayingPageProps {
   name: string;
+  /** embedded is the panel beside the video inside the app's window: the bar over the video has the timeline and the play buttons. */
+  embedded?: boolean;
   state: Playback;
   speeds: number[];
   modes: Choice[];
@@ -38,6 +40,7 @@ interface PlayingPageProps {
     runShortcut: (command: string, repeat: boolean) => Promise<void>;
     reveal: (pressed: boolean) => Promise<void>;
     stop: () => Promise<void>;
+    setFullscreen: (on: boolean) => Promise<void>;
   };
 }
 
@@ -64,7 +67,17 @@ function syncHelp(primaryKeys: string, translationKeys: string): string {
 }
 
 /** PlayingPage is the playback panel while the video plays in the player. */
-export function PlayingPage({ name, state, speeds, modes, error, onDismissError, onCommand, commands }: PlayingPageProps) {
+export function PlayingPage({
+  name,
+  embedded = false,
+  state,
+  speeds,
+  modes,
+  error,
+  onDismissError,
+  onCommand,
+  commands,
+}: PlayingPageProps) {
   const playing = state.status === "playing";
   const { capabilities } = state;
   const [keys, setKeys] = useState<ShortcutSetting[]>([]);
@@ -95,11 +108,16 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
       if (isTyping(event.target)) {
         return;
       }
-      const command = panelCommand(event, keys);
+      const command = panelCommand(event, keys, embedded);
       if (command === "") {
         return;
       }
       event.preventDefault();
+      const fullscreen = fullscreenOf(command);
+      if (fullscreen !== undefined) {
+        onCommand(() => commands.setFullscreen(fullscreen));
+        return;
+      }
       if (command === translationCommand) {
         if (!event.repeat) {
           revealCode = event.code;
@@ -125,7 +143,7 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
       window.removeEventListener("blur", release);
       release();
     };
-  }, [keys, commands, onCommand]);
+  }, [keys, commands, onCommand, embedded]);
 
   const speedOptions = speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }));
   const currentSpeed = speeds.find((speed) => Math.abs(speed - state.speed) < 1e-6) ?? 1;
@@ -134,8 +152,8 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
   const translationKeys = both(label("sync-translation-earlier"), label("sync-translation-later"));
 
   return (
-    <main className="flex flex-1 justify-center overflow-y-auto p-6">
-      <div className="flex w-full max-w-3xl flex-col gap-5">
+    <main className={`flex min-w-0 flex-1 justify-center overflow-y-auto ${embedded ? "overflow-x-hidden p-4" : "p-6"}`}>
+      <div className="flex w-full max-w-3xl min-w-0 flex-col gap-5">
         {error && (
           <Banner tone="error" onClose={onDismissError}>
             {error}
@@ -143,44 +161,46 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
         )}
         {state.health && <Banner tone="warning">{state.health}</Banner>}
         {state.projectNote && <Banner tone="warning">{state.projectNote}</Banner>}
-        <Card>
-          <p className="mb-1 truncate text-sm text-fg-muted">Tocando no player</p>
-          <h1 className="mb-5 truncate text-lg font-semibold text-fg" title={name}>
-            {name}
-          </h1>
-          <Timeline
-            position={state.position}
-            duration={state.duration}
-            positionText={state.positionText}
-            durationText={state.durationText}
-            disabled={!capabilities.seek}
-            onSeek={(seconds) => onCommand(() => commands.seekTo(seconds))}
-          />
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <IconButton
-              icon={Rewind}
-              label={withKey(`Voltar ${seekStep} segundos`, label("seek-back"))}
+        {!embedded && (
+          <Card>
+            <p className="mb-1 truncate text-sm text-fg-muted">Tocando no player</p>
+            <h1 className="mb-5 truncate text-lg font-semibold text-fg" title={name}>
+              {name}
+            </h1>
+            <Timeline
+              position={state.position}
+              duration={state.duration}
+              positionText={state.positionText}
+              durationText={state.durationText}
               disabled={!capabilities.seek}
-              onClick={() => onCommand(() => commands.seekBy(-seekStep))}
+              onSeek={(seconds) => onCommand(() => commands.seekTo(seconds))}
             />
-            <IconButton
-              icon={playing ? Pause : Play}
-              label={withKey(playing ? "Pausar" : "Reproduzir", label("play-pause"))}
-              size="lg"
-              active
-              disabled={!capabilities.pause}
-              onClick={() => onCommand(commands.togglePause)}
-            />
-            <IconButton
-              icon={FastForward}
-              label={withKey(`Avançar ${seekStep} segundos`, label("seek-forward"))}
-              disabled={!capabilities.seek}
-              onClick={() => onCommand(() => commands.seekBy(seekStep))}
-            />
-          </div>
-        </Card>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <IconButton
+                icon={Rewind}
+                label={withKey(`Voltar ${seekStep} segundos`, label("seek-back"))}
+                disabled={!capabilities.seek}
+                onClick={() => onCommand(() => commands.seekBy(-seekStep))}
+              />
+              <IconButton
+                icon={playing ? Pause : Play}
+                label={withKey(playing ? "Pausar" : "Reproduzir", label("play-pause"))}
+                size="lg"
+                active
+                disabled={!capabilities.pause}
+                onClick={() => onCommand(commands.togglePause)}
+              />
+              <IconButton
+                icon={FastForward}
+                label={withKey(`Avançar ${seekStep} segundos`, label("seek-forward"))}
+                disabled={!capabilities.seek}
+                onClick={() => onCommand(() => commands.seekBy(seekStep))}
+              />
+            </div>
+          </Card>
+        )}
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className={`grid gap-5 [&>*]:min-w-0 ${embedded ? "" : "sm:grid-cols-2"}`}>
           <Card title="Reprodução">
             <div className="flex flex-col gap-4">
               <Select
@@ -232,7 +252,9 @@ export function PlayingPage({ name, state, speeds, modes, error, onDismissError,
           </Card>
         </div>
 
-        <EditorCard state={state} label={label} onCommand={onCommand} />
+        <div id="panel-editor">
+          <EditorCard state={state} label={label} onCommand={onCommand} />
+        </div>
 
         <TrainingCards state={state} label={label} onCommand={onCommand} />
 

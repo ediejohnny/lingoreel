@@ -195,6 +195,12 @@ func (w *fakeWindow) state() (watch.Remote, int) {
 	return w.remote, w.closes
 }
 
+func (w *fakeWindow) lastKeys() shortcut.Map {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.keys
+}
+
 // --- display and shortcuts ---
 
 type fakeDisplay struct {
@@ -616,6 +622,49 @@ func TestAPlayerWithItsOwnWindowGetsNoAppWindow(t *testing.T) {
 	}
 	if r.target != (watch.ShortcutTarget{ProcessID: 4242}) {
 		t.Fatalf("shortcut target = %+v", r.target)
+	}
+}
+
+// Inside the app's window the window takes every key itself, and the app's
+// panel takes them when it has the keyboard: system-wide shortcuts would
+// only take "<" from the panel's fields.
+func TestAWindowThatHearsTheKeysStartsNoGlobalShortcuts(t *testing.T) {
+	r, window, _ := hostedRig(t)
+	r.ports.WindowHearsKeys = true
+	s := r.start(t)
+	r.mu.Lock()
+	starts := len(r.chords)
+	r.mu.Unlock()
+	if starts != 0 {
+		t.Fatalf("the global shortcuts started %d times for a window that hears the keys", starts)
+	}
+	// Changing the keys starts none either; the window gets them.
+	keys := shortcut.Defaults()
+	keys[shortcut.SyncPrimaryEarlier] = shortcut.Chord{Key: "KeyJ"}
+	if err := s.SetShortcuts(keys); err != nil {
+		t.Fatalf("SetShortcuts: %v", err)
+	}
+	r.mu.Lock()
+	starts = len(r.chords)
+	r.mu.Unlock()
+	if starts != 0 {
+		t.Fatalf("changing the keys started the global shortcuts %d times", starts)
+	}
+	if got := window.lastKeys(); got[shortcut.SyncPrimaryEarlier] != (shortcut.Chord{Key: "KeyJ"}) {
+		t.Fatalf("the window has %v for the sync key, want KeyJ", got[shortcut.SyncPrimaryEarlier])
+	}
+}
+
+// A player in a window of its own (PotPlayer) keeps the global shortcuts:
+// the app hears no key while that window is in front.
+func TestAPlayerInItsOwnWindowKeepsTheGlobalShortcuts(t *testing.T) {
+	r := newRig(t)
+	r.ports.WindowHearsKeys = true // about the app's window, which this player does not use
+	r.start(t)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.chords) != 1 || len(r.chords[0]) == 0 {
+		t.Fatalf("global shortcuts started %d times, want once with the sync and mark keys", len(r.chords))
 	}
 }
 

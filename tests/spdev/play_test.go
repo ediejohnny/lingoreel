@@ -160,7 +160,7 @@ func parseChanges(t *testing.T, lines []stampedLine) []change {
 // and checks that each subtitle appears near its start time, in order.
 func TestPlayFollowsSubtitlesWithRealVLC(t *testing.T) {
 	if os.Getenv("LINGOREEL_VLC_TEST") != "1" {
-		t.Skip("defina LINGOREEL_VLC_TEST=1 para abrir o VLC de verdade")
+		t.Skip("set LINGOREEL_VLC_TEST=1 to run against the installed VLC")
 	}
 	// Starting at 3 s covers the end of one line, a gap, two more lines and
 	// the gap after them (the lines of the sample end at 9 s).

@@ -239,6 +239,20 @@ export namespace app {
 	        this.label = source["label"];
 	    }
 	}
+	export class PanelState {
+	    open: boolean;
+	    width: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PanelState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.open = source["open"];
+	        this.width = source["width"];
+	    }
+	}
 	export class Passage {
 	    active: boolean;
 	    start: string;
@@ -398,6 +412,7 @@ export namespace app {
 	}
 	export class Playback {
 	    active: boolean;
+	    embedded: boolean;
 	    status: string;
 	    position: number;
 	    duration: number;
@@ -426,6 +441,7 @@ export namespace app {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.active = source["active"];
+	        this.embedded = source["embedded"];
 	        this.status = source["status"];
 	        this.position = source["position"];
 	        this.duration = source["duration"];
@@ -565,6 +581,7 @@ export namespace app {
 	export class Preferences {
 	    theme: string;
 	    speeds: number[];
+	    panel: PanelState;
 	
 	    static createFrom(source: any = {}) {
 	        return new Preferences(source);
@@ -574,7 +591,26 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
 	        this.speeds = source["speeds"];
+	        this.panel = this.convertValues(source["panel"], PanelState);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class StyleSettings {
 	    fontFamily: string;
@@ -1006,6 +1042,26 @@ export namespace app {
 		    }
 		    return a;
 		}
+	}
+	export class VideoLayout {
+	    visible: boolean;
+	    top: number;
+	    right: number;
+	    bottom: number;
+	    left: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VideoLayout(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.visible = source["visible"];
+	        this.top = source["top"];
+	        this.right = source["right"];
+	        this.bottom = source["bottom"];
+	        this.left = source["left"];
+	    }
 	}
 	export class WatchRequest {
 	    audio: number;

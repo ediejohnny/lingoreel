@@ -58,6 +58,10 @@ type Options struct {
 	// picture is (its list and buttons stay uncovered); zero, or a window
 	// gone or hidden, covers the whole player window.
 	Area func() uintptr
+	// AreaOnly covers Area and nothing else: with it hidden or gone, the
+	// overlay hides instead of covering the whole window, which is the
+	// app's own with its controls around the video.
+	AreaOnly bool
 	// VideoWidth and VideoHeight give the picture's aspect ratio, to keep the
 	// text inside the picture when the window has black bars; zero fills the
 	// window.
@@ -504,8 +508,12 @@ func (o *Overlay) follow() error {
 	}
 	o.area = o.target
 	if o.options.Area != nil {
-		if area := windows.HWND(o.options.Area()); area != 0 && windows.IsWindow(area) && windows.IsWindowVisible(area) {
+		switch area := windows.HWND(o.options.Area()); {
+		case area != 0 && windows.IsWindow(area) && windows.IsWindowVisible(area):
 			o.area = area
+		case o.options.AreaOnly:
+			o.hide()
+			return nil
 		}
 	}
 	bounds, err := win32.ClientRectOnScreen(o.area)
@@ -614,10 +622,23 @@ func (o *Overlay) redraw() error {
 	if err := win32.UpdateLayered(o.window, position, win32.Size{CX: int32(width), CY: int32(height)}, o.dib.DC); err != nil {
 		return fmt.Errorf("showing the overlay: %w", err)
 	}
-	if !win32.IsIconic(o.target) && windows.IsWindowVisible(o.target) {
+	if o.coverable() {
 		o.show()
 	}
 	return nil
+}
+
+// coverable tells whether there is something to cover: the player's window
+// shown and, for an overlay of its area only, that area shown.
+func (o *Overlay) coverable() bool {
+	if win32.IsIconic(o.target) || !windows.IsWindowVisible(o.target) {
+		return false
+	}
+	if !o.options.AreaOnly {
+		return true
+	}
+	area := windows.HWND(o.options.Area())
+	return area != 0 && windows.IsWindow(area) && windows.IsWindowVisible(area)
 }
 
 // LineAt tells which line was drawn at a point of the covered window's
@@ -692,6 +713,11 @@ func dispatchWindow(hwnd windows.HWND, message uint32, wparam, lparam uintptr) u
 func (o *Overlay) concerns(hwnd windows.HWND) bool {
 	if hwnd == o.target || hwnd == o.area {
 		return true
+	}
+	if o.options.AreaOnly {
+		// The area is the overlay's own: no other window of the player's
+		// counts, and the area matters even while it is hidden.
+		return hwnd == windows.HWND(o.options.Area())
 	}
 	return o.options.Area != nil && win32.RootOwner(hwnd) == o.target
 }

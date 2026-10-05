@@ -76,8 +76,8 @@
   --color-focus: var(--sp-focus);
   --shadow-card: var(--sp-shadow);
   --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
+  --radius-control: 0.1rem;
+  --radius-card: 0.1rem;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 

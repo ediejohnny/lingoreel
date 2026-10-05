@@ -174,6 +174,10 @@ export function SetFileAssociation(arg1) {
   return window['go']['app']['API']['SetFileAssociation'](arg1);
 }
 
+export function SetFullscreen(arg1) {
+  return window['go']['app']['API']['SetFullscreen'](arg1);
+}
+
 export function SetKaraoke(arg1) {
   return window['go']['app']['API']['SetKaraoke'](arg1);
 }
@@ -184,6 +188,10 @@ export function SetKaraokeIndicator(arg1) {
 
 export function SetLineRepeats(arg1) {
   return window['go']['app']['API']['SetLineRepeats'](arg1);
+}
+
+export function SetPanel(arg1) {
+  return window['go']['app']['API']['SetPanel'](arg1);
 }
 
 export function SetPassageOptions(arg1) {
@@ -212,6 +220,10 @@ export function SetTheme(arg1) {
 
 export function SetTranslationVisible(arg1) {
   return window['go']['app']['API']['SetTranslationVisible'](arg1);
+}
+
+export function SetVideoLayout(arg1) {
+  return window['go']['app']['API']['SetVideoLayout'](arg1);
 }
 
 export function Settings() {

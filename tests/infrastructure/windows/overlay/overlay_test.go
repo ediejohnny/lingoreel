@@ -1031,7 +1031,7 @@ func openOverAnother(t *testing.T, processID int, existing windows.HWND) *scene 
 // the real VLC, including its fullscreen-like resize and quitting it.
 func TestOverlayFollowsTheRealVLC(t *testing.T) {
 	if os.Getenv("LINGOREEL_VLC_TEST") != "1" {
-		t.Skip("defina LINGOREEL_VLC_TEST=1 para abrir o VLC de verdade")
+		t.Skip("set LINGOREEL_VLC_TEST=1 to run against the installed VLC")
 	}
 	var executable string
 	for _, installation := range discovery.Detect(discovery.SystemEnvironment{}, []discovery.Hints{vlc.Plugin{}.Hints()}, nil) {

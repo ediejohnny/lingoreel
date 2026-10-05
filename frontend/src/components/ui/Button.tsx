@@ -55,14 +55,14 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 /** IconButton has a comfortable click area larger than its icon. */
 export function IconButton({ icon: Icon, label, size = "md", active = false, className = "", ...rest }: IconButtonProps) {
   const sizing = size === "lg" ? "size-12" : "size-9";
-  const tone = active ? "bg-accent-soft text-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg";
+  const tone = active ? "border-line bg-accent-soft text-accent" : "border-transparent text-fg-secondary hover:bg-sunken hover:text-fg";
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       {...rest}
-      className={`inline-flex items-center justify-center rounded-control transition-colors duration-[var(--duration-fast)] disabled:cursor-not-allowed disabled:opacity-45 ${sizing} ${tone} ${className}`}
+      className={`inline-flex items-center justify-center rounded-control border transition-colors duration-[var(--duration-fast)] disabled:cursor-not-allowed disabled:opacity-45 ${sizing} ${tone} ${className}`}
     >
       <Icon aria-hidden className={size === "lg" ? "size-6" : "size-[18px]"} />
     </button>

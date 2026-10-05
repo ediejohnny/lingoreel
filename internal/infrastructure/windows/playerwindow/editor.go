@@ -130,8 +130,13 @@ func (w *Window) openEditor(line session.Line, text string, spot overlay.Spot) {
 	}
 	scale := w.scale()
 	bounds := editorBounds(client, spot.Box, spot.Font.Size, scale)
-	popup, err := win32.CreateTitledWindow(win32.WS_EX_TOPMOST|win32.WS_EX_TOOLWINDOW, win32.WS_POPUP|win32.WS_BORDER,
-		editorClassName, nil, bounds, 0, win32.ModuleHandle())
+	// On a stage there are no global shortcuts to let go of: the box is the
+	// app window's, above it and hidden with it, like a dialog.
+	exStyle, owner := uint32(win32.WS_EX_TOPMOST|win32.WS_EX_TOOLWINDOW), windows.HWND(0)
+	if w.options.Stage != nil {
+		exStyle, owner = win32.WS_EX_TOOLWINDOW, w.parent
+	}
+	popup, err := win32.CreateTitledWindow(exStyle, win32.WS_POPUP|win32.WS_BORDER, editorClassName, nil, bounds, owner, win32.ModuleHandle())
 	if err != nil {
 		w.logger.Warn("could not open the box to correct a line", "error", err)
 		return
@@ -203,6 +208,10 @@ func (w *Window) finishEdit(keep, stayIfEmpty bool) {
 	w.editing = nil
 	win32.KillTimer(w.host, timerEdit)
 	e.destroy()
+	// On a stage the keys come back to the video, not to the app's panel.
+	if w.options.Stage != nil && !w.options.NoActivate && w.host != 0 {
+		win32.SetFocus(w.host)
+	}
 }
 
 // watchEdit closes the box without saving once the video plays: a line is

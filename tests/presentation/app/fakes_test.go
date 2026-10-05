@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -177,6 +178,34 @@ type fakeUI struct {
 	// was offered.
 	savePath  string
 	suggested []string
+	// titles are the window's titles, in order; quits counts the app asked
+	// to close.
+	titles []string
+	quits  int
+}
+
+func (u *fakeUI) SetTitle(title string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.titles = append(u.titles, title)
+}
+
+func (u *fakeUI) Quit() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.quits++
+}
+
+func (u *fakeUI) titled() []string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return slices.Clone(u.titles)
+}
+
+func (u *fakeUI) quitCount() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.quits
 }
 
 func (u *fakeUI) Emit(name string, data any) {

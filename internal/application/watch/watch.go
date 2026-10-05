@@ -170,6 +170,12 @@ type Ports struct {
 	// StartShortcuts listens to GlobalCommands, on the given chords, while
 	// the player is in the foreground; nil leaves the shortcuts off.
 	StartShortcuts func(target ShortcutTarget, chords []shortcut.Chord) (Shortcuts, error)
+	// WindowHearsKeys tells that the window OpenWindow opens takes every key
+	// itself, sync ones too (it is part of the app's window, whose panel
+	// takes them as well): its sessions start no system-wide shortcuts,
+	// which would take "<" from the panel's fields. A player in a window of
+	// its own keeps them.
+	WindowHearsKeys bool
 	// PracticeNotice words what happens to a passage being studied for a
 	// notice on the video; nil shows none.
 	PracticeNotice func(session.PracticeEvent, session.PracticeStatus) string
@@ -430,7 +436,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 			return nil, errors.Join(fmt.Errorf("%w: %w", ErrDisplay, err), running.Close())
 		}
 	}
-	if ports.StartShortcuts != nil {
+	if ports.StartShortcuts != nil && !(window != nil && ports.WindowHearsKeys) {
 		s.restart = func(chords []shortcut.Chord) (Shortcuts, error) { return ports.StartShortcuts(target, chords) }
 		if s.shortcuts, err = s.restart(GlobalChords(keys)); err != nil {
 			return nil, errors.Join(fmt.Errorf("starting the global shortcuts: %w", err), running.Close(), s.closeDisplay())

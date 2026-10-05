@@ -62,7 +62,7 @@ var (
 const (
 	outlineGap    = 4.0
 	outlineWidth  = 1.5
-	outlineRadius = 6.0
+	outlineRadius = 1.6
 )
 
 // OutlineAround frames a line's box a little outside it, at a display
