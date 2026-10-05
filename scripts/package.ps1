@@ -1,5 +1,6 @@
 ﻿# package.ps1 - Packs the built app into a portable zip in build\dist: the
-# executable, the license and a short read-me. Run build.ps1 first.
+# executable, the license, the third-party notices and a short read-me. Run
+# build.ps1 first.
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package.ps1 [-Version 1.2.3]
@@ -11,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "lib\native.ps1")
 . (Join-Path $PSScriptRoot "lib\version.ps1")
+. (Join-Path $PSScriptRoot "lib\notices.ps1")
 
 $root = Split-Path -Parent $PSScriptRoot
 $app = Join-Path $root "build\bin\LingoReel.exe"
@@ -49,6 +51,7 @@ PARA REMOVER
 
 LICENÇA
 MIT. Veja o arquivo LICENSE. (c) Edie Johnny.
+As licenças dos programas de terceiros incluídos estão em AVISOS-DE-TERCEIROS.txt.
 "@
 
 foreach ($required in @($app, $license)) {
@@ -72,6 +75,8 @@ if (Test-Path -LiteralPath $staging) {
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 Copy-Item -LiteralPath $app -Destination $staging
 Copy-Item -LiteralPath $license -Destination (Join-Path $staging "LICENSE.txt")
+$noticeCount = New-ThirdPartyNotices -Root $root -App $app -Destination (Join-Path $staging "AVISOS-DE-TERCEIROS.txt")
+Write-Host "      $noticeCount third-party licenses in AVISOS-DE-TERCEIROS.txt"
 # Notepad reads UTF-8 with a BOM correctly on every Windows version.
 [IO.File]::WriteAllText((Join-Path $staging "LEIA-ME.txt"), ($readMe -replace "`r?`n", "`r`n"), (New-Object Text.UTF8Encoding($true)))
 

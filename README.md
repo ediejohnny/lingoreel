@@ -33,7 +33,8 @@ can stay on screen or show up only when you ask for it.
 - One corrections file per video (`Movie.dualsub.json`, next to the video) that keeps the corrections, the sync, the
   chosen tracks and mode, and the passages saved for study.
 - Exports the corrected, synchronized subtitle as `.srt` or `.ass`, to use in another player.
-- A single portable `.exe`, no installation: WebView2 is bundled for the Windows 10 machines that lack it.
+- A single portable `.exe`, no installation. It uses Windows' WebView2, which Windows 11 and up-to-date Windows 10
+  already have; a machine without it is offered the download from Microsoft.
 - Open videos from the Windows menu ("Assistir com o LingoReel" and "Open with"), if you turn the option on; the
   default program of each video does not change.
 - Daily logs for the last 14 days and a diagnostics screen to report problems, without the subtitles' text and without
@@ -68,6 +69,10 @@ Want the app in your language? Every text comes from a catalog per language: see
 
 LingoReel is distributed under the [MIT license](LICENSE): you may use, copy, modify and distribute the project,
 in whole or in part, including in commercial projects, as long as you keep the copyright notice and the license text.
+
+The app includes third-party code under permissive licenses (MIT, BSD, ISC and Apache-2.0): Go, Wails, React and a few
+small libraries. Their notices go in the zip, in `AVISOS-DE-TERCEIROS.txt`, written by `scripts\package.ps1` from what
+the executable actually contains.
 
 If this project is useful to you, **please give credit** by mentioning LingoReel and its author, Edie Johnny,
 with a link to the repository. The license does not require it, but it is a kind gesture that helps the project go on.
