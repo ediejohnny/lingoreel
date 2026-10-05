@@ -283,6 +283,11 @@ type Session struct {
 	// their changes.
 	tracks   atomic.Pointer[Tracks]
 	tracksMu sync.Mutex
+	// lineMu keeps the track a line shows and its offset in step: a switch
+	// holds it from the new number to the new file on screen, and a sync
+	// step moves the offset and reads the track under it. It comes before
+	// the editor's lock.
+	lineMu sync.Mutex
 
 	translationVisible atomic.Bool
 	mode               atomic.Value // study.Mode
@@ -572,28 +577,41 @@ func (s *Session) listenShortcuts(shortcuts Shortcuts) {
 	}
 }
 
-func (s *Session) synced(line session.Line, offset subtitle.Offset) {
+// nudge moves a line one step and tells it with the track the step moved,
+// read in step with the offset: a switch of the line's subtitle never puts
+// one file's offset under the other's number.
+func (s *Session) nudge(line session.Line, later, repeat bool) (subtitle.Offset, bool) {
+	s.lineMu.Lock()
+	offset, ok := s.sync.Nudge(line, later, repeat)
+	track := s.Tracks().Number(line)
+	s.lineMu.Unlock()
+	if ok {
+		s.synced(line, track, offset)
+	}
+	return offset, ok
+}
+
+func (s *Session) synced(line session.Line, track uint64, offset subtitle.Offset) {
 	if notice := *s.notice.Load(); s.display != nil && notice != nil && !s.quiet.Load() {
 		_ = s.display.Notify(notice(line, offset)) // a lost notice is cosmetic
 	}
 	if s.listener != nil {
-		s.listener.Synced(line, s.Tracks().Number(line), offset)
+		s.listener.Synced(line, track, offset)
 	}
 }
 
 // Nudge moves a line one step, as its sync shortcut does.
 func (s *Session) Nudge(line session.Line, later bool) (subtitle.Offset, bool) {
-	offset, ok := s.sync.Nudge(line, later, false)
-	if ok {
-		s.synced(line, offset)
-	}
-	return offset, ok
+	return s.nudge(line, later, false)
 }
 
 // ResetSync puts a line back at its file's timing.
 func (s *Session) ResetSync(line session.Line) {
+	s.lineMu.Lock()
 	s.sync.Reset(line)
-	s.synced(line, s.subtitles.Offset(line))
+	offset, track := s.subtitles.Offset(line), s.Tracks().Number(line)
+	s.lineMu.Unlock()
+	s.synced(line, track, offset)
 }
 
 // Offset is a line's current offset.

@@ -58,27 +58,19 @@ func TestASwitchedSubtitleKeepsItsOwnSync(t *testing.T) {
 	}
 }
 
-// What a line cannot show is refused, and nothing changes or is saved.
-func TestASubtitleSwitchIsRefusedWhenTheLineCannotShowIt(t *testing.T) {
+// A switch the line cannot take (here the track the other line shows; the
+// rules are the session's) is refused before anything loads: nothing
+// changes, nothing is saved, no loading notice shows on the video.
+func TestARefusedSubtitleSwitchChangesNothing(t *testing.T) {
 	t.Parallel()
 	r := watchSwitchVideo(t, nil)
 	_, saves := r.projects.stored(t, switchVideo)
 	notices := r.display.noticeCount()
-	for _, c := range []struct {
-		line   string
-		number uint64
-		why    string
-	}{
-		{"primary", 6, "a subtitle in pictures"},
-		{"primary", 3, "an audio track"},
-		{"primary", 99, "no such track"},
-		{"primary", 5, "the track the other line shows"},
-		{"primary", 0, "none on top"},
-		{"middle", 7, "an unknown line"},
-	} {
-		if err := r.api.SwitchSubtitle(c.line, c.number); err == nil {
-			t.Errorf("SwitchSubtitle(%s, %d) took %s", c.line, c.number, c.why)
-		}
+	if err := r.api.SwitchSubtitle("primary", 5); err == nil {
+		t.Fatal("the line on top took the track the other line shows")
+	}
+	if err := r.api.SwitchSubtitle("middle", 7); err == nil {
+		t.Fatal("a line that does not exist took a track")
 	}
 	if current := r.api.PlaybackState().Tracks.Current; current != (app.Selection{Audio: 3, Primary: 4, Translation: 5}) {
 		t.Fatalf("current tracks changed to %+v", current)
@@ -86,12 +78,15 @@ func TestASubtitleSwitchIsRefusedWhenTheLineCannotShowIt(t *testing.T) {
 	if _, after := r.projects.stored(t, switchVideo); after != saves {
 		t.Fatalf("a refused switch saved the project (%d saves, was %d)", after, saves)
 	}
-	// Refused before loading: no "Carregando a legenda…" on the video.
 	if r.display.noticeCount() != notices {
 		t.Fatal("a refused switch started loading its track")
 	}
+}
 
-	// "Nenhuma" below takes the translation away.
+// "Nenhuma" below takes the translation away, and is remembered as the choice.
+func TestNoneBelowTakesTheTranslationAway(t *testing.T) {
+	t.Parallel()
+	r := watchSwitchVideo(t, nil)
 	if err := r.api.SwitchSubtitle("translation", 0); err != nil {
 		t.Fatal(err)
 	}

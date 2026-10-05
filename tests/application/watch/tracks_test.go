@@ -102,6 +102,103 @@ func TestALineTakesAnotherSubtitle(t *testing.T) {
 	}
 }
 
+// What a line cannot show is refused before anything loads: a subtitle in
+// pictures, an audio track, a track the video lacks, the track the other
+// line shows, none on top, a line that does not exist. None below is fine.
+func TestALineRefusesWhatItCannotShow(t *testing.T) {
+	t.Parallel()
+	s := newRig(t).start(t)
+	s.AddTrack(media.Track{Number: 6, Type: media.TrackSubtitle, Language: "en", Codec: "S_HDMV/PGS"})
+	for _, c := range []struct {
+		line   session.Line
+		number uint64
+		want   error // nil: any error
+	}{
+		{session.LinePrimary, 6, watch.ErrUnknownTrack},
+		{session.LinePrimary, 3, watch.ErrUnknownTrack},
+		{session.LinePrimary, 99, watch.ErrUnknownTrack},
+		{session.LinePrimary, 5, watch.ErrSameTrack},
+		{session.LineTranslation, 4, watch.ErrSameTrack},
+		{session.LinePrimary, 0, watch.ErrNeedsPrimary},
+		{session.Line(7), 4, nil},
+	} {
+		err := s.CheckLine(c.line, c.number)
+		if err == nil || (c.want != nil && !errors.Is(err, c.want)) {
+			t.Errorf("CheckLine(%d, %d) = %v, want %v", c.line, c.number, err, c.want)
+		}
+	}
+	if err := s.CheckLine(session.LineTranslation, 0); err != nil {
+		t.Errorf("none below refused: %v", err)
+	}
+}
+
+// The switch itself checks the pair of lines again, as the other line may
+// have changed while the file loaded, and a refused switch changes nothing.
+func TestASwitchChecksThePairOfLinesAgain(t *testing.T) {
+	t.Parallel()
+	s := newRig(t).start(t)
+	before := s.Tracks().Current
+	if err := s.SetLine(session.LinePrimary, 5, loadedFile(t, "Same as below."), project.Track{}); !errors.Is(err, watch.ErrSameTrack) {
+		t.Errorf("the other line's track on top = %v, want ErrSameTrack", err)
+	}
+	if err := s.SetLine(session.LinePrimary, 0, analysis.LoadedTrack{}, project.Track{}); !errors.Is(err, watch.ErrNeedsPrimary) {
+		t.Errorf("none on top = %v, want ErrNeedsPrimary", err)
+	}
+	if after := s.Tracks().Current; after != before {
+		t.Fatalf("a refused switch changed the tracks to %+v", after)
+	}
+}
+
+// A sync step that crosses a switch of the line's subtitle is told with the
+// track it moved: never one file's offset under the other file's number,
+// which the app would keep on the wrong file.
+func TestASyncStepIsToldWithTheTrackItMoved(t *testing.T) {
+	t.Parallel()
+	r, s := playingRig(t)
+	const far = 10 * time.Second // where the second file was left
+	files := []struct {
+		number uint64
+		loaded analysis.LoadedTrack
+		saved  project.Track
+	}{
+		{4, loadedFile(t, "First file."), project.Track{}},
+		{99, loadedFile(t, "Second file."), project.Track{Offset: project.MillisOf(far)}},
+	}
+	switched := make(chan error, 1)
+	go func() {
+		for i := range 2000 {
+			file := files[i%2]
+			if err := s.SetLine(session.LinePrimary, file.number, file.loaded, file.saved); err != nil {
+				switched <- err
+				return
+			}
+		}
+		switched <- nil
+	}()
+	later := true
+	for stepping := true; stepping; later = !later {
+		select {
+		case err := <-switched:
+			if err != nil {
+				t.Fatal(err)
+			}
+			stepping = false
+		default:
+			s.Nudge(session.LinePrimary, later)
+		}
+	}
+	offsets, tracks := r.listener.syncs()
+	for i, track := range tracks {
+		base := time.Duration(0)
+		if track == 99 {
+			base = far
+		}
+		if moved := offsets[i].Duration() - base; moved < -time.Second || moved > time.Second {
+			t.Fatalf("step %d was told on track %d with the offset %v, the other file's", i, track, offsets[i].Duration())
+		}
+	}
+}
+
 // The audio switches by the track's number: the player hears its place among
 // the audio tracks, which is what players count by.
 func TestTheAudioSwitchesWhileTheVideoPlays(t *testing.T) {

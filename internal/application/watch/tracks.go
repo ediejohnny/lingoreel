@@ -56,21 +56,27 @@ func (s *Session) CheckLine(line session.Line, number uint64) error {
 	if line != session.LinePrimary && line != session.LineTranslation {
 		return fmt.Errorf("unknown subtitle line %d", line)
 	}
+	tracks := s.Tracks()
+	if number != 0 && !slices.ContainsFunc(tracks.Of(media.TrackSubtitle), func(track media.Track) bool { return track.Number == number && track.Readable }) {
+		return ErrUnknownTrack
+	}
+	return tracks.pairs(line, number)
+}
+
+// pairs tells whether a line can show a track next to what the other line
+// shows: never none on top, never the track the other line shows.
+func (t Tracks) pairs(line session.Line, number uint64) error {
 	if number == 0 {
 		if line == session.LinePrimary {
 			return ErrNeedsPrimary
 		}
 		return nil
 	}
-	tracks := s.Tracks()
-	if !slices.ContainsFunc(tracks.Of(media.TrackSubtitle), func(track media.Track) bool { return track.Number == number && track.Readable }) {
-		return ErrUnknownTrack
-	}
 	other := session.LineTranslation
 	if line == session.LineTranslation {
 		other = session.LinePrimary
 	}
-	if tracks.Number(other) == number {
+	if t.Number(other) == number {
 		return ErrSameTrack
 	}
 	return nil
@@ -138,13 +144,19 @@ func (s *Session) SetSyncWording(notice func(session.Line, subtitle.Offset) stri
 // line's subtitle away (number 0). The line comes with its saved edits and
 // offset (saved); the editing on that line starts over, its selection, undo
 // and redo, since the new file numbers its lines afresh; and "Repetir cada
-// fala" counts afresh too.
+// fala" counts afresh too. The pair of lines is checked again here, as the
+// other line may have changed while this file loaded.
 func (s *Session) SetLine(line session.Line, number uint64, loaded analysis.LoadedTrack, saved project.Track) error {
 	if line != session.LinePrimary && line != session.LineTranslation {
 		return fmt.Errorf("unknown subtitle line %d", line)
 	}
 	if number != 0 && loaded.Timeline == nil {
 		return fmt.Errorf("track %d has no subtitles loaded", number)
+	}
+	s.lineMu.Lock()
+	defer s.lineMu.Unlock()
+	if err := s.Tracks().pairs(line, number); err != nil {
+		return err
 	}
 	s.editor.mu.Lock()
 	if chosen := s.editor.selected; chosen != nil && chosen.line == line {
