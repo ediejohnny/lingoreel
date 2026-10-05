@@ -126,12 +126,9 @@ function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionP
         <div className="grid gap-4 @lg:grid-cols-2">
           <div className="flex flex-col gap-3">
             <Toggle label={t("ui.settings.appearance.app.ownAccent")} checked={look.accent !== ""} onChange={ownAccent} />
-            <ColorField
-              label={t("ui.settings.appearance.app.accent")}
-              value={look.accent || fallbackAccent}
-              disabled={look.accent === ""}
-              onChange={set("accent")}
-            />
+            {look.accent !== "" && (
+              <ColorField label={t("ui.settings.appearance.app.accent")} value={look.accent} onChange={set("accent")} />
+            )}
           </div>
           <div className="flex flex-col gap-4">
             <Select
