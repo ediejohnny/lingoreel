@@ -77,25 +77,26 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	return a.describeVideo(result, opened, suggested, mode), nil
 }
 
-// describeVideo is a video as the session screen shows it.
+// describeVideo is a video as the session screen shows it. The project is
+// read under a.mu: a session playing it saves passages and where it is.
 func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, suggested media.Selection, mode study.Mode) Video {
-	a.mu.Lock()
-	languages := a.profile().Languages
-	a.mu.Unlock()
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
 	video := Video{
 		Path: result.Path, Name: filepath.Base(result.Path), Duration: result.Info.Duration.Seconds(),
 		Suggested: Selection{Audio: suggested.Audio, Primary: suggested.Primary, Translation: suggested.Translation},
 		Players:   a.players(),
 		Audio:     audioTracks(result.Info), Subtitles: subtitleTracks(result.Info),
 		Mode: string(mode), Modes: modeOptions(),
-		SavedPassages: passagesOf(opened, result.Info.Duration), Resume: resumeOf(opened, result.Info.Duration),
 	}
+	a.mu.Lock()
+	languages := a.profile().Languages
+	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
 	if opened != nil {
 		video.ProjectNote = opened.note
+	}
+	a.mu.Unlock()
+	preferences := media.Preferences{
+		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
+		Translation: media.LanguageTag(languages.Translation),
 	}
 	video.LanguageNote = languageNote(result.Info, suggested, preferences)
 	return video

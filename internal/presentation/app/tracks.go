@@ -218,11 +218,11 @@ func (a *API) AddSubtitleFile(line string) (Video, error) {
 	// added to takes the file.
 	a.mu.Lock()
 	mode := a.profile().Study.Mode
-	a.mu.Unlock()
 	suggested := added.Suggested
 	if p != nil {
 		suggested, mode = p.remembered(added.Info, suggested, mode)
 	}
+	a.mu.Unlock()
 	if which == session.LineTranslation {
 		suggested.Translation = track.Number
 	} else {

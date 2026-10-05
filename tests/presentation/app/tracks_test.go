@@ -266,6 +266,36 @@ func TestASubtitleFileFromAnotherFolderComesBack(t *testing.T) {
 	}
 }
 
+// A file added while the video plays describes the video from its project
+// under the lock the session saves it under: saving passages meanwhile is
+// no data race (run with -race).
+func TestAddingAFileWhilePassagesAreSavedIsSafe(t *testing.T) {
+	t.Parallel()
+	r := watchSwitchVideo(t, nil)
+	if err := r.api.StudyPassage(app.PassageRequest{Start: "0:10", End: "0:20"}); err != nil {
+		t.Fatal(err)
+	}
+	r.ui.subtitle = writeSubtitle(t, "Legenda.pt-BR.srt", "Do arquivo.")
+	saved := make(chan error, 1)
+	go func() {
+		for range 50 {
+			if err := r.api.SavePassage("Trecho"); err != nil {
+				saved <- err
+				return
+			}
+		}
+		saved <- nil
+	}()
+	for range 20 {
+		if _, err := r.api.AddSubtitleFile("translation"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := <-saved; err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Added while the video plays, the file goes straight to its line.
 func TestASubtitleFileAddedWhileWatchingGoesOnItsLine(t *testing.T) {
 	t.Parallel()
