@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -36,6 +37,43 @@ func (t Tracks) Of(kind media.TrackType) []media.Track {
 		}
 	}
 	return list
+}
+
+// Why a line cannot show a track, for the app to word it.
+var (
+	// ErrUnknownTrack: not a readable subtitle track of the video.
+	ErrUnknownTrack = errors.New("not a readable subtitle track of the video")
+	// ErrSameTrack: the other line shows that track already.
+	ErrSameTrack = errors.New("the other line shows that track")
+	// ErrNeedsPrimary: the line on top always shows a subtitle.
+	ErrNeedsPrimary = errors.New("the line on top needs a subtitle")
+)
+
+// CheckLine tells whether a line can show a track (zero: none), before it
+// is loaded: a readable subtitle of the video that the other line does not
+// show, and never none on top.
+func (s *Session) CheckLine(line session.Line, number uint64) error {
+	if line != session.LinePrimary && line != session.LineTranslation {
+		return fmt.Errorf("unknown subtitle line %d", line)
+	}
+	if number == 0 {
+		if line == session.LinePrimary {
+			return ErrNeedsPrimary
+		}
+		return nil
+	}
+	tracks := s.Tracks()
+	if !slices.ContainsFunc(tracks.Of(media.TrackSubtitle), func(track media.Track) bool { return track.Number == number && track.Readable }) {
+		return ErrUnknownTrack
+	}
+	other := session.LineTranslation
+	if line == session.LineTranslation {
+		other = session.LinePrimary
+	}
+	if tracks.Number(other) == number {
+		return ErrSameTrack
+	}
+	return nil
 }
 
 // newTracks keeps the tracks a session can switch between.

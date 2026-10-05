@@ -343,6 +343,18 @@ func (a *API) describe(current *watching) Playback {
 		SavedPassages:      saved,
 		ProjectNote:        note,
 		Health:             healthText(current.session.Health()),
+		Tracks:             describeTracks(current, capabilities.AudioTrackSelection),
+	}
+}
+
+// describeTracks lists the session's tracks for the panel.
+func describeTracks(current *watching, audioSwitch bool) PlaybackTracks {
+	tracks := current.session.Tracks()
+	info := media.Info{Tracks: tracks.List}
+	return PlaybackTracks{
+		Audio: audioTracks(info), Subtitles: subtitleTracks(info),
+		Current:     Selection{Audio: tracks.Current.Audio, Primary: tracks.Current.Primary, Translation: tracks.Current.Translation},
+		AudioSwitch: audioSwitch, Loading: current.switching.Load(),
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -131,6 +132,26 @@ func (p PassagePlan) Practice() study.PracticePlan {
 // New is an empty project.
 func New() Project {
 	return Project{Tracks: map[string]Track{}, Passages: []Passage{}, AddedFiles: []string{}}
+}
+
+// RememberFile keeps a subtitle file picked for the video, once; it reports
+// whether the list changed. With the list full, the oldest file that is no
+// longer there (present says which are) gives way; with every file there,
+// the new one is not kept.
+func (p *Project) RememberFile(file string, present func(file string) bool) bool {
+	if slices.Contains(p.AddedFiles, file) {
+		return false
+	}
+	files := slices.Clone(p.AddedFiles)
+	if len(files) >= MaxAddedFiles {
+		gone := slices.IndexFunc(files, func(kept string) bool { return !present(kept) })
+		if gone < 0 {
+			return false
+		}
+		files = slices.Delete(files, gone, gone+1)
+	}
+	p.AddedFiles = append(files, file)
+	return true
 }
 
 // Choice is what the user last picked for the video; empty keys and mode

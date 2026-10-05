@@ -2,7 +2,9 @@ package project_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -315,6 +317,35 @@ func TestForgettingALineKeepsTheOtherLinesChanges(t *testing.T) {
 
 // Saving the same span twice keeps both: the second gets " (2)", and so on.
 // Case and the spaces around do not make a name new.
+// A picked file is remembered once; with the list full, the oldest file that
+// is gone gives way, and with none gone the new one is not kept.
+func TestRememberFileMakesRoomOnlyFromFilesThatAreGone(t *testing.T) {
+	t.Parallel()
+	p := project.New()
+	present := func(string) bool { return true }
+	if !p.RememberFile("a.srt", present) || p.RememberFile("a.srt", present) || len(p.AddedFiles) != 1 {
+		t.Fatalf("the same file twice: %q", p.AddedFiles)
+	}
+	for i := len(p.AddedFiles); i < project.MaxAddedFiles; i++ {
+		p.RememberFile(fmt.Sprintf("%d.srt", i), present)
+	}
+	full := slices.Clone(p.AddedFiles)
+	if p.RememberFile("new.srt", present) || !slices.Equal(p.AddedFiles, full) {
+		t.Fatalf("a full list of files that are all there took another: %q", p.AddedFiles)
+	}
+	gone := map[string]bool{"3.srt": true, "7.srt": true}
+	if !p.RememberFile("new.srt", func(file string) bool { return !gone[file] }) {
+		t.Fatal("the full list did not make room from a file that is gone")
+	}
+	want := append(slices.Delete(slices.Clone(full), 3, 4), "new.srt")
+	if !slices.Equal(p.AddedFiles, want) {
+		t.Fatalf("files = %q, want the oldest gone one (3.srt) out and new.srt last", p.AddedFiles)
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("the remembered list is not valid: %v", err)
+	}
+}
+
 func TestUniqueNameKeepsEveryPassage(t *testing.T) {
 	t.Parallel()
 	passages := func(names ...string) []project.Passage {

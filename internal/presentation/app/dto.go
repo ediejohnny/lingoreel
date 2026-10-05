@@ -140,6 +140,19 @@ type Playback struct {
 	// Health tells of a player being reconnected or frozen; empty when it
 	// answers.
 	Health string `json:"health"`
+	// Tracks are what the panel's subtitle card switches between.
+	Tracks PlaybackTracks `json:"tracks"`
+}
+
+// PlaybackTracks are the video's tracks and the ones playing.
+type PlaybackTracks struct {
+	Audio     []Track   `json:"audio"`
+	Subtitles []Track   `json:"subtitles"`
+	Current   Selection `json:"current"`
+	// AudioSwitch tells the player changes the audio track while playing.
+	AudioSwitch bool `json:"audioSwitch"`
+	// Loading tells a subtitle is being loaded for a line.
+	Loading bool `json:"loading"`
 }
 
 // PassageOptions are how a passage is studied: fitted to the lines or not,

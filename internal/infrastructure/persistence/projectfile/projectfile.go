@@ -170,6 +170,16 @@ func (s *Store) TrackKey(video string, track media.Track) string {
 	return TrackKey(video, track)
 }
 
+// AddedPath is the package's AddedPath, for the app's port.
+func (s *Store) AddedPath(video, path string) string {
+	return AddedPath(video, path)
+}
+
+// ResolveAdded is the package's ResolveAdded, for the app's port.
+func (s *Store) ResolveAdded(video, added string) string {
+	return ResolveAdded(video, added)
+}
+
 // TrackKey names a track of a video so the name survives a new analysis: a
 // file by its path (AddedPath), a track inside the video by its UID (stable
 // when the file is remuxed), or by its number when it has none.
