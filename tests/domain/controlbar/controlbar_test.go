@@ -349,6 +349,28 @@ func TestVolumeAt(t *testing.T) {
 	}
 }
 
+// On a player that plays up to 200%, the line spans its ceiling: 100% sits
+// in the middle.
+func TestTheVolumeLineSpansThePlayersCeiling(t *testing.T) {
+	t.Parallel()
+	state := fullState()
+	state.Volume, state.Capabilities.MaxVolume = 1.5, 2
+	bar := controlbar.Layout(wide, 1, state)
+	if bar.VolumeLevel != 0.75 || bar.VolumeFull != 0.5 {
+		t.Fatalf("150%% of 200%%: level %v, 100%% at %v; want 0.75 and 0.5", bar.VolumeLevel, bar.VolumeFull)
+	}
+	line := bar.VolumeTrack
+	for x, want := range map[float64]playback.Volume{line.X + line.W/2: 1, line.Right(): 2, line.Right() + 50: 2} {
+		if got := bar.VolumeAt(x); got != want {
+			t.Errorf("VolumeAt(%v) = %v, want %v", x, got, want)
+		}
+	}
+	// A player of 100% fills the line at 100%.
+	if bar := controlbar.Layout(wide, 1, fullState()); bar.VolumeFull != 1 || bar.VolumeAt(bar.VolumeTrack.Right()) != 1 {
+		t.Fatalf("a 100%% player: 100%% at %v", bar.VolumeFull)
+	}
+}
+
 func TestPlayedShare(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {

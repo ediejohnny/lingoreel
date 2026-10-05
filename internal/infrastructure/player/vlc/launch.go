@@ -75,6 +75,9 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 		"--no-video-title-show",
 		"--no-metadata-network-access",
 		"--play-and-pause",
+		// The volume is the app's: VLC keeps none between sessions (its saved
+		// level is shared with the user's own VLC) and adds no gain of its own.
+		"--no-volume-save", "--gain=1",
 	}
 	if request.StartPaused {
 		args = append(args, "--start-paused")

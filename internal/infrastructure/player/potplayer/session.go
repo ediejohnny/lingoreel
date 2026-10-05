@@ -106,7 +106,7 @@ func (s *Session) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
 		Pause: true, Seek: true, ExactSeek: true, Speed: true,
 		FrameStepForward: true, FrameStepBackward: false,
-		AudioTrackSelection: false, SubtitleSuppression: true, Volume: true,
+		AudioTrackSelection: false, SubtitleSuppression: true, Volume: true, MaxVolume: playback.FullVolume,
 		Precision: playback.PrecisionEstimated,
 	}
 }
@@ -222,12 +222,22 @@ func (s *Session) SelectAudioTrack(int) error {
 	return fmt.Errorf("%w: choosing the audio track", ErrNotSupported)
 }
 
-// SetVolume changes the volume; playback.MaxVolume is PotPlayer's 100%.
+// SetVolume changes the volume up to PotPlayer's 100%, the most its
+// messages take.
 func (s *Session) SetVolume(volume playback.Volume) error {
-	if !volume.Valid() {
-		return fmt.Errorf("invalid volume %v", volume)
+	if !volume.Valid() || volume > playback.FullVolume {
+		return fmt.Errorf("invalid volume %v: PotPlayer goes up to 100%%", volume)
 	}
 	return s.command(codeSetVolume, uintptr(math.Round(float64(volume)*volumeScale)))
+}
+
+// Volume is PotPlayer's level, which it keeps between its own sessions.
+func (s *Session) Volume() (playback.Volume, error) {
+	level, ok := ask(s.mainWindow(), codeGetVolume, 0)
+	if !ok {
+		return 0, ErrNotAnswering
+	}
+	return playback.Volume(float64(level) / volumeScale).Within(playback.FullVolume), nil
 }
 
 // command sends one message and fails when PotPlayer does not answer.

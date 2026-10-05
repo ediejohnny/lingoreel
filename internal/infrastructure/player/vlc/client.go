@@ -38,6 +38,9 @@ type status struct {
 	Time   int64   `json:"time"`
 	Length int64   `json:"length"`
 	Rate   float64 `json:"rate"`
+	// Volume is on VLC's scale (256 is 100%); negative before the sound
+	// output exists.
+	Volume float64 `json:"volume"`
 }
 
 // client talks to the control endpoint served by VLC on the loopback interface.

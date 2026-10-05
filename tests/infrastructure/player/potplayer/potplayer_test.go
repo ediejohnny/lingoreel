@@ -254,8 +254,21 @@ func TestPotPlayerTakesEveryDeclaredCommand(t *testing.T) {
 	if sample := nextSample(t, session); sample.Speed != playback.NormalSpeed {
 		t.Fatalf("speed reported %v, want 1", sample.Speed)
 	}
-	if err := session.SetVolume(playback.MaxVolume / 2); err != nil {
+	// PotPlayer keeps its level for the user's next sessions: the test puts
+	// back the one it found.
+	kept, err := session.Volume()
+	if err != nil {
+		t.Fatalf("Volume: %v", err)
+	}
+	defer session.SetVolume(kept)
+	if err := session.SetVolume(0.4); err != nil {
 		t.Fatalf("SetVolume: %v", err)
+	}
+	if level, err := session.Volume(); err != nil || level != 0.4 {
+		t.Fatalf("Volume after SetVolume(0.4) = %v, %v", level, err)
+	}
+	if err := session.SetVolume(1.01); err == nil {
+		t.Fatal("SetVolume(101%) reached PotPlayer, which goes up to 100%")
 	}
 	if err := session.Play(); err != nil {
 		t.Fatalf("Play: %v", err)

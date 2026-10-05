@@ -30,9 +30,15 @@ type Player interface {
 }
 
 // VolumePlayer is a player whose volume can be changed; its capabilities say
-// Volume. Players start at their full volume (playback.MaxVolume).
+// Volume and its ceiling. Players start at their 100% (playback.FullVolume).
 type VolumePlayer interface {
 	SetVolume(volume playback.Volume) error
+}
+
+// VolumeReader is a volume player that tells its level, such as one that
+// keeps the user's own level between sessions.
+type VolumeReader interface {
+	Volume() (playback.Volume, error)
 }
 
 // Controls is the single owner of playback time arithmetic: seeking, speed
@@ -53,6 +59,7 @@ type Controls struct {
 	volumeMu sync.Mutex
 	volume   playback.Volume
 	muted    bool
+	ramp     playback.VolumeRamp
 }
 
 // NewControls creates the controls; frameRate is the video's real rate, or 0
@@ -65,7 +72,7 @@ func NewControls(player Player, clock *Clock, frameRate float64) *Controls {
 	}
 	return &Controls{
 		player: player, clock: clock, capabilities: capabilities, frame: frame, hasFrame: hasFrame,
-		volume: playback.MaxVolume,
+		volume: playback.FullVolume,
 	}
 }
 
@@ -228,18 +235,35 @@ func (c *Controls) Volume() (playback.Volume, bool) {
 	return c.volume, c.muted
 }
 
-// SetVolume changes the level, kept inside the range; it also unmutes.
+// SetVolume changes the level, kept inside the player's ceiling; it also
+// unmutes.
 func (c *Controls) SetVolume(volume playback.Volume) error {
 	c.volumeMu.Lock()
 	defer c.volumeMu.Unlock()
-	return c.applyVolume(volume.Clamp(), false)
+	return c.applyVolume(volume.Within(c.capabilities.VolumeCeiling()), false)
 }
 
-// ChangeVolume moves the level by delta, as the volume keys do.
+// ChangeVolume moves the level by delta, inside the player's ceiling.
 func (c *Controls) ChangeVolume(delta playback.Volume) error {
 	c.volumeMu.Lock()
 	defer c.volumeMu.Unlock()
-	return c.applyVolume((c.volume + delta).Clamp(), false)
+	return c.applyVolume((c.volume + delta).Within(c.capabilities.VolumeCeiling()), false)
+}
+
+// StepVolume is a volume key going down (repeat false) or held: a touch is
+// one step, a held key moves on at the ramp's pace and stops at 100% going
+// up (playback.VolumeRamp). It unmutes.
+func (c *Controls) StepVolume(now time.Time, up, repeat bool) error {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	if !c.capabilities.Volume {
+		return ErrNotSupported
+	}
+	next := c.ramp.Next(now, up, repeat, c.volume, c.capabilities.VolumeCeiling())
+	if next == c.volume && !c.muted {
+		return nil
+	}
+	return c.applyVolume(next, false)
 }
 
 // ToggleMute silences the sound or brings back the level it had.
@@ -264,4 +288,24 @@ func (c *Controls) applyVolume(volume playback.Volume, muted bool) error {
 	}
 	c.volume, c.muted = volume, muted
 	return nil
+}
+
+// SyncVolume makes the level known at the start: the player's own when it
+// tells it, otherwise its 100% asked for explicitly, so the screens never
+// show a level the player does not have.
+func (c *Controls) SyncVolume() error {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	if !c.capabilities.Volume {
+		return nil
+	}
+	if reader, ok := c.player.(VolumeReader); ok {
+		volume, err := reader.Volume()
+		if err != nil {
+			return fmt.Errorf("reading the volume: %w", err)
+		}
+		c.volume = volume.Within(c.capabilities.VolumeCeiling())
+		return nil
+	}
+	return c.applyVolume(playback.FullVolume, false)
 }

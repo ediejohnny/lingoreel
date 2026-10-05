@@ -120,8 +120,13 @@ type Bar struct {
 	Track  layout.Rect
 	Played float64
 	// VolumeTrack is the volume line, zero when the bar is too narrow for it.
-	VolumeTrack layout.Rect
-	VolumeLevel float64
+	// VolumeLevel is the share of it filled, of the player's ceiling;
+	// VolumeFull is where 100% sits on it (1 when the ceiling is 100%), the
+	// rest being the player's amplification.
+	VolumeTrack   layout.Rect
+	VolumeLevel   float64
+	VolumeFull    float64
+	volumeCeiling playback.Volume
 	// Time is where the "current / total" text goes, zero when dropped.
 	Time layout.Rect
 	// Menu is the speed list's background, zero when closed.
@@ -203,7 +208,10 @@ func Layout(area layout.Rect, scale float64, state State) Bar {
 	if parts.volume {
 		slider := layout.Rect{X: x, Y: row, W: volumeWidth * s, H: button * s}
 		bar.VolumeTrack = layout.Rect{X: slider.X + gap*s, Y: row + (button-trackThick)/2*s, W: slider.W - 2*gap*s, H: trackThick * s}
-		bar.VolumeLevel = float64(state.Volume.Clamp())
+		ceiling := caps.VolumeCeiling()
+		bar.volumeCeiling = ceiling
+		bar.VolumeLevel = float64(state.Volume.Within(ceiling) / ceiling)
+		bar.VolumeFull = float64(playback.FullVolume / ceiling)
 		if state.Muted {
 			bar.VolumeLevel = 0
 		}
@@ -375,9 +383,14 @@ func (b Bar) TrackPosition(x float64, duration time.Duration) time.Duration {
 	return time.Duration(math.Round(share * float64(duration)))
 }
 
-// VolumeAt is the volume for a point at x on the volume line.
+// VolumeAt is the volume for a point at x on the volume line, which spans
+// the player's ceiling.
 func (b Bar) VolumeAt(x float64) playback.Volume {
-	return playback.Volume(along(x, b.VolumeTrack)).Clamp()
+	ceiling := b.volumeCeiling
+	if ceiling <= 0 {
+		ceiling = playback.FullVolume
+	}
+	return (playback.Volume(along(x, b.VolumeTrack)) * ceiling).Within(ceiling)
 }
 
 // along is the share of a line's width before x, from 0 to 1.
