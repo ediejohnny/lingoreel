@@ -3,6 +3,7 @@
 package playerwindow_test
 
 import (
+	"math"
 	"os"
 	"slices"
 	"testing"
@@ -25,6 +26,7 @@ var (
 	findWindowEx = windows.NewLazySystemDLL("user32.dll").NewProc("FindWindowExW")
 	getWindowPtr = windows.NewLazySystemDLL("user32.dll").NewProc("GetWindowLongPtrW")
 	getObject    = windows.NewLazySystemDLL("gdi32.dll").NewProc("GetObjectW")
+	getTextColor = windows.NewLazySystemDLL("gdi32.dll").NewProc("GetTextColor")
 )
 
 // logFont is a LOGFONTW.
@@ -67,11 +69,17 @@ type editorRig struct {
 
 func newEditorRig(t *testing.T) *editorRig {
 	t.Helper()
+	return newEditorRigWith(t, nil)
+}
+
+// newEditorRigWith opens the rig's window with the controls' look given.
+func newEditorRigWith(t *testing.T, chrome *playerwindow.Chrome) *editorRig {
+	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty},
-		NoActivate: true,
+		NoActivate: true, Chrome: chrome,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -241,6 +249,89 @@ func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
 	if windows.IsWindow(box) {
 		t.Fatal("the box outlived the player window")
 	}
+}
+
+// The box takes its colors and its hint's size from the controls' look.
+func TestTheBoxTakesItsLook(t *testing.T) {
+	testkit.Slow(t)
+	chrome := playerwindow.DefaultChrome()
+	orange := appearance.RGB(0xFF, 0x8C, 0x00)
+	chrome.Edit = appearance.EditStyle{Background: orange, Text: appearance.RGB(0, 0, 0), Hint: appearance.RGB(0x10, 0x20, 0x30), HintSize: 20}
+	r := newEditorRigWith(t, &chrome)
+	box, field := r.open()
+	hint := child(box, "Static")
+	// The box as it paints itself: its corner, outside the field and the
+	// hint, and the field's corner are the background asked for.
+	picture := printedClient(t, box)
+	outer, inner := clientOnScreen(t, box), clientOnScreen(t, field)
+	spots := []struct {
+		name string
+		x, y int32
+	}{{"the box", 2, 2}, {"the field", inner.Left - outer.Left + 2, inner.Top - outer.Top + 2}}
+	for _, spot := range spots {
+		if got := pixelAt(picture, spot.x, spot.y); got != 0xFF8C00 {
+			t.Fatalf("%s is painted %06x, want ff8c00", spot.name, got)
+		}
+	}
+	// The colors the box gives its field and its hint to write with, as
+	// COLORREFs (0x00BBGGRR).
+	if got := textColorFor(box, win32.WM_CTLCOLOREDIT, field); got != 0x000000 {
+		t.Fatalf("the field writes in %06x, want black", got)
+	}
+	if got := textColorFor(box, win32.WM_CTLCOLORSTATIC, hint); got != 0x302010 {
+		t.Fatalf("the hint writes in %06x, want 302010", got)
+	}
+	scale := float64(win32.DpiForWindow(r.host)) / 96
+	if height, want := -fontOf(hint).Height, int32(math.Round(20*scale)); height != want {
+		t.Fatalf("the hint's font is %d px tall, want %d", height, want)
+	}
+}
+
+// printedClient is a window's client area as the window paints it, children
+// included (PrintWindow through WM_PRINT: off screen, the desktop's copy of a
+// window stays blank).
+func printedClient(t *testing.T, hwnd windows.HWND) *win32.DIB {
+	t.Helper()
+	client := clientOnScreen(t, hwnd)
+	dib, err := win32.NewDIB(int(client.Right-client.Left), int(client.Bottom-client.Top))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(dib.Close)
+	const clientOnly = 1
+	if ok, _, err := printWindow.Call(uintptr(hwnd), uintptr(dib.DC), clientOnly); ok == 0 {
+		t.Fatalf("PrintWindow: %v", err)
+	}
+	return dib
+}
+
+// pixelAt is a picture's color at a point, as 0xRRGGBB.
+func pixelAt(dib *win32.DIB, x, y int32) uint32 {
+	i := (int(y)*dib.Width + int(x)) * 4
+	return uint32(dib.Pixels[i+2])<<16 | uint32(dib.Pixels[i+1])<<8 | uint32(dib.Pixels[i])
+}
+
+func clientOnScreen(t *testing.T, hwnd windows.HWND) win32.Rect {
+	t.Helper()
+	client, err := win32.ClientRectOnScreen(hwnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
+// textColorFor asks a window the colors one of its controls draws with
+// (WM_CTLCOLOR...), as Windows does before the control paints, and returns
+// the text color it set (a COLORREF).
+func textColorFor(parent windows.HWND, message uint32, control windows.HWND) uint32 {
+	dib, err := win32.NewDIB(1, 1)
+	if err != nil {
+		return math.MaxUint32
+	}
+	defer dib.Close()
+	sendMessage.Call(uintptr(parent), uintptr(message), uintptr(dib.DC), uintptr(control))
+	color, _, _ := getTextColor.Call(uintptr(dib.DC))
+	return uint32(color)
 }
 
 // Enter saves the text (a broken line comes as one), Esc and an unchanged

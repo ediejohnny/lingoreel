@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
@@ -50,6 +52,38 @@ type Config struct {
 	// Language is the interface's language, a BCP 47 tag such as "pt-BR";
 	// empty means the Windows display language when the app speaks it.
 	Language string `json:"language"`
+	// Bar is how the control bar over the video looks and how long it
+	// stays; Edit is how the box for correcting a line looks.
+	Bar  BarPreferences       `json:"bar"`
+	Edit appearance.EditStyle `json:"edit"`
+}
+
+// Ranges of how long the bar stays after the mouse leaves it.
+const (
+	MinBarHideDelay = time.Second
+	MaxBarHideDelay = 10 * time.Second
+)
+
+// BarPreferences are the control bar over the video: its look, and how long
+// it stays after the mouse leaves its zone.
+type BarPreferences struct {
+	Style     appearance.BarStyle `json:"style"`
+	HideDelay Duration            `json:"hideDelay"`
+}
+
+// DefaultBar is the dark bar, staying 2 s.
+func DefaultBar() BarPreferences {
+	return BarPreferences{Style: appearance.DefaultBarStyle(), HideDelay: Duration(2 * time.Second)}
+}
+
+func (b BarPreferences) validate() error {
+	if err := b.Style.Validate(); err != nil {
+		return fmt.Errorf("%w: bar: %w", ErrInvalidSettings, err)
+	}
+	if !b.HideDelay.within(MinBarHideDelay, MaxBarHideDelay) {
+		return fmt.Errorf("%w: bar hideDelay", ErrInvalidSettings)
+	}
+	return nil
 }
 
 // PanelBounds is the panel beside the video: open or closed, and its width
@@ -95,6 +129,8 @@ func DefaultConfig() Config {
 		ActiveProfile: DefaultProfileName,
 		PlayerPaths:   map[string]string{},
 		SyncNotice:    true,
+		Bar:           DefaultBar(),
+		Edit:          appearance.DefaultEditStyle(),
 	}
 }
 
@@ -131,6 +167,12 @@ func (c Config) Validate() error {
 	}
 	if c.Language != "" && !languageTagPattern.MatchString(c.Language) {
 		return fmt.Errorf("%w: language %q", ErrInvalidSettings, c.Language)
+	}
+	if err := c.Bar.validate(); err != nil {
+		return err
+	}
+	if err := c.Edit.Validate(); err != nil {
+		return fmt.Errorf("%w: edit: %w", ErrInvalidSettings, err)
 	}
 	return nil
 }

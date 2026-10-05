@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
@@ -21,6 +23,8 @@ type watchedStage struct {
 }
 
 func (s *watchedStage) Place(bool, layout.Insets) {}
+
+func (s *watchedStage) SetChrome(settings.BarPreferences, appearance.EditStyle) {}
 
 func (s *watchedStage) SetFullscreen(on bool) {
 	s.ui.mu.Lock()

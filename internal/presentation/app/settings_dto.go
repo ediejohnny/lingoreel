@@ -10,8 +10,11 @@ type SettingsView struct {
 	General  GeneralSettings `json:"general"`
 	Profiles []string        `json:"profiles"`
 	Profile  ProfileSettings `json:"profile"`
-	Players  []PlayerSetting `json:"players"`
-	Options  SettingsOptions `json:"options"`
+	// Appearance is how the controls over the video look, for every
+	// profile.
+	Appearance AppearanceSettings `json:"appearance"`
+	Players    []PlayerSetting    `json:"players"`
+	Options    SettingsOptions    `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
 }
@@ -142,6 +145,45 @@ type KaraokeSettings struct {
 	CountdownSize float64 `json:"countdownSize"`
 }
 
+// AppearanceSettings are the controls over the video: the bar and its menus,
+// and the box that corrects a line.
+type AppearanceSettings struct {
+	Bar  BarSettings  `json:"bar"`
+	Edit EditSettings `json:"edit"`
+}
+
+// BarSettings is how the control bar looks. Icon is the icons' and texts'
+// color, Loud the volume past 100%; Size multiplies the bar's size;
+// HideDelay is in seconds.
+type BarSettings struct {
+	Panel      string  `json:"panel"`
+	Menu       string  `json:"menu"`
+	Accent     string  `json:"accent"`
+	Icon       string  `json:"icon"`
+	Loud       string  `json:"loud"`
+	FontFamily string  `json:"fontFamily"`
+	Size       float64 `json:"size"`
+	HideDelay  float64 `json:"hideDelay"`
+}
+
+// EditSettings is how the box that corrects a line looks; HintSize is in
+// pixels at 100%.
+type EditSettings struct {
+	Background string  `json:"background"`
+	Text       string  `json:"text"`
+	Hint       string  `json:"hint"`
+	HintSize   float64 `json:"hintSize"`
+}
+
+// BarPreviewRequest asks for a picture of the bar in a style; Width and
+// Height are in screen pixels, Scale is the display scaling.
+type BarPreviewRequest struct {
+	Bar    BarSettings `json:"bar"`
+	Width  int         `json:"width"`
+	Height int         `json:"height"`
+	Scale  float64     `json:"scale"`
+}
+
 // ShortcutSetting is one command and its keys.
 type ShortcutSetting struct {
 	Command  string `json:"command"`
@@ -178,6 +220,10 @@ type SettingsOptions struct {
 	Modes     []Option        `json:"modes"`
 	Limits    SettingsLimits  `json:"limits"`
 	Defaults  ProfileSettings `json:"defaults"`
+	// AppearanceDefaults are the controls' default look; EditHint is the
+	// box's hint, for its sample.
+	AppearanceDefaults AppearanceSettings `json:"appearanceDefaults"`
+	EditHint           string             `json:"editHint"`
 }
 
 // Option is a value and its name.
@@ -226,6 +272,13 @@ type SettingsLimits struct {
 	BarThicknessMax    float64 `json:"barThicknessMax"`
 	CountdownSizeMin   float64 `json:"countdownSizeMin"`
 	CountdownSizeMax   float64 `json:"countdownSizeMax"`
+	BarSizeMin         float64 `json:"barSizeMin"`
+	BarSizeMax         float64 `json:"barSizeMax"`
+	// HideDelayMin and HideDelayMax are in seconds.
+	HideDelayMin float64 `json:"hideDelayMin"`
+	HideDelayMax float64 `json:"hideDelayMax"`
+	HintSizeMin  float64 `json:"hintSizeMin"`
+	HintSizeMax  float64 `json:"hintSizeMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.

@@ -22,10 +22,12 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
@@ -109,6 +111,24 @@ type Options struct {
 	// built (an HMENU) and the point on screen, and returns the ID of the
 	// item to carry out, zero for none. Nil shows the real menu.
 	Choose func(menu uintptr, x, y int32) uint32
+	// Chrome is how the bar and the box for corrections look; nil takes the
+	// stage's, and with no stage the app's defaults.
+	Chrome *Chrome
+}
+
+// Chrome is how the controls over the video look: the bar and its menus,
+// how long the bar stays after the mouse leaves it, and the box that
+// corrects a line.
+type Chrome struct {
+	Bar       appearance.BarStyle
+	HideDelay time.Duration
+	Edit      appearance.EditStyle
+}
+
+// DefaultChrome is the controls' look before the user changes it.
+func DefaultChrome() Chrome {
+	bar := settings.DefaultBar()
+	return Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: appearance.DefaultEditStyle()}
 }
 
 // The window is a watch session's player window, and changes its look.
@@ -134,6 +154,7 @@ type Window struct {
 	dib        *win32.DIB
 	layout     controlbar.Bar
 	visibility controlbar.Visibility
+	chrome     Chrome
 	barShown   bool
 	speedMenu  bool
 	// openMenu is the bar's menu shown, MenuNone for none.
@@ -198,11 +219,19 @@ func Open(ctx context.Context, options Options) (*Window, error) {
 		// A window on the app's stage does what its menu asks through the app.
 		options.App = appOf(options.Stage)
 	}
+	chrome := DefaultChrome()
+	switch {
+	case options.Stage != nil:
+		chrome = options.Stage.Chrome()
+	case options.Chrome != nil:
+		chrome = *options.Chrome
+	}
 	w := &Window{
 		thread: thread, options: options, logger: logger,
 		actions: make(chan func() error, actionQueue),
 		closed:  make(chan struct{}), done: make(chan struct{}), released: make(chan struct{}),
 	}
+	w.setChrome(chrome)
 	var setupErr error
 	if err := thread.Do(func() { setupErr = w.setup() }); err != nil || setupErr != nil {
 		w.release()

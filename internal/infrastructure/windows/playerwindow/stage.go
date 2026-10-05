@@ -35,6 +35,7 @@ type Stage struct {
 
 	mu      sync.Mutex
 	layout  StageLayout
+	chrome  Chrome
 	current *Window
 }
 
@@ -68,9 +69,33 @@ type StageLayout struct {
 	Insets layout.Insets
 }
 
-// NewStage returns a stage on the app's window.
+// NewStage returns a stage on the app's window, its controls with the app's
+// default look until SetChrome.
 func NewStage(options StageOptions) *Stage {
-	return &Stage{options: options}
+	return &Stage{options: options, chrome: DefaultChrome()}
+}
+
+// SetChrome changes how the controls over the video look: in the open
+// window at once, and in the next ones. A box open for a correction keeps
+// its look until it closes.
+func (s *Stage) SetChrome(chrome Chrome) {
+	s.mu.Lock()
+	s.chrome = chrome
+	w := s.current
+	s.mu.Unlock()
+	if w != nil {
+		_ = w.thread.Post(func() { // the window may be closing
+			w.setChrome(chrome)
+			w.refreshBar()
+		})
+	}
+}
+
+// Chrome is how the controls over the video look now.
+func (s *Stage) Chrome() Chrome {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.chrome
 }
 
 // SetLayout places the video: in the open window at once, and in the next

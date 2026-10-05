@@ -38,6 +38,14 @@ func TestMarksValidateRanges(t *testing.T) {
 		{"no bar (an older profile)", cue(func(c *appearance.CueStyle) { c.BarThickness = 0 }), "cue.barThickness"},
 		{"countdown at its smallest", cue(func(c *appearance.CueStyle) { c.CountdownSize = appearance.MinCountdownSize }), ""},
 		{"countdown size NaN", cue(func(c *appearance.CueStyle) { c.CountdownSize = nan }), "cue.countdownSize"},
+		{"default bar", func() error { return appearance.DefaultBarStyle().Validate() }, ""},
+		{"bar at its largest", bar(func(b *appearance.BarStyle) { b.Size = appearance.MaxBarSize }), ""},
+		{"bar too small", bar(func(b *appearance.BarStyle) { b.Size = appearance.MinBarSize - 0.01 }), "bar.size"},
+		{"bar size NaN", bar(func(b *appearance.BarStyle) { b.Size = nan }), "bar.size"},
+		{"bar without a font", bar(func(b *appearance.BarStyle) { b.FontFamily = "" }), "bar.fontFamily"},
+		{"default box", func() error { return appearance.DefaultEditStyle().Validate() }, ""},
+		{"hint too large", edit(func(e *appearance.EditStyle) { e.HintSize = appearance.MaxEditHintSize + 1 }), "edit.hintSize"},
+		{"hint size NaN", edit(func(e *appearance.EditStyle) { e.HintSize = nan }), "edit.hintSize"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -69,6 +77,22 @@ func selection(change func(*appearance.SelectionLook)) func() error {
 		look := appearance.DefaultSelectionLook()
 		change(&look)
 		return look.Validate()
+	}
+}
+
+func bar(change func(*appearance.BarStyle)) func() error {
+	return func() error {
+		style := appearance.DefaultBarStyle()
+		change(&style)
+		return style.Validate()
+	}
+}
+
+func edit(change func(*appearance.EditStyle)) func() error {
+	return func() error {
+		style := appearance.DefaultEditStyle()
+		change(&style)
+		return style.Validate()
 	}
 }
 

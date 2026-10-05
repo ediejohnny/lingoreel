@@ -2,14 +2,14 @@ package controlbar
 
 import "time"
 
-// HideDelay is how long the bar stays after the mouse leaves its zone.
-const HideDelay = 2 * time.Second
-
 // Visibility decides when the bar shows: while the mouse is in the bottom
 // zone or over the bar, while the user drags the track or the volume, while
-// the speed list is open, and for HideDelay after that. It keeps no clock:
-// the caller passes the time.
+// the speed list is open, and for Delay after that. It keeps no clock: the
+// caller passes the time.
 type Visibility struct {
+	// Delay is how long the bar stays after the mouse leaves its zone; zero
+	// hides it at once.
+	Delay      time.Duration
 	shown      bool
 	lastActive time.Time
 }
@@ -24,7 +24,7 @@ func (v *Visibility) Update(now time.Time, active bool) (shown bool, recheck tim
 	if !v.shown {
 		return false, 0
 	}
-	if left := HideDelay - now.Sub(v.lastActive); left > 0 {
+	if left := v.Delay - now.Sub(v.lastActive); left > 0 {
 		return true, left
 	}
 	v.shown = false

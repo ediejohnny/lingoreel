@@ -18,6 +18,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -597,6 +598,7 @@ func (d *recordingDisplay) lastLook() (session.Look, int) {
 type fakePreview struct {
 	mu       sync.Mutex
 	requests []previewCall
+	bars     []barCall
 	err      error
 }
 
@@ -615,3 +617,17 @@ func (p *fakePreview) Preview(look session.Look, width, height, dpi int, screen 
 }
 
 func (p *fakePreview) Fonts() ([]string, error) { return []string{"Arial", "Verdana"}, nil }
+
+// barCall is a bar's preview asked for.
+type barCall struct {
+	style              appearance.BarStyle
+	width, height, dpi int
+	clock, speed       string
+}
+
+func (p *fakePreview) PreviewBar(style appearance.BarStyle, width, height, dpi int, clock string, speed func(playback.Speed) string) ([]byte, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.bars = append(p.bars, barCall{style, width, height, dpi, clock, speed(playback.NormalSpeed)})
+	return []byte("BAR!"), p.err
+}

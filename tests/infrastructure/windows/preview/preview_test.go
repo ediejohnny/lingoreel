@@ -14,6 +14,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -252,6 +253,38 @@ func TestThePreviewShowsANoticeAsTheVideoWould(t *testing.T) {
 	}
 	if first, last := columns(render(""), 0, 120, 0xFF, 0x8C, 0x00); first <= last {
 		t.Fatalf("no notice, yet orange in columns %d-%d", first, last)
+	}
+}
+
+// The bar's preview: the bar at the bottom of the sample picture, in its
+// style's colors, and larger with a larger size.
+func TestTheBarsPreviewShowsTheStyleAtItsSize(t *testing.T) {
+	testkit.Slow(t)
+	r := start(t)
+	style := appearance.DefaultBarStyle()
+	style.Accent = appearance.RGB(0xFF, 0x8C, 0x00)
+	render := func(size float64) *image.RGBA {
+		t.Helper()
+		style.Size = size
+		data, err := r.PreviewBar(style, 640, 360, 96, "15:00 / 1:00:00", func(playback.Speed) string { return "1,00×" })
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	normal, double := render(1), render(2)
+	if n := count(normal, 0, 180, 0xFF, 0x8C, 0x00); n != 0 {
+		t.Fatalf("%d orange pixels in the top half; the bar belongs at the bottom", n)
+	}
+	// The played part of the track crosses column 60 at both sizes (it runs
+	// from the bar's left padding to a quarter of the track); a larger bar
+	// has a thicker track.
+	thickness := func(picture *image.RGBA) int {
+		column := image.Rect(60, 180, 61, 360)
+		return count(picture.SubImage(column).(*image.RGBA), 180, 360, 0xFF, 0x8C, 0x00)
+	}
+	if small, large := thickness(normal), thickness(double); small == 0 || large < small*3/2 {
+		t.Fatalf("the played track is %d px thick at 1×, %d px at 2×; want it thicker at 2×", small, large)
 	}
 }
 

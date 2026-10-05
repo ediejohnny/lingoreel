@@ -1,5 +1,118 @@
 export namespace app {
 	
+	export class EditSettings {
+	    background: string;
+	    text: string;
+	    hint: string;
+	    hintSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EditSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.background = source["background"];
+	        this.text = source["text"];
+	        this.hint = source["hint"];
+	        this.hintSize = source["hintSize"];
+	    }
+	}
+	export class BarSettings {
+	    panel: string;
+	    menu: string;
+	    accent: string;
+	    icon: string;
+	    loud: string;
+	    fontFamily: string;
+	    size: number;
+	    hideDelay: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BarSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.panel = source["panel"];
+	        this.menu = source["menu"];
+	        this.accent = source["accent"];
+	        this.icon = source["icon"];
+	        this.loud = source["loud"];
+	        this.fontFamily = source["fontFamily"];
+	        this.size = source["size"];
+	        this.hideDelay = source["hideDelay"];
+	    }
+	}
+	export class AppearanceSettings {
+	    bar: BarSettings;
+	    edit: EditSettings;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppearanceSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bar = this.convertValues(source["bar"], BarSettings);
+	        this.edit = this.convertValues(source["edit"], EditSettings);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class BarPreviewRequest {
+	    bar: BarSettings;
+	    width: number;
+	    height: number;
+	    scale: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BarPreviewRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bar = this.convertValues(source["bar"], BarSettings);
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.scale = source["scale"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class Capabilities {
 	    pause: boolean;
 	    seek: boolean;
@@ -78,6 +191,7 @@ export namespace app {
 	        this.end = source["end"];
 	    }
 	}
+	
 	export class Editing {
 	    active: boolean;
 	    line: string;
@@ -1039,6 +1153,12 @@ export namespace app {
 	    barThicknessMax: number;
 	    countdownSizeMin: number;
 	    countdownSizeMax: number;
+	    barSizeMin: number;
+	    barSizeMax: number;
+	    hideDelayMin: number;
+	    hideDelayMax: number;
+	    hintSizeMin: number;
+	    hintSizeMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -1082,6 +1202,12 @@ export namespace app {
 	        this.barThicknessMax = source["barThicknessMax"];
 	        this.countdownSizeMin = source["countdownSizeMin"];
 	        this.countdownSizeMax = source["countdownSizeMax"];
+	        this.barSizeMin = source["barSizeMin"];
+	        this.barSizeMax = source["barSizeMax"];
+	        this.hideDelayMin = source["hideDelayMin"];
+	        this.hideDelayMax = source["hideDelayMax"];
+	        this.hintSizeMin = source["hintSizeMin"];
+	        this.hintSizeMax = source["hintSizeMax"];
 	    }
 	}
 	export class SettingsOptions {
@@ -1092,6 +1218,8 @@ export namespace app {
 	    modes: Option[];
 	    limits: SettingsLimits;
 	    defaults: ProfileSettings;
+	    appearanceDefaults: AppearanceSettings;
+	    editHint: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsOptions(source);
@@ -1106,6 +1234,8 @@ export namespace app {
 	        this.modes = this.convertValues(source["modes"], Option);
 	        this.limits = this.convertValues(source["limits"], SettingsLimits);
 	        this.defaults = this.convertValues(source["defaults"], ProfileSettings);
+	        this.appearanceDefaults = this.convertValues(source["appearanceDefaults"], AppearanceSettings);
+	        this.editHint = source["editHint"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1130,6 +1260,7 @@ export namespace app {
 	    general: GeneralSettings;
 	    profiles: string[];
 	    profile: ProfileSettings;
+	    appearance: AppearanceSettings;
 	    players: PlayerSetting[];
 	    options: SettingsOptions;
 	    folder: string;
@@ -1143,6 +1274,7 @@ export namespace app {
 	        this.general = this.convertValues(source["general"], GeneralSettings);
 	        this.profiles = source["profiles"];
 	        this.profile = this.convertValues(source["profile"], ProfileSettings);
+	        this.appearance = this.convertValues(source["appearance"], AppearanceSettings);
 	        this.players = this.convertValues(source["players"], PlayerSetting);
 	        this.options = this.convertValues(source["options"], SettingsOptions);
 	        this.folder = source["folder"];

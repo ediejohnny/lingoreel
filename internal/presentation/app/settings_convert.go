@@ -285,6 +285,12 @@ func fieldProblem(err error) string {
 	case "cue.countdownSize":
 		return ptbr.T("settings.problem.countdownSize",
 			"min", limit(appearance.MinCountdownSize*100), "max", limit(appearance.MaxCountdownSize*100))
+	case "bar.fontFamily":
+		return ptbr.T("settings.problem.fontFamily")
+	case "bar.size":
+		return ptbr.T("settings.problem.barSize", "min", limit(appearance.MinBarSize*100), "max", limit(appearance.MaxBarSize*100))
+	case "edit.hintSize":
+		return ptbr.T("settings.problem.hintSize", "min", limit(appearance.MinEditHintSize), "max", limit(appearance.MaxEditHintSize))
 	case "outline.width":
 		return ptbr.T("settings.problem.outlineWidth", "max", limit(appearance.MaxOutlineWidth))
 	case "shadow.offsetX", "shadow.offsetY":

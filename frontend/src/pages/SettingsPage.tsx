@@ -1,6 +1,7 @@
 import { Save, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppearanceSection, AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
+import { AppearanceSection } from "../components/settings/AppearanceSection";
+import { AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
 import { GeneralSection } from "../components/settings/GeneralSection";
 import { PlayersSection } from "../components/settings/PlayersSection";
 import { ShortcutsSection } from "../components/settings/ShortcutsSection";
@@ -199,7 +200,7 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
             {section === "study" && <StudySection {...props} />}
             {section === "shortcuts" && <ShortcutsSection {...props} />}
             {section === "players" && <PlayersSection {...props} />}
-            {section === "appearance" && <AppearanceSection theme={theme} onTheme={onTheme} />}
+            {section === "appearance" && <AppearanceSection view={view} draft={draft} theme={theme} onTheme={onTheme} />}
             {section === "advanced" && <AdvancedSection {...props} />}
           </div>
         </main>

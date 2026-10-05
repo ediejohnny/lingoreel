@@ -102,6 +102,10 @@ export function Preferences() {
   return window['go']['app']['API']['Preferences']();
 }
 
+export function PreviewBar(arg1) {
+  return window['go']['app']['API']['PreviewBar'](arg1);
+}
+
 export function PreviewSubtitles(arg1) {
   return window['go']['app']['API']['PreviewSubtitles'](arg1);
 }
@@ -172,6 +176,10 @@ export function SeekTo(arg1) {
 
 export function SelectLine(arg1) {
   return window['go']['app']['API']['SelectLine'](arg1);
+}
+
+export function SetAppearance(arg1) {
+  return window['go']['app']['API']['SetAppearance'](arg1);
 }
 
 export function SetFileAssociation(arg1) {

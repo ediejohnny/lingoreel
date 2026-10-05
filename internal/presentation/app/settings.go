@@ -97,7 +97,7 @@ func (a *API) Settings() (SettingsView, error) {
 			RecommendationsHidden: config.InstallRecommendations.DismissAll || len(config.InstallRecommendations.Dismissed) > 0,
 			Language:              config.Language, Languages: interfaceLanguages(),
 		},
-		Profiles: names, Profile: profileView(profile, a.deps.KeyChar),
+		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Options: a.settingsOptions(), Folder: a.deps.SettingsDir,
 	}
 	return view, nil
@@ -126,7 +126,12 @@ func (a *API) settingsOptions() SettingsOptions {
 			SelectionGapMax: appearance.MaxSelectionGap, SelectionRadiusMax: appearance.MaxSelectionCurve,
 			BarThicknessMin: appearance.MinCueThickness, BarThicknessMax: appearance.MaxCueThickness,
 			CountdownSizeMin: appearance.MinCountdownSize, CountdownSizeMax: appearance.MaxCountdownSize,
+			BarSizeMin: appearance.MinBarSize, BarSizeMax: appearance.MaxBarSize,
+			HideDelayMin: settings.MinBarHideDelay.Seconds(), HideDelayMax: settings.MaxBarHideDelay.Seconds(),
+			HintSizeMin: appearance.MinEditHintSize, HintSizeMax: appearance.MaxEditHintSize,
 		},
+		AppearanceDefaults: appearanceView(settings.DefaultBar(), appearance.DefaultEditStyle()),
+		EditHint:           ptbr.EditHint,
 	}
 	if a.deps.Preview != nil {
 		if fonts, err := a.deps.Preview.Fonts(); err == nil {

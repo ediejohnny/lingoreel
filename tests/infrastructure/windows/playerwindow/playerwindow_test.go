@@ -13,7 +13,6 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
-	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -434,7 +433,7 @@ func TestTheBarShowsAtTheBottomAndTakesClicks(t *testing.T) {
 	// The real mouse is elsewhere: the bar leaves after its delay.
 	start := time.Now()
 	testkit.Eventually(t, "the bar to hide", func() bool { return !windows.IsWindowVisible(bar) })
-	if waited := time.Since(start); waited < controlbar.HideDelay/2 {
+	if waited := time.Since(start); waited < settings.DefaultBar().HideDelay.Std()/2 {
 		t.Fatalf("the bar left after %v, before its delay", waited)
 	}
 }

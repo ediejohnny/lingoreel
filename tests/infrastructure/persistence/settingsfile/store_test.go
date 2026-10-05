@@ -124,7 +124,9 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 	}
 	files := settingsfile.Open(dir)
 	config, err := files.LoadConfig()
-	if err != nil || !config.SyncNotice || config.Theme != settings.ThemeDark || config.Window.Saved() {
+	defaults := settings.DefaultConfig()
+	if err != nil || !config.SyncNotice || config.Theme != settings.ThemeDark || config.Window.Saved() ||
+		config.Bar != defaults.Bar || config.Edit != defaults.Edit {
 		t.Fatalf("old config = %+v, %v", config, err)
 	}
 	config.SyncNotice = false
