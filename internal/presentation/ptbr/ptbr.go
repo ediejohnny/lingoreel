@@ -150,7 +150,7 @@ func NewLineNames(info media.Info, primary, translation uint64) LineNames {
 
 // Notice words a sync change: "Legenda de cima (inglês): −0,150 s".
 func (n LineNames) Notice(line session.Line, offset subtitle.Offset) string {
-	if line != session.LinePrimary && line != session.LineTranslation {
+	if !line.Valid() {
 		return Offset(offset)
 	}
 	return T("notice.sync", "line", n[line], "offset", Offset(offset))

@@ -118,8 +118,9 @@ func (s *Subtitles) notify() {
 	}
 }
 
-func knownLine(line Line) bool {
-	return line >= LinePrimary && line <= LineTranslation
+// Valid tells the line is one of the two the screen shows.
+func (l Line) Valid() bool {
+	return l == LinePrimary || l == LineTranslation
 }
 
 // SetKaraoke turns the Modo Karaokê on or off and changes its rules, and
@@ -171,7 +172,7 @@ func (s *Subtitles) At(position time.Duration) Visible {
 // Track returns a line's track as it is now (offset included); nil for a
 // missing or unknown line.
 func (s *Subtitles) Track(line Line) *Track {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return nil
 	}
 	s.mu.RLock()
@@ -221,7 +222,7 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 
 // Offset returns the offset of a line; zero for a missing or unknown line.
 func (s *Subtitles) Offset(line Line) subtitle.Offset {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return 0
 	}
 	s.mu.RLock()
@@ -236,7 +237,7 @@ func (s *Subtitles) Offset(line Line) subtitle.Offset {
 // signals the change. It returns the new offset, or false for a missing or
 // unknown line, which does not change.
 func (s *Subtitles) ShiftOffset(line Line, delta time.Duration) (subtitle.Offset, bool) {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return 0, false
 	}
 	s.mu.Lock()
@@ -256,7 +257,7 @@ func (s *Subtitles) ShiftOffset(line Line, delta time.Duration) (subtitle.Offset
 // SetTimeline replaces a line's events, keeping its offset, and signals the
 // change; it has no effect on a missing or unknown line.
 func (s *Subtitles) SetTimeline(line Line, timeline *subtitle.Timeline) {
-	if !knownLine(line) || timeline == nil {
+	if !line.Valid() || timeline == nil {
 		return
 	}
 	s.mu.Lock()
@@ -276,7 +277,7 @@ func (s *Subtitles) SetTimeline(line Line, timeline *subtitle.Timeline) {
 // change: switching the subtitle of a line while the video plays, adding a
 // translation or taking it away. An unknown line does not change.
 func (s *Subtitles) SetTrack(line Line, track *Track) {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return
 	}
 	var kept *Track
@@ -293,7 +294,7 @@ func (s *Subtitles) SetTrack(line Line, track *Track) {
 // SetOffset changes the offset of a line and signals the change; it has no
 // effect on a missing or unknown line.
 func (s *Subtitles) SetOffset(line Line, offset subtitle.Offset) {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return
 	}
 	s.mu.Lock()

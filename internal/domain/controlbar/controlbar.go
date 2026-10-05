@@ -62,7 +62,6 @@ const (
 	// bar; it is never smaller than zonePanels panels.
 	zoneShare  = 0.2
 	zonePanels = 2.0
-	baseDPI    = 96.0
 	// maxScale bounds the scaling (1536 DPI), far above any monitor, so no
 	// size overflows.
 	maxScale = 16.0
@@ -146,7 +145,7 @@ func Scale(dpi int) float64 {
 	if dpi <= 0 {
 		return 1
 	}
-	return float64(dpi) / baseDPI
+	return float64(dpi) / layout.BaseDPI
 }
 
 // PanelHeight is the height of the bar's panel at a scale.

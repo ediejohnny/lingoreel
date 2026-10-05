@@ -1,7 +1,6 @@
 package ptbr
 
 import (
-	"math"
 	"strings"
 	"time"
 
@@ -93,7 +92,7 @@ func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Comm
 		if state.Muted {
 			level = 0
 		}
-		volume := T("bar.tip.volume", "percent", int(math.Round(float64(level)*100)))
+		volume := T("bar.tip.volume", "percent", level.Percent())
 		if keys := strings.TrimSpace(key(shortcut.VolumeUp) + " " + key(shortcut.VolumeDown)); keys != "" {
 			volume += " (" + keys + ")"
 		}

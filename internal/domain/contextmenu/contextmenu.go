@@ -141,6 +141,11 @@ const (
 	PageStudy       Page = "study"
 )
 
+// Valid tells the page is one the menu opens.
+func (p Page) Valid() bool {
+	return p == PageGeneral || p == PagePrimary || p == PageTranslation || p == PageStudy
+}
+
 // Item is one item of the menu.
 type Item struct {
 	Kind   Kind

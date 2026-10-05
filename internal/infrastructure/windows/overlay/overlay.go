@@ -657,7 +657,7 @@ func (o *Overlay) LineAt(x, y float64) (session.Line, bool) {
 // SpotOf is where a line was last drawn and in which font, in the covered
 // window's client pixels; false when the line is not on screen.
 func (o *Overlay) SpotOf(line session.Line) (Spot, bool) {
-	if line != session.LinePrimary && line != session.LineTranslation {
+	if !line.Valid() {
 		return Spot{}, false
 	}
 	o.boxesMu.Lock()

@@ -105,8 +105,19 @@ func (w *Window) editAt(point win32.Point) bool {
 	if !ok {
 		return false
 	}
-	// The text comes from the session, which picks the line for the edit.
+	w.beginEdit(line, spot, false)
+	return true
+}
+
+// beginEdit has the session pick a line for an edit, pausing a playing video
+// first when asked, and opens the box over the line, at spot, with its text.
+func (w *Window) beginEdit(line session.Line, spot overlay.Spot, pause bool) {
 	w.do(func(r watch.Remote) error {
+		if pause && r.State().Status == playback.StatusPlaying {
+			if err := r.Controls().Pause(); err != nil {
+				return err
+			}
+		}
 		selection, err := r.Select(line)
 		if err != nil {
 			return err
@@ -114,7 +125,6 @@ func (w *Window) editAt(point win32.Point) bool {
 		text := selection.Event.Text()
 		return w.thread.Post(func() { w.openEditor(line, text, spot) })
 	})
-	return true
 }
 
 // openEditor shows the box over the line, with its text.

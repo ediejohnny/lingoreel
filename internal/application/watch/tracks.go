@@ -30,13 +30,7 @@ func (t Tracks) Number(line session.Line) uint64 {
 
 // Of lists the tracks of a kind.
 func (t Tracks) Of(kind media.TrackType) []media.Track {
-	var list []media.Track
-	for _, track := range t.List {
-		if track.Type == kind {
-			list = append(list, track)
-		}
-	}
-	return list
+	return media.OfType(t.List, kind)
 }
 
 // Why a line cannot show a track, for the app to word it.
@@ -53,7 +47,7 @@ var (
 // is loaded: a readable subtitle of the video that the other line does not
 // show, and never none on top.
 func (s *Session) CheckLine(line session.Line, number uint64) error {
-	if line != session.LinePrimary && line != session.LineTranslation {
+	if !line.Valid() {
 		return fmt.Errorf("unknown subtitle line %d", line)
 	}
 	tracks := s.Tracks()
@@ -147,7 +141,7 @@ func (s *Session) SetSyncWording(notice func(session.Line, subtitle.Offset) stri
 // fala" counts afresh too. The pair of lines is checked again here, as the
 // other line may have changed while this file loaded.
 func (s *Session) SetLine(line session.Line, number uint64, loaded analysis.LoadedTrack, saved project.Track) error {
-	if line != session.LinePrimary && line != session.LineTranslation {
+	if !line.Valid() {
 		return fmt.Errorf("unknown subtitle line %d", line)
 	}
 	if number != 0 && loaded.Timeline == nil {
