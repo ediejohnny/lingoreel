@@ -198,9 +198,9 @@ func TestReplayTargetInAPassage(t *testing.T) {
 }
 func TestSpokenFraction(t *testing.T) {
 	t.Parallel()
-	// "ab cd" over 10 s is spoken in the first 8.5 s. Weights: letters 1,
-	// the space 0.5: 4.5 in all. Half the speaking time (4.25 s) reaches
-	// weight 2.25: past "ab" (2), inside the space, so 2 of 4 letters.
+	// "ab cd" over 10 s is spoken in the first 8.5 s. Each word weighs one
+	// syllable and 0.3: 2.6 in all. Half the speaking time (4.25 s) reaches
+	// 1.3: the end of "ab", so 2 of 4 letters.
 	event := line("x", 0, 10, "ab cd")
 	cases := map[float64]float64{0: 0, -1: 0, 4.25: 0.5, 8.5: 1, 10: 1, 20: 1}
 	for at, want := range cases {
@@ -208,11 +208,21 @@ func TestSpokenFraction(t *testing.T) {
 			t.Errorf("SpokenFraction at %v s = %v, want %v", at, got, want)
 		}
 	}
-	// A comma holds the fill: "a, b" weighs 1 + 4 + 0.5 + 1 = 6.5, and the
-	// comma alone takes 4 of it.
+	// A comma holds the fill: "a, b" weighs 1.3 + 0.6 (the pause) + 1.3 =
+	// 3.2, and all through the pause "a," (2 of 3 characters) stays painted.
 	pause := line("p", 0, 10, "a, b")
-	if before, after := study.SpokenFraction(pause, s(8.5*1.2/6.5)), study.SpokenFraction(pause, s(8.5*4.8/6.5)); after-before >= 1.0/3 {
-		t.Errorf("the comma did not slow the fill: %v -> %v", before, after)
+	for _, at := range []float64{8.5 * 1.35 / 3.2, 8.5 * 1.85 / 3.2} {
+		if got := study.SpokenFraction(pause, s(at)); math.Abs(got-2.0/3) > 1e-9 {
+			t.Errorf("in the comma's pause, at %.2f s, the fill is %v", at, got)
+		}
+	}
+	// A sound's description is painted as soon as the speech starts; a line
+	// of only a description is never painted.
+	if got := study.SpokenFraction(line("d", 0, 10, "[SIGHS] Ok"), s(0.01)); got < 7.0/9 {
+		t.Errorf("the description was not painted at once: %v", got)
+	}
+	if got := study.SpokenFraction(line("l", 0, 10, "(laughs)"), s(5)); got != 0 {
+		t.Errorf("a line of only a description was painted: %v", got)
 	}
 	if got := study.SpokenFraction(line("z", 5, 5, "x"), s(5)); got != 0 {
 		t.Errorf("an empty span gave %v", got)
