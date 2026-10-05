@@ -1,5 +1,5 @@
 // Package plugins lists the player plugins the app ships with. A new player
-// is one more line in All (see docs/plugins-de-player.md).
+// is one more line in All (see docs/player-plugins.md).
 package plugins
 
 import (

@@ -13,7 +13,7 @@ import (
 )
 
 // PotPlayer answers a WM_USER message carrying one of these codes in its
-// wparam; the measurements behind each one are in docs/plugins-de-player.md.
+// wparam; docs/player-plugins.md describes this way of driving a player.
 const (
 	codeGetVolume      = 0x5000 // answer: 0 to 100
 	codeSetVolume      = 0x5001 // lparam: 0 to 100

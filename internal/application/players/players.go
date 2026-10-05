@@ -2,7 +2,7 @@
 // registry the app builds from the plugins it ships with. A plugin is an
 // adapter: it describes its player, launches it and drives it. Anyone can
 // add a player by writing one package that implements Plugin and adding it
-// to the list in the composition root; see docs/plugins-de-player.md.
+// to the list in the composition root; see docs/player-plugins.md.
 package players
 
 import (
