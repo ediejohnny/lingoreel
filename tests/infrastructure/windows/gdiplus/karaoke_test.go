@@ -105,6 +105,51 @@ func TestFillPaintsTheSpokenPart(t *testing.T) {
 	}
 }
 
+// maxAlpha is the most opaque pixel of a rectangle.
+func maxAlpha(dib *win32.DIB, area layout.Rect) int {
+	most := 0
+	for y := max(int(area.Y), 0); y < min(int(area.Bottom()), dib.Height); y++ {
+		for x := max(int(area.X), 0); x < min(int(area.Right()), dib.Width); x++ {
+			most = max(most, int(dib.Pixels[(y*dib.Width+x)*4+3]))
+		}
+	}
+	return most
+}
+
+func TestTheFillAndTheBarFollowTheLinesOpacity(t *testing.T) {
+	r := newRenderer(t)
+	frame, look := karaokeFrame(t, r)
+	line := frame.Primary.Lines[0]
+	look.FillWidths = layout.FillWidths(frame.Primary, 0.5, r)
+	spoken := layout.Rect{X: line.X, Y: line.Y, W: look.FillWidths[0], H: line.Height}
+	ahead := layout.Rect{X: line.X + look.FillWidths[0] + 4, Y: line.Y, W: line.Width - look.FillWidths[0] - 4, H: line.Height}
+	draw := func(opacity float64, cue *gdiplus.CueLook) *win32.DIB {
+		t.Helper()
+		look.Primary.Opacity, look.Cue = opacity, cue
+		dib := newDIB(t, 1920, 1080)
+		if err := r.Draw(dib, frame, look); err != nil {
+			t.Fatal(err)
+		}
+		return dib
+	}
+	// At 50% the spoken part is as transparent as the part still to come.
+	half := draw(0.5, nil)
+	if a, b := maxAlpha(half, spoken), maxAlpha(half, ahead); a < 118 || a > 138 || b < 118 || b > 138 {
+		t.Fatalf("at 50%%: spoken alpha %d, ahead %d; want both about 128", a, b)
+	}
+	if hidden := draw(0, nil); maxAlpha(hidden, frame.Primary.Bounds) != 0 {
+		t.Fatal("at 0% the spoken part still shows")
+	}
+	// The bar above a preview fades with it.
+	bounds := frame.Primary.Bounds
+	strip := layout.Rect{X: bounds.X, Y: bounds.Y - 30, W: bounds.W, H: 22}
+	look.FillWidths = nil
+	bar := draw(0.5, &gdiplus.CueLook{Indicator: study.IndicatorBar, Progress: 1})
+	if a := maxAlpha(bar, strip); a < 118 || a > 138 {
+		t.Fatalf("at 50%% the bar has alpha %d; want about 128", a)
+	}
+}
+
 func TestHiddenPrimaryDrawsNothing(t *testing.T) {
 	r := newRenderer(t)
 	frame, look := karaokeFrame(t, r)

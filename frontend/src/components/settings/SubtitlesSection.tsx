@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { backend, messageOf, type StyleSettings } from "../../services/backend";
-import { lineLanguage, type SubtitleLine } from "../../settings";
+import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
-import { NumberField } from "../ui/Inputs";
+import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { change, type SectionProps } from "./section";
 import { StyleEditor } from "./StyleEditor";
@@ -18,13 +18,39 @@ import { SubtitlePreview } from "./SubtitlePreview";
 function SubtitlesLayout({
   draft,
   highlight,
+  view = "",
+  onView,
   children,
-}: Pick<SectionProps, "draft"> & { highlight: SubtitleLine | ""; children: ReactNode }) {
+}: Pick<SectionProps, "draft"> & {
+  highlight: SubtitleLine | "";
+  /** view and onView offer the Modo Karaokê view of the preview, on the page of the line it paints. */
+  view?: PreviewView;
+  onView?: (view: PreviewView) => void;
+  children: ReactNode;
+}) {
   return (
     <div className="@container">
       <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
-        <aside aria-label="Prévia das legendas" className="@2xl:sticky @2xl:top-4 @2xl:order-2">
-          <SubtitlePreview primary={draft.primary} translation={draft.translation} layout={draft.layout} highlight={highlight} />
+        <aside aria-label="Prévia das legendas" className="flex flex-col gap-3 @2xl:sticky @2xl:top-4 @2xl:order-2">
+          {onView && (
+            <Segmented
+              label="Prévia"
+              value={view}
+              options={[
+                { value: "", label: "Normal" },
+                { value: "fill", label: "Modo Karaokê" },
+              ]}
+              onChange={(next) => onView(next === "fill" ? "fill" : "")}
+            />
+          )}
+          <SubtitlePreview
+            primary={draft.primary}
+            translation={draft.translation}
+            layout={draft.layout}
+            highlight={highlight}
+            view={view}
+            fillColor={draft.karaoke.fillColor}
+          />
         </aside>
         <div className="flex min-w-0 flex-col gap-5 @container @2xl:order-1">{children}</div>
       </div>
@@ -35,6 +61,8 @@ function SubtitlesLayout({
 /** SubtitleLineSection edits how one subtitle line looks, and its language. */
 export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProps & { line: SubtitleLine }) {
   const [problem, setProblem] = useState("");
+  const [previewView, setPreviewView] = useState<PreviewView>("");
+  const karaoke = draft.karaoke;
   const options = view.options;
   const style = draft[line];
   const setStyle = (next: StyleSettings) => setDraft((current) => (current ? { ...current, [line]: next } : current));
@@ -53,7 +81,12 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
   const title = line === "primary" ? `Legenda de cima · ${language}` : `Legenda de baixo · ${language}`;
 
   return (
-    <SubtitlesLayout draft={draft} highlight={line}>
+    <SubtitlesLayout
+      draft={draft}
+      highlight={line}
+      view={line === "primary" ? previewView : ""}
+      onView={line === "primary" ? setPreviewView : undefined}
+    >
       <Card title={title}>
         <div className="flex flex-col gap-5">
           {line === "primary" ? (
@@ -81,6 +114,31 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
           <StyleEditor style={style} options={options} onChange={setStyle} onPreset={preset} />
         </div>
       </Card>
+      {line === "primary" && (
+        <Card
+          title="Modo Karaokê"
+          aside={
+            <HelpTip topic="Cor do preenchimento">
+              Cor da parte da frase que o ator já falou. É a mesma de Estudo › Modo Karaokê, onde também se liga o preenchimento.
+            </HelpTip>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <ColorField
+              label="Cor do preenchimento"
+              value={karaoke.fillColor}
+              disabled={!karaoke.fill}
+              onChange={(fillColor) => {
+                change(setDraft, "karaoke")({ ...karaoke, fillColor });
+                setPreviewView("fill");
+              }}
+            />
+            {!karaoke.fill && (
+              <p className="text-sm text-fg-muted">O preenchimento está desligado. Ligue em Estudo › Modo Karaokê para escolher a cor.</p>
+            )}
+          </div>
+        </Card>
+      )}
     </SubtitlesLayout>
   );
 }

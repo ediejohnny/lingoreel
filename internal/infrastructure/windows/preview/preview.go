@@ -55,7 +55,8 @@ func Start() (*Renderer, error) {
 
 // Preview draws the screen's two lines with a look on a picture of width ×
 // height pixels at a display scaling (96 is 100%), as PNG. Both lines show;
-// the screen's highlight outlines the line being edited.
+// the screen's highlight outlines the line being edited, and its fill paints
+// that share of the line on top in the look's fill color.
 func (r *Renderer) Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error) {
 	if width < minSide || height < minSide || width > maxSide || height > maxSide || dpi < minDPI || dpi > maxDPI {
 		return nil, fmt.Errorf("%w: %d×%d at %d dpi", ErrInvalidSize, width, height, dpi)
@@ -90,7 +91,12 @@ func (r *Renderer) draw(look session.Look, width, height, dpi int, screen sessio
 		Translation: layout.Text{Style: look.Translation, Content: screen.Translation},
 		Notice:      layout.Text{Style: notice},
 	}, r.renderer)
-	drawn := gdiplus.Look{Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice}
+	drawn := gdiplus.Look{
+		Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice, FillColor: look.FillColor,
+	}
+	if screen.Fill > 0 {
+		drawn.FillWidths = layout.FillWidths(frame.Primary, screen.Fill, r.renderer)
+	}
 	if screen.Highlighted {
 		drawn.Highlight = gdiplus.OutlineAround(boxOf(frame, screen.Highlight), dpi)
 	}

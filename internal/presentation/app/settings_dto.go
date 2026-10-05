@@ -180,4 +180,8 @@ type PreviewRequest struct {
 	// Highlight outlines the line being edited: "primary", "translation",
 	// or "" for none.
 	Highlight string `json:"highlight"`
+	// View is "" for the subtitles as they look between lines, or "fill"
+	// for the Modo Karaokê's fill, painted in FillColor ("#RRGGBB").
+	View      string `json:"view"`
+	FillColor string `json:"fillColor"`
 }

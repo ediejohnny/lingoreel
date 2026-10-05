@@ -7,6 +7,9 @@ export type { KeyPress } from "./keys";
 /** SubtitleLine is one of the two subtitle lines: on top, or the translation below. */
 export type SubtitleLine = "primary" | "translation";
 
+/** PreviewView is what the preview shows: the lines as they look, or the Modo Karaokê's fill. */
+export type PreviewView = "" | "fill";
+
 /** SectionId names a page of the settings screen. */
 export type SectionId =
   | "general"

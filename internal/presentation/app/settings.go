@@ -27,6 +27,13 @@ const (
 // baseDPI is the display scaling of 100%.
 const baseDPI = 96
 
+// The Modo Karaokê view of the preview paints the line on top as half
+// spoken, so the fill color shows next to the line's own.
+const (
+	previewViewFill = "fill"
+	previewSpoken   = 0.5
+)
+
 var (
 	errNoPreview  = errors.New("A prévia não está disponível.")
 	errBadPreview = errors.New("Não foi possível desenhar a prévia.")
@@ -194,17 +201,25 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 		return
 	}
 	s := current.session
-	karaoke := profile.Study.Karaoke
+	karaoke, before := profile.Study.Karaoke, previous.Study.Karaoke
 	err := errors.Join(
 		s.Restyle(watch.LookOf(profile)),
 		s.SetShortcuts(profile.Shortcuts),
 		s.SetRevealBehavior(profile.Study.Reveal),
 		s.SetSyncSteps(profile.Sync.Nudge()),
 		s.SetPrecisionStep(profile.Sync.PrecisionSeekStep.Std()),
-		s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}),
-		s.SetIndicator(karaoke.Indicator),
-		s.SetLineRepeats(karaoke.Repeat),
 	)
+	// The Modo Karaokê of the video may come from its project or the bar:
+	// only the parts that changed in the profile replace it.
+	if karaoke.Enabled != before.Enabled || karaoke.MinGap != before.MinGap || karaoke.Lead != before.Lead || karaoke.Fill != before.Fill {
+		err = errors.Join(err, s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}))
+	}
+	if karaoke.Indicator != before.Indicator {
+		err = errors.Join(err, s.SetIndicator(karaoke.Indicator))
+	}
+	if karaoke.Repeat != before.Repeat {
+		err = errors.Join(err, s.SetLineRepeats(karaoke.Repeat))
+	}
 	if profile.Study.Mode != previous.Study.Mode {
 		err = errors.Join(err, s.SetMode(profile.Study.Mode))
 	}
@@ -283,11 +298,22 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		}
 		screen.Highlighted, screen.Highlight = true, line
 	}
+	look := session.Look{Layout: layout, Primary: primary, Translation: translation}
+	switch request.View {
+	case "":
+	case previewViewFill:
+		fill, err := appearance.ParseColor(request.FillColor)
+		if err != nil {
+			return "", refuse("Modo Karaokê: a cor do preenchimento não é válida.")
+		}
+		look.FillColor, screen.Fill = fill, previewSpoken
+	default:
+		return "", errors.New("Prévia desconhecida.")
+	}
 	scale := request.Scale
 	if !(scale >= 0.5 && scale <= 5) {
 		scale = 1
 	}
-	look := session.Look{Layout: layout, Primary: primary, Translation: translation}
 	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(baseDPI*scale)), screen)
 	if err != nil {
 		a.logger.Warn("the preview was not drawn", "error", err)

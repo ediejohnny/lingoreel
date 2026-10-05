@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"golang.org/x/sys/windows"
 
@@ -22,12 +23,29 @@ var ErrClosed = errors.New("UI thread closed")
 // wakeMessage tells the loop that functions are waiting in the queue.
 const wakeMessage = win32.WM_APP + 1
 
+// className is the class of the message-only window that wakes each loop.
+// A window message, unlike a thread message, reaches its window through any
+// modal loop on the thread (a menu, a window being dragged or sized), so
+// jobs run even while one is open.
+const className = "LingoReelUIThread"
+
+var (
+	registerOnce      sync.Once
+	registerErr       error
+	wakeProc          = syscall.NewCallback(dispatchWake)
+	classNameUTF16, _ = windows.UTF16PtrFromString(className)
+	// threads maps each wake window to its thread, for the shared window
+	// procedure.
+	threadsMu sync.Mutex
+	threads   = map[windows.HWND]*Thread{}
+)
+
 // Thread is a running message loop.
 type Thread struct {
-	id   uint32
-	mu   sync.Mutex
-	jobs []func()
-	done chan struct{}
+	window windows.HWND
+	mu     sync.Mutex
+	jobs   []func()
+	done   chan struct{}
 	// closed is set once Close was called or the loop ended.
 	closed bool
 	err    error
@@ -52,7 +70,21 @@ func (t *Thread) loop(ready chan<- error) {
 	win32.UsePerMonitorDPI()
 	var msg win32.Msg
 	win32.PeekMessage(&msg) // creates the queue before anyone posts to it
-	t.id = windows.GetCurrentThreadId()
+	window, err := wakeWindow()
+	if err != nil {
+		ready <- err
+		return
+	}
+	t.window = window
+	threadsMu.Lock()
+	threads[window] = t
+	threadsMu.Unlock()
+	defer func() {
+		threadsMu.Lock()
+		delete(threads, window)
+		threadsMu.Unlock()
+		_ = win32.DestroyWindow(window) // only fails for a window already gone
+	}()
 	ready <- nil
 
 	for {
@@ -65,12 +97,40 @@ func (t *Thread) loop(ready chan<- error) {
 			t.finish(nil)
 			return
 		}
-		if msg.HWnd == 0 && msg.Message == wakeMessage {
-			t.runJobs()
-			continue
-		}
 		win32.DispatchMessage(&msg)
 	}
+}
+
+// wakeWindow creates the thread's message-only window.
+func wakeWindow() (windows.HWND, error) {
+	registerOnce.Do(func() {
+		_, registerErr = win32.RegisterClass(&win32.WndClassEx{
+			WndProc: wakeProc, Instance: win32.ModuleHandle(), ClassName: classNameUTF16,
+		})
+	})
+	if registerErr != nil {
+		return 0, fmt.Errorf("registering the UI thread window class: %w", registerErr)
+	}
+	window, err := win32.CreateWindow(0, 0, classNameUTF16, win32.HWND_MESSAGE, win32.ModuleHandle())
+	if err != nil {
+		return 0, fmt.Errorf("creating the UI thread window: %w", err)
+	}
+	return window, nil
+}
+
+// dispatchWake runs a thread's queued jobs when its window is woken; it is
+// called on that thread, by the loop or by a modal loop running there.
+func dispatchWake(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uintptr {
+	if message == wakeMessage {
+		threadsMu.Lock()
+		t := threads[hwnd]
+		threadsMu.Unlock()
+		if t != nil {
+			t.runJobs()
+		}
+		return 0
+	}
+	return win32.DefWindowProc(hwnd, message, wparam, lparam)
 }
 
 func (t *Thread) finish(err error) {
@@ -107,7 +167,7 @@ func (t *Thread) Do(fn func()) error {
 	// A job queued while the loop was open always runs exactly once: by the
 	// loop at its next wake-up, or by finish when the loop stops. A failed
 	// post (the loop is on its way out) therefore changes nothing.
-	_ = win32.PostThreadMessage(t.id, wakeMessage)
+	_ = win32.PostMessage(t.window, wakeMessage, 0, 0)
 	<-finished
 	return nil
 }
@@ -125,7 +185,7 @@ func (t *Thread) Post(fn func()) error {
 	t.mu.Unlock()
 	// As in Do, a failed wake-up means the loop is stopping and finish runs
 	// the job.
-	_ = win32.PostThreadMessage(t.id, wakeMessage)
+	_ = win32.PostMessage(t.window, wakeMessage, 0, 0)
 	return nil
 }
 
