@@ -201,17 +201,25 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 		return
 	}
 	s := current.session
-	karaoke := profile.Study.Karaoke
+	karaoke, before := profile.Study.Karaoke, previous.Study.Karaoke
 	err := errors.Join(
 		s.Restyle(watch.LookOf(profile)),
 		s.SetShortcuts(profile.Shortcuts),
 		s.SetRevealBehavior(profile.Study.Reveal),
 		s.SetSyncSteps(profile.Sync.Nudge()),
 		s.SetPrecisionStep(profile.Sync.PrecisionSeekStep.Std()),
-		s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}),
-		s.SetIndicator(karaoke.Indicator),
-		s.SetLineRepeats(karaoke.Repeat),
 	)
+	// The Modo Karaokê of the video may come from its project or the bar:
+	// only the parts that changed in the profile replace it.
+	if karaoke.Enabled != before.Enabled || karaoke.MinGap != before.MinGap || karaoke.Lead != before.Lead || karaoke.Fill != before.Fill {
+		err = errors.Join(err, s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}))
+	}
+	if karaoke.Indicator != before.Indicator {
+		err = errors.Join(err, s.SetIndicator(karaoke.Indicator))
+	}
+	if karaoke.Repeat != before.Repeat {
+		err = errors.Join(err, s.SetLineRepeats(karaoke.Repeat))
+	}
 	if profile.Study.Mode != previous.Study.Mode {
 		err = errors.Join(err, s.SetMode(profile.Study.Mode))
 	}

@@ -9,9 +9,12 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func settingsOf(t *testing.T, r *rig) app.SettingsView {
@@ -105,6 +108,54 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	mute := again.Shortcuts[shortcutAt(t, again, shortcut.Mute)]
 	if again.Shortcuts[0].Label != "P" || again.Primary.Color != "#FFE600" || mute.Chord != "" || mute.Label != "" {
 		t.Fatalf("settings after saving = %+v, mute %+v", again.Shortcuts[0], mute)
+	}
+}
+
+// The Modo Karaokê of the video being watched (from its project or the bar)
+// is the video's: saving the settings changes only what changed in the
+// profile.
+func TestSavingTheSettingsKeepsTheVideosKaraoke(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	kept := project.New()
+	kept.Last.Karaoke = &project.Karaoke{Enabled: true, MinGap: 10_000, Lead: 5_000, Indicator: study.IndicatorCountdown, Fill: true, Repeat: 2}
+	if err := r.projects.Save(movie, kept); err != nil {
+		t.Fatal(err)
+	}
+	r.attach(t)
+	if _, err := r.api.OpenVideo(movie); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.api.StopWatching() })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	want := app.Karaoke{Enabled: true, Indicator: "countdown", Repeat: 2}
+	if got := r.api.PlaybackState().Karaoke; got != want {
+		t.Fatalf("karaoke on opening = %+v, want the video's %+v", got, want)
+	}
+	save := func(change func(*app.ProfileSettings)) {
+		t.Helper()
+		view := settingsOf(t, r).Profile
+		change(&view)
+		if err := r.api.SaveProfile(view); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(func(v *app.ProfileSettings) { v.Primary.FontSize = 40 })
+	if got := r.api.PlaybackState().Karaoke; got != want {
+		t.Fatalf("after saving a font, karaoke = %+v, want the video's %+v", got, want)
+	}
+	// What changes in the profile still reaches the video.
+	save(func(v *app.ProfileSettings) { v.Karaoke.Repeat = 4 })
+	if got := r.api.PlaybackState().Karaoke; got != (app.Karaoke{Enabled: true, Indicator: "countdown", Repeat: 4}) {
+		t.Fatalf("after changing the repeats, karaoke = %+v", got)
+	}
+	save(func(v *app.ProfileSettings) { v.Karaoke.Indicator = "countdown"; v.Karaoke.Enabled = true })
+	save(func(v *app.ProfileSettings) { v.Karaoke.Indicator = "bar"; v.Karaoke.Enabled = false })
+	if got := r.api.PlaybackState().Karaoke; got != (app.Karaoke{Enabled: false, Indicator: "bar", Repeat: 4}) {
+		t.Fatalf("after turning it off with a bar, karaoke = %+v", got)
 	}
 }
 
