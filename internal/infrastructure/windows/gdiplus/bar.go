@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
@@ -318,39 +319,16 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 	switch item.Action {
 	case controlbar.ActionPlayPause:
 		if item.Active { // playing: show pause
-			thick := icon * 0.3
-			return newShape().
-				rounded(layout.Rect{X: box.X + icon*0.12, Y: box.Y, W: thick, H: icon}, s).
-				rounded(layout.Rect{X: box.Right() - icon*0.12 - thick, Y: box.Y, W: thick, H: icon}, s).
-				fill(g, color)
+			return r.drawIcon(g, contextmenu.IconPause, box, color, stroke, font)
 		}
-		return newShape().polygon(pt(box.X+icon*0.15, box.Y), pt(box.Right(), box.Y+icon/2), pt(box.X+icon*0.15, box.Bottom())).fill(g, color)
-	case controlbar.ActionBack, controlbar.ActionForward:
-		half := icon / 2
-		sh := newShape()
-		for i := range 2 {
-			x := box.X + float64(i)*half
-			if item.Action == controlbar.ActionBack {
-				sh.polygon(pt(x+half, box.Y+icon*0.15), pt(x, box.Y+icon/2), pt(x+half, box.Bottom()-icon*0.15))
-			} else {
-				sh.polygon(pt(x, box.Y+icon*0.15), pt(x+half, box.Y+icon/2), pt(x, box.Bottom()-icon*0.15))
-			}
-		}
-		return sh.fill(g, color)
+		return r.drawIcon(g, contextmenu.IconPlay, box, color, stroke, font)
+	case controlbar.ActionBack:
+		return r.drawIcon(g, contextmenu.IconBack, box, color, stroke, font)
+	case controlbar.ActionForward:
+		return r.drawIcon(g, contextmenu.IconForward, box, color, stroke, font)
 	case controlbar.ActionMute:
-		body := newShape().polygon(
-			pt(box.X, box.Y+icon*0.35), pt(box.X+icon*0.25, box.Y+icon*0.35), pt(box.X+icon*0.55, box.Y+icon*0.1),
-			pt(box.X+icon*0.55, box.Bottom()-icon*0.1), pt(box.X+icon*0.25, box.Bottom()-icon*0.35), pt(box.X, box.Bottom()-icon*0.35))
-		if err := body.fill(g, color); err != nil {
-			return err
-		}
-		if item.Active { // muted: a cross instead of the waves
-			x := box.X + icon*0.7
-			return newShape().line(x, box.Y+icon*0.35, x+icon*0.3, box.Bottom()-icon*0.35).
-				line(x, box.Bottom()-icon*0.35, x+icon*0.3, box.Y+icon*0.35).stroke(g, color, stroke*0.8)
-		}
-		wave := layout.Rect{X: box.X + icon*0.25, Y: box.Y + icon*0.2, W: icon * 0.6, H: icon * 0.6}
-		return newShape().arc(wave, -45, 90).stroke(g, color, stroke*0.8)
+		// Muted: a cross instead of the waves.
+		return drawSpeaker(g, box, color, stroke, item.Active)
 	case controlbar.ActionVolume:
 		return r.drawVolume(g, bar, item, hovered)
 	case controlbar.ActionTranslation:
@@ -368,56 +346,32 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 	case controlbar.ActionSpeed:
 		return r.writeLine(g, look.Label(item), font, b, true, color)
 	case controlbar.ActionFullscreen:
-		return r.drawCorners(g, box, item.Active, color, stroke)
-	case controlbar.ActionFrameBack, controlbar.ActionFrameForward:
-		// A bar and a triangle: |◀ and ▶|.
-		thick := icon * 0.16
-		if item.Action == controlbar.ActionFrameBack {
-			return newShape().
-				rounded(layout.Rect{X: box.X + icon*0.1, Y: box.Y + icon*0.12, W: thick, H: icon * 0.76}, s*0.5).
-				polygon(pt(box.Right()-icon*0.1, box.Y+icon*0.12), pt(box.X+icon*0.32, box.Y+icon/2), pt(box.Right()-icon*0.1, box.Bottom()-icon*0.12)).
-				fill(g, color)
+		if item.Active {
+			return r.drawIcon(g, contextmenu.IconExitFullscreen, box, color, stroke, font)
 		}
-		return newShape().
-			polygon(pt(box.X+icon*0.1, box.Y+icon*0.12), pt(box.Right()-icon*0.32, box.Y+icon/2), pt(box.X+icon*0.1, box.Bottom()-icon*0.12)).
-			rounded(layout.Rect{X: box.Right() - icon*0.1 - thick, Y: box.Y + icon*0.12, W: thick, H: icon * 0.76}, s*0.5).
-			fill(g, color)
+		return r.drawIcon(g, contextmenu.IconFullscreen, box, color, stroke, font)
+	case controlbar.ActionFrameBack:
+		return r.drawIcon(g, contextmenu.IconFrameBack, box, color, stroke, font)
+	case controlbar.ActionFrameForward:
+		return r.drawIcon(g, contextmenu.IconFrameForward, box, color, stroke, font)
 	case controlbar.ActionMenu:
-		return r.drawMenuIcon(g, item.Menu, box, color, stroke, font)
+		return r.drawIcon(g, menuIcon(item.Menu), box, color, stroke, font)
 	}
 	return nil
 }
 
-// drawMenuIcon draws a menu button's icon: a flag for the passage, a note
-// for the Modo Karaokê, "CC" in a frame for the subtitles.
-func (r *Renderer) drawMenuIcon(g uintptr, menu controlbar.Menu, box layout.Rect, color appearance.Color, stroke float64, font layout.Font) error {
-	icon := box.W
+// menuIcon is a menu button's icon: a flag for the passage, a note for the
+// Modo Karaokê, "CC" in a frame for the subtitles.
+func menuIcon(menu controlbar.Menu) contextmenu.Icon {
 	switch menu {
 	case controlbar.MenuPassage:
-		pole := newShape().line(box.X+icon*0.22, box.Y, box.X+icon*0.22, box.Bottom())
-		if err := pole.stroke(g, color, stroke); err != nil {
-			return err
-		}
-		return newShape().polygon(pt(box.X+icon*0.26, box.Y), pt(box.Right(), box.Y+icon*0.27), pt(box.X+icon*0.26, box.Y+icon*0.55)).fill(g, color)
+		return contextmenu.IconPassage
 	case controlbar.MenuKaraoke:
-		head := layout.Rect{X: box.X + icon*0.1, Y: box.Y + icon*0.62, W: icon * 0.36, H: icon * 0.3}
-		if err := newShape().ellipse(head).fill(g, color); err != nil {
-			return err
-		}
-		return newShape().
-			line(head.Right()-stroke/2, head.Y+head.H/2, head.Right()-stroke/2, box.Y+icon*0.05).
-			line(head.Right()-stroke/2, box.Y+icon*0.05, box.Right()-icon*0.08, box.Y+icon*0.22).
-			stroke(g, color, stroke)
+		return contextmenu.IconKaraoke
 	case controlbar.MenuSubtitles:
-		frame := layout.Rect{X: box.X - icon*0.1, Y: box.Y + icon*0.12, W: icon * 1.2, H: icon * 0.76}
-		if err := newShape().rounded(frame, icon*0.12).stroke(g, color, stroke*0.75); err != nil {
-			return err
-		}
-		small := font
-		small.Size, small.Bold = font.Size*0.75, true
-		return r.writeLine(g, "CC", small, frame, true, color)
+		return contextmenu.IconSubtitles
 	}
-	return nil
+	return contextmenu.IconNone
 }
 
 // drawCorners draws the four corners of the fullscreen icon, pointing out

@@ -8,7 +8,16 @@ import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { backend, messageOf, type PanelState, type Playback, type Players, type Video, type WatchRequest } from "./services/backend";
+import {
+  backend,
+  messageOf,
+  type Line,
+  type PanelState,
+  type Playback,
+  type Players,
+  type Video,
+  type WatchRequest,
+} from "./services/backend";
 import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
@@ -90,6 +99,8 @@ export function App() {
       setResumable(ended.resume);
     });
     const offFullscreen = backend.onFullscreen(setFullscreen);
+    // A subtitle file added from the menu over the video: the session screen lists it afterwards.
+    const offVideo = backend.onVideo(setVideo);
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
       if (request.section === "settings") {
@@ -112,6 +123,7 @@ export function App() {
       offPlayback();
       offEnded();
       offFullscreen();
+      offVideo();
       offPanel();
       offInstall();
     };
@@ -176,6 +188,15 @@ export function App() {
       reveal: backend.reveal,
       stop: backend.stop,
       setFullscreen: backend.setFullscreen,
+      switchSubtitle: backend.switchSubtitle,
+      switchAudio: backend.switchAudio,
+      // The video, described again with the file, is what the session screen lists after the session.
+      addSubtitleFile: async (line: Line) => {
+        const added = await backend.addSubtitleFile(line);
+        if (added.path !== "") {
+          setVideo(added);
+        }
+      },
     }),
     [],
   );
@@ -306,6 +327,7 @@ export function App() {
           installing={installing}
           installError={installError}
           onWatch={watch}
+          onVideo={setVideo}
           onReset={reset}
           onDismissError={() => {
             setError("");

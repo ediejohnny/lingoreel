@@ -15,7 +15,7 @@ func TestVolumeNotice(t *testing.T) {
 		want            string
 	}{
 		{0.35, 2, false, "Volume 35%"},
-		{1, 2, false, "Volume 100% · toque de novo para passar de 100%"},
+		{1, 2, false, "Volume 100%"},
 		{1.35, 2, false, "Volume 135%"},
 		{2, 2, false, "Volume 200% · máximo deste player"},
 		{1, 1, false, "Volume 100% · máximo deste player"},

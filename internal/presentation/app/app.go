@@ -43,12 +43,17 @@ type UI interface {
 	Emit(event string, data any)
 	// OpenVideoDialog asks for a video file; empty when cancelled.
 	OpenVideoDialog() (string, error)
+	// OpenSubtitleDialog asks for a subtitle file, from anywhere; empty when
+	// cancelled.
+	OpenSubtitleDialog() (string, error)
 	// OpenProgramDialog asks for a program (.exe); empty when cancelled.
 	OpenProgramDialog(title string) (string, error)
 	// SaveSubtitleDialog asks where to export a subtitle, suggesting a file
 	// name; empty when cancelled.
 	SaveSubtitleDialog(name string) (string, error)
 	OpenURL(url string)
+	// CopyText puts a text on the clipboard.
+	CopyText(text string) error
 	// SetTitle names the window: the video playing, or the app.
 	SetTitle(title string)
 	// Quit closes the app.
@@ -72,6 +77,10 @@ type Projects interface {
 	// Remove forgets a video's project wherever it is kept.
 	Remove(video string) error
 	TrackKey(video string, track media.Track) string
+	// AddedPath is how the project writes a subtitle file picked for the
+	// video; ResolveAdded is the file such a path names.
+	AddedPath(video, path string) string
+	ResolveAdded(video, added string) string
 }
 
 // Previewer draws sample subtitles for the settings screen and lists the
@@ -182,6 +191,9 @@ type API struct {
 	// once the window's message loop is gone, when the window is not to be
 	// touched any more.
 	closing, shutDown bool
+	// adding lets one subtitle file be added at a time, so two never replace
+	// each other's analysis.
+	adding sync.Mutex
 }
 
 type resumePoint struct {

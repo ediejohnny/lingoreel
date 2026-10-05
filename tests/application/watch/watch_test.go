@@ -63,6 +63,8 @@ type fakeRunning struct {
 	// frames makes the player step frames; calls records what it was asked.
 	frames bool
 	calls  []string
+	// audio makes the player switch audio tracks; loud, change its volume.
+	audio, loud bool
 	// reconnecting is what Reconnecting answers.
 	reconnecting atomic.Bool
 }
@@ -72,8 +74,15 @@ func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
 func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{
 		Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact,
-		FrameStepForward: r.frames, FrameStepBackward: r.frames,
+		FrameStepForward: r.frames, FrameStepBackward: r.frames, AudioTrackSelection: r.audio,
+		Volume: r.loud, MaxVolume: playback.MaxVolume,
 	}
+}
+
+// SetVolume answers only when loud makes the player change its volume.
+func (r *fakeRunning) SetVolume(volume playback.Volume) error {
+	r.record(fmt.Sprintf("volume %d", volume.Percent()))
+	return nil
 }
 func (r *fakeRunning) Play() error  { r.record("play"); return nil }
 func (r *fakeRunning) Pause() error { r.record("pause"); return nil }
@@ -109,7 +118,10 @@ func (r *fakeRunning) took() []string {
 	r.calls = nil
 	return calls
 }
-func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
+func (r *fakeRunning) SelectAudioTrack(index int) error {
+	r.record(fmt.Sprintf("audio %d", index))
+	return nil
+}
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
 func (r *fakeRunning) ProcessID() int                  { return 4242 }
 func (r *fakeRunning) Err() error                      { return r.lost }
@@ -253,8 +265,10 @@ func (s *fakeShortcuts) Close() error {
 type recordingListener struct {
 	mu     sync.Mutex
 	synced []subtitle.Offset
-	edited []editedLine
-	marked []markedPassage
+	// syncedTracks are the tracks the syncs were told with.
+	syncedTracks []uint64
+	edited       []editedLine
+	marked       []markedPassage
 }
 
 // markedPassage is one call of PassageMarked.
@@ -278,14 +292,15 @@ func (l *recordingListener) passages() []markedPassage {
 // editedLine is one call of Edited.
 type editedLine struct {
 	line  session.Line
+	track uint64
 	edits map[string]project.Edit
 }
 
 func (l *recordingListener) SubtitlesChanged(time.Duration, session.Visible) {}
-func (l *recordingListener) Edited(line session.Line, edits map[string]project.Edit) {
+func (l *recordingListener) Edited(line session.Line, track uint64, edits map[string]project.Edit) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.edited = append(l.edited, editedLine{line, edits})
+	l.edited = append(l.edited, editedLine{line, track, edits})
 }
 
 func (l *recordingListener) edits() []editedLine {
@@ -294,10 +309,17 @@ func (l *recordingListener) edits() []editedLine {
 	return append([]editedLine(nil), l.edited...)
 }
 
-func (l *recordingListener) Synced(_ session.Line, offset subtitle.Offset) {
+func (l *recordingListener) Synced(_ session.Line, track uint64, offset subtitle.Offset) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.synced = append(l.synced, offset)
+	l.syncedTracks = append(l.syncedTracks, track)
+}
+
+func (l *recordingListener) syncs() ([]subtitle.Offset, []uint64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]subtitle.Offset(nil), l.synced...), append([]uint64(nil), l.syncedTracks...)
 }
 
 // --- harness ---

@@ -36,7 +36,7 @@ func (s *Session) startSpeed(speed playback.Speed) error {
 // Reveal is the translation key going down (pressed) or up: it shows or
 // hides the translation as the study mode and the reveal behavior say.
 func (s *Session) Reveal(pressed bool) {
-	if !s.hasTranslation {
+	if !s.hasTranslation.Load() {
 		return
 	}
 	visible := s.TranslationVisible()

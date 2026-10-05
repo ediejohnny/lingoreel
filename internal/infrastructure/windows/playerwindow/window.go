@@ -22,6 +22,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -76,6 +77,9 @@ type Labels struct {
 	// EditHint shows under the box that corrects a line; EditEmpty is told
 	// when Enter would save an empty line.
 	EditHint, EditEmpty string
+	// Menu words an item of the menu the right button opens: its text and
+	// the key of its command in keys.
+	Menu func(item contextmenu.Item, keys shortcut.Map) contextmenu.Text
 }
 
 // Options configures a window.
@@ -97,6 +101,13 @@ type Options struct {
 	// says, instead of in a window of its own; nil opens a window of its
 	// own at Placement.
 	Stage *Stage
+	// App does what the menu over the video asks of the app (the settings,
+	// files, another video); nil leaves those items out.
+	App AppActions
+	// Choose stands for the menu on screen, for tests: it gets the menu
+	// built (an HMENU) and the point on screen, and returns the ID of the
+	// item to carry out, zero for none. Nil shows the real menu.
+	Choose func(menu uintptr, x, y int32) uint32
 }
 
 // The window is a watch session's player window, and changes its look.
@@ -138,6 +149,12 @@ type Window struct {
 	revealKey shortcut.Key
 	// editing is the box correcting a line over the video, if open.
 	editing *editor
+	// menuOpen tells the context menu is on screen; icons are its pictures,
+	// kept for the next menus and freed with the window (after the menu,
+	// when the window goes while it shows: iconsLeft).
+	menuOpen  bool
+	icons     map[iconKey]windows.Handle
+	iconsLeft bool
 
 	remoteMu sync.Mutex
 	remote   watch.Remote
@@ -456,6 +473,14 @@ func (w *Window) release() {
 // teardown runs on the UI thread and is safe to call more than once.
 func (w *Window) teardown() {
 	w.finishEdit(false, false)
+	// Jobs run inside the menu's loop: the menu closes, and whatever was
+	// chosen in it is dropped once it returns to a window that is gone.
+	if w.menuOpen {
+		win32.EndMenu()
+		w.iconsLeft = true
+	} else {
+		w.freeIcons()
+	}
 	if stage := w.options.Stage; stage != nil {
 		stage.detach(w)
 		w.unfollowParent()

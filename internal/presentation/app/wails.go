@@ -11,6 +11,9 @@ import (
 // videoPatterns are the videos the file dialog offers.
 const videoPatterns = "*.mkv;*.webm;*.mp4;*.m4v;*.avi;*.mov;*.wmv"
 
+// subtitlePatterns are the subtitle files the file dialog offers.
+const subtitlePatterns = "*.srt;*.ass;*.ssa;*.vtt"
+
 // wailsUI is the real window.
 type wailsUI struct {
 	ctx context.Context
@@ -29,6 +32,13 @@ func (w wailsUI) OpenVideoDialog() (string, error) {
 	return runtime.OpenFileDialog(w.ctx, runtime.OpenDialogOptions{
 		Title:   ptbr.T("dialog.openVideo"),
 		Filters: []runtime.FileFilter{{DisplayName: ptbr.T("dialog.videos"), Pattern: videoPatterns}},
+	})
+}
+
+func (w wailsUI) OpenSubtitleDialog() (string, error) {
+	return runtime.OpenFileDialog(w.ctx, runtime.OpenDialogOptions{
+		Title:   ptbr.T("dialog.openSubtitle"),
+		Filters: []runtime.FileFilter{{DisplayName: ptbr.T("dialog.subtitles"), Pattern: subtitlePatterns}},
 	})
 }
 
@@ -52,6 +62,10 @@ func (w wailsUI) SaveSubtitleDialog(name string) (string, error) {
 
 func (w wailsUI) OpenURL(url string) {
 	runtime.BrowserOpenURL(w.ctx, url)
+}
+
+func (w wailsUI) CopyText(text string) error {
+	return runtime.ClipboardSetText(w.ctx, text)
 }
 
 func (w wailsUI) SetTitle(title string) {

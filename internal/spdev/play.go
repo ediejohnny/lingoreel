@@ -160,12 +160,12 @@ func (l *consoleListener) SubtitlesChanged(position time.Duration, visible sessi
 	l.out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, l.labels))
 }
 
-func (l *consoleListener) Synced(line session.Line, offset subtitle.Offset) {
+func (l *consoleListener) Synced(line session.Line, _ uint64, offset subtitle.Offset) {
 	l.out.line("Sincronia: %s", l.names.Notice(line, offset))
 }
 
 // Edited is never called: the development tool does not edit lines.
-func (l *consoleListener) Edited(session.Line, map[string]project.Edit) {}
+func (l *consoleListener) Edited(session.Line, uint64, map[string]project.Edit) {}
 
 // PassageMarked prints a passage closed by the mark shortcut; the
 // development tool keeps no project to save it in.

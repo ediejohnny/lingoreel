@@ -1,0 +1,145 @@
+package watch_test
+
+import (
+	"errors"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+)
+
+// loadedFile is a subtitle file of one line, from 1 s to 3 s, numbered as
+// every file is: from the start.
+func loadedFile(t *testing.T, text string) analysis.LoadedTrack {
+	t.Helper()
+	timeline, err := subtitle.NewTimeline([]subtitle.Event{{ID: "e1", Start: time.Second, End: 3 * time.Second, OriginalText: text}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return analysis.LoadedTrack{Timeline: timeline}
+}
+
+// A line takes another file while the video is paused on it: the screen
+// shows the new file, the selection on that line goes, and undo no longer
+// reaches the old file's changes, while the other line keeps its own.
+func TestALineTakesAnotherSubtitle(t *testing.T) {
+	t.Parallel()
+	r, s := playingRig(t)
+	at(t, r, s, 1500*time.Millisecond)
+	screenShows(t, r, "both lines", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
+	for _, edit := range []struct {
+		line session.Line
+		text string
+	}{{session.LineTranslation, "Oi."}, {session.LinePrimary, "Hi there."}} {
+		if _, err := s.Select(edit.line); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Edit(watch.EditChange{Text: new(edit.text)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := s.SetLine(session.LinePrimary, 99, loadedFile(t, "Another file."), project.Track{}); err != nil {
+		t.Fatal(err)
+	}
+	screenShows(t, r, "the new file on top", func(screen session.Screen) bool { return screen.Primary == "Another file." })
+	if _, found := s.Selection(); found {
+		t.Fatal("the selection on the switched line stayed")
+	}
+	if undone, err := s.Undo(); !undone || err != nil {
+		t.Fatalf("Undo = %v, %v; the other line's change should be there", undone, err)
+	}
+	screenShows(t, r, "the translation undone, the new file kept", func(screen session.Screen) bool {
+		return screen.Translation == "Olá." && screen.Primary == "Another file."
+	})
+	if s.CanUndo() {
+		t.Fatal("a change of the old file is still to undo")
+	}
+	if _, found := s.Loaded()[99]; !found {
+		t.Fatal("the new track is not among the loaded ones")
+	}
+	if current := s.Tracks().Current; current.Primary != 99 || current.Translation != 5 {
+		t.Fatalf("current tracks = %+v, want 99 on top and 5 below", current)
+	}
+
+	// What changes on the switched line is told with the new track, so the
+	// app keeps it on the new file and not on the old one.
+	s.Nudge(session.LinePrimary, true)
+	if _, tracks := r.listener.syncs(); len(tracks) != 1 || tracks[0] != 99 {
+		t.Fatalf("sync told with tracks %v, want [99]", tracks)
+	}
+	if _, err := s.Select(session.LinePrimary); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Edit(watch.EditChange{Text: new("Another one.")}); err != nil {
+		t.Fatal(err)
+	}
+	if edits := r.listener.edits(); edits[len(edits)-1].track != 99 {
+		t.Fatalf("edit told with track %d, want 99", edits[len(edits)-1].track)
+	}
+
+	// Taking the translation away leaves no translation to show.
+	if err := s.SetLine(session.LineTranslation, 0, analysis.LoadedTrack{}, project.Track{}); err != nil {
+		t.Fatal(err)
+	}
+	if s.HasTranslation() || s.Tracks().Current.Translation != 0 {
+		t.Fatalf("the session still has a translation (tracks %+v)", s.Tracks().Current)
+	}
+	screenShows(t, r, "no translation", func(screen session.Screen) bool { return screen.Translation == "" })
+
+	// A file that came without subtitles, or a line that does not exist, is refused.
+	if err := s.SetLine(session.LineTranslation, 7, analysis.LoadedTrack{}, project.Track{}); err == nil {
+		t.Error("a track without subtitles was put on a line")
+	}
+	if err := s.SetLine(session.Line(5), 99, loadedFile(t, "x"), project.Track{}); err == nil {
+		t.Error("an unknown line took a track")
+	}
+}
+
+// The audio switches by the track's number: the player hears its place among
+// the audio tracks, which is what players count by.
+func TestTheAudioSwitchesWhileTheVideoPlays(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.running.audio = true
+	s := r.start(t)
+	audio := s.Tracks().Of(media.TrackAudio)
+	if len(audio) < 2 {
+		t.Fatalf("the sample video has %d audio tracks, want 2", len(audio))
+	}
+	r.running.took()
+	if err := s.SelectAudio(audio[0].Number); err != nil {
+		t.Fatal(err)
+	}
+	if calls := r.running.took(); !slices.Equal(calls, []string{"audio 0"}) {
+		t.Fatalf("player calls = %v, want [audio 0]", calls)
+	}
+	if s.Tracks().Current.Audio != audio[0].Number {
+		t.Fatalf("current audio = %d, want %d", s.Tracks().Current.Audio, audio[0].Number)
+	}
+	// A subtitle track is no audio track.
+	if err := s.SelectAudio(4); err == nil || s.Tracks().Current.Audio != audio[0].Number {
+		t.Fatalf("SelectAudio(subtitle) = %v, current %d", err, s.Tracks().Current.Audio)
+	}
+}
+
+// A player that cannot switch the audio says so, and nothing changes.
+func TestTheAudioStaysWithAPlayerThatCannotSwitchIt(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	s := r.start(t)
+	before := s.Tracks().Current.Audio
+	audio := s.Tracks().Of(media.TrackAudio)
+	if err := s.SelectAudio(audio[0].Number); !errors.Is(err, session.ErrNotSupported) {
+		t.Fatalf("SelectAudio = %v, want ErrNotSupported", err)
+	}
+	if s.Tracks().Current.Audio != before {
+		t.Fatal("the current audio changed")
+	}
+}

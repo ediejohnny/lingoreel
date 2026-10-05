@@ -131,6 +131,15 @@ type Remote interface {
 	// OpenEditor pauses, picks the line on screen and brings the app's
 	// panel, where the editor is, to the front.
 	OpenEditor(line session.Line) error
+
+	// What the menu over the video shows besides: the lines on screen (the
+	// one under a click is copied), each line's offset, what can be undone,
+	// and the tracks to switch between.
+	Shown() session.Visible
+	Offset(line session.Line) subtitle.Offset
+	CanUndo() bool
+	CanRedo() bool
+	Tracks() Tracks
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -244,11 +253,12 @@ type PassageStart struct {
 type Listener interface {
 	// SubtitlesChanged reports new lines on screen at a playback position.
 	SubtitlesChanged(position time.Duration, visible session.Visible)
-	// Synced reports a line's new offset after a sync shortcut or a reset.
-	Synced(line session.Line, offset subtitle.Offset)
+	// Synced reports a line's new offset after a sync shortcut or a reset,
+	// with the track the line shows (its subtitle may be switched meanwhile).
+	Synced(line session.Line, track uint64, offset subtitle.Offset)
 	// Edited reports a line's edits, as the project keeps them, after an
-	// edit, an undo or a redo.
-	Edited(line session.Line, edits map[string]project.Edit)
+	// edit, an undo or a redo, with the track they were made on.
+	Edited(line session.Line, track uint64, edits map[string]project.Edit)
 	// PassageMarked reports a passage closed by the mark shortcut, already
 	// being studied with plan, so it can be saved.
 	PassageMarked(segment study.Segment, plan study.PracticePlan)
@@ -264,10 +274,15 @@ type Session struct {
 	subtitles *session.Subtitles
 	sync      *session.Sync
 	listener  Listener
+	loadedMu  sync.Mutex
 	loaded    map[uint64]analysis.LoadedTrack
-	notice    func(session.Line, subtitle.Offset) string
+	notice    atomic.Pointer[func(session.Line, subtitle.Offset) string]
 	// hasTranslation tells a translation track is loaded.
-	hasTranslation bool
+	hasTranslation atomic.Bool
+	// tracks are the video's tracks and the ones playing; tracksMu orders
+	// their changes.
+	tracks   atomic.Pointer[Tracks]
+	tracksMu sync.Mutex
 
 	translationVisible atomic.Bool
 	mode               atomic.Value // study.Mode
@@ -386,11 +401,13 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	}
 
 	s := &Session{
-		running: running, listener: listener, loaded: loaded, notice: notice,
-		clock:          session.NewClock(running.Capabilities().Precision, now),
-		hasTranslation: request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil,
-		done:           make(chan struct{}),
+		running: running, listener: listener, loaded: loaded,
+		clock: session.NewClock(running.Capabilities().Precision, now),
+		done:  make(chan struct{}),
 	}
+	s.SetSyncWording(notice)
+	s.tracks.Store(newTracks(info, request.Tracks))
+	s.hasTranslation.Store(request.Tracks.Translation != 0 && loaded[request.Tracks.Translation].Timeline != nil)
 	s.mode.Store(mode)
 	s.translationVisible.Store(mode.StartsRevealed())
 	s.precision.Store(int64(cmp.Or(request.PrecisionStep, DefaultPrecisionStep)))
@@ -556,11 +573,11 @@ func (s *Session) listenShortcuts(shortcuts Shortcuts) {
 }
 
 func (s *Session) synced(line session.Line, offset subtitle.Offset) {
-	if s.display != nil && s.notice != nil && !s.quiet.Load() {
-		_ = s.display.Notify(s.notice(line, offset)) // a lost notice is cosmetic
+	if notice := *s.notice.Load(); s.display != nil && notice != nil && !s.quiet.Load() {
+		_ = s.display.Notify(notice(line, offset)) // a lost notice is cosmetic
 	}
 	if s.listener != nil {
-		s.listener.Synced(line, offset)
+		s.listener.Synced(line, s.Tracks().Number(line), offset)
 	}
 }
 
@@ -596,7 +613,7 @@ func (s *Session) SetTranslationVisible(visible bool) {
 
 // HasTranslation tells whether the session shows a translation line.
 func (s *Session) HasTranslation() bool {
-	return s.hasTranslation
+	return s.hasTranslation.Load()
 }
 
 // TranslationVisible tells whether the translation is shown.
@@ -617,6 +634,8 @@ func (s *Session) State() playback.Sample {
 // Loaded are the subtitle tracks the session shows, with the corrections
 // applied to their files.
 func (s *Session) Loaded() map[uint64]analysis.LoadedTrack {
+	s.loadedMu.Lock()
+	defer s.loadedMu.Unlock()
 	return s.loaded
 }
 

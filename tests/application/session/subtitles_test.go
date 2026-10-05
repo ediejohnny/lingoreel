@@ -82,6 +82,39 @@ func TestSetOffsetMovesOnlyThatLine(t *testing.T) {
 	}
 }
 
+// A line takes another track while the video plays, gains one (a translation
+// added) or loses it, and each change wakes whoever draws the screen.
+func TestSetTrackSwitchesALine(t *testing.T) {
+	t.Parallel()
+	subtitles := session.NewSubtitles(&session.Track{Timeline: timeline(t, cue("en", 1_000, 2_000))}, nil)
+	added := &session.Track{Timeline: timeline(t, cue("pt", 1_000, 2_000)), Offset: subtitle.NewOffset(ms(100))}
+	subtitles.SetTrack(session.LineTranslation, added)
+	select {
+	case <-subtitles.Changes():
+	default:
+		t.Fatal("adding a track signalled no change")
+	}
+	if visible := subtitles.At(ms(1_500)); !slices.Equal(ids(visible.Translation), []string{"pt"}) {
+		t.Fatalf("the added translation shows %v", ids(visible.Translation))
+	}
+	added.Offset = subtitle.NewOffset(time.Hour)
+	if got := subtitles.Track(session.LineTranslation); got == nil || got.Offset.Duration() != ms(100) {
+		t.Fatalf("Track = %+v: the line must keep its own copy", got)
+	}
+	subtitles.SetTrack(session.LinePrimary, &session.Track{Timeline: timeline(t, cue("other", 1_000, 2_000))})
+	if visible := subtitles.At(ms(1_500)); !slices.Equal(ids(visible.Primary), []string{"other"}) {
+		t.Fatalf("the switched line shows %v", ids(visible.Primary))
+	}
+	subtitles.SetTrack(session.LineTranslation, nil)
+	if subtitles.Track(session.LineTranslation) != nil || len(subtitles.At(ms(1_500)).Translation) != 0 {
+		t.Fatal("the translation taken away still shows")
+	}
+	subtitles.SetTrack(session.Line(7), added) // an unknown line changes nothing
+	if subtitles.Track(session.Line(7)) != nil {
+		t.Fatal("an unknown line took a track")
+	}
+}
+
 func TestVisibleEqualComparesIDsAndDisplayedText(t *testing.T) {
 	t.Parallel()
 	base := session.Visible{Primary: []subtitle.Event{cue("1", 0, 1)}}

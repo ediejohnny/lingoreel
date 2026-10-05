@@ -66,6 +66,7 @@ func storeAt(path string) *jsonstore.Store[project.Project] {
 // migrations upgrade older project files, one version at a time.
 var migrations = map[int]jsonstore.Migration{
 	1: fromVersion1,
+	2: fromVersion2,
 }
 
 // fromVersion1 (version 1 to 2) needs no new value: a passage without a
@@ -73,6 +74,10 @@ var migrations = map[int]jsonstore.Migration{
 // from the beginning with the profile's speed and Modo Karaokê. A passage
 // that is not an object is still refused when the file is decoded.
 func fromVersion1(map[string]any) error { return nil }
+
+// fromVersion2 (version 2 to 3) needs no new value either: a video without
+// "addedFiles" has none.
+func fromVersion2(map[string]any) error { return nil }
 
 // Remove forgets a video's project: the file beside it and the one in the
 // app's folder. A file that is not there is no error; a folder of that name
@@ -165,19 +170,45 @@ func (s *Store) TrackKey(video string, track media.Track) string {
 	return TrackKey(video, track)
 }
 
+// AddedPath is the package's AddedPath, for the app's port.
+func (s *Store) AddedPath(video, path string) string {
+	return AddedPath(video, path)
+}
+
+// ResolveAdded is the package's ResolveAdded, for the app's port.
+func (s *Store) ResolveAdded(video, added string) string {
+	return ResolveAdded(video, added)
+}
+
 // TrackKey names a track of a video so the name survives a new analysis: a
-// file by its path from the video's folder, a track inside the video by its
-// UID (stable when the file is remuxed), or by its number when it has none.
+// file by its path (AddedPath), a track inside the video by its UID (stable
+// when the file is remuxed), or by its number when it has none.
 func TrackKey(video string, track media.Track) string {
 	if track.External() {
-		relative, err := filepath.Rel(filepath.Dir(video), track.Path)
-		if err != nil || strings.HasPrefix(relative, "..") {
-			relative = filepath.Base(track.Path)
-		}
-		return "file:" + filepath.ToSlash(relative)
+		return "file:" + AddedPath(video, track.Path)
 	}
 	if track.UID != 0 {
 		return "uid:" + strconv.FormatUint(track.UID, 10)
 	}
 	return "track:" + strconv.FormatUint(track.Number, 10)
+}
+
+// AddedPath is how the project writes a subtitle file's path: from the
+// video's folder ("Subs/Filme.en.srt", "../Legendas/Filme.en.srt"), or whole
+// on another drive, always with forward slashes.
+func AddedPath(video, path string) string {
+	relative, err := filepath.Rel(filepath.Dir(video), path)
+	if err != nil {
+		return filepath.ToSlash(filepath.Clean(path))
+	}
+	return filepath.ToSlash(relative)
+}
+
+// ResolveAdded is the file a path written by AddedPath names, for a video.
+func ResolveAdded(video, added string) string {
+	path := filepath.FromSlash(added)
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(filepath.Dir(video), path)
 }

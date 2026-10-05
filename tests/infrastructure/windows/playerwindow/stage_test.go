@@ -167,6 +167,8 @@ func openOn(t *testing.T, stage *playerwindow.Stage) *playerwindow.Window {
 		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty},
 		NoActivate: true, Stage: stage,
+		// No menu ever shows on screen in the tests.
+		Choose: func(uintptr, int32, int32) uint32 { return 0 },
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

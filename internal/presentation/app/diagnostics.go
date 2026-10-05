@@ -66,9 +66,9 @@ func (a *API) describeSession(current *watching, add func(label, value string)) 
 		"speed", ptbr.Speed(state.Speed), "position", ptbr.EditClock(state.Position), "duration", ptbr.Clock(state.Duration)))
 	add(ptbr.T("diagnostics.frameRate"), fpsText(current.frameRate))
 	shown := s.Shown()
-	add(current.names[session.LinePrimary], ptbr.T("diagnostics.line",
+	add(current.lineNames()[session.LinePrimary], ptbr.T("diagnostics.line",
 		"offset", ptbr.Offset(s.Offset(session.LinePrimary)), "lines", eventIDs(shown.Primary)))
-	add(current.names[session.LineTranslation], ptbr.T("diagnostics.line",
+	add(current.lineNames()[session.LineTranslation], ptbr.T("diagnostics.line",
 		"offset", ptbr.Offset(s.Offset(session.LineTranslation)), "lines", eventIDs(shown.Translation)))
 	overlay := ptbr.T("diagnostics.overlayOn")
 	if !s.HasDisplay() {

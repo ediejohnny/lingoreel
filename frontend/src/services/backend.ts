@@ -68,6 +68,7 @@ const events = {
   install: "player:install",
   fullscreen: "window:fullscreen",
   panel: "panel:open",
+  video: "video:changed",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -115,6 +116,10 @@ export const backend = {
   studySavedPassage: (name: string) => api.StudySavedPassage(name),
   setPassageOptions: (options: PassageOptions) => api.SetPassageOptions(options as app.PassageOptions),
   resetProject: () => api.ResetProject(),
+  switchSubtitle: (line: Line, track: number) => api.SwitchSubtitle(line, track),
+  switchAudio: (track: number) => api.SwitchAudio(track),
+  /** addSubtitleFile asks for a subtitle file and puts it on a line; an empty path means the user cancelled. */
+  addSubtitleFile: (line: Line): Promise<Video> => api.AddSubtitleFile(line),
   selectLine: (line: Line) => api.SelectLine(line),
   clearSelection: () => api.ClearSelection(),
   editLine: (request: EditRequest) => api.EditLine(request as app.EditRequest),
@@ -158,4 +163,5 @@ export const backend = {
   onInstall: (listener: (progress: InstallProgress) => void) => EventsOn(events.install, listener),
   onFullscreen: (listener: (on: boolean) => void) => EventsOn(events.fullscreen, listener),
   onPanel: (listener: (request: PanelRequest) => void) => EventsOn(events.panel, listener),
+  onVideo: (listener: (video: Video) => void) => EventsOn(events.video, listener),
 };

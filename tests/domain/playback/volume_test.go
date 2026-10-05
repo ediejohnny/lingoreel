@@ -55,7 +55,7 @@ func TestVolumeWithinACeiling(t *testing.T) {
 
 // The volume keys: a touch is 1% at once; held, nothing more for the first
 // 400 ms, then 1% every 110 ms by the clock (about 9% a second) whatever
-// the keyboard's repeat rate; going up, a held key stops at 100%.
+// the keyboard's repeat rate, all the way to the player's ceiling.
 func TestTheVolumeRampIsGradual(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
@@ -91,24 +91,22 @@ func TestTheVolumeRampIsGradual(t *testing.T) {
 		t.Fatalf("slow repeats for 1.6 s = %d%%, want close to the fast keyboard's", got)
 	}
 
-	// Held up from 99% it stops at 100%; a new touch passes it.
+	// Held up from 99% it goes past 100% without stopping, to the player's
+	// ceiling. The touch makes 100%; the last repeat before 3 s is at 2980 ms,
+	// with 1 + (2980-400)/110 = 1 + 23 = 24 steps due: 124%.
 	var up playback.VolumeRamp
 	level = up.Next(at(0), true, false, 0.99, 2)
 	for ms := 400; ms <= 3000; ms += 30 {
 		level = up.Next(at(ms), true, true, level, 2)
 	}
-	if percent(level) != 100 {
-		t.Fatalf("held up from 99%% = %d%%, want 100%%", percent(level))
+	if percent(level) != 124 {
+		t.Fatalf("held up from 99%% for 3 s = %d%%, want 124%%", percent(level))
 	}
-	if level = up.Next(at(3100), true, false, level, 2); percent(level) != 101 {
-		t.Fatalf("a new touch at 100%% = %d%%, want 101%%", percent(level))
-	}
-	// Held from there it goes on, up to the player's ceiling.
-	for ms := 3500; ms <= 20000; ms += 30 {
+	for ms := 3030; ms <= 20000; ms += 30 {
 		level = up.Next(at(ms), true, true, level, 2)
 	}
 	if percent(level) != 200 {
-		t.Fatalf("held up from 101%% = %d%%, want the ceiling", percent(level))
+		t.Fatalf("held up from 99%% = %d%%, want the ceiling", percent(level))
 	}
 
 	// Down has no stop, and a player of 100% never goes above it.

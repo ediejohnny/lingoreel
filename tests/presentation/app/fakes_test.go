@@ -24,6 +24,8 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
@@ -37,7 +39,14 @@ const (
 	brokenVideo       = `D:\Filmes\Quebrado.mkv`
 	portugueseVideo   = `D:\Filmes\SoPortugues.mkv`
 	badSubtitlesVideo = `D:\Filmes\LegendaRuim.mkv`
+	// switchVideo has one more readable subtitle (7) to switch to; slowVideo
+	// is the same, and its subtitles wait for a gate a test opens.
+	switchVideo = `D:\Filmes\Trocas.mkv`
+	slowVideo   = `D:\Filmes\Lento.mkv`
 )
+
+// readGates hold the subtitle reads of a video until their channel closes.
+var readGates sync.Map
 
 func (fakeReader) Analyze(path string) (media.Info, error) {
 	switch path {
@@ -45,6 +54,16 @@ func (fakeReader) Analyze(path string) (media.Info, error) {
 		return media.Info{}, fmt.Errorf("opening %s: %w", path, fs.ErrNotExist)
 	case brokenVideo:
 		return media.Info{}, errors.New("analyzing: not an EBML file")
+	case switchVideo, slowVideo:
+		return media.Info{Duration: 90 * time.Minute, Tracks: []media.Track{
+			{Number: 1, Type: media.TrackVideo, Width: 1920, Height: 1080, FrameRate: 24},
+			{Number: 2, Type: media.TrackAudio, Language: "pt", Codec: "A_AC3", Default: true},
+			{Number: 3, Type: media.TrackAudio, Language: "en", Codec: "A_DTS"},
+			{Number: 4, Type: media.TrackSubtitle, Language: "en", Name: "Full", Readable: true},
+			{Number: 5, Type: media.TrackSubtitle, Language: "pt-BR", Readable: true},
+			{Number: 6, Type: media.TrackSubtitle, Language: "pt", Codec: "S_HDMV/PGS"},
+			{Number: 7, Type: media.TrackSubtitle, Language: "en", Name: "SDH", HearingImpaired: true, Readable: true},
+		}}, nil
 	case portugueseVideo:
 		return media.Info{Duration: time.Hour, Tracks: []media.Track{
 			{Number: 1, Type: media.TrackVideo, Width: 1280, Height: 720},
@@ -62,12 +81,28 @@ func (fakeReader) Analyze(path string) (media.Info, error) {
 	}}, nil
 }
 func (fakeReader) Check(string) error { return nil }
+
+// pickedFiles finds no subtitle file next to the videos, which do not exist,
+// and reads the files a test picks, which do.
+type pickedFiles struct{}
+
+func (pickedFiles) Find(string) ([]string, error)           { return nil, nil }
+func (pickedFiles) FindCandidates(string) ([]string, error) { return nil, nil }
+func (pickedFiles) Load(path string) (subtitle.Format, media.SubtitleContent, error) {
+	return subtitlefile.Files{}.Load(path)
+}
 func (fakeReader) ReadSubtitles(_ context.Context, path string, _ []uint64, _ func(int64, int64)) (map[uint64]media.SubtitleContent, error) {
 	if path == badSubtitlesVideo {
 		return nil, errors.New("reading subtitles: broken block")
 	}
+	if gate, found := readGates.Load(path); found {
+		<-gate.(chan struct{})
+	}
 	line := subtitle.Event{ID: "1", Start: time.Second, End: 2 * time.Second, OriginalText: "Hi."}
-	return map[uint64]media.SubtitleContent{4: {Events: []subtitle.Event{line}}, 5: {Events: []subtitle.Event{line}}}, nil
+	other := subtitle.Event{ID: "1", Start: time.Second, End: 2 * time.Second, OriginalText: "[door creaks] Hi."}
+	return map[uint64]media.SubtitleContent{
+		4: {Events: []subtitle.Event{line}}, 5: {Events: []subtitle.Event{line}}, 7: {Events: []subtitle.Event{other}},
+	}, nil
 }
 
 // --- player ---
@@ -78,6 +113,9 @@ type fakeRunning struct {
 	mu      sync.Mutex
 	seeks   []time.Duration
 	speeds  []playback.Speed
+	// audioSwitch is the capability; audio, the indexes asked.
+	audioSwitch bool
+	audio       []int
 	// reconnecting is what Reconnecting answers; lost makes Err report a lost player.
 	reconnecting atomic.Bool
 	lost         atomic.Bool
@@ -95,7 +133,7 @@ func (r *fakeRunning) lastSeek() (time.Duration, bool) {
 }
 
 func (r *fakeRunning) Capabilities() playback.Capabilities {
-	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact}
+	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact, AudioTrackSelection: r.audioSwitch}
 }
 func (r *fakeRunning) Play() error  { return nil }
 func (r *fakeRunning) Pause() error { return nil }
@@ -111,8 +149,19 @@ func (r *fakeRunning) SetSpeed(speed playback.Speed) error {
 	r.speeds = append(r.speeds, speed)
 	return nil
 }
-func (r *fakeRunning) StepFrame(bool) error            { return errors.New("no") }
-func (r *fakeRunning) SelectAudioTrack(int) error      { return nil }
+func (r *fakeRunning) StepFrame(bool) error { return errors.New("no") }
+func (r *fakeRunning) SelectAudioTrack(index int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.audio = append(r.audio, index)
+	return nil
+}
+
+func (r *fakeRunning) audioIndexes() []int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.audio)
+}
 func (r *fakeRunning) Samples() <-chan playback.Sample { return r.samples }
 func (r *fakeRunning) ProcessID() int                  { return 1 }
 func (r *fakeRunning) Err() error {
@@ -136,6 +185,8 @@ type fakePlugin struct {
 	drawsInHost bool
 	// fixedAudio makes the player keep its own audio track, like PotPlayer.
 	fixedAudio bool
+	// audioSwitch makes the player change the audio track while playing.
+	audioSwitch bool
 }
 
 func (p *fakePlugin) Descriptor() player.Descriptor {
@@ -150,7 +201,7 @@ func (p *fakePlugin) Launch(_ context.Context, _ string, request player.LaunchRe
 	if p.launchErr != nil {
 		return nil, p.launchErr
 	}
-	p.running = &fakeRunning{samples: make(chan playback.Sample, 1)}
+	p.running = &fakeRunning{samples: make(chan playback.Sample, 1), audioSwitch: p.audioSwitch}
 	p.running.samples <- playback.Sample{Position: 30 * time.Second, Duration: 90 * time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
 	return p.running, nil
 }
@@ -172,6 +223,10 @@ type fakeUI struct {
 	events []event
 	urls   []string
 	choose string
+	// subtitle is what the subtitle file dialog answers.
+	subtitle string
+	// copied are the texts put on the clipboard.
+	copied []string
 	// program is what the program dialog answers.
 	program string
 	// savePath is what the save dialog answers; suggested keeps what it
@@ -213,13 +268,25 @@ func (u *fakeUI) Emit(name string, data any) {
 	defer u.mu.Unlock()
 	u.events = append(u.events, event{name, data})
 }
-func (u *fakeUI) OpenVideoDialog() (string, error)         { return u.choose, nil }
+func (u *fakeUI) OpenVideoDialog() (string, error) { return u.choose, nil }
+func (u *fakeUI) OpenSubtitleDialog() (string, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.subtitle, nil
+}
 func (u *fakeUI) OpenProgramDialog(string) (string, error) { return u.program, nil }
 func (u *fakeUI) SaveSubtitleDialog(suggested string) (string, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.suggested = append(u.suggested, suggested)
 	return u.savePath, nil
+}
+
+func (u *fakeUI) CopyText(text string) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.copied = append(u.copied, text)
+	return nil
 }
 
 func (u *fakeUI) OpenURL(url string) {
@@ -352,8 +419,19 @@ func (m *memoryProjects) Remove(video string) error {
 	return nil
 }
 
-func (m *memoryProjects) TrackKey(_ string, track media.Track) string {
+func (m *memoryProjects) TrackKey(video string, track media.Track) string {
+	if track.External() {
+		return "file:" + projectfile.AddedPath(video, track.Path)
+	}
 	return fmt.Sprintf("track:%d", track.Number)
+}
+
+func (m *memoryProjects) AddedPath(video, path string) string {
+	return projectfile.AddedPath(video, path)
+}
+
+func (m *memoryProjects) ResolveAdded(video, added string) string {
+	return projectfile.ResolveAdded(video, added)
 }
 
 // stored is the project as last saved, and how many saves there were.
@@ -430,7 +508,7 @@ func newRigWith(t *testing.T, change func(*app.Deps)) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := analysis.NewService(fakeReader{}, nil)
+	service := analysis.NewService(fakeReader{}, pickedFiles{})
 	deps := app.Deps{
 		Service: service, Registry: registry,
 		Detect: func(map[player.ID]string) []player.Installation { return r.installed },

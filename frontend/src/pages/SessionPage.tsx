@@ -1,6 +1,7 @@
 import { Eraser, Play, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SavedPassages } from "../components/player/SavedPassages";
+import { none, noteOf, SubtitlePicker, trackOptions } from "../components/player/SubtitlePicker";
 import { InstallCards } from "../components/session/InstallCards";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
@@ -11,9 +12,7 @@ import { Select, type Option } from "../components/ui/Select";
 import { t } from "../i18n";
 import { keyLabel } from "../keys";
 import { backend, messageOf } from "../services/backend";
-import type { PlayerInstall, Players, SavedPassage, ShortcutSetting, Track, Video, WatchRequest } from "../services/backend";
-
-const none = "0";
+import type { Line, PlayerInstall, Players, SavedPassage, ShortcutSetting, Video, WatchRequest } from "../services/backend";
 
 interface SessionPageProps {
   video: Video;
@@ -25,24 +24,14 @@ interface SessionPageProps {
   installing: string;
   installError: string;
   onWatch: (request: WatchRequest) => void;
+  /** onVideo takes the video described again, with a subtitle file added to it. */
+  onVideo: (video: Video) => void;
   /** onReset forgets everything kept about the video and opens it as new. */
   onReset: () => Promise<void>;
   onDismissError: () => void;
   onInstall: (id: string) => void;
   onDownload: (id: string) => void;
   onDismissRecommendation: (id: string) => void;
-}
-
-function trackOptions(tracks: Track[], emptyLabel: string): Option[] {
-  return [
-    { value: none, label: emptyLabel },
-    ...tracks.map((track) => ({ value: String(track.number), label: track.label, disabled: !track.readable })),
-  ];
-}
-
-function noteOf(tracks: Track[], value: string): { note?: string; warning: boolean } {
-  const track = tracks.find((candidate) => String(candidate.number) === value);
-  return { note: track?.note || undefined, warning: track?.warning ?? false };
 }
 
 /** SessionPage chooses what to watch with: subtitles, translation, audio and player. */
@@ -60,6 +49,8 @@ export function SessionPage(props: SessionPageProps) {
   const [keys, setKeys] = useState<ShortcutSetting[]>([]);
   const [resetting, setResetting] = useState(false);
   const [listError, setListError] = useState("");
+  const [adding, setAdding] = useState<Line | "">("");
+  const [addError, setAddError] = useState("");
 
   useEffect(() => {
     let current = true;
@@ -101,6 +92,28 @@ export function SessionPage(props: SessionPageProps) {
       passage,
     });
 
+  // A file from any folder joins the video and goes on the line it was added for.
+  const addFile = async (line: Line) => {
+    setAdding(line);
+    try {
+      const added = await backend.addSubtitleFile(line);
+      if (added.path === "") {
+        return;
+      }
+      props.onVideo(added);
+      if (line === "primary") {
+        setPrimary(String(added.suggested.primary));
+      } else {
+        setTranslation(String(added.suggested.translation));
+      }
+      setAddError("");
+    } catch (failure) {
+      setAddError(messageOf(failure));
+    } finally {
+      setAdding("");
+    }
+  };
+
   const refresh = async () => setPassages(await backend.savedPassages());
   const listCommand = async (run: () => Promise<void>) => {
     try {
@@ -136,19 +149,30 @@ export function SessionPage(props: SessionPageProps) {
           title={t("ui.session.subtitles.title")}
           aside={<HelpTip topic={t("ui.session.subtitles.topic")}>{t("ui.session.subtitles.help")}</HelpTip>}
         >
+          {addError && (
+            <div className="mb-4">
+              <Banner tone="error" onClose={() => setAddError("")}>
+                {addError}
+              </Banner>
+            </div>
+          )}
           <div className="grid gap-5 sm:grid-cols-2">
-            <Select
+            <SubtitlePicker
               label={t("ui.session.subtitles.primary")}
               value={primary}
               options={trackOptions(video.subtitles, t("ui.session.subtitles.none"))}
               onChange={setPrimary}
+              onAdd={() => void addFile("primary")}
+              adding={adding === "primary"}
               {...noteOf(video.subtitles, primary)}
             />
-            <Select
+            <SubtitlePicker
               label={t("ui.session.subtitles.translation")}
               value={translation}
               options={trackOptions(video.subtitles, t("ui.session.subtitles.noTranslation"))}
               onChange={setTranslation}
+              onAdd={() => void addFile("translation")}
+              adding={adding === "translation"}
               {...noteOf(video.subtitles, translation)}
             />
           </div>

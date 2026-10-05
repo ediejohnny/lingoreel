@@ -56,13 +56,11 @@ const (
 	maxHeldSteps = 3
 )
 
-// VolumeRamp turns presses of the volume keys into levels. Going up, a held
-// key stops at 100%: louder than that, the player amplifies and the sound
-// may clip, so passing it takes a new press. A ramp is not safe for
+// VolumeRamp turns presses of the volume keys into levels, held keys going
+// all the way to the player's ceiling (200% on VLC). A ramp is not safe for
 // concurrent use.
 type VolumeRamp struct {
 	heldSince time.Time
-	from      Volume
 	given     int
 }
 
@@ -71,7 +69,7 @@ type VolumeRamp struct {
 func (r *VolumeRamp) Next(now time.Time, up, repeat bool, current, ceiling Volume) Volume {
 	steps := 1
 	if !repeat || r.heldSince.IsZero() {
-		r.heldSince, r.from, r.given = now, current, 0
+		r.heldSince, r.given = now, 0
 	} else {
 		due := int((now.Sub(r.heldSince)-VolumeHoldDelay)/VolumeHoldInterval) + 1
 		if now.Sub(r.heldSince) < VolumeHoldDelay || due <= r.given {
@@ -84,9 +82,5 @@ func (r *VolumeRamp) Next(now time.Time, up, repeat bool, current, ceiling Volum
 	if !up {
 		delta = -delta
 	}
-	next := (current + delta).Within(ceiling)
-	if up && repeat && r.from < FullVolume && next > FullVolume {
-		next = FullVolume.Within(ceiling)
-	}
-	return next
+	return (current + delta).Within(ceiling)
 }

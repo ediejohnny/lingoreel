@@ -97,7 +97,7 @@ func (a *API) settingsOptions() SettingsOptions {
 		options.Presets = append(options.Presets, Option{Value: string(preset), Label: presetName(preset)})
 	}
 	for _, tag := range previewLanguages {
-		options.Languages = append(options.Languages, Option{Value: string(tag), Label: capitalized(ptbr.LanguageName(tag))})
+		options.Languages = append(options.Languages, Option{Value: string(tag), Label: ptbr.Capitalized(ptbr.LanguageName(tag))})
 	}
 	for _, speed := range playback.SpeedSteps() {
 		options.Speeds = append(options.Speeds, float64(speed))

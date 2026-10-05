@@ -2,7 +2,9 @@ package project_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -273,8 +275,77 @@ func TestTheHistoryUndoesAndRedoesInOrder(t *testing.T) {
 	}
 }
 
+// A line that takes another file forgets its changes, in undo and in redo,
+// and the other line's changes keep their order.
+func TestForgettingALineKeepsTheOtherLinesChanges(t *testing.T) {
+	t.Parallel()
+	change := func(line int, text string) project.Change {
+		return project.Change{Line: line, After: subtitle.Event{ID: "1", OriginalText: text}}
+	}
+	h := project.NewHistory(10)
+	for _, c := range []project.Change{change(0, "a"), change(1, "b"), change(0, "c"), change(1, "d"), change(0, "e")} {
+		h.Record(c)
+	}
+	h.Undo() // "e" (line 0) to redo
+	h.Undo() // "d" (line 1) to redo
+	h.Forget(0)
+	if got, ok := h.Redo(); !ok || got.After.OriginalText != "d" {
+		t.Fatalf("Redo after forgetting line 0 = %+v %v, want d", got, ok)
+	}
+	if h.CanRedo() {
+		t.Fatal("a change of the forgotten line is still to redo")
+	}
+	for _, want := range []string{"d", "b"} {
+		if got, ok := h.Undo(); !ok || got.Line != 1 || got.After.OriginalText != want {
+			t.Fatalf("Undo = %+v %v, want %s", got, ok, want)
+		}
+	}
+	if h.CanUndo() {
+		t.Fatal("a change of the forgotten line is still to undo")
+	}
+	// Every change on the one line, and an empty history, leave nothing.
+	only := project.NewHistory(10)
+	only.Record(change(1, "x"))
+	only.Undo()
+	only.Record(change(1, "y"))
+	only.Forget(1)
+	project.NewHistory(1).Forget(0)
+	if only.CanUndo() || only.CanRedo() {
+		t.Fatal("forgetting the only line left changes behind")
+	}
+}
+
 // Saving the same span twice keeps both: the second gets " (2)", and so on.
 // Case and the spaces around do not make a name new.
+// A picked file is remembered once; with the list full, the oldest file that
+// is gone gives way, and with none gone the new one is not kept.
+func TestRememberFileMakesRoomOnlyFromFilesThatAreGone(t *testing.T) {
+	t.Parallel()
+	p := project.New()
+	present := func(string) bool { return true }
+	if !p.RememberFile("a.srt", present) || p.RememberFile("a.srt", present) || len(p.AddedFiles) != 1 {
+		t.Fatalf("the same file twice: %q", p.AddedFiles)
+	}
+	for i := len(p.AddedFiles); i < project.MaxAddedFiles; i++ {
+		p.RememberFile(fmt.Sprintf("%d.srt", i), present)
+	}
+	full := slices.Clone(p.AddedFiles)
+	if p.RememberFile("new.srt", present) || !slices.Equal(p.AddedFiles, full) {
+		t.Fatalf("a full list of files that are all there took another: %q", p.AddedFiles)
+	}
+	gone := map[string]bool{"3.srt": true, "7.srt": true}
+	if !p.RememberFile("new.srt", func(file string) bool { return !gone[file] }) {
+		t.Fatal("the full list did not make room from a file that is gone")
+	}
+	want := append(slices.Delete(slices.Clone(full), 3, 4), "new.srt")
+	if !slices.Equal(p.AddedFiles, want) {
+		t.Fatalf("files = %q, want the oldest gone one (3.srt) out and new.srt last", p.AddedFiles)
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatalf("the remembered list is not valid: %v", err)
+	}
+}
+
 func TestUniqueNameKeepsEveryPassage(t *testing.T) {
 	t.Parallel()
 	passages := func(names ...string) []project.Passage {

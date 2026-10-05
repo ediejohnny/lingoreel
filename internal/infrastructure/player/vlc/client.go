@@ -41,6 +41,9 @@ type status struct {
 	// Volume is on VLC's scale (256 is 100%); negative before the sound
 	// output exists.
 	Volume float64 `json:"volume"`
+	// Audio is the playing audio track's position among the audio tracks,
+	// -1 for none.
+	Audio int `json:"audio"`
 }
 
 // client talks to the control endpoint served by VLC on the loopback interface.

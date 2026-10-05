@@ -74,7 +74,7 @@ func TestSaveAndLoadAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "Movie.dualsub.json"))
-	if err != nil || !strings.Contains(string(data), `"version": 2`) {
+	if err != nil || !strings.Contains(string(data), `"version": 3`) {
 		t.Fatalf("file beside the video: %v\n%s", err, data)
 	}
 	got, err := store.Load(video)
@@ -176,7 +176,9 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 		body string
 		want error
 	}{
-		{"newer version", `{"version": 3, "tracks": {}}`, project.ErrNewerVersion},
+		{"newer version", `{"version": 4, "tracks": {}}`, project.ErrNewerVersion},
+		{"too many added files", `{"version": 3, "addedFiles": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17"]}`, project.ErrInvalid},
+		{"empty added file", `{"version": 3, "addedFiles": ["  "]}`, project.ErrInvalid},
 		{"empty edit text", `{"version": 1, "tracks": {"uid:1": {"edits": {"1": {"original": "0123456789abcdef", "text": ""}}}}}`, project.ErrInvalid},
 		{"end before start", `{"version": 1, "passages": [{"name": "P", "start": 10, "end": 5}]}`, project.ErrInvalid},
 		{"passage not an object", `{"version": 1, "passages": [1]}`, nil},
@@ -228,7 +230,7 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 
 // A file of version 1 (before the plans and "last") still opens, its
 // passages pausing at the end with no helps, and the next save writes
-// version 2 without losing anything.
+// the current version without losing anything.
 func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -259,7 +261,7 @@ func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(projectfile.Beside(video))
-	if err != nil || !strings.Contains(string(data), `"version": 2`) || !strings.Contains(string(data), `"Rua"`) {
+	if err != nil || !strings.Contains(string(data), `"version": 3`) || !strings.Contains(string(data), `"Rua"`) {
 		t.Fatalf("saved again: %v\n%s", err, data)
 	}
 }
@@ -326,15 +328,54 @@ func TestTrackKeysSurviveANewAnalysis(t *testing.T) {
 	}{
 		{media.Track{Number: media.ExternalTrackBase + 3, Path: `D:\Filmes\Subs\Movie.pt-BR.srt`}, "file:Subs/Movie.pt-BR.srt"},
 		{media.Track{Number: media.ExternalTrackBase, Path: `D:\Filmes\Movie.en.srt`}, "file:Movie.en.srt"},
-		// A file outside the video's folder is known by its name.
-		{media.Track{Number: media.ExternalTrackBase, Path: `E:\Legendas\Movie.en.srt`}, "file:Movie.en.srt"},
-		{media.Track{Number: media.ExternalTrackBase, Path: `D:\Legendas\Movie.en.srt`}, "file:Movie.en.srt"},
+		// A file outside the video's folder is known by its path from it, or by
+		// its whole path on another drive: two files of the same name stay two.
+		{media.Track{Number: media.ExternalTrackBase, Path: `D:\Legendas\Movie.en.srt`}, "file:../Legendas/Movie.en.srt"},
+		{media.Track{Number: media.ExternalTrackBase, Path: `E:\Legendas\Movie.en.srt`}, "file:E:/Legendas/Movie.en.srt"},
 		{media.Track{Number: 4, UID: 1234567890123}, "uid:1234567890123"},
 		{media.Track{Number: 4}, "track:4"},
 	}
 	for _, c := range cases {
 		if got := projectfile.TrackKey(video, c.track); got != c.want {
 			t.Errorf("TrackKey(%+v) = %s, want %s", c.track, got, c.want)
+		}
+	}
+}
+
+// A version 2 file opens with no added files, and the files picked for a
+// video come back by their paths, wherever they are.
+func TestAddedFilesComeBack(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Filmes", "Movie.mkv")
+	if err := os.MkdirAll(filepath.Dir(video), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store := projectfile.Open(filepath.Join(dir, "app"))
+	if err := os.WriteFile(projectfile.Beside(video), []byte(`{"version": 2, "passages": [{"name": "Rua", "start": 60000, "end": 64000}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load(video)
+	if err != nil || len(got.AddedFiles) != 0 || len(got.Passages) != 1 {
+		t.Fatalf("a version 2 file = %+v, %v", got, err)
+	}
+	picked := []string{filepath.Join(dir, "Legendas", "Movie.en.srt"), filepath.Join(dir, "Filmes", "Subs", "Movie.fr.srt"), `Z:\Outro\Movie.de.srt`}
+	for _, path := range picked {
+		got.AddedFiles = append(got.AddedFiles, projectfile.AddedPath(video, path))
+	}
+	if got.AddedFiles[0] != "../Legendas/Movie.en.srt" || got.AddedFiles[1] != "Subs/Movie.fr.srt" || got.AddedFiles[2] != "Z:/Outro/Movie.de.srt" {
+		t.Fatalf("added paths = %q", got.AddedFiles)
+	}
+	if err := store.Save(video, got); err != nil {
+		t.Fatal(err)
+	}
+	again, err := store.Load(video)
+	if err != nil || len(again.AddedFiles) != 3 {
+		t.Fatalf("again = %+v, %v", again.AddedFiles, err)
+	}
+	for i, added := range again.AddedFiles {
+		if got := projectfile.ResolveAdded(video, added); got != filepath.Clean(picked[i]) {
+			t.Errorf("ResolveAdded(%q) = %s, want %s", added, got, picked[i])
 		}
 	}
 }

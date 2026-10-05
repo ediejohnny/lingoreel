@@ -345,6 +345,40 @@ func TestVLCFirstSeekAfterLaunchHolds(t *testing.T) {
 	}
 }
 
+// The audio switches while the video plays: VLC takes the track by its
+// place among the audio tracks, as the app counts them, and plays it.
+func TestVLCSwitchesTheAudioWhilePlaying(t *testing.T) {
+	executable, _ := realVLC(t)
+	video, err := filepath.Abs(filepath.Join(filepath.Dir(sampleVideo), "dual-audio-sample.mkv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: 0})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	defer session.Close()
+	waitFor(t, session.Samples(), "the video playing", func(s playback.Sample) bool {
+		return s.Status == playback.StatusPlaying && s.Position > time.Second
+	})
+	for _, index := range []int{1, 0} {
+		if err := session.SelectAudioTrack(index); err != nil {
+			t.Fatalf("SelectAudioTrack(%d): %v", index, err)
+		}
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			got, playing, err := session.ReportedAudioTrack()
+			if err == nil && playing && got == index {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("after SelectAudioTrack(%d) VLC plays track %d (%v, %v)", index, got, playing, err)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+}
+
 // TestVLCIntegration drives the real VLC through its commands.
 func TestVLCIntegration(t *testing.T) {
 	executable, video := realVLC(t)

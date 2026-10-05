@@ -7,11 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
@@ -70,27 +69,53 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	a.logger.Info("video opened", "name", filepath.Base(path), "duration", result.Info.Duration.Round(time.Second),
 		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
 	opened := a.loadProject(path, result.Info)
+	result = a.addRemembered(result, opened)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()
 	a.video, a.project = &result, opened
 	a.mu.Unlock()
+	return a.describeVideo(result, opened, suggested, mode), nil
+}
 
+// describeVideo is a video as the session screen shows it.
+func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, suggested media.Selection, mode study.Mode) Video {
+	a.mu.Lock()
+	languages := a.profile().Languages
+	a.mu.Unlock()
+	preferences := media.Preferences{
+		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
+		Translation: media.LanguageTag(languages.Translation),
+	}
 	video := Video{
-		Path: path, Name: filepath.Base(path), Duration: result.Info.Duration.Seconds(),
+		Path: result.Path, Name: filepath.Base(result.Path), Duration: result.Info.Duration.Seconds(),
 		Suggested: Selection{Audio: suggested.Audio, Primary: suggested.Primary, Translation: suggested.Translation},
 		Players:   a.players(),
-		Audio:     []Track{}, Subtitles: []Track{},
-		Mode: string(mode), Modes: modeOptions(), ProjectNote: opened.note,
+		Audio:     audioTracks(result.Info), Subtitles: subtitleTracks(result.Info),
+		Mode: string(mode), Modes: modeOptions(),
 		SavedPassages: passagesOf(opened, result.Info.Duration), Resume: resumeOf(opened, result.Info.Duration),
 	}
-	for _, track := range result.Info.TracksOf(media.TrackAudio) {
-		video.Audio = append(video.Audio, audioTrack(track))
-	}
-	for _, track := range result.Info.TracksOf(media.TrackSubtitle) {
-		video.Subtitles = append(video.Subtitles, subtitleTrack(track))
+	if opened != nil {
+		video.ProjectNote = opened.note
 	}
 	video.LanguageNote = languageNote(result.Info, suggested, preferences)
-	return video, nil
+	return video
+}
+
+// audioTracks and subtitleTracks describe a video's tracks for the lists.
+func audioTracks(info media.Info) []Track {
+	list := []Track{}
+	for _, track := range info.TracksOf(media.TrackAudio) {
+		list = append(list, audioTrack(track))
+	}
+	return list
+}
+
+func subtitleTracks(info media.Info) []Track {
+	list := []Track{}
+	for _, track := range info.TracksOf(media.TrackSubtitle) {
+		list = append(list, subtitleTrack(track))
+	}
+	return list
 }
 
 // languageNote tells when the video has subtitles but none in a language
@@ -129,38 +154,11 @@ func extensionOf(path string) string {
 }
 
 func audioTrack(track media.Track) Track {
-	parts := []string{capitalized(ptbr.LanguageName(track.Language))}
-	if track.Codec != "" {
-		parts = append(parts, strings.TrimPrefix(track.Codec, "A_"))
-	}
-	if track.Name != "" {
-		parts = append(parts, track.Name)
-	}
-	if track.Default {
-		parts = append(parts, ptbr.T("track.default"))
-	}
-	return Track{Number: track.Number, Label: strings.Join(parts, " · "), Language: string(track.Language), Readable: true}
+	return Track{Number: track.Number, Label: ptbr.AudioLabel(track), Language: string(track.Language), Readable: true}
 }
 
 func subtitleTrack(track media.Track) Track {
-	label := capitalized(ptbr.LanguageName(track.Language))
-	if track.Name != "" {
-		label += " — " + track.Name
-	}
-	var flags []string
-	if track.Forced {
-		flags = append(flags, ptbr.T("track.forced"))
-	}
-	if track.HearingImpaired {
-		flags = append(flags, ptbr.T("track.hearingImpaired"))
-	}
-	if track.External() {
-		flags = append(flags, ptbr.T("track.external"))
-	}
-	if len(flags) > 0 {
-		label += " (" + strings.Join(flags, ", ") + ")"
-	}
-	result := Track{Number: track.Number, Label: label, Language: string(track.Language), Readable: track.Readable}
+	result := Track{Number: track.Number, Label: ptbr.SubtitleLabel(track), Language: string(track.Language), Readable: track.Readable}
 	result.Note, result.Warning = subtitleNote(track)
 	return result
 }
@@ -186,12 +184,4 @@ func subtitleNote(track media.Track) (string, bool) {
 		return ptbr.T("track.note.candidate"), true
 	}
 	return "", false
-}
-
-func capitalized(text string) string {
-	first, size := utf8.DecodeRuneInString(text)
-	if size == 0 {
-		return text
-	}
-	return string(unicode.ToUpper(first)) + text[size:]
 }
