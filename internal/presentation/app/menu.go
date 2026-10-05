@@ -1,9 +1,8 @@
 package app
 
 import (
-	"slices"
-
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
@@ -11,20 +10,17 @@ import (
 // menu over the video added to it, for the session screen to list.
 const EventVideo = "video:changed"
 
-// settingsPages are the settings pages the menu opens; any other opens the
-// first one.
-var settingsPages = []string{"general", "subtitles-primary", "subtitles-translation", "study", "shortcuts"}
-
 // The menu the right button opens over the video asks these of the app (the
 // player window's AppActions). Each runs off the window's thread and tells
 // on the video what went wrong.
 
 // OpenSettings opens the panel beside the video on a page of the settings,
-// out of the fullscreen first, where the panel does not show.
+// out of the fullscreen first, where the panel does not show; a page the
+// menu does not open is the general one.
 func (l Lifecycle) OpenSettings(page string) {
 	a := l.api
-	if !slices.Contains(settingsPages, page) {
-		page = settingsPages[0]
+	if !contextmenu.Page(page).Valid() {
+		page = string(contextmenu.PageGeneral)
 	}
 	if a.deps.Stage != nil {
 		a.deps.Stage.SetFullscreen(false)

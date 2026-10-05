@@ -31,18 +31,18 @@ import (
 
 var (
 	// ErrNoPlayer reports that no supported player is installed.
-	ErrNoPlayer = errors.New("nenhum player compatível encontrado")
+	ErrNoPlayer = errors.New("no supported player found")
 	// ErrInvalidOption reports an unknown option or a malformed value.
-	ErrInvalidOption = errors.New("opção inválida")
+	ErrInvalidOption = errors.New("invalid option")
 )
 
 const (
 	playerFlag = "--player"
-	startFlag  = "--inicio"
-	pausedFlag = "--pausado"
-	stepFlag   = "--passo"
+	startFlag  = "--start"
+	pausedFlag = "--paused"
+	stepFlag   = "--step"
 
-	// maxStart keeps --inicio within a sane range before the video duration
+	// maxStart keeps --start within a sane range before the video duration
 	// is known; the player itself clamps to the real duration.
 	maxStart = 24 * time.Hour
 )
@@ -70,7 +70,7 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		return err
 	}
 	if result.Info.Duration > 0 && options.start >= result.Info.Duration {
-		return fmt.Errorf("%w: %s %s está além do fim do vídeo (%s)", ErrInvalidOption, startFlag,
+		return fmt.Errorf("%w: %s %s is past the end of the video (%s)", ErrInvalidOption, startFlag,
 			formatClock(options.start), formatClock(result.Info.Duration))
 	}
 	registry, hints, err := plugins.Registry(stderrLogger())
@@ -80,16 +80,16 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	installed := discovery.Detect(discovery.SystemEnvironment{}, hints, nil)
 	choice, found := player.Choose(installed, registry.Supported, options.preferred)
 	if !found {
-		return fmt.Errorf("%w (suportados agora: %s)", ErrNoPlayer, supportedNames(registry))
+		return fmt.Errorf("%w (supported: %s)", ErrNoPlayer, supportedNames(registry))
 	}
 
 	out := &printer{w: stdout}
 	if choice.PreferredMissing {
-		out.line("Aviso: %s não está instalado ou ainda não é suportado.", options.preferred.DisplayName())
+		out.line("Note: %s is not installed, or not supported yet.", options.preferred.DisplayName())
 	}
-	out.line("Player:    %s  %s", describeInstallation(choice.Installation), choice.Installation.Path)
-	out.line("Legenda:   %s", describeChoice(result.Info, result.Suggested.Primary))
-	out.line("Tradução:  %s", describeChoice(result.Info, result.Suggested.Translation))
+	out.line("Player:       %s  %s", describeInstallation(choice.Installation), choice.Installation.Path)
+	out.line("Top line:     %s", describeChoice(result.Info, result.Suggested.Primary))
+	out.line("Bottom line:  %s", describeChoice(result.Info, result.Suggested.Translation))
 	if out.err != nil {
 		return out.err
 	}
@@ -104,9 +104,9 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 		ports.OpenWindow, ports.OpenDisplay = openPlayerWindow, openOverlay
 	}
 	names := ptbr.NewLineNames(result.Info, result.Suggested.Primary, result.Suggested.Translation)
-	listener := &consoleListener{out: out, names: names, labels: [2]string{
-		lineLabel(result.Info, result.Suggested.Primary, "Legenda"),
-		lineLabel(result.Info, result.Suggested.Translation, "Tradução"),
+	listener := &consoleListener{out: out, labels: [2]string{
+		lineLabel(result.Info, result.Suggested.Primary, "top"),
+		lineLabel(result.Info, result.Suggested.Translation, "bottom"),
 	}}
 	watching, err := watch.Start(ctx, ports, watch.Request{
 		Analysis: result, Tracks: result.Suggested, Player: choice.Installation,
@@ -117,16 +117,16 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	}
 	for _, number := range []uint64{result.Suggested.Primary, result.Suggested.Translation} {
 		if track, found := watching.Loaded()[number]; found && track.Corrected {
-			out.line("Sincronia: %s ajustada automaticamente para casar com o vídeo: %s", trackLabel(number), describeCorrection(track.Correction))
+			out.line("Timing:       %s moved to fit the video: %s", trackLabel(number), describeCorrection(track.Correction))
 		}
 	}
-	out.line("Precisão:  %s", describePrecision(watching.Controls().Capabilities().Precision))
+	out.line("Precision:    %s", describePrecision(watching.Controls().Capabilities().Precision))
 	if withOverlay {
-		out.line("Overlay:   legendas desenhadas sobre o vídeo")
+		out.line("Display:      the subtitles drawn over the video")
 	}
-	out.line("Sincronia: Shift+, / Shift+. movem a legenda de cima, Ctrl+, / Ctrl+. a de baixo (passo %s); z + Enter zera.",
-		strings.TrimPrefix(ptbr.Offset(subtitle.Offset(options.steps.Step)), "+"))
-	out.line("Feche o player ou pressione Ctrl+C para encerrar.")
+	out.line("Sync:         Shift+, / Shift+. move the top line, Ctrl+, / Ctrl+. the bottom one (step %d ms); z + Enter resets.",
+		options.steps.Step.Milliseconds())
+	out.line("Close the player or press Ctrl+C to end.")
 	out.line("")
 	go readConsole(ctx, os.Stdin, func(command string) {
 		if command == resetCommand {
@@ -141,10 +141,10 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 	}
 	err = watching.Stop()
 	if errors.Is(err, playback.ErrPlayerLost) {
-		err = fmt.Errorf("o %s parou de responder: %w", choice.Installation.ID.DisplayName(), err)
+		err = fmt.Errorf("%s stopped answering: %w", choice.Installation.ID.DisplayName(), err)
 	}
 	if err == nil {
-		out.line("Sessão encerrada.")
+		out.line("Session ended.")
 	}
 	return errors.Join(err, out.err)
 }
@@ -152,7 +152,6 @@ func play(ctx context.Context, args []string, stdout io.Writer, withOverlay bool
 // consoleListener prints what happens in the session.
 type consoleListener struct {
 	out    *printer
-	names  ptbr.LineNames
 	labels [2]string
 }
 
@@ -160,8 +159,8 @@ func (l *consoleListener) SubtitlesChanged(position time.Duration, visible sessi
 	l.out.line("[%s] %s", formatClock(position.Truncate(time.Millisecond)), describeVisible(visible, l.labels))
 }
 
-func (l *consoleListener) Synced(line session.Line, _ uint64, offset subtitle.Offset) {
-	l.out.line("Sincronia: %s", l.names.Notice(line, offset))
+func (l *consoleListener) Synced(line session.Line, track uint64, offset subtitle.Offset) {
+	l.out.line("Sync: %s line (%s) at %+.3f s", l.labels[line], trackLabel(track), offset.Duration().Seconds())
 }
 
 // Edited is never called: the development tool does not edit lines.
@@ -170,7 +169,7 @@ func (l *consoleListener) Edited(session.Line, uint64, map[string]project.Edit) 
 // PassageMarked prints a passage closed by the mark shortcut; the
 // development tool keeps no project to save it in.
 func (l *consoleListener) PassageMarked(segment study.Segment, _ study.PracticePlan) {
-	l.out.line("Trecho marcado: %s", ptbr.PassageName(segment.Start, segment.End))
+	l.out.line("Passage marked: %s → %s", formatClock(segment.Start), formatClock(segment.End))
 }
 
 func parsePlayOptions(args []string) (playOptions, error) {
@@ -180,7 +179,7 @@ func parsePlayOptions(args []string) (playOptions, error) {
 		switch arg {
 		case playerFlag, startFlag, stepFlag:
 			if i+1 >= len(args) {
-				return playOptions{}, fmt.Errorf("%w: %s precisa de um valor", ErrInvalidOption, arg)
+				return playOptions{}, fmt.Errorf("%w: %s needs a value", ErrInvalidOption, arg)
 			}
 			i++
 			switch arg {
@@ -209,7 +208,7 @@ func parsePlayOptions(args []string) (playOptions, error) {
 		}
 	}
 	if options.path == "" {
-		return playOptions{}, fmt.Errorf("%w: caminho do vídeo", ErrMissingArgument)
+		return playOptions{}, fmt.Errorf("%w: the video's path", ErrMissingArgument)
 	}
 	return options, nil
 }
@@ -221,7 +220,7 @@ func parseStep(value string) (subtitle.NudgeSteps, error) {
 	steps := subtitle.NudgeSteps{Step: time.Duration(milliseconds) * time.Millisecond}
 	steps.FastStep = max(subtitle.DefaultFastNudgeStep, steps.Step)
 	if err != nil || steps.Validate() != nil {
-		return subtitle.NudgeSteps{}, fmt.Errorf("%w: %s %q (use milissegundos, de %d a %d)", ErrInvalidOption, stepFlag, value,
+		return subtitle.NudgeSteps{}, fmt.Errorf("%w: %s %q (milliseconds, %d to %d)", ErrInvalidOption, stepFlag, value,
 			subtitle.MinNudgeStep.Milliseconds(), subtitle.MaxNudgeStep.Milliseconds())
 	}
 	return steps, nil
@@ -232,7 +231,7 @@ func parseStep(value string) (subtitle.NudgeSteps, error) {
 func parseSeconds(value string) (time.Duration, error) {
 	seconds, err := strconv.ParseFloat(strings.Replace(value, ",", ".", 1), 64)
 	if err != nil || !(seconds >= 0 && seconds <= maxStart.Seconds()) {
-		return 0, fmt.Errorf("%w: %s %q (use segundos, de 0 a %d)", ErrInvalidOption, startFlag, value, int(maxStart.Seconds()))
+		return 0, fmt.Errorf("%w: %s %q (seconds, 0 to %d)", ErrInvalidOption, startFlag, value, int(maxStart.Seconds()))
 	}
 	return time.Duration(seconds * float64(time.Second)), nil
 }
@@ -246,9 +245,9 @@ func describeInstallation(installation player.Installation) string {
 
 func describePrecision(precision playback.Precision) string {
 	if precision == playback.PrecisionExact {
-		return "exata"
+		return "exact"
 	}
-	return "estimada (o player informa o tempo algumas vezes por segundo)"
+	return "estimated (the player tells the time a few times a second)"
 }
 
 // lineLabel names a subtitle line by its language, or by its role when the

@@ -3,7 +3,6 @@ package app
 import (
 	"errors"
 	"io/fs"
-	"math"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,9 +13,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
-
-// minNoteOffset is the least automatic correction worth telling the user.
-const minNoteOffset = 0.001
 
 // errBusy refuses a video opened while another one plays.
 var errBusy = worded(func() string { return ptbr.T("error.video.busy") })
@@ -77,25 +73,26 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	return a.describeVideo(result, opened, suggested, mode), nil
 }
 
-// describeVideo is a video as the session screen shows it.
+// describeVideo is a video as the session screen shows it. The project is
+// read under a.mu: a session playing it saves passages and where it is.
 func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, suggested media.Selection, mode study.Mode) Video {
-	a.mu.Lock()
-	languages := a.profile().Languages
-	a.mu.Unlock()
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
 	video := Video{
 		Path: result.Path, Name: filepath.Base(result.Path), Duration: result.Info.Duration.Seconds(),
 		Suggested: Selection{Audio: suggested.Audio, Primary: suggested.Primary, Translation: suggested.Translation},
 		Players:   a.players(),
 		Audio:     audioTracks(result.Info), Subtitles: subtitleTracks(result.Info),
 		Mode: string(mode), Modes: modeOptions(),
-		SavedPassages: passagesOf(opened, result.Info.Duration), Resume: resumeOf(opened, result.Info.Duration),
 	}
+	a.mu.Lock()
+	languages := a.profile().Languages
+	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
 	if opened != nil {
 		video.ProjectNote = opened.note
+	}
+	a.mu.Unlock()
+	preferences := media.Preferences{
+		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
+		Translation: media.LanguageTag(languages.Translation),
 	}
 	video.LanguageNote = languageNote(result.Info, suggested, preferences)
 	return video
@@ -168,11 +165,10 @@ func subtitleNote(track media.Track) (string, bool) {
 	if !track.Readable {
 		return ptbr.T("track.note.unreadable"), true
 	}
-	alignment := track.Alignment
-	switch alignment.Verdict {
+	switch track.Alignment.Verdict {
 	case subtitle.VerdictMatch:
-		if math.Abs(alignment.Offset.Seconds()) >= minNoteOffset || math.Abs(alignment.Rate-1) >= 1e-6 {
-			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(alignment.Offset))), false
+		if correction, moved := analysis.Correction(track); moved {
+			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(correction.Offset))), false
 		}
 		return ptbr.T("track.note.match"), false
 	case subtitle.VerdictOtherCut:

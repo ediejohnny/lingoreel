@@ -33,7 +33,7 @@ func TestDiagListsMonitorsAndTheChecklist(t *testing.T) {
 		t.Fatalf("Run(diag): %v", err)
 	}
 	text := out.String()
-	for _, want := range []string{"Monitores:", "(principal)", "DPI)", "área útil", "Ciente de DPI por monitor:", "Roteiro de conferência"} {
+	for _, want := range []string{"Monitors:", "(primary)", "DPI)", "work area", "Per-monitor DPI aware:", "Checklist"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("diag output lacks %q:\n%s", want, text)
 		}
@@ -49,8 +49,8 @@ func TestRunWithoutArgumentsOrWithHelpPrintsUsage(t *testing.T) {
 		if err := spdev.Run(t.Context(), args, &out); err != nil {
 			t.Fatalf("Run(%q) returned error: %v", args, err)
 		}
-		if !strings.Contains(out.String(), "Uso: spdev") || !strings.Contains(out.String(), "versão") {
-			t.Fatalf("Run(%q) did not print the PT-BR usage, got %q", args, out.String())
+		if !strings.Contains(out.String(), "Usage: spdev") || !strings.Contains(out.String(), "Commands:") {
+			t.Fatalf("Run(%q) did not print the usage, got %q", args, out.String())
 		}
 	}
 }
@@ -62,7 +62,7 @@ func TestRunRejectsUnknownCommands(t *testing.T) {
 		if !errors.Is(err, spdev.ErrUnknownCommand) {
 			t.Fatalf("Run(%q) error = %v, want ErrUnknownCommand", command, err)
 		}
-		if !strings.Contains(out.String(), "Uso: spdev") {
+		if !strings.Contains(out.String(), "Usage: spdev") {
 			t.Fatalf("usage not printed for %q, got %q", command, out.String())
 		}
 	}

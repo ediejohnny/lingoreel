@@ -13,7 +13,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
-	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
@@ -216,7 +215,7 @@ func (w *Window) icon(icon contextmenu.Icon, enabled bool) windows.Handle {
 		index = win32.COLOR_GRAYTEXT
 	}
 	r, g, b := win32.SysColor(index)
-	if err := w.renderer.DrawIcon(dib, icon, appearance.Color{R: r, G: g, B: b, A: 0xff}); err != nil {
+	if err := w.renderer.DrawIcon(dib, icon, appearance.RGB(r, g, b)); err != nil {
 		dib.Close()
 		w.logger.Warn("a menu icon could not be drawn", "error", err)
 		return 0
@@ -295,17 +294,5 @@ func (w *Window) editHere(line session.Line) {
 	if !ok {
 		return
 	}
-	w.do(func(r watch.Remote) error {
-		if r.State().Status == playback.StatusPlaying {
-			if err := r.Controls().Pause(); err != nil {
-				return err
-			}
-		}
-		selection, err := r.Select(line)
-		if err != nil {
-			return err
-		}
-		text := selection.Event.Text()
-		return w.thread.Post(func() { w.openEditor(line, text, spot) })
-	})
+	w.beginEdit(line, spot, true)
 }

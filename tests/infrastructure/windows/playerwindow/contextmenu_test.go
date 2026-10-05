@@ -121,7 +121,7 @@ func (m *menuWindow) openAt(t *testing.T, x, y int32) {
 	post(t, m.host, win32.WM_CONTEXTMENU, uintptr(m.host), at(int(x), int(y)))
 }
 
-// itemAt finds an item by the texts on the way to it ("Áudio", "Sem som"),
+// itemAt finds an item by the texts on the way to it (the audio submenu, mute),
 // each compared without its key; ok is false when there is none.
 func itemAt(menu windows.Handle, path ...string) (win32.MenuItem, bool) {
 	for depth, name := range path {
@@ -160,6 +160,46 @@ func picking(t *testing.T, path ...string) func(windows.Handle, int32, int32) ui
 	}
 }
 
+// A window opened on the app's stage takes the app's actions from the
+// stage, as the app opens its windows: its menu has the app's items, and
+// they reach the app.
+func TestAWindowOnTheStageReachesTheApp(t *testing.T) {
+	actions := &fakeActions{}
+	stage := playerwindow.NewStage(playerwindow.StageOptions{
+		Parent: newFakeApp(t, offScreenApp, true).handle,
+		App:    func() playerwindow.AppActions { return actions },
+	})
+	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
+	settings := make(chan bool, 1)
+	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
+		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
+		NoActivate: true, Stage: stage,
+		Choose: func(menu uintptr, _, _ int32) uint32 {
+			item, found := itemAt(windows.Handle(menu), ptbr.T("menu.settings"))
+			settings <- found
+			return item.ID
+		},
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { w.Close() })
+	w.Attach(newRemote(&recordingPlayer{}))
+	host := windows.HWND(w.Handle())
+	post(t, host, win32.WM_CONTEXTMENU, uintptr(host), at(10, 10))
+	select {
+	case found := <-settings:
+		if !found {
+			t.Fatal("the menu of a window on the stage has none of the app's items")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the menu did not open")
+	}
+	testkit.Eventually(t, "the settings asked of the app", func() bool { return slices.Contains(actions.asked(), "settings general") })
+}
+
 // A right click opens the menu where the mouse is; the menu key opens it
 // at the center of the video.
 func TestTheMenuOpensWhereAsked(t *testing.T) {
@@ -186,10 +226,10 @@ func TestMenuChoicesReachTheSession(t *testing.T) {
 		path []string
 		done func() bool
 	}{
-		{[]string{"Modo de estudo", "Dupla"}, func() bool { return slices.Contains(m.remote.changed(), "mode "+string(study.ModeDual)) }},
-		{[]string{"Legendas", "Sincronia", "Legenda de baixo mais tarde"}, func() bool { return slices.Contains(m.remote.ran(), "sync-translation-later") }},
-		{[]string{"Modo Karaokê", "Pausa mínima antes da fala", "15 s"}, func() bool { return m.remote.Karaoke().Rules.MinGap == 15*time.Second }},
-		{[]string{"Áudio", "Sem som"}, func() bool { return slices.Contains(m.remote.ran(), "mute") }},
+		{[]string{ptbr.T("menu.title.studyMode"), ptbr.ModeName(study.ModeDual)}, func() bool { return slices.Contains(m.remote.changed(), "mode "+string(study.ModeDual)) }},
+		{[]string{ptbr.T("menu.title.subtitles"), ptbr.T("menu.title.sync"), ptbr.CommandName(shortcut.SyncTranslationLater)}, func() bool { return slices.Contains(m.remote.ran(), "sync-translation-later") }},
+		{[]string{ptbr.T("menu.title.karaoke"), ptbr.T("bar.stepper.minGap"), ptbr.Seconds(15 * time.Second)}, func() bool { return m.remote.Karaoke().Rules.MinGap == 15*time.Second }},
+		{[]string{ptbr.T("menu.title.audio"), ptbr.T("menu.mute")}, func() bool { return slices.Contains(m.remote.ran(), "mute") }},
 	}
 	m.remote.karaoke.Rules = study.DefaultCueRules()
 	for i, c := range cases {
@@ -202,7 +242,7 @@ func TestMenuChoicesReachTheSession(t *testing.T) {
 	player := &recordingPlayer{}
 	m.remote = newRemote(player)
 	m.w.Attach(m.remote)
-	m.choose(picking(t, "Reprodução", "Velocidade", "1,25×"))
+	m.choose(picking(t, ptbr.T("menu.title.playback"), ptbr.T("menu.title.speed"), ptbr.Speed(1.25)))
 	m.openAt(t, 10, 10)
 	testkit.Eventually(t, "the speed asked of the player", func() bool { return player.saw("speed") })
 }
@@ -217,15 +257,15 @@ func TestTheMenuShowsTheKeysAsConfigured(t *testing.T) {
 	m.w.SetShortcuts(keys)
 	texts := make(chan [2]string, 1)
 	m.choose(func(menu windows.Handle, _, _ int32) uint32 {
-		pause, _ := itemAt(menu, "Pausar")
-		mute, _ := itemAt(menu, "Áudio", "Sem som")
+		pause, _ := itemAt(menu, ptbr.T("bar.tip.pause"))
+		mute, _ := itemAt(menu, ptbr.T("menu.title.audio"), ptbr.T("menu.mute"))
 		texts <- [2]string{pause.Text, mute.Text}
 		return 0
 	})
 	m.openAt(t, 10, 10)
 	select {
 	case got := <-texts:
-		if got != [2]string{"Pausar\tP", "Sem som"} {
+		if got != [2]string{ptbr.T("bar.tip.pause") + "\tP", ptbr.T("menu.mute")} {
 			t.Fatalf("items read %q, want the changed key and none", got)
 		}
 	case <-time.After(5 * time.Second):
@@ -242,7 +282,7 @@ func TestTheMenuAndItsPicturesAreFreed(t *testing.T) {
 	}
 	saw := make(chan seen, 1)
 	m.choose(func(menu windows.Handle, _, _ int32) uint32 {
-		pause, _ := itemAt(menu, "Pausar")
+		pause, _ := itemAt(menu, ptbr.T("bar.tip.pause"))
 		saw <- seen{menu, pause.Bitmap}
 		return 0
 	})
@@ -253,7 +293,9 @@ func TestTheMenuAndItsPicturesAreFreed(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the menu did not open")
 	}
-	size := win32.SmallIconSize(win32.DpiForWindow(m.host))
+	// The monitor's small icon size, asked of Windows by the test itself.
+	small, _, _ := procGetSystemMetricsForDpi.Call(smCXSmallIcon, uintptr(win32.DpiForWindow(m.host)))
+	size := int(small)
 	if width, height, bits, ok := win32.BitmapBits(got.bitmap); !ok || width != size || height != size || bits != 32 {
 		t.Fatalf("the picture is %dx%d at %d bits (%v), want %dx%d at 32", width, height, bits, ok, size, size)
 	}
@@ -289,11 +331,16 @@ func TestALineUnderTheClickCanBeCopied(t *testing.T) {
 	m.choose(func(menu windows.Handle, x, y int32) uint32 {
 		item, _ := win32.MenuItemAt(menu, 0)
 		first <- item.Text
-		return picking(t, "Copiar esta fala")(menu, x, y)
+		return picking(t, ptbr.T("menu.copyHere"))(menu, x, y)
 	})
 	m.openAt(t, client.Left+int32(box.X), client.Top+int32(box.Y))
-	if text := <-first; text != "Corrigir esta fala…" {
-		t.Fatalf("the menu over a line starts with %q", text)
+	select {
+	case text := <-first:
+		if text != ptbr.T("menu.editHere") {
+			t.Fatalf("the menu over a line starts with %q", text)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the menu did not open")
 	}
 	testkit.Eventually(t, "the line copied", func() bool { return slices.Contains(app.asked(), "copy Hello there.") })
 }
@@ -304,18 +351,29 @@ func TestWithoutTheAppItsItemsAreNotInTheMenu(t *testing.T) {
 	m := openMenuWindow(t, nil)
 	found := make(chan [2]bool, 1)
 	m.choose(func(menu windows.Handle, _, _ int32) uint32 {
-		_, settings := itemAt(menu, "Configurações…")
-		_, closing := itemAt(menu, "Fechar")
+		_, settings := itemAt(menu, ptbr.T("menu.settings"))
+		_, closing := itemAt(menu, ptbr.T("menu.close"))
 		found <- [2]bool{settings, closing}
 		return 0
 	})
 	m.openAt(t, 10, 10)
-	if got := <-found; got != [2]bool{false, true} {
-		t.Fatalf("settings in the menu %v, closing %v; want only closing", got[0], got[1])
+	select {
+	case got := <-found:
+		if got != [2]bool{false, true} {
+			t.Fatalf("settings in the menu %v, closing %v; want only closing", got[0], got[1])
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the menu did not open")
 	}
 }
 
 var procPeekMessage = windows.NewLazySystemDLL("user32.dll").NewProc("PeekMessageW")
+
+// procGetSystemMetricsForDpi and smCXSmallIcon read the width of a small
+// icon at a scaling (SM_CXSMICON).
+var procGetSystemMetricsForDpi = windows.NewLazySystemDLL("user32.dll").NewProc("GetSystemMetricsForDpi")
+
+const smCXSmallIcon = 49
 
 // pumpUntil dispatches the thread's messages, as a menu's own loop does,
 // until done is closed or the time runs out.
@@ -344,7 +402,7 @@ func TestAWindowClosedWithItsMenuOpenDropsTheChoice(t *testing.T) {
 	m := openMenuWindow(t, nil)
 	closed := make(chan error, 1)
 	m.choose(func(menu windows.Handle, x, y int32) uint32 {
-		mute := picking(t, "Áudio", "Sem som")(menu, x, y)
+		mute := picking(t, ptbr.T("menu.title.audio"), ptbr.T("menu.mute"))(menu, x, y)
 		go func() { closed <- m.w.Close() }()
 		if !pumpUntil(m.w.Done(), 3*time.Second) {
 			t.Error("the window did not go while its menu showed")
@@ -376,18 +434,24 @@ func menuShowing() bool {
 var procFindWindow = windows.NewLazySystemDLL("user32.dll").NewProc("FindWindowW")
 
 // The real menu, on screen (only with LINGOREEL_MENU_TEST=1: it shows
-// on the monitor for a moment, so nothing else may be in use): what closes
-// a menu (a click elsewhere cancels the mode) closes it, the window then
-// opens it again, and a window closed while its menu shows goes well within
-// the time a stuck thread is given.
+// on the monitor for a moment, so nothing else may be in use), opened as the
+// app opens it, on the stage of an app window with the app's actions: what
+// closes a menu (a click elsewhere cancels the mode) closes it, the window
+// then opens it again, and a window closed while its menu shows goes well
+// within the time a stuck thread is given.
 func TestARealMenuClosesAndLetsTheWindowGo(t *testing.T) {
 	if os.Getenv("LINGOREEL_MENU_TEST") != "1" {
 		t.Skip("set LINGOREEL_MENU_TEST=1 to show a real menu on screen")
 	}
+	stage := playerwindow.NewStage(playerwindow.StageOptions{
+		Parent: newFakeApp(t, offScreenApp, true).handle,
+		App:    func() playerwindow.AppActions { return &fakeActions{} },
+	})
+	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
-		NoActivate: true,
+		NoActivate: true, Stage: stage,
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
@@ -425,7 +489,7 @@ func TestEndingTheVideoFromTheMenuDoesNotHang(t *testing.T) {
 	m := openMenuWindow(t, app)
 	closed := make(chan error, 1)
 	app.stop = func() { closed <- m.w.Close() }
-	m.choose(picking(t, "Encerrar o vídeo"))
+	m.choose(picking(t, ptbr.T("menu.stopVideo")))
 	m.openAt(t, 10, 10)
 	select {
 	case err := <-closed:

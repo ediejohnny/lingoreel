@@ -99,13 +99,18 @@ type Info struct {
 
 // TracksOf returns the tracks of one type in container order.
 func (i Info) TracksOf(kind TrackType) []Track {
-	var tracks []Track
-	for _, track := range i.Tracks {
+	return OfType(i.Tracks, kind)
+}
+
+// OfType returns the tracks of one type from a list, in its order.
+func OfType(tracks []Track, kind TrackType) []Track {
+	var of []Track
+	for _, track := range tracks {
 		if track.Type == kind {
-			tracks = append(tracks, track)
+			of = append(of, track)
 		}
 	}
-	return tracks
+	return of
 }
 
 // Track returns the track with the given number.

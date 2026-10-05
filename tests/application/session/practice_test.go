@@ -78,7 +78,35 @@ func (r *practiceRig) lastEvent() session.PracticeEvent {
 	return r.events[len(r.events)-1]
 }
 
+func (r *practiceRig) told(event session.PracticeEvent) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Contains(r.events, event)
+}
+
 var passage = study.Segment{Start: ms(19_500), End: ms(23_000)}
+
+// What the practice asks of the player on its own and the player does not
+// carry out is told, as the video may go on past the passage: the pause at
+// its end, the next lap of a loop.
+func TestWhatThePlayerDoesNotCarryOutIsTold(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []study.EndMode{study.EndPause, study.EndLoop} {
+		r := newPracticeRig(t, nil)
+		if err := r.practice.Start(passage, study.PracticePlan{Mode: mode}); err != nil {
+			t.Fatal(err)
+		}
+		r.at(ms(22_000), true)
+		if r.told(session.PracticeFailed) {
+			t.Fatalf("%s: a failure told before any", mode)
+		}
+		r.player.err = errors.New("the player stopped answering")
+		r.at(ms(23_000), true)
+		if !r.told(session.PracticeFailed) {
+			t.Errorf("%s: the player's failure at the end of the passage was not told", mode)
+		}
+	}
+}
 
 func TestStartGoesToThePassageAndPlays(t *testing.T) {
 	t.Parallel()

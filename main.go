@@ -35,6 +35,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/association"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
@@ -152,18 +153,19 @@ func run() error {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
 		},
-		Stage:       stagePort{stage},
-		Settings:    files,
-		Installer:   install.Winget{},
-		Window:      placement.ForVideo,
-		Logger:      logger,
-		KeyChar:     keyboard.Char,
-		SettingsDir: dir,
-		OpenFolder:  openFolder,
-		Projects:    projectfile.Open(dir),
-		About:       app.About{Version: buildinfo.Version, Windows: windowsVersion()},
-		Monitors:    monitors,
-		LogDir:      filepath.Join(dir, logFolder),
+		Stage:         stagePort{stage},
+		Settings:      files,
+		Installer:     install.Winget{},
+		Window:        placement.ForVideo,
+		Logger:        logger,
+		KeyChar:       keyboard.Char,
+		SettingsDir:   dir,
+		OpenFolder:    openFolder,
+		WriteSubtitle: subtitleformat.WriteFile,
+		Projects:      projectfile.Open(dir),
+		About:         app.About{Version: buildinfo.Version, Windows: windowsVersion()},
+		Monitors:      monitors,
+		LogDir:        filepath.Join(dir, logFolder),
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{

@@ -14,14 +14,13 @@ import (
 
 // fakeReader records calls and returns canned results.
 type fakeReader struct {
-	info          media.Info
-	content       map[uint64]media.SubtitleContent
-	err           error
-	analyzeCalls  []string
-	checkCalls    []string
-	checkErr      error
-	requested     []uint64
-	progressCalls int
+	info         media.Info
+	content      map[uint64]media.SubtitleContent
+	err          error
+	analyzeCalls []string
+	checkCalls   []string
+	checkErr     error
+	requested    []uint64
 	// whileReading runs when subtitles are being read, to cancel mid-read.
 	whileReading func()
 	// readErr fails only the reading of subtitles.

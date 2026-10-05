@@ -30,6 +30,10 @@ const (
 	PracticeSuspended
 	// PracticeFinished: the goal was reached.
 	PracticeFinished
+	// PracticeFailed: the player did not carry out what the practice asked
+	// (a pause at the end, a lap from the start), so the video may go on
+	// past the passage.
+	PracticeFailed
 )
 
 // PracticeStatus describes the passage being studied.
@@ -219,6 +223,14 @@ func (p *Practice) tell(event PracticeEvent, status PracticeStatus) {
 	}
 }
 
+// failed tells the screen when an order the practice gave the player on its
+// own (no user command waits for the answer) went wrong. Called without mu.
+func (p *Practice) failed(err error) {
+	if err != nil {
+		p.tell(PracticeFailed, p.Status())
+	}
+}
+
 // beforePlay runs inside Controls.Play: at the end of the passage, Play
 // starts the next lap from the start instead of playing on.
 func (p *Practice) beforePlay() {
@@ -266,7 +278,7 @@ func (p *Practice) Tick(state playback.Sample) {
 		next := p.lap + 1
 		p.mu.Unlock()
 		if due {
-			_ = p.startLap(next)
+			p.failed(p.startLap(next))
 		}
 		return
 	}
@@ -295,7 +307,7 @@ func (p *Practice) tickSegment(state playback.Sample) {
 	switch {
 	case p.plan.Done(p.finished):
 		p.mu.Unlock()
-		_ = p.controls.Pause()
+		p.failed(p.controls.Pause())
 		p.Stop()
 		p.tell(PracticeFinished, status)
 	case p.plan.Mode == study.EndLoop && p.plan.Gap > 0:
@@ -303,16 +315,16 @@ func (p *Practice) tickSegment(state playback.Sample) {
 		// the next lap.
 		p.resumeAt = p.now().Add(p.plan.Gap)
 		p.mu.Unlock()
-		_ = p.controls.Pause()
+		p.failed(p.controls.Pause())
 	case p.plan.Mode == study.EndLoop:
 		next := p.lap + 1
 		p.mu.Unlock()
-		_ = p.startLap(next)
+		p.failed(p.startLap(next))
 	default:
 		p.atEnd = true
 		status.AtEnd = true
 		p.mu.Unlock()
-		_ = p.controls.Pause()
+		p.failed(p.controls.Pause())
 		p.tell(PracticeAtEnd, status)
 	}
 }
@@ -343,7 +355,7 @@ func (p *Practice) tickLines(state playback.Sample) {
 	p.repeated[line.ID]++
 	p.mu.Unlock()
 	if target, ok := study.ReplayTarget(track.Timeline, track.Offset, track.Offset.PlaybackTime(line.Start), karaoke.Rules); ok {
-		_ = p.seek(target)
+		p.failed(p.seek(target))
 	}
 }
 

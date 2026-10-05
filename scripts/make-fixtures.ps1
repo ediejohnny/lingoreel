@@ -172,7 +172,8 @@ Invoke-Native -FilePath $mkvmerge -Arguments @("--quiet", "--no-date", "--output
 # sample's own (English) and the same sound again, as Portuguese.
 Write-Host "[5/5] dual-audio-sample.mkv (two audio tracks)..."
 Invoke-Native -FilePath $mkvmerge -Arguments @("--quiet", "--no-date", "--regenerate-track-uids", "--output", (Join-Path $root "tests\testdata\video\dual-audio-sample.mkv"),
-    "--no-subtitles", $studySample, "--no-video", "--no-subtitles", "--language", "1:por", $studySample) `n    -FailureMessage "mkvmerge failed to generate dual-audio-sample.mkv"
+    "--no-subtitles", $studySample, "--no-video", "--no-subtitles", "--language", "1:por", $studySample) `
+    -FailureMessage "mkvmerge failed to generate dual-audio-sample.mkv"
 
 Write-Host ""
 Write-Host "Fixtures generated in $fixtures" -ForegroundColor Green

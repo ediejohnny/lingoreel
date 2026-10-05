@@ -40,7 +40,7 @@ func (s *Sync) SetSteps(steps subtitle.NudgeSteps) error {
 // shortcut is being held. It returns the line's new offset, or false when the
 // line has no subtitles.
 func (s *Sync) Nudge(line Line, later, repeat bool) (subtitle.Offset, bool) {
-	if !knownLine(line) {
+	if !line.Valid() {
 		return 0, false
 	}
 	s.mu.Lock()

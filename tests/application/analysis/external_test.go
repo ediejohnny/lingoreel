@@ -160,31 +160,39 @@ func TestLoadSubtitlesRejectsUnknownTracksWithoutReading(t *testing.T) {
 	}
 }
 
-// A file the user picks from anywhere joins an analyzed video as one more
-// track: numbered after the others, named and in the language its name or
-// text says, measured against the video and kept so loading reads nothing.
-// The analysis passed in stays as it was.
-func TestAPickedSubtitleFileJoinsTheVideo(t *testing.T) {
-	t.Parallel()
-	picked := `E:\Downloads\Exemplo.FR.srt`
+// pickedFile is a file the user picks from another folder, in French.
+const pickedFile = `E:\Downloads\Exemplo.FR.srt`
+
+// pickRig is a video with one file next to it, analyzed, and files elsewhere
+// to pick: a French one, one whose name tells no language, and a picture.
+func pickRig(t *testing.T) (*analysis.Service, *fakeFiles, analysis.Analysis) {
+	t.Helper()
 	files := &fakeFiles{
 		paths: []string{`D:\Filmes\Exemplo.en.srt`},
 		content: map[string]media.SubtitleContent{
 			`D:\Filmes\Exemplo.en.srt`:  lines("Hello."),
-			picked:                      lines("Bonjour."),
+			pickedFile:                  lines("Bonjour."),
 			`E:\Downloads\sem-nome.srt`: lines(portugueseText),
 		},
 		failing: map[string]error{`E:\Downloads\foto.jpg`: errors.New("not a subtitle")},
 	}
 	reader := &fakeReader{info: portugueseOnlyMovie(), content: map[uint64]media.SubtitleContent{5: lines("Olá.")}}
 	service := analysis.NewService(reader, files)
-	before, err := service.Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, media.Preferences{Primary: "en"})
+	analyzed, err := service.Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, media.Preferences{Primary: "en"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	tracksBefore := len(before.Info.Tracks)
+	return service, files, analyzed
+}
 
-	after, track, err := service.AddSubtitleFile(context.Background(), before, picked)
+// A file the user picks from anywhere joins an analyzed video as one more
+// track: numbered after the others, named and in the language its name says,
+// and measured against the video. The analysis passed in stays as it was.
+func TestAPickedSubtitleFileJoinsTheVideo(t *testing.T) {
+	t.Parallel()
+	service, _, before := pickRig(t)
+	tracksBefore := len(before.Info.Tracks)
+	after, track, err := service.AddSubtitleFile(context.Background(), before, pickedFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,23 +205,46 @@ func TestAPickedSubtitleFileJoinsTheVideo(t *testing.T) {
 	if len(before.Info.Tracks) != tracksBefore || len(after.Info.Tracks) != tracksBefore+1 {
 		t.Fatalf("tracks before %d → %d, after %d: the analysis passed in changed", tracksBefore, len(before.Info.Tracks), len(after.Info.Tracks))
 	}
+}
+
+// A picked file is read once: loading it later reads nothing again.
+func TestAPickedFileIsReadOnce(t *testing.T) {
+	t.Parallel()
+	service, files, before := pickRig(t)
+	after, track, err := service.AddSubtitleFile(context.Background(), before, pickedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
 	files.loaded = nil
 	loaded, err := service.LoadSubtitles(context.Background(), after, []uint64{track.Number}, nil)
 	if err != nil || loaded[track.Number].Timeline.Len() != 1 || len(files.loaded) != 0 {
 		t.Fatalf("loading the picked file: %v, read again %v", err, files.loaded)
 	}
+}
 
-	// The same file again, in another case, is the same track.
+// The same file picked again, in another case, is the same track; a name
+// with no language is read by its text, into the next number.
+func TestPickedFilesAreKnownByTheirPath(t *testing.T) {
+	t.Parallel()
+	service, _, before := pickRig(t)
+	after, track, err := service.AddSubtitleFile(context.Background(), before, pickedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
 	again, same, err := service.AddSubtitleFile(context.Background(), after, `e:\downloads\exemplo.fr.srt`)
 	if err != nil || same.Number != track.Number || len(again.Info.Tracks) != len(after.Info.Tracks) {
 		t.Fatalf("the same file twice: %+v, %v, %d tracks", same, err, len(again.Info.Tracks))
 	}
-	// A name with no language is read by its text.
 	if _, unnamed, err := service.AddSubtitleFile(context.Background(), after, `E:\Downloads\sem-nome.srt`); err != nil || unnamed.Language != "pt" || unnamed.Number != track.Number+1 {
 		t.Fatalf("unnamed file: %+v, %v", unnamed, err)
 	}
-	// A file that is no subtitle is refused, and the analysis does not change.
-	if kept, _, err := service.AddSubtitleFile(context.Background(), after, `E:\Downloads\foto.jpg`); err == nil || len(kept.Info.Tracks) != len(after.Info.Tracks) {
+}
+
+// A file that is no subtitle is refused, and the analysis does not change.
+func TestAPickedFileThatIsNoSubtitleIsRefused(t *testing.T) {
+	t.Parallel()
+	service, _, before := pickRig(t)
+	if kept, _, err := service.AddSubtitleFile(context.Background(), before, `E:\Downloads\foto.jpg`); err == nil || len(kept.Info.Tracks) != len(before.Info.Tracks) {
 		t.Fatalf("a picture was taken as a subtitle: %v", err)
 	}
 }

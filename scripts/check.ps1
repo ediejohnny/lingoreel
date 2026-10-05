@@ -25,6 +25,21 @@ $goSourceDirs = @("main.go", "cmd", "internal", "tests")
 # frontend\node_modules.
 $goPackages = @(".", "./cmd/...", "./internal/...", "./tests/...")
 $frontendDir = Join-Path $root "frontend"
+# staticcheck finds what go vet does not, such as code nothing calls.
+$staticcheckVersion = "v0.8.1"
+
+function Find-Staticcheck {
+    $command = Get-Command "staticcheck" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+    $goPath = Invoke-Native -FilePath "go" -Arguments @("env", "GOPATH") -FailureMessage "Could not read GOPATH" -Capture
+    $candidate = Join-Path ($goPath | Select-Object -First 1) "bin\staticcheck.exe"
+    if (Test-Path -LiteralPath $candidate) {
+        return $candidate
+    }
+    throw "staticcheck was not found. Install it: go install honnef.co/go/tools/cmd/staticcheck@$staticcheckVersion"
+}
 
 # Scripts need a UTF-8 BOM: without it Windows PowerShell 5.1 reads them as ANSI
 # and breaks every accented message.
@@ -105,8 +120,9 @@ try {
     # Go's failures are kept until the frontend is done, so both are told.
     $goFailure = $null
     try {
-        Write-Host "[5/6] Static analysis (go vet)..."
+        Write-Host "[5/6] Static analysis (go vet and staticcheck)..."
         Invoke-Native -FilePath "go" -Arguments (@("vet") + $goPackages) -FailureMessage "go vet found problems"
+        Invoke-Native -FilePath (Find-Staticcheck) -Arguments $goPackages -FailureMessage "staticcheck found problems"
 
         # Packages run side by side (-p) and, inside each, the tests that call
         # t.Parallel (-parallel), one worker per processor but one, which stays

@@ -243,13 +243,6 @@ func (c *Controls) SetVolume(volume playback.Volume) error {
 	return c.applyVolume(volume.Within(c.capabilities.VolumeCeiling()), false)
 }
 
-// ChangeVolume moves the level by delta, inside the player's ceiling.
-func (c *Controls) ChangeVolume(delta playback.Volume) error {
-	c.volumeMu.Lock()
-	defer c.volumeMu.Unlock()
-	return c.applyVolume((c.volume + delta).Within(c.capabilities.VolumeCeiling()), false)
-}
-
 // StepVolume is a volume key going down (repeat false) or held: a touch is
 // one step, a held key moves on at the ramp's pace up to the player's
 // ceiling (playback.VolumeRamp). It unmutes.

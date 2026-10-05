@@ -9,6 +9,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -22,8 +23,12 @@ import (
 // studied; the one below is in the interface's.
 const previewPrimary = "This is a preview."
 
-// baseDPI is the display scaling of 100%.
-const baseDPI = 96
+// minPreviewScale and maxPreviewScale bound the display scaling a preview is
+// drawn at; outside them it is drawn at 100%.
+const (
+	minPreviewScale = 0.5
+	maxPreviewScale = 5
+)
 
 // The Modo Karaokê view of the preview paints the line on top as half
 // spoken, so the fill color shows next to the line's own.
@@ -282,11 +287,11 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	layout := appearance.Layout{
+	margins := appearance.Layout{
 		MarginLeft: request.Layout.MarginLeft, MarginRight: request.Layout.MarginRight,
 		MarginTop: request.Layout.MarginTop, MarginBottom: request.Layout.MarginBottom, MaxWidth: request.Layout.MaxWidth,
 	}
-	if err := layout.Validate(); err != nil {
+	if err := margins.Validate(); err != nil {
 		return "", refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
 	}
 	screen := session.Screen{Primary: previewPrimary, Translation: ptbr.T("preview.translation"), TranslationVisible: true}
@@ -297,7 +302,7 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		}
 		screen.Highlighted, screen.Highlight = true, line
 	}
-	look := session.Look{Layout: layout, Primary: primary, Translation: translation}
+	look := session.Look{Layout: margins, Primary: primary, Translation: translation}
 	switch request.View {
 	case "":
 	case previewViewFill:
@@ -310,10 +315,10 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		return "", errors.New(ptbr.T("error.preview.unknown"))
 	}
 	scale := request.Scale
-	if !(scale >= 0.5 && scale <= 5) {
+	if !(scale >= minPreviewScale && scale <= maxPreviewScale) {
 		scale = 1
 	}
-	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(baseDPI*scale)), screen)
+	picture, err := a.deps.Preview.Preview(look, request.Width, request.Height, int(math.Round(layout.BaseDPI*scale)), screen)
 	if err != nil {
 		a.logger.Warn("the preview was not drawn", "error", err)
 		return "", errBadPreview

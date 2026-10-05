@@ -55,7 +55,7 @@ func (Plugin) Hints() discovery.Hints {
 
 // Launch opens a video in PotPlayer.
 func (p Plugin) Launch(ctx context.Context, executable string, request player.LaunchRequest) (players.Running, error) {
-	session, err := LaunchWith(ctx, executable, request, Options{Logger: p.Logger})
+	session, err := LaunchWith(ctx, executable, request, Options(p))
 	if err != nil {
 		return nil, err // never a nil *Session inside a non-nil Running
 	}

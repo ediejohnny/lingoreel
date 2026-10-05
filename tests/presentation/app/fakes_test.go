@@ -26,6 +26,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
@@ -526,6 +527,7 @@ func newRigWith(t *testing.T, change func(*app.Deps)) *rig {
 		Window:       func(media.Info) player.Placement { return player.Placement{Width: 800, Height: 450} },
 		InitialVideo: `D:\Filmes\Inicial.mkv`,
 		Preview:      r.preview, SettingsDir: `C:\Users\x\AppData\Roaming\LingoReel`,
+		WriteSubtitle: subtitleformat.WriteFile,
 		OpenFolder: func(path string) error {
 			r.ui.mu.Lock()
 			defer r.ui.mu.Unlock()

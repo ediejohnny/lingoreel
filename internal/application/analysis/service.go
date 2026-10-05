@@ -330,7 +330,8 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 			return nil, fmt.Errorf("subtitle track %d was not read", number)
 		}
 		events, result := track.Events, LoadedTrack{Skipped: track.Skipped}
-		if alignment, ok := correction(analysis.Info, number); ok {
+		described, _ := analysis.Info.Track(number)
+		if alignment, ok := Correction(described); ok {
 			events, result.Corrected, result.Correction = subtitle.Retime(events, alignment), true, alignment
 		}
 		timeline, err := subtitle.NewTimeline(events)
@@ -343,11 +344,10 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 	return loaded, nil
 }
 
-// correction returns how to move a file's times to match the video: only for
+// Correction is how a subtitle file's times move to match the video: only for
 // a file whose timing matched (tracks of the video are never measured), and
-// only when the move is measurable.
-func correction(info media.Info, number uint64) (subtitle.Alignment, bool) {
-	track, _ := info.Track(number)
+// only when the move is measurable; false leaves its times as they are.
+func Correction(track media.Track) (subtitle.Alignment, bool) {
 	alignment := track.Alignment
 	if alignment.Verdict != subtitle.VerdictMatch {
 		return subtitle.Alignment{}, false

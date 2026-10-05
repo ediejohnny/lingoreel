@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -220,6 +221,18 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 				p.Tracks["file:"+strings.Repeat("x", i+1)] = project.Track{}
 			}
 		}, false},
+		{"added files at the limit", func(p *project.Project) {
+			for i := range project.MaxAddedFiles {
+				p.AddedFiles = append(p.AddedFiles, fmt.Sprintf("Legendas/%d.srt", i))
+			}
+		}, true},
+		{"too many added files", func(p *project.Project) {
+			for i := range project.MaxAddedFiles + 1 {
+				p.AddedFiles = append(p.AddedFiles, fmt.Sprintf("Legendas/%d.srt", i))
+			}
+		}, false},
+		{"blank added file", func(p *project.Project) { p.AddedFiles = []string{"  "} }, false},
+		{"added file too long", func(p *project.Project) { p.AddedFiles = []string{strings.Repeat("a", project.MaxKeyRunes+1)} }, false},
 	}
 	for _, c := range cases {
 		p := valid()
@@ -315,8 +328,6 @@ func TestForgettingALineKeepsTheOtherLinesChanges(t *testing.T) {
 	}
 }
 
-// Saving the same span twice keeps both: the second gets " (2)", and so on.
-// Case and the spaces around do not make a name new.
 // A picked file is remembered once; with the list full, the oldest file that
 // is gone gives way, and with none gone the new one is not kept.
 func TestRememberFileMakesRoomOnlyFromFilesThatAreGone(t *testing.T) {
@@ -346,6 +357,56 @@ func TestRememberFileMakesRoomOnlyFromFilesThatAreGone(t *testing.T) {
 	}
 }
 
+// "Continuar de" is offered where the video was left, but not in its first
+// seconds nor in its credits; with the length unknown, only the first
+// seconds count.
+func TestGoingOnIsOfferedOnlyPastTheStartAndBeforeTheCredits(t *testing.T) {
+	t.Parallel()
+	const length = 90 * time.Minute
+	for _, c := range []struct {
+		name     string
+		position time.Duration
+		length   time.Duration
+		offered  bool
+	}{
+		{"never left", 0, length, false},
+		{"first seconds", 29 * time.Second, length, false},
+		{"just past them", 30 * time.Second, length, true},
+		{"before the credits", length - time.Minute, length, true},
+		{"in the credits", length - time.Minute + time.Second, length, false},
+		{"length unknown", 89*time.Minute + 30*time.Second, 0, true},
+	} {
+		at, offered := project.Last{Position: project.MillisOf(c.position)}.ResumeAt(c.length)
+		if offered != c.offered || (offered && at != c.position) {
+			t.Errorf("%s (%v of %v): at %v offered %v, want offered %v", c.name, c.position, c.length, at, offered, c.offered)
+		}
+	}
+}
+
+// A passage is outside a video it does not fit a lap into: one saved on a
+// longer cut of the film. With the length unknown, none is.
+func TestAPassagePastTheEndOfTheVideoIsOutside(t *testing.T) {
+	t.Parallel()
+	const length = 90 * time.Minute
+	for _, c := range []struct {
+		start   time.Duration
+		length  time.Duration
+		outside bool
+	}{
+		{length - study.MinSegment, length, false},
+		{length - study.MinSegment + time.Millisecond, length, true},
+		{95 * time.Minute, length, true},
+		{95 * time.Minute, 0, false},
+	} {
+		passage := project.Passage{Start: project.MillisOf(c.start), End: project.MillisOf(c.start + time.Minute)}
+		if got := passage.Outside(c.length); got != c.outside {
+			t.Errorf("a passage at %v in %v: outside %v, want %v", c.start, c.length, got, c.outside)
+		}
+	}
+}
+
+// Saving the same span twice keeps both: the second gets " (2)", and so on.
+// Case and the spaces around do not make a name new.
 func TestUniqueNameKeepsEveryPassage(t *testing.T) {
 	t.Parallel()
 	passages := func(names ...string) []project.Passage {

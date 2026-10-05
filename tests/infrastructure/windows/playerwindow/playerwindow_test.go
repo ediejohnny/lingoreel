@@ -559,17 +559,6 @@ func TestFullscreenKeepsTheSubtitlesAndTheBarOnTop(t *testing.T) {
 	testkit.Eventually(t, "the window back", func() bool { r, err := win32.WindowRect(host); return err == nil && r == before })
 	onTop("back from fullscreen")
 }
-func (p *recordingPlayer) count(call string) int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	n := 0
-	for _, c := range p.calls {
-		if c == call {
-			n++
-		}
-	}
-	return n
-}
 
 func send(hwnd windows.HWND, message uint32, lparam uintptr) {
 	sendMessage.Call(uintptr(hwnd), uintptr(message), 0, lparam)

@@ -43,10 +43,6 @@ const (
 	// positionEvery is how often the position is kept while playing; the
 	// end of the session keeps the last one.
 	positionEvery = 10 * time.Second
-	// resumeLead and resumeTail bound where "Continuar de" is offered: not
-	// in the first seconds, not in the credits.
-	resumeLead = 30 * time.Second
-	resumeTail = 60 * time.Second
 )
 
 var (
@@ -329,14 +325,13 @@ func karaokeOf(s *watch.Session) project.Karaoke {
 	}
 }
 
-// resumeOf offers to go on where the video was left, when that is past its
-// first seconds and before its credits.
+// resumeOf offers to go on where the video was left (project.Last.ResumeAt).
 func resumeOf(p *videoProject, duration time.Duration) Resume {
 	if p == nil {
 		return Resume{}
 	}
-	position := p.value.Last.Position.Duration()
-	if position < resumeLead || (duration > 0 && position > duration-resumeTail) {
+	position, offered := p.value.Last.ResumeAt(duration)
+	if !offered {
 		return Resume{}
 	}
 	return Resume{Offered: true, Position: position.Seconds(), Text: ptbr.Clock(position)}
@@ -529,16 +524,10 @@ func passagesOf(p *videoProject, duration time.Duration) []SavedPassage {
 		plan := passage.Practice()
 		list = append(list, SavedPassage{
 			Name: passage.Name, Start: ptbr.PassageClock(passage.Start.Duration()), End: ptbr.PassageClock(passage.End.Duration()),
-			Plan: planOf(plan), Summary: ptbr.PlanSummary(plan), Outside: outside(passage, duration),
+			Plan: planOf(plan), Summary: ptbr.PlanSummary(plan), Outside: passage.Outside(duration),
 		})
 	}
 	return list
-}
-
-// outside tells a passage starts at or after the end of the video, or
-// leaves less than a lap of it (a file of another cut).
-func outside(passage project.Passage, duration time.Duration) bool {
-	return duration > 0 && passage.Start.Duration() > duration-study.MinSegment
 }
 
 // planOf describes a practice plan for the window.

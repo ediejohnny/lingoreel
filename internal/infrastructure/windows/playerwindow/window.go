@@ -102,7 +102,8 @@ type Options struct {
 	// own at Placement.
 	Stage *Stage
 	// App does what the menu over the video asks of the app (the settings,
-	// files, another video); nil leaves those items out.
+	// files, another video); nil takes the stage's, and with no stage leaves
+	// those items out.
 	App AppActions
 	// Choose stands for the menu on screen, for tests: it gets the menu
 	// built (an HMENU) and the point on screen, and returns the ID of the
@@ -192,6 +193,10 @@ func Open(ctx context.Context, options Options) (*Window, error) {
 	logger := options.Logger
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
+	}
+	if options.App == nil {
+		// A window on the app's stage does what its menu asks through the app.
+		options.App = appOf(options.Stage)
 	}
 	w := &Window{
 		thread: thread, options: options, logger: logger,

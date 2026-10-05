@@ -12,7 +12,7 @@ import (
 )
 
 // ErrUnknownCommand reports a command name that spdev does not know.
-var ErrUnknownCommand = errors.New("comando desconhecido")
+var ErrUnknownCommand = errors.New("unknown command")
 
 // Run executes the command named by args[0], writing its output to stdout.
 // Long-running commands stop when ctx ends.
@@ -44,22 +44,22 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "Uso: spdev <comando>")
+	fmt.Fprintln(w, "Usage: spdev <command>")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Comandos:")
-	fmt.Fprintln(w, "  version                        mostra a versão desta compilação")
-	fmt.Fprintln(w, "  inspect <vídeo> [--legendas]   mostra as faixas e a sugestão de estudo")
-	fmt.Fprintln(w, "  play <vídeo> [opções]          abre o vídeo no player e mostra as legendas no tempo certo")
-	fmt.Fprintln(w, "      --player <vlc>                 player preferido (por enquanto só o VLC é controlado)")
-	fmt.Fprintln(w, "      --inicio <segundos>            começa a partir desta posição")
-	fmt.Fprintln(w, "      --pausado                      abre pausado")
-	fmt.Fprintln(w, "      --passo <ms>                   passo dos atalhos de sincronia (10 a 1000, padrão 50)")
-	fmt.Fprintln(w, "  overlay <vídeo> [opções]       como play, desenhando as legendas sobre o vídeo")
-	fmt.Fprintln(w, "  diag                           mostra monitores, escala e o roteiro de conferência")
-	fmt.Fprintln(w, "  help                           mostra esta ajuda")
+	fmt.Fprintln(w, "Commands:")
+	fmt.Fprintln(w, "  version                         shows this build's version")
+	fmt.Fprintln(w, "  inspect <video> [--subtitles]   shows the tracks and the study suggestion")
+	fmt.Fprintln(w, "  play <video> [options]          opens the video in the player and prints the subtitles in time")
+	fmt.Fprintln(w, "      --player <id>                   preferred player (vlc, potplayer)")
+	fmt.Fprintln(w, "      --start <seconds>               starts from this position")
+	fmt.Fprintln(w, "      --paused                        opens paused")
+	fmt.Fprintln(w, "      --step <ms>                     step of the sync shortcuts (10 to 1000, 50 by default)")
+	fmt.Fprintln(w, "  overlay <video> [options]       like play, drawing the subtitles over the video")
+	fmt.Fprintln(w, "  diag                            shows the monitors, their scaling and a checklist")
+	fmt.Fprintln(w, "  help                            shows this help")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Sincronia (play e overlay, com o player em foco):")
-	fmt.Fprintln(w, "  Shift+, / Shift+.   legenda de cima mais cedo / mais tarde")
-	fmt.Fprintln(w, "  Ctrl+, / Ctrl+.     legenda de baixo mais cedo / mais tarde")
-	fmt.Fprintln(w, "  segurar a tecla acelera; no console, z + Enter zera as duas")
+	fmt.Fprintln(w, "Sync (play and overlay, with the player in front):")
+	fmt.Fprintln(w, "  Shift+, / Shift+.   top line earlier / later")
+	fmt.Fprintln(w, "  Ctrl+, / Ctrl+.     bottom line earlier / later")
+	fmt.Fprintln(w, "  holding a key speeds it up; on the console, z + Enter resets both")
 }

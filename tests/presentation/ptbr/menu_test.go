@@ -77,28 +77,22 @@ func TestEveryMenuItemHasItsTextAndItsKey(t *testing.T) {
 	})
 }
 
-// The texts the menu shows on its own, with their accents, and the
-// system's key on "Fechar".
-func TestTheMenuWordsItsOwnItems(t *testing.T) {
+// "Fechar" shows the system's key, which no profile changes, and a line's
+// offset reads with its sign and its decimals.
+func TestTheMenuShowsTheSystemKeyAndTheOffsets(t *testing.T) {
 	t.Parallel()
 	keys := shortcut.Defaults()
-	want := map[contextmenu.Action]contextmenu.Text{
-		contextmenu.ActionEditHere:  {Text: "Corrigir esta fala…"},
-		contextmenu.ActionCopyHere:  {Text: "Copiar esta fala"},
-		contextmenu.ActionStopVideo: {Text: "Encerrar o vídeo"},
-		contextmenu.ActionOpenVideo: {Text: "Abrir outro vídeo…"},
-		contextmenu.ActionClose:     {Text: "Fechar", Key: "Alt+F4"},
-	}
+	closing := 0
 	eachItem(everything(), func(item contextmenu.Item) {
-		if expected, found := want[item.Action]; found {
-			if got := ptbr.MenuText(item, keys, nil); got != expected {
-				t.Errorf("action %d reads %+v, want %+v", item.Action, got, expected)
+		if item.Action == contextmenu.ActionClose {
+			closing++
+			if got := ptbr.MenuText(item, keys, nil).Key; got != "Alt+F4" {
+				t.Errorf("closing shows the key %q, want Alt+F4", got)
 			}
-			delete(want, item.Action)
 		}
 	})
-	if len(want) > 0 {
-		t.Errorf("items not in the menu: %v", want)
+	if closing != 1 {
+		t.Errorf("%d items close the window, want 1", closing)
 	}
 	if got := ptbr.MenuText(contextmenu.Item{Kind: contextmenu.KindItem, Line: contextmenu.LineTranslation, Duration: -150 * time.Millisecond}, keys, nil); got.Text != "Legenda de baixo: −0,150 s" {
 		t.Errorf("the offset reads %q", got.Text)

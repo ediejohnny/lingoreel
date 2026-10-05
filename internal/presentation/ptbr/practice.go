@@ -116,6 +116,8 @@ func PracticeNotice(event session.PracticeEvent, status session.PracticeStatus) 
 		return T("notice.practice.suspended")
 	case session.PracticeFinished:
 		return T("notice.practice.finished", "count", status.Plan.Goal)
+	case session.PracticeFailed:
+		return T("notice.practice.failed")
 	}
 	return ""
 }

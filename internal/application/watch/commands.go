@@ -32,9 +32,7 @@ func (s *Session) Run(command shortcut.Command, repeat bool) error {
 	}
 	if index := slices.Index(syncCommands, command); index >= 0 {
 		target := SyncShortcuts[index]
-		if offset, ok := s.sync.Nudge(target.Line, target.Later, repeat); ok {
-			s.synced(target.Line, offset)
-		}
+		s.nudge(target.Line, target.Later, repeat)
 		return nil
 	}
 	switch command {

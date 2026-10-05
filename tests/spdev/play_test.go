@@ -22,49 +22,49 @@ var studySample = filepath.Join("..", "testdata", "video", "study-sample.mkv")
 // Options are checked before the player starts, so a missing file proves an
 // option was accepted and ErrInvalidOption proves it was refused.
 func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
-	missing := filepath.Join(t.TempDir(), "ausente.mkv")
+	missing := filepath.Join(t.TempDir(), "missing.mkv")
 	cases := []struct {
 		name string
 		args []string
 		want error
 	}{
-		{"sem vídeo", []string{"play"}, spdev.ErrMissingArgument},
-		{"só opções", []string{"play", "--pausado"}, spdev.ErrMissingArgument},
-		{"opção desconhecida", []string{"play", missing, "--rapido"}, spdev.ErrInvalidOption},
-		{"dois vídeos", []string{"play", missing, missing}, spdev.ErrInvalidOption},
-		{"player sem valor", []string{"play", missing, "--player"}, spdev.ErrInvalidOption},
-		{"início sem valor", []string{"play", missing, "--inicio"}, spdev.ErrInvalidOption},
-		{"início negativo", []string{"play", missing, "--inicio", "-0.001"}, spdev.ErrInvalidOption},
-		{"início acima do limite", []string{"play", missing, "--inicio", "86400.001"}, spdev.ErrInvalidOption},
-		{"início NaN", []string{"play", missing, "--inicio", "NaN"}, spdev.ErrInvalidOption},
-		{"início infinito", []string{"play", missing, "--inicio", "Inf"}, spdev.ErrInvalidOption},
-		{"início estourado", []string{"play", missing, "--inicio", "1e400"}, spdev.ErrInvalidOption},
-		{"início texto", []string{"play", missing, "--inicio", "abc"}, spdev.ErrInvalidOption},
-		{"início vazio", []string{"play", missing, "--inicio", ""}, spdev.ErrInvalidOption},
-		{"início com unidade", []string{"play", missing, "--inicio", "5s"}, spdev.ErrInvalidOption},
-		{"início zero aceito", []string{"play", missing, "--inicio", "0"}, os.ErrNotExist},
-		{"início no limite aceito", []string{"play", missing, "--inicio", "86400"}, os.ErrNotExist},
-		{"início com vírgula aceito", []string{"play", missing, "--inicio", "2,5"}, os.ErrNotExist},
-		{"opções antes do vídeo", []string{"play", "--pausado", "--player", "VLC", missing}, os.ErrNotExist},
-		{"player desconhecido não barra a análise", []string{"play", missing, "--player", "xyz"}, os.ErrNotExist},
-		{"passo sem valor", []string{"play", missing, "--passo"}, spdev.ErrInvalidOption},
-		{"passo abaixo de 10 ms", []string{"play", missing, "--passo", "9"}, spdev.ErrInvalidOption},
-		{"passo acima de 1 s", []string{"play", missing, "--passo", "1001"}, spdev.ErrInvalidOption},
-		{"passo negativo", []string{"play", missing, "--passo", "-50"}, spdev.ErrInvalidOption},
-		{"passo com unidade", []string{"play", missing, "--passo", "50ms"}, spdev.ErrInvalidOption},
-		{"passo decimal", []string{"play", missing, "--passo", "50,5"}, spdev.ErrInvalidOption},
-		{"passo mínimo aceito", []string{"play", missing, "--passo", "10"}, os.ErrNotExist},
-		{"passo máximo aceito", []string{"play", missing, "--passo", "1000"}, os.ErrNotExist},
-		{"formato não suportado", []string{"play", "filme.txt"}, analysis.ErrUnsupportedFile},
+		{"no video", []string{"play"}, spdev.ErrMissingArgument},
+		{"options only", []string{"play", "--paused"}, spdev.ErrMissingArgument},
+		{"unknown option", []string{"play", missing, "--fast"}, spdev.ErrInvalidOption},
+		{"two videos", []string{"play", missing, missing}, spdev.ErrInvalidOption},
+		{"player without a value", []string{"play", missing, "--player"}, spdev.ErrInvalidOption},
+		{"start without a value", []string{"play", missing, "--start"}, spdev.ErrInvalidOption},
+		{"negative start", []string{"play", missing, "--start", "-0.001"}, spdev.ErrInvalidOption},
+		{"start past the limit", []string{"play", missing, "--start", "86400.001"}, spdev.ErrInvalidOption},
+		{"start NaN", []string{"play", missing, "--start", "NaN"}, spdev.ErrInvalidOption},
+		{"start infinite", []string{"play", missing, "--start", "Inf"}, spdev.ErrInvalidOption},
+		{"start overflowing", []string{"play", missing, "--start", "1e400"}, spdev.ErrInvalidOption},
+		{"start as text", []string{"play", missing, "--start", "abc"}, spdev.ErrInvalidOption},
+		{"empty start", []string{"play", missing, "--start", ""}, spdev.ErrInvalidOption},
+		{"start with a unit", []string{"play", missing, "--start", "5s"}, spdev.ErrInvalidOption},
+		{"start zero taken", []string{"play", missing, "--start", "0"}, os.ErrNotExist},
+		{"start at the limit taken", []string{"play", missing, "--start", "86400"}, os.ErrNotExist},
+		{"start with a comma taken", []string{"play", missing, "--start", "2,5"}, os.ErrNotExist},
+		{"options before the video", []string{"play", "--paused", "--player", "VLC", missing}, os.ErrNotExist},
+		{"an unknown player does not stop the analysis", []string{"play", missing, "--player", "xyz"}, os.ErrNotExist},
+		{"step without a value", []string{"play", missing, "--step"}, spdev.ErrInvalidOption},
+		{"step below 10 ms", []string{"play", missing, "--step", "9"}, spdev.ErrInvalidOption},
+		{"step above 1 s", []string{"play", missing, "--step", "1001"}, spdev.ErrInvalidOption},
+		{"negative step", []string{"play", missing, "--step", "-50"}, spdev.ErrInvalidOption},
+		{"step with a unit", []string{"play", missing, "--step", "50ms"}, spdev.ErrInvalidOption},
+		{"decimal step", []string{"play", missing, "--step", "50,5"}, spdev.ErrInvalidOption},
+		{"least step taken", []string{"play", missing, "--step", "10"}, os.ErrNotExist},
+		{"largest step taken", []string{"play", missing, "--step", "1000"}, os.ErrNotExist},
+		{"unsupported format", []string{"play", "movie.txt"}, analysis.ErrUnsupportedFile},
 		// The sample lasts 20.052 s: starting at or past its end is refused
 		// after the analysis and before any player is looked for.
-		{"início no fim do vídeo", []string{"play", studySample, "--inicio", "20.052"}, spdev.ErrInvalidOption},
-		{"início além do fim do vídeo", []string{"play", studySample, "--inicio", "25"}, spdev.ErrInvalidOption},
+		{"start at the end of the video", []string{"play", studySample, "--start", "20.052"}, spdev.ErrInvalidOption},
+		{"start past the end of the video", []string{"play", studySample, "--start", "25"}, spdev.ErrInvalidOption},
 		// overlay shares play's validation.
-		{"overlay sem vídeo", []string{"overlay"}, spdev.ErrMissingArgument},
-		{"overlay com opção desconhecida", []string{"overlay", missing, "--rapido"}, spdev.ErrInvalidOption},
-		{"overlay com início NaN", []string{"overlay", missing, "--inicio", "NaN"}, spdev.ErrInvalidOption},
-		{"overlay aceita opções válidas", []string{"overlay", missing, "--pausado", "--inicio", "2"}, os.ErrNotExist},
+		{"overlay without a video", []string{"overlay"}, spdev.ErrMissingArgument},
+		{"overlay with an unknown option", []string{"overlay", missing, "--fast"}, spdev.ErrInvalidOption},
+		{"overlay with a NaN start", []string{"overlay", missing, "--start", "NaN"}, spdev.ErrInvalidOption},
+		{"overlay takes valid options", []string{"overlay", missing, "--paused", "--start", "2"}, os.ErrNotExist},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestHelpListsPlay(t *testing.T) {
 	if err := spdev.Run(t.Context(), []string{"help"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"play <vídeo>", "overlay <vídeo>", "--player", "--inicio", "--pausado", "--passo", "Shift+, / Shift+.", "Ctrl+, / Ctrl+."} {
+	for _, want := range []string{"play <video>", "overlay <video>", "--player", "--start", "--paused", "--step", "Shift+, / Shift+.", "Ctrl+, / Ctrl+."} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help does not mention %q:\n%s", want, out.String())
 		}
@@ -168,11 +168,11 @@ func TestPlayFollowsSubtitlesWithRealVLC(t *testing.T) {
 	defer cancel()
 
 	out := &stampedWriter{}
-	if err := spdev.Run(ctx, []string{"play", studySample, "--player", "vlc", "--inicio", "3"}, out); err != nil {
+	if err := spdev.Run(ctx, []string{"play", studySample, "--player", "vlc", "--start", "3"}, out); err != nil {
 		t.Fatalf("play: %v\n%s", err, out.String())
 	}
 	output := out.String()
-	for _, want := range []string{"Player:    VLC", "Legenda:   #3 (en)", "Tradução:  #4 (pt-BR)", "Precisão:  estimada", "Sessão encerrada."} {
+	for _, want := range []string{"Player:       VLC", "Top line:     #3 (en)", "Bottom line:  #4 (pt-BR)", "Precision:    estimated", "Session ended."} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output lacks %q:\n%s", want, output)
 		}

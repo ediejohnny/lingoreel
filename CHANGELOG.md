@@ -6,6 +6,28 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-10-05
+
+A review of 0.20.0: the menu reaches the app, and smaller fixes.
+
+### Fixed
+
+- The menu over the video lacked the app's items in the app ("Encerrar o vídeo", "Abrir outro vídeo…",
+  "Configurações…", copying a line, its look, adding and exporting subtitles) and greyed out the track lists.
+- A sync step made right as the line's subtitle switched could still be kept on the other file.
+- Adding a subtitle file while the video played read the video's saved passages without the lock that guards them.
+- The "Legendas" card offers "Nenhuma" on top when the video plays without a subtitle there, instead of naming a track
+  that is not on screen.
+- The menu's "CC" icon fits its picture; its frame was cut on both sides.
+- A pause or a lap of "Estudar trecho" that the player does not carry out is told on the video.
+- `scripts\make-fixtures.ps1` runs its last step again.
+
+### Changed
+
+- The menu's item is named "Adicionar arquivo de legenda…", as on the session screen and the panel.
+- The developer tool `spdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
+- The check runs staticcheck.
+
 ## [0.20.0] - 2026-10-05
 
 A right click on the video opens a full menu, and subtitles switch while the video plays.
@@ -390,7 +412,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/ediejohnny/lingoreel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...v0.18.0

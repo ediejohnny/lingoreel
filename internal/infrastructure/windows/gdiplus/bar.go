@@ -162,14 +162,14 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 		return fillRect(g, barRail, layout.Rect{X: b.X + menuTextPad*s, Y: y, W: b.W - 2*menuTextPad*s, H: math.Max(s, 1)})
 	case entry.Kind == controlbar.EntryLabel:
 		small := font
-		small.Size, small.Bold = font.Size*0.9, true
+		small.Size, small.Bold = font.Size*menuLabelFont, true
 		return r.writeLine(g, text.Text, small, layout.Rect{X: b.X + menuTextPad*s, Y: b.Y, W: b.W - 2*menuTextPad*s, H: b.H}, false, barDisabled)
 	case entry.Kind == controlbar.EntryStepper && entry.Delta != 0:
 		return r.drawStepButton(g, bar, item, look, color)
 	}
 	hovered := item.Action == controlbar.ActionEntry && item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == entry
 	if hovered {
-		inset := layout.Rect{X: b.X + 4*s, Y: b.Y + s, W: b.W - 8*s, H: b.H - 2*s}
+		inset := layout.Rect{X: b.X + menuHoverInset*s, Y: b.Y + s, W: b.W - 2*menuHoverInset*s, H: b.H - 2*s}
 		if err := newShape().rounded(inset, barRadius*s).fill(g, barHover); err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	right := b.Right() - menuTextPad*s
 	if entry.Kind == controlbar.EntryStepper {
 		// The two buttons sit on the right; the value goes before them.
-		right -= 2*stepButtonSize*s + 4*s
+		right -= 2*stepButtonSize*s + stepButtonGap*s
 	}
 	trailing := text.Value
 	if trailing == "" {
@@ -207,8 +207,38 @@ func (r *Renderer) drawEntry(g uintptr, bar controlbar.Bar, item controlbar.Item
 	return r.writeFitted(g, text.Text, font, layout.Rect{X: left, Y: b.Y, W: math.Max(right-left, 0), H: b.H}, color)
 }
 
-// stepButtonSize matches the domain's stepper buttons.
-const stepButtonSize = 24.0
+// A stepper's buttons: their size (the domain's), the gap before them, the
+// alpha of their background and the arms of their sign, of the size.
+const (
+	stepButtonSize  = 24.0
+	stepButtonGap   = 4.0
+	stepButtonAlpha = 0x60
+	stepArm         = 0.25
+)
+
+// The marks of the menus' entries, in fractions of their box: the check's
+// three points, and the dot inside a chosen ring.
+const (
+	checkLeftX  = 0.22
+	checkLeftY  = 0.52
+	checkLowX   = 0.43
+	checkLowY   = 0.72
+	checkRightX = 0.78
+	checkRightY = 0.3
+	dotInset    = 0.28
+	dotSize     = 0.44
+)
+
+// Texts and boxes of the bar, at 100%: a menu's label size, of the menu's
+// text; a hovered entry's inset; the translation button's frame inset and
+// its letters' size.
+const (
+	menuLabelFont     = 0.9
+	menuHoverInset    = 4.0
+	translationInsetX = 6.0
+	translationInsetY = 10.0
+	translationFont   = 0.85
+)
 
 // drawStepButton draws a stepper's [−] or [+].
 func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar.Item, look BarLook, color appearance.Color) error {
@@ -218,10 +248,10 @@ func (r *Renderer) drawStepButton(g uintptr, bar controlbar.Bar, item controlbar
 	if item.Enabled && look.Hover.Action == controlbar.ActionEntry && look.Hover.Entry == item.Entry {
 		background = barAccent
 	}
-	if err := newShape().rounded(b, barRadius*s).fill(g, background.WithAlpha(0x60)); err != nil {
+	if err := newShape().rounded(b, barRadius*s).fill(g, background.WithAlpha(stepButtonAlpha)); err != nil {
 		return err
 	}
-	cx, cy, arm := b.X+b.W/2, b.Y+b.H/2, b.W*0.25
+	cx, cy, arm := b.X+b.W/2, b.Y+b.H/2, b.W*stepArm
 	sh := newShape().line(cx-arm, cy, cx+arm, cy)
 	if item.Entry.Delta > 0 {
 		sh.line(cx, cy-arm, cx, cy+arm)
@@ -236,22 +266,22 @@ func (r *Renderer) drawCheck(g uintptr, box layout.Rect, on bool, color appearan
 			return err
 		}
 		return newShape().
-			line(box.X+box.W*0.22, box.Y+box.H*0.52, box.X+box.W*0.43, box.Y+box.H*0.72).
-			line(box.X+box.W*0.43, box.Y+box.H*0.72, box.X+box.W*0.78, box.Y+box.H*0.3).
+			line(box.X+box.W*checkLeftX, box.Y+box.H*checkLeftY, box.X+box.W*checkLowX, box.Y+box.H*checkLowY).
+			line(box.X+box.W*checkLowX, box.Y+box.H*checkLowY, box.X+box.W*checkRightX, box.Y+box.H*checkRightY).
 			stroke(g, barIcon, barStroke*s)
 	}
-	return newShape().rounded(box, barRadius*s).stroke(g, color, barStroke*s*0.75)
+	return newShape().rounded(box, barRadius*s).stroke(g, color, barStroke*s*thinStroke)
 }
 
 // drawDot draws a choice's ring, filled when chosen.
 func (r *Renderer) drawDot(g uintptr, box layout.Rect, on bool, color appearance.Color, s float64) error {
-	if err := newShape().ellipse(box).stroke(g, color, barStroke*s*0.75); err != nil {
+	if err := newShape().ellipse(box).stroke(g, color, barStroke*s*thinStroke); err != nil {
 		return err
 	}
 	if !on {
 		return nil
 	}
-	inner := layout.Rect{X: box.X + box.W*0.28, Y: box.Y + box.H*0.28, W: box.W * 0.44, H: box.H * 0.44}
+	inner := layout.Rect{X: box.X + box.W*dotInset, Y: box.Y + box.H*dotInset, W: box.W * dotSize, H: box.H * dotSize}
 	return newShape().ellipse(inner).fill(g, barAccent)
 }
 
@@ -332,16 +362,16 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 	case controlbar.ActionVolume:
 		return r.drawVolume(g, bar, item, hovered)
 	case controlbar.ActionTranslation:
-		frame := layout.Rect{X: b.X + 6*s, Y: b.Y + 10*s, W: b.W - 12*s, H: b.H - 20*s}
+		frame := layout.Rect{X: b.X + translationInsetX*s, Y: b.Y + translationInsetY*s, W: b.W - 2*translationInsetX*s, H: b.H - 2*translationInsetY*s}
 		if item.Active {
 			if err := newShape().rounded(frame, barRadius*s).fill(g, barAccent); err != nil {
 				return err
 			}
-		} else if err := newShape().rounded(frame, barRadius*s).stroke(g, color, stroke*0.75); err != nil {
+		} else if err := newShape().rounded(frame, barRadius*s).stroke(g, color, stroke*thinStroke); err != nil {
 			return err
 		}
 		small := font
-		small.Size, small.Bold = font.Size*0.85, true
+		small.Size, small.Bold = font.Size*translationFont, true
 		return r.writeLine(g, "PT", small, frame, true, color)
 	case controlbar.ActionSpeed:
 		return r.writeLine(g, look.Label(item), font, b, true, color)
@@ -377,7 +407,7 @@ func menuIcon(menu controlbar.Menu) contextmenu.Icon {
 // drawCorners draws the four corners of the fullscreen icon, pointing out
 // to enter fullscreen and in to leave it.
 func (r *Renderer) drawCorners(g uintptr, box layout.Rect, inward bool, color appearance.Color, stroke float64) error {
-	arm := box.W * 0.35
+	arm := box.W * cornerArm
 	sh := newShape()
 	for _, corner := range []struct{ x, y, dx, dy float64 }{
 		{box.X, box.Y, 1, 1}, {box.Right(), box.Y, -1, 1}, {box.X, box.Bottom(), 1, -1}, {box.Right(), box.Bottom(), -1, -1},

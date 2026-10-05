@@ -21,30 +21,30 @@ import (
 )
 
 // ErrMissingArgument reports a command called without a required argument.
-var ErrMissingArgument = errors.New("argumento obrigatório ausente")
+var ErrMissingArgument = errors.New("missing argument")
 
 const (
-	subtitlesFlag     = "--legendas"
+	subtitlesFlag     = "--subtitles"
 	previewEventCount = 3
 	// rateShownFrom is the least speed change worth printing (0.001%).
 	rateShownFrom = 1e-5
 )
 
 var trackTypeNames = map[media.TrackType]string{
-	media.TrackVideo:    "vídeo",
-	media.TrackAudio:    "áudio",
-	media.TrackSubtitle: "legenda",
-	media.TrackOther:    "outra",
+	media.TrackVideo:    "video",
+	media.TrackAudio:    "audio",
+	media.TrackSubtitle: "subtitle",
+	media.TrackOther:    "other",
 }
 
 // bitmapSubtitleCodecs are image based subtitles, which would need OCR.
 var bitmapSubtitleCodecs = []string{"S_HDMV/PGS", "S_VOBSUB", "S_DVBSUB", "S_IMAGE/BMP"}
 
 // inspect prints the tracks of a video, the suggested study tracks and, with
-// --legendas, the first lines of the suggested subtitles.
+// --subtitles, the first lines of the suggested subtitles.
 func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("%w: caminho do vídeo", ErrMissingArgument)
+		return fmt.Errorf("%w: the video's path", ErrMissingArgument)
 	}
 	path := args[0]
 	withSubtitles := len(args) > 1 && args[1] == subtitlesFlag
@@ -56,21 +56,21 @@ func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 
 	out := &printer{w: stdout}
-	out.line("Arquivo:  %s", path)
-	out.line("Duração:  %s", formatClock(result.Info.Duration))
+	out.line("File:      %s", path)
+	out.line("Duration:  %s", formatClock(result.Info.Duration))
 	out.line("")
-	out.line("Faixas:")
+	out.line("Tracks:")
 	for _, track := range result.Info.Tracks {
 		out.line("  %s", describeTrack(track))
 		if track.External() && track.Readable {
-			out.line("       sincronia: %s", describeAlignment(track))
+			out.line("       timing: %s", describeAlignment(track))
 		}
 	}
 	out.line("")
-	out.line("Sugestão:")
-	out.line("  Áudio:     %s", describeChoice(result.Info, result.Suggested.Audio))
-	out.line("  Legenda:   %s", describeChoice(result.Info, result.Suggested.Primary))
-	out.line("  Tradução:  %s", describeChoice(result.Info, result.Suggested.Translation))
+	out.line("Suggestion:")
+	out.line("  Audio:        %s", describeChoice(result.Info, result.Suggested.Audio))
+	out.line("  Top line:     %s", describeChoice(result.Info, result.Suggested.Primary))
+	out.line("  Bottom line:  %s", describeChoice(result.Info, result.Suggested.Translation))
 	if out.err != nil || !withSubtitles {
 		return out.err
 	}
@@ -86,7 +86,7 @@ func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		events := track.Timeline.Events()
 		out.line("")
-		out.line("Legenda %s: %d falas (%d descartadas)", trackLabel(number), len(events), track.Skipped)
+		out.line("Subtitle %s: %d lines (%d left out)", trackLabel(number), len(events), track.Skipped)
 		for _, event := range events[:min(previewEventCount, len(events))] {
 			out.line("  %s → %s  %s", formatClock(event.Start), formatClock(event.End), strings.ReplaceAll(event.Text(), "\n", " / "))
 		}
@@ -115,7 +115,7 @@ func describeTrack(track media.Track) string {
 			parts = append(parts, fmt.Sprintf("%d×%d", track.Width, track.Height))
 		}
 		if track.FrameRate > 0 {
-			parts = append(parts, strings.Replace(fmt.Sprintf("%.3f fps", track.FrameRate), ".", ",", 1))
+			parts = append(parts, fmt.Sprintf("%.3f fps", track.FrameRate))
 		}
 	case media.TrackSubtitle:
 		if !track.Readable {
@@ -126,19 +126,19 @@ func describeTrack(track media.Track) string {
 		parts = append(parts, fmt.Sprintf("%q", track.Name))
 	}
 	if track.Default {
-		parts = append(parts, "[padrão]")
+		parts = append(parts, "[default]")
 	}
 	if track.Forced {
-		parts = append(parts, "[forçada]")
+		parts = append(parts, "[forced]")
 	}
 	if track.HearingImpaired {
 		parts = append(parts, "[SDH]")
 	}
 	switch {
 	case track.Candidate:
-		parts = append(parts, fmt.Sprintf("[candidata em %s]", filepath.Base(filepath.Dir(track.Path))))
+		parts = append(parts, fmt.Sprintf("[candidate in %s]", filepath.Base(filepath.Dir(track.Path))))
 	case track.External():
-		parts = append(parts, "[arquivo]")
+		parts = append(parts, "[file]")
 	}
 	return strings.Join(parts, "  ")
 }
@@ -146,28 +146,28 @@ func describeTrack(track media.Track) string {
 // describeAlignment tells how a subtitle file fits the video.
 func describeAlignment(track media.Track) string {
 	alignment := track.Alignment
-	share := fmt.Sprintf("%.0f%% das falas", alignment.Score*100)
+	share := fmt.Sprintf("%.0f%% of the lines", alignment.Score*100)
 	notChosen := ""
 	if !track.AutoSelectable() {
-		notChosen = "; não é escolhida sozinha"
+		notChosen = "; never picked on its own"
 	}
 	switch alignment.Verdict {
 	case subtitle.VerdictMatch:
-		return fmt.Sprintf("casa com o vídeo (%s); correção %s", share, describeCorrection(alignment))
+		return fmt.Sprintf("fits the video (%s); correction %s", share, describeCorrection(alignment))
 	case subtitle.VerdictOtherCut:
-		return fmt.Sprintf("feita para outra versão do filme (estendida? Director's Cut?), se afasta a cada cena (%s)%s", share, notChosen)
+		return fmt.Sprintf("made for another cut of the film (an extended or director's cut?), drifting at every scene (%s)%s", share, notChosen)
 	case subtitle.VerdictNoMatch:
-		return fmt.Sprintf("não casa com este vídeo (%s)%s", share, notChosen)
+		return fmt.Sprintf("does not fit this video (%s)%s", share, notChosen)
 	}
-	return "sem legenda interna para comparar" + notChosen
+	return "no subtitle inside the video to compare with" + notChosen
 }
 
-// describeCorrection shows the move a matching file gets, as "+0,036 s" and,
-// when it runs at another speed, "× 0,99996".
+// describeCorrection shows the move a matching file gets, as "+0.036 s" and,
+// when it runs at another speed, "speed × 0.99996".
 func describeCorrection(alignment subtitle.Alignment) string {
-	text := strings.Replace(fmt.Sprintf("%+.3f s", alignment.Offset.Seconds()), ".", ",", 1)
+	text := fmt.Sprintf("%+.3f s", alignment.Offset.Seconds())
 	if math.Abs(alignment.Rate-1) >= rateShownFrom {
-		text += strings.Replace(fmt.Sprintf(", velocidade × %.5f", alignment.Rate), ".", ",", 1)
+		text += fmt.Sprintf(", speed × %.5f", alignment.Rate)
 	}
 	return text
 }
@@ -183,19 +183,19 @@ func trackLabel(number uint64) string {
 
 func unreadableReason(codec string) string {
 	if slices.Contains(bitmapSubtitleCodecs, codec) {
-		return "(não suportada: legenda em imagem, precisaria de OCR)"
+		return "(not supported: a subtitle in pictures, which would need OCR)"
 	}
-	return "(não suportada)"
+	return "(not supported)"
 }
 
 func describeChoice(info media.Info, number uint64) string {
 	track, found := info.Track(number)
 	if number == 0 || !found {
-		return "nenhuma"
+		return "none"
 	}
 	language := string(track.Language)
 	if language == "" {
-		language = "idioma desconhecido"
+		language = "unknown language"
 	}
 	return fmt.Sprintf("%s (%s)", trackLabel(number), language)
 }
@@ -213,7 +213,6 @@ func formatClock(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d:%02d.%03d", hours, minutes, seconds, milliseconds)
 }
 
-// printer writes lines and keeps the first write error.
 // printer writes lines, keeping the first error. Lines may come from several
 // goroutines (the session and the shortcuts); err is read once they stopped.
 type printer struct {

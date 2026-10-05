@@ -137,7 +137,7 @@ func (a *API) Watch(request WatchRequest) error {
 			return errUnknownPassage
 		}
 		passage := passages[i]
-		if outside(passage, video.Info.Duration) {
+		if passage.Outside(video.Info.Duration) {
 			return errPassageOutside
 		}
 		watchRequest.Passage = &watch.PassageStart{Segment: passage.Segment(), Plan: passage.Practice()}
@@ -150,8 +150,8 @@ func (a *API) Watch(request WatchRequest) error {
 	// where the video was left.
 	if resume := a.resume; request.Resume && resume != nil && resume.video == video.Path {
 		watchRequest.Start = resume.at
-	} else if offer := resumeOf(opened, video.Info.Duration); request.Resume && offer.Offered {
-		watchRequest.Start = last.Position.Duration()
+	} else if position, offered := last.ResumeAt(video.Info.Duration); request.Resume && offered {
+		watchRequest.Start = position
 	}
 	a.resume = nil
 	a.mu.Unlock()
