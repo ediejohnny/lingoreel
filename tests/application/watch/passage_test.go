@@ -58,6 +58,7 @@ func lastNotice(r *rig) string {
 // the listener hears it, to save it. An end without a start, or too soon
 // after it, is told on the video and starts nothing.
 func TestMarkingAPassageStudiesItAndTellsTheListener(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	exact(t, s)
 
@@ -102,6 +103,7 @@ func TestMarkingAPassageStudiesItAndTellsTheListener(t *testing.T) {
 }
 
 func TestATooShortPassageKeepsItsStart(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	exact(t, s)
 	at(t, r, s, 40*time.Second)
@@ -130,6 +132,7 @@ func TestATooShortPassageKeepsItsStart(t *testing.T) {
 // Marks may come in either order on the clock: an end before the start
 // swaps them.
 func TestAnEndBeforeTheStartSwapsThem(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	exact(t, s)
 	at(t, r, s, 50*time.Second)
@@ -144,6 +147,7 @@ func TestAnEndBeforeTheStartSwapsThem(t *testing.T) {
 // By default the marked passage is fitted to the lines, like the panel's
 // "Ajustar às falas"; the options last picked (or set) apply to the next.
 func TestMarkedPassagesFollowThePassageOptions(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	if plan, snap := s.PassageOptions(); plan.Mode != study.EndPause || !snap {
 		t.Fatalf("default options = %+v %v, want pausing at the end, fitted to the lines", plan, snap)
@@ -187,6 +191,7 @@ func TestMarkedPassagesFollowThePassageOptions(t *testing.T) {
 // The system-wide keys reach the marks; a held Ctrl+F10 closes one passage,
 // not one per repeat of the key.
 func TestTheGlobalKeysMarkOncePerPress(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	exact(t, s)
 	commands := watch.GlobalCommands()
@@ -216,6 +221,7 @@ func TestTheGlobalKeysMarkOncePerPress(t *testing.T) {
 // A session may open studying a saved passage: the player opens where it
 // starts, and the first lap begins with its plan.
 func TestARequestedPassageIsStudiedFromTheStart(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	plan := study.PracticePlan{Mode: study.EndLoop, Gap: time.Second, Goal: 3}
 	r.request.Passage = &watch.PassageStart{Segment: study.Segment{Start: 10 * time.Second, End: 20 * time.Second}, Plan: plan}
@@ -243,6 +249,7 @@ func TestARequestedPassageIsStudiedFromTheStart(t *testing.T) {
 // The app tells the session the saved passages; the player window's menu
 // studies one by its place in that list, as it was kept.
 func TestSavedPassagesToldByTheAppAreStudied(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	if len(s.SavedPassages()) != 0 {
 		t.Fatal("a new session lists saved passages")
@@ -279,6 +286,7 @@ func TestSavedPassagesToldByTheAppAreStudied(t *testing.T) {
 // The Modo Karaokê's timing changes as a whole, refusing what the rules
 // refuse.
 func TestTheKaraokeSettingsChangeAsAWhole(t *testing.T) {
+	t.Parallel()
 	_, s := markingRig(t)
 	rules := study.CueRules{MinGap: 4 * time.Second, Lead: 3 * time.Second}
 	if err := s.SetKaraokeSettings(session.Karaoke{Enabled: true, Rules: rules, Fill: false}); err != nil {
@@ -301,6 +309,7 @@ func TestTheKaraokeSettingsChangeAsAWhole(t *testing.T) {
 // Correcting a line from the player window pauses, picks the line on screen
 // and brings the app's panel up.
 func TestOpenEditorPausesPicksAndShowsThePanel(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	shown := make(chan struct{}, 1)
 	r.ports.ShowPanel = func() { shown <- struct{}{} }
@@ -338,6 +347,7 @@ func TestOpenEditorPausesPicksAndShowsThePanel(t *testing.T) {
 // Fitted to its lines, a passage can reach past the end of a short video:
 // it is cut at the end and studied, not refused.
 func TestAMarkedPassageIsCutAtTheEndOfTheVideo(t *testing.T) {
+	t.Parallel()
 	r, s := markingRig(t)
 	sample := func(position time.Duration) {
 		r.running.samples <- playback.Sample{Position: position, Duration: 2500 * time.Millisecond, Status: playback.StatusPaused, Speed: 1, ObservedAt: time.Now()}
@@ -361,6 +371,7 @@ func TestAMarkedPassageIsCutAtTheEndOfTheVideo(t *testing.T) {
 // A saved passage from a longer cut of the film is studied up to the end of
 // this video.
 func TestASavedPassagePastTheEndIsCut(t *testing.T) {
+	t.Parallel()
 	_, s := markingRig(t)
 	s.SetSavedPassages([]watch.SavedPassage{
 		{Name: "Final", Segment: study.Segment{Start: 50 * time.Second, End: 70 * time.Second}, Plan: study.PracticePlan{Mode: study.EndPause}},
@@ -375,6 +386,7 @@ func TestASavedPassagePastTheEndIsCut(t *testing.T) {
 
 // Without a line on top there is nothing to fit a passage to or to preview.
 func TestASessionWithoutTheLineOnTop(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.Tracks.Primary = 0
 	s := r.start(t)

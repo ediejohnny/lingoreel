@@ -9,6 +9,7 @@ import (
 )
 
 func TestCheckPlayerPaths(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		path  string

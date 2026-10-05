@@ -10,6 +10,7 @@ import (
 // A volume goes from 0 to 1; outside it is invalid and clamps to the
 // nearest end. Not a number is silent: never louder than asked.
 func TestVolumeBounds(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in      playback.Volume
 		valid   bool

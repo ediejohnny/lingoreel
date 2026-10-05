@@ -19,6 +19,7 @@ func signalled(clock *session.Clock) bool {
 }
 
 func TestClockBeforeAnySampleIsUnknownAtZero(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionExact, now.Now)
 	now.Advance(time.Hour)
@@ -32,6 +33,7 @@ func TestClockBeforeAnySampleIsUnknownAtZero(t *testing.T) {
 // A seek issued by the session before any sample makes the state known: the
 // clock sits paused where the session put it.
 func TestClockSessionCommandBeforeAnySampleMakesTheStateKnown(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.SetPosition(ms(3_000))
@@ -44,6 +46,7 @@ func TestClockSessionCommandBeforeAnySampleMakesTheStateKnown(t *testing.T) {
 }
 
 func TestClockExtrapolatesAtTheReportedSpeed(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		status playback.Status
@@ -74,6 +77,7 @@ func TestClockExtrapolatesAtTheReportedSpeed(t *testing.T) {
 }
 
 func TestClockStaysInsideTheVideo(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionExact, now.Now)
 	clock.Observe(playback.Sample{Position: ms(9_900), Duration: ms(10_000), Speed: 1, Status: playback.StatusPlaying, ObservedAt: now.Now()})
@@ -89,6 +93,7 @@ func TestClockStaysInsideTheVideo(t *testing.T) {
 }
 
 func TestEstimatedClockIgnoresRepeatedStaleValues(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(5_000), playback.StatusPlaying, 1, now.Now()))
@@ -119,6 +124,7 @@ func TestEstimatedClockIgnoresRepeatedStaleValues(t *testing.T) {
 // (that flashed the previous subtitle in a real VLC session): the clock keeps
 // going, slower, and meets the player's track after the 600 ms slew.
 func TestEstimatedClockNeverStepsBackForASmallCorrection(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(7_000), playback.StatusPlaying, 1, now.Now()))
@@ -146,6 +152,7 @@ func TestEstimatedClockNeverStepsBackForASmallCorrection(t *testing.T) {
 // The slew budget is half the speed over 600 ms: 300 ms at 1x. A larger
 // correction is a real jump (the player skipped) and applies at once.
 func TestEstimatedClockAppliesLargeOrForwardCorrectionsAtOnce(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		speed    playback.Speed
@@ -171,6 +178,7 @@ func TestEstimatedClockAppliesLargeOrForwardCorrectionsAtOnce(t *testing.T) {
 
 // Within the budget, a correction just under it is still smoothed.
 func TestEstimatedClockSmoothsACorrectionAtTheBudget(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(7_000), playback.StatusPlaying, 1, now.Now()))
@@ -184,6 +192,7 @@ func TestEstimatedClockSmoothsACorrectionAtTheBudget(t *testing.T) {
 // Right after a session seek the clock holds a guess: the player's first
 // answer slightly behind it is adopted at once, not smoothed.
 func TestFirstAnswerAfterASeekIsAdoptedEvenIfBehind(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(5_000), playback.StatusPlaying, 1, now.Now()))
@@ -197,6 +206,7 @@ func TestFirstAnswerAfterASeekIsAdoptedEvenIfBehind(t *testing.T) {
 
 // A pause during a slew stops exactly where the player says.
 func TestPauseEndsASlewAtThePlayersPosition(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(7_000), playback.StatusPlaying, 1, now.Now()))
@@ -218,6 +228,7 @@ func absolute(d time.Duration) time.Duration {
 }
 
 func TestExactClockAdoptsEverySample(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionExact, now.Now)
 	clock.Observe(sample(ms(5_000), playback.StatusPlaying, 1, now.Now()))
@@ -231,6 +242,7 @@ func TestExactClockAdoptsEverySample(t *testing.T) {
 }
 
 func TestClockIgnoresOldPositionsRightAfterASeek(t *testing.T) {
+	t.Parallel()
 	for _, precision := range []playback.Precision{playback.PrecisionExact, playback.PrecisionEstimated} {
 		t.Run(string(precision), func(t *testing.T) {
 			now := newFakeTime()
@@ -260,6 +272,7 @@ func TestClockIgnoresOldPositionsRightAfterASeek(t *testing.T) {
 }
 
 func TestClockSettersReanchorImmediately(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(1_000), playback.StatusPlaying, 1, now.Now()))

@@ -36,6 +36,7 @@ func newVolumeControls(t *testing.T) (*session.Controls, *volumePlayer) {
 }
 
 func TestVolumeStartsFullAndClamps(t *testing.T) {
+	t.Parallel()
 	controls, player := newVolumeControls(t)
 	if volume, muted := controls.Volume(); volume != playback.MaxVolume || muted {
 		t.Fatalf("start = %v muted %v, want full and not muted", volume, muted)
@@ -52,6 +53,7 @@ func TestVolumeStartsFullAndClamps(t *testing.T) {
 }
 
 func TestChangeVolumeSteps(t *testing.T) {
+	t.Parallel()
 	controls, player := newVolumeControls(t)
 	if err := controls.ChangeVolume(-playback.VolumeStep); err != nil {
 		t.Fatal(err)
@@ -65,6 +67,7 @@ func TestChangeVolumeSteps(t *testing.T) {
 }
 
 func TestMuteKeepsTheLevel(t *testing.T) {
+	t.Parallel()
 	controls, player := newVolumeControls(t)
 	if err := controls.SetVolume(0.6); err != nil {
 		t.Fatal(err)
@@ -92,6 +95,7 @@ func TestMuteKeepsTheLevel(t *testing.T) {
 }
 
 func TestVolumeNeedsThePlayer(t *testing.T) {
+	t.Parallel()
 	// A player that declares the capability without the method, and one
 	// with the method but without the capability: both refuse.
 	capabilities := allCapabilities(playback.PrecisionExact)
@@ -109,6 +113,7 @@ func TestVolumeNeedsThePlayer(t *testing.T) {
 }
 
 func TestAFailedVolumeChangeKeepsTheOldLevel(t *testing.T) {
+	t.Parallel()
 	controls, player := newVolumeControls(t)
 	player.fail = errors.New("player gone")
 	if err := controls.SetVolume(0.2); err == nil {

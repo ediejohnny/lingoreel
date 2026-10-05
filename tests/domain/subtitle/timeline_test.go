@@ -12,6 +12,7 @@ import (
 )
 
 func TestActiveAtBoundaries(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("a", 10_000, 12_000), event("b", 12_000, 15_000))
 
 	cases := []struct {
@@ -39,6 +40,7 @@ func TestActiveAtBoundaries(t *testing.T) {
 }
 
 func TestActiveAtGapBetweenEvents(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("a", 1_000, 2_000), event("b", 5_000, 6_000))
 
 	if got := timeline.ActiveAt(ms(3_000)); len(got) != 0 {
@@ -47,6 +49,7 @@ func TestActiveAtGapBetweenEvents(t *testing.T) {
 }
 
 func TestActiveAtOverlappingEvents(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t,
 		event("sign", 0, 60_000),
 		event("line1", 10_000, 12_000),
@@ -60,6 +63,7 @@ func TestActiveAtOverlappingEvents(t *testing.T) {
 }
 
 func TestNewTimelineSortsUnorderedInput(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("c", 5_000, 6_000), event("a", 1_000, 2_000), event("b", 3_000, 4_000))
 
 	got := activeIDs(timeline.Events())
@@ -72,6 +76,7 @@ func TestNewTimelineSortsUnorderedInput(t *testing.T) {
 }
 
 func TestNewTimelineOrdersEqualStartsByEnd(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("long", 1_000, 9_000), event("short", 1_000, 2_000))
 
 	if got := activeIDs(timeline.Events()); !slices.Equal(got, []string{"short", "long"}) {
@@ -80,6 +85,7 @@ func TestNewTimelineOrdersEqualStartsByEnd(t *testing.T) {
 }
 
 func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
+	t.Parallel()
 	cases := map[string]subtitle.Event{
 		"zero duration":    event("z", 1_000, 1_000),
 		"end before start": event("r", 2_000, 1_000),
@@ -97,6 +103,7 @@ func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
 }
 
 func TestTimelineDoesNotAliasInputOrOutput(t *testing.T) {
+	t.Parallel()
 	input := []subtitle.Event{event("a", 0, 1_000)}
 	timeline := mustTimeline(t, input...)
 
@@ -108,6 +115,7 @@ func TestTimelineDoesNotAliasInputOrOutput(t *testing.T) {
 }
 
 func TestEmptyTimeline(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t)
 
 	if got := timeline.ActiveAt(0); len(got) != 0 {
@@ -119,6 +127,7 @@ func TestEmptyTimeline(t *testing.T) {
 }
 
 func TestNextChangeAfter(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t,
 		event("a", 1_000, 3_000),
 		event("b", 2_000, 5_000),
@@ -150,6 +159,7 @@ func TestNextChangeAfter(t *testing.T) {
 // Compares the indexed lookup against a brute-force scan on random data,
 // including very long events that span most of the timeline.
 func TestActiveAtMatchesLinearScan(t *testing.T) {
+	t.Parallel()
 	random := rand.New(rand.NewSource(42))
 	events := make([]subtitle.Event, 0, 2_000)
 	for i := range 2_000 {
@@ -180,6 +190,7 @@ func TestActiveAtMatchesLinearScan(t *testing.T) {
 // Checks NextChangeAfter against a brute-force oracle: the earliest start or
 // end strictly after the instant.
 func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
+	t.Parallel()
 	random := rand.New(rand.NewSource(99))
 	events := make([]subtitle.Event, 0, 500)
 	for i := range 500 {

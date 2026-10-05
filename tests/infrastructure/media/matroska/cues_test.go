@@ -150,6 +150,7 @@ func assertSameAsScan(t *testing.T, got map[uint64]media.SubtitleContent, tracks
 }
 
 func TestIndexedReadMatchesTheFullScan(t *testing.T) {
+	t.Parallel()
 	data := indexedFile(sampleClusters, completeIndex)
 	got, total := readWithProgress(t, data, 2, 3)
 	if total != 4 {
@@ -159,6 +160,7 @@ func TestIndexedReadMatchesTheFullScan(t *testing.T) {
 }
 
 func TestIndexWithoutRelativePositionsScansOnlyTheClusters(t *testing.T) {
+	t.Parallel()
 	entries := make([]cueEntry, len(completeIndex))
 	copy(entries, completeIndex)
 	for i := range entries {
@@ -175,6 +177,7 @@ func TestIndexWithoutRelativePositionsScansOnlyTheClusters(t *testing.T) {
 // cluster. The entry without one makes the reader scan the whole cluster, so
 // the other entries of that cluster must not deliver their blocks again.
 func TestMixedEntriesInOneClusterDoNotDuplicateLines(t *testing.T) {
+	t.Parallel()
 	entries := []cueEntry{
 		{track: 2, cluster: 0, block: 1, noRelative: true},
 		{track: 3, cluster: 0, block: 2},
@@ -192,6 +195,7 @@ func TestMixedEntriesInOneClusterDoNotDuplicateLines(t *testing.T) {
 // subtitles would silently lose lines: the reader samples the clusters left
 // out of the index and falls back to the full scan when they hold subtitles.
 func TestIndexSkippingSubtitleClustersFallsBackToTheFullScan(t *testing.T) {
+	t.Parallel()
 	firstClusterOnly := []cueEntry{
 		{track: 2, cluster: 0, block: 1},
 		{track: 3, cluster: 0, block: 2},
@@ -207,6 +211,7 @@ func TestIndexSkippingSubtitleClustersFallsBackToTheFullScan(t *testing.T) {
 // Clusters left out of the index that hold only video are fine: the index
 // stays in use.
 func TestIndexSkippingVideoOnlyClustersIsKept(t *testing.T) {
+	t.Parallel()
 	clusters := append([]testCluster{}, sampleClusters...)
 	clusters = append(clusters, testCluster{9000, [][]byte{simpleBlock(1, 0, "video frame")}})
 	data := indexedFile(clusters, completeIndex)
@@ -219,6 +224,7 @@ func TestIndexSkippingVideoOnlyClustersIsKept(t *testing.T) {
 // A broken or partial index must never lose lines: the reader falls back to
 // the full scan, whose progress total is the file size.
 func TestUnusableIndexFallsBackToTheFullScan(t *testing.T) {
+	t.Parallel()
 	onlyEnglish := []cueEntry{{track: 2, cluster: 0, block: 1}, {track: 2, cluster: 1, block: 1}}
 	cases := map[string][]cueEntry{
 		"faixa pedida sem índice": onlyEnglish,
@@ -245,6 +251,7 @@ func TestUnusableIndexFallsBackToTheFullScan(t *testing.T) {
 // other wanted track. The block exists and is wanted, so only the track check
 // catches it; reading one track alone must reject it too.
 func TestIndexPointingAtAnotherWantedTrackIsRejected(t *testing.T) {
+	t.Parallel()
 	swapped := []cueEntry{{track: 2, cluster: 0, block: 2}, {track: 3, cluster: 0, block: 1}}
 	data := indexedFile(sampleClusters, swapped)
 	got, total := readWithProgress(t, data, 2)

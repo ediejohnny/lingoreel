@@ -8,6 +8,7 @@ import (
 )
 
 func TestAutoSelectableFollowsTheTimingVerdict(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name      string
 		readable  bool
@@ -36,6 +37,7 @@ func TestAutoSelectableFollowsTheTimingVerdict(t *testing.T) {
 }
 
 func TestSelectionSkipsFilesForAnotherCut(t *testing.T) {
+	t.Parallel()
 	info := media.Info{Tracks: []media.Track{
 		{Number: 1, Type: media.TrackSubtitle, Language: "en", Readable: true, Path: `x\DC.srt`,
 			Alignment: subtitle.Alignment{Verdict: subtitle.VerdictOtherCut}},

@@ -25,6 +25,7 @@ func karaokeSubtitles(t *testing.T) *session.Subtitles {
 }
 
 func TestKaraokeShowsTheNextLineWithItsTranslation(t *testing.T) {
+	t.Parallel()
 	subtitles := karaokeSubtitles(t)
 	if got := subtitles.At(ms(14_999)); got.Cue != nil || len(got.Primary) != 0 {
 		t.Fatalf("at 14.999 s: %+v, want nothing", got)
@@ -52,6 +53,7 @@ func TestKaraokeShowsTheNextLineWithItsTranslation(t *testing.T) {
 }
 
 func TestKaraokeWithoutFill(t *testing.T) {
+	t.Parallel()
 	subtitles := karaokeSubtitles(t)
 	subtitles.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules()})
 	if got := subtitles.At(ms(21_000)); got.Fill != 0 {
@@ -60,6 +62,7 @@ func TestKaraokeWithoutFill(t *testing.T) {
 }
 
 func TestKaraokeWakesUpForThePreview(t *testing.T) {
+	t.Parallel()
 	subtitles := karaokeSubtitles(t)
 	if next, ok := subtitles.NextChangeAfter(ms(3_000)); !ok || next != ms(15_000) {
 		t.Fatalf("next change after 3 s = %v %v, want the preview at 15 s", next, ok)
@@ -71,6 +74,7 @@ func TestKaraokeWakesUpForThePreview(t *testing.T) {
 }
 
 func TestVisibleEqualCountsDrawingSteps(t *testing.T) {
+	t.Parallel()
 	event := subtitle.Event{ID: "B", Start: ms(20_000), End: ms(23_000), OriginalText: "B"}
 	at := func(remaining time.Duration) session.Visible {
 		return session.Visible{Primary: []subtitle.Event{event}, Cue: &study.Cue{Event: event, Remaining: remaining, Lead: ms(5000)}}
@@ -148,6 +152,7 @@ func (k *karaokeRunner) lastWait(t *testing.T) time.Duration {
 }
 
 func TestRunnerAnimatesPreviewsOnlyWhilePlaying(t *testing.T) {
+	t.Parallel()
 	k := runKaraoke(t, ms(14_000), playback.StatusPlaying)
 	if first := k.next(t); first.Cue != nil {
 		t.Fatalf("at 14 s: %+v", first)
@@ -170,6 +175,7 @@ func TestRunnerAnimatesPreviewsOnlyWhilePlaying(t *testing.T) {
 }
 
 func TestRunnerDoesNotAnimateWhilePaused(t *testing.T) {
+	t.Parallel()
 	k := runKaraoke(t, ms(16_000), playback.StatusPaused)
 	if v := k.next(t); v.Cue == nil {
 		t.Fatalf("paused at 16 s: %+v, want the preview frozen", v)
@@ -180,6 +186,7 @@ func TestRunnerDoesNotAnimateWhilePaused(t *testing.T) {
 }
 
 func TestCueProgressStaysInRange(t *testing.T) {
+	t.Parallel()
 	subtitles := karaokeSubtitles(t)
 	for at := 15_000; at < 20_000; at += 37 {
 		v := subtitles.At(ms(at))

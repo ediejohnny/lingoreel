@@ -8,6 +8,7 @@ import (
 )
 
 func TestSpeedValid(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		speed playback.Speed
 		want  bool
@@ -32,6 +33,7 @@ func TestSpeedValid(t *testing.T) {
 }
 
 func TestSpeedFaster(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ from, want playback.Speed }{
 		{playback.NormalSpeed, 1.1},
 		{0.75, 0.8},
@@ -51,6 +53,7 @@ func TestSpeedFaster(t *testing.T) {
 }
 
 func TestSpeedSlower(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ from, want playback.Speed }{
 		{playback.NormalSpeed, 0.9},
 		{0.3, playback.MinSpeed},
@@ -69,6 +72,7 @@ func TestSpeedSlower(t *testing.T) {
 
 // The preset list must be reachable step by step in both directions.
 func TestSpeedStepsWalkEveryPresetBothWays(t *testing.T) {
+	t.Parallel()
 	want := []playback.Speed{0.25, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2}
 	steps := playback.SpeedSteps()
 	if len(steps) != len(want) {

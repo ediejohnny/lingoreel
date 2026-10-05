@@ -9,6 +9,7 @@ import (
 )
 
 func TestNormalizeText(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		raw  string
@@ -34,6 +35,7 @@ func TestNormalizeText(t *testing.T) {
 }
 
 func TestNormalizeTextRepairsInvalidUTF8(t *testing.T) {
+	t.Parallel()
 	got := subtitle.NormalizeText("bad \xff byte")
 	if !utf8.ValidString(got) || !strings.HasPrefix(got, "bad ") || !strings.HasSuffix(got, " byte") {
 		t.Fatalf("NormalizeText returned %q", got)
@@ -41,6 +43,7 @@ func TestNormalizeTextRepairsInvalidUTF8(t *testing.T) {
 }
 
 func TestNormalizeTextTruncatesHugeText(t *testing.T) {
+	t.Parallel()
 	cases := map[int]int{
 		subtitle.MaxTextRunes - 1:   subtitle.MaxTextRunes - 1,
 		subtitle.MaxTextRunes:       subtitle.MaxTextRunes,

@@ -9,6 +9,7 @@ import (
 )
 
 func TestTheShippedPluginsRegister(t *testing.T) {
+	t.Parallel()
 	registry, hints, err := plugins.Registry(nil)
 	if err != nil {
 		t.Fatalf("Registry: %v", err)

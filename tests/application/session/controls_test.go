@@ -21,6 +21,7 @@ func newControls(t *testing.T, player *fakePlayer, status playback.Status, posit
 }
 
 func TestTogglePauseFollowsTheCurrentState(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionEstimated)}
 	controls, clock, _ := newControls(t, player, playback.StatusPlaying, ms(5_000), frameRate24)
 
@@ -36,6 +37,7 @@ func TestTogglePauseFollowsTheCurrentState(t *testing.T) {
 }
 
 func TestSeekIsClampedAndMovesTheClockAtOnce(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		seek func(*session.Controls) error
@@ -62,6 +64,7 @@ func TestSeekIsClampedAndMovesTheClockAtOnce(t *testing.T) {
 }
 
 func TestSpeedChangesAreValidatedAndStepped(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionExact)}
 	controls, clock, _ := newControls(t, player, playback.StatusPlaying, 0, frameRate24)
 
@@ -87,6 +90,7 @@ func TestSpeedChangesAreValidatedAndStepped(t *testing.T) {
 }
 
 func TestFrameStepOnAnEstimatedPlayerPausesAndAdvancesOneFrame(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionEstimated)}
 	controls, clock, _ := newControls(t, player, playback.StatusPlaying, ms(10_000), frameRate24)
 
@@ -106,6 +110,7 @@ func TestFrameStepOnAnEstimatedPlayerPausesAndAdvancesOneFrame(t *testing.T) {
 }
 
 func TestFrameStepOnAnExactPlayerLetsThePlayerReportThePosition(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionExact)}
 	controls, clock, _ := newControls(t, player, playback.StatusPaused, ms(10_000), 0)
 
@@ -115,6 +120,7 @@ func TestFrameStepOnAnExactPlayerLetsThePlayerReportThePosition(t *testing.T) {
 }
 
 func TestFrameStepNeedsTheCapabilityAndAKnownRate(t *testing.T) {
+	t.Parallel()
 	forwardOnly := allCapabilities(playback.PrecisionEstimated)
 	forwardOnly.FrameStepBackward = false
 	player := &fakePlayer{capabilities: forwardOnly}
@@ -136,6 +142,7 @@ func TestFrameStepNeedsTheCapabilityAndAKnownRate(t *testing.T) {
 // VLC has no backward frame command but seeks exactly: the controls emulate
 // the step with a seek one frame back and mark it as emulated for the UI.
 func TestBackwardFrameIsEmulatedWithAnExactSeek(t *testing.T) {
+	t.Parallel()
 	vlcLike := allCapabilities(playback.PrecisionEstimated)
 	vlcLike.FrameStepBackward, vlcLike.ExactSeek = false, true
 	player := &fakePlayer{capabilities: vlcLike}
@@ -178,6 +185,7 @@ func TestBackwardFrameIsEmulatedWithAnExactSeek(t *testing.T) {
 }
 
 func TestMissingCapabilitiesAreReportedNotIgnored(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: playback.Capabilities{Precision: playback.PrecisionEstimated}}
 	controls, _, _ := newControls(t, player, playback.StatusPlaying, 0, frameRate24)
 
@@ -195,6 +203,7 @@ func TestMissingCapabilitiesAreReportedNotIgnored(t *testing.T) {
 }
 
 func TestPlayerErrorsLeaveTheClockUntouched(t *testing.T) {
+	t.Parallel()
 	failure := errors.New("pipe broken")
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionEstimated), err: failure}
 	controls, clock, _ := newControls(t, player, playback.StatusPlaying, ms(10_000), frameRate24)
@@ -208,6 +217,7 @@ func TestPlayerErrorsLeaveTheClockUntouched(t *testing.T) {
 }
 
 func TestSelectAudioTrackValidatesTheIndex(t *testing.T) {
+	t.Parallel()
 	player := &fakePlayer{capabilities: allCapabilities(playback.PrecisionExact)}
 	controls, _, _ := newControls(t, player, playback.StatusPaused, 0, frameRate24)
 

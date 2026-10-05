@@ -11,6 +11,7 @@ import (
 )
 
 func TestNewParserSelectsStrategyByFormat(t *testing.T) {
+	t.Parallel()
 	cases := map[subtitle.Format]subtitleformat.Parser{
 		subtitle.FormatSRT:    subtitleformat.SRTParser{},
 		subtitle.FormatASS:    subtitleformat.ASSParser{},
@@ -31,6 +32,7 @@ func TestNewParserSelectsStrategyByFormat(t *testing.T) {
 }
 
 func TestDetectFormat(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		fileName string
@@ -59,6 +61,7 @@ func TestDetectFormat(t *testing.T) {
 }
 
 func TestParsersRejectOversizedInputButAcceptTheLimit(t *testing.T) {
+	t.Parallel()
 	testkit.Slow(t)
 	huge := bytes.Repeat([]byte("a"), subtitleformat.MaxInputBytes+1)
 	for _, parser := range []subtitleformat.Parser{subtitleformat.SRTParser{}, subtitleformat.ASSParser{}, subtitleformat.WebVTTParser{}} {
@@ -72,6 +75,7 @@ func TestParsersRejectOversizedInputButAcceptTheLimit(t *testing.T) {
 }
 
 func TestBlockText(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		format  subtitle.Format
@@ -96,6 +100,7 @@ func TestBlockText(t *testing.T) {
 }
 
 func TestBlockTextRejectsBrokenASSAndUnknownFormats(t *testing.T) {
+	t.Parallel()
 	if _, err := subtitleformat.BlockText(subtitle.FormatASS, []byte("only,three,fields")); !errors.Is(err, subtitleformat.ErrMalformed) {
 		t.Fatalf("broken ASS block error = %v, want ErrMalformed", err)
 	}

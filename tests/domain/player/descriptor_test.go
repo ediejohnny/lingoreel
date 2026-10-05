@@ -16,6 +16,7 @@ func validDescriptor() player.Descriptor {
 }
 
 func TestDescriptorValidate(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(*player.Descriptor){
 		"id empty":                 func(d *player.Descriptor) { d.ID = "" },
 		"id upper case":            func(d *player.Descriptor) { d.ID = "VLC" },
@@ -57,6 +58,7 @@ func TestDescriptorValidate(t *testing.T) {
 }
 
 func TestIDValidMatchesWhatTheSettingsStore(t *testing.T) {
+	t.Parallel()
 	for id, want := range map[player.ID]bool{"vlc": true, "mpc-hc": true, "mpv2": true, "": false, "Mpv": false, "a b": false} {
 		if got := id.Valid(); got != want {
 			t.Errorf("ID(%q).Valid() = %v, want %v", id, got, want)

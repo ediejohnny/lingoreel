@@ -48,6 +48,7 @@ func movieWithDownloads() (*fakeReader, *fakeFiles) {
 }
 
 func TestMatchingCandidateIsChosenAndCorrected(t *testing.T) {
+	t.Parallel()
 	reader, files := movieWithDownloads()
 	service := analysis.NewService(reader, files)
 	result, err := service.Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
@@ -85,6 +86,7 @@ func TestMatchingCandidateIsChosenAndCorrected(t *testing.T) {
 }
 
 func TestFilesForAnotherCutAreNeverChosen(t *testing.T) {
+	t.Parallel()
 	reader, files := movieWithDownloads()
 	// Named after the video, but timed for a cut that runs past its end.
 	files.paths, files.candidates = []string{`D:\Filmes\Exemplo.en.srt`}, nil
@@ -101,6 +103,7 @@ func TestFilesForAnotherCutAreNeverChosen(t *testing.T) {
 }
 
 func TestWithoutAReferenceOnlyTheVideosOwnFilesAreChosen(t *testing.T) {
+	t.Parallel()
 	// A video whose tracks are not read (.mp4): nothing to compare with.
 	files := &fakeFiles{
 		paths:      []string{`D:\Filmes\Movie.pt.srt`},
@@ -129,6 +132,7 @@ func TestWithoutAReferenceOnlyTheVideosOwnFilesAreChosen(t *testing.T) {
 }
 
 func TestAnUnreadableReferenceStillAnalyzes(t *testing.T) {
+	t.Parallel()
 	reader, files := movieWithDownloads()
 	reader.readErr = errors.New("damaged cluster")
 	result, err := analysis.NewService(reader, files).Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
@@ -144,6 +148,7 @@ func TestAnUnreadableReferenceStillAnalyzes(t *testing.T) {
 }
 
 func TestCancellingWhileReadingTheReferenceStops(t *testing.T) {
+	t.Parallel()
 	reader, files := movieWithDownloads()
 	ctx, cancel := context.WithCancel(context.Background())
 	reader.whileReading = cancel
@@ -156,6 +161,7 @@ func TestCancellingWhileReadingTheReferenceStops(t *testing.T) {
 }
 
 func TestNoFilesMeansNoReferenceRead(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{info: portugueseOnlyMovie()}
 	if _, err := analysis.NewService(reader, &fakeFiles{}).Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences); err != nil {
 		t.Fatal(err)

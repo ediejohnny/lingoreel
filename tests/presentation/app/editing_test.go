@@ -39,6 +39,7 @@ func wantMessage(t *testing.T, what string, err error, part string) {
 }
 
 func TestCorrectingALineFromThePanel(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	onTheLine(t, r)
 	wantMessage(t, "EditLine without a selection", r.api.EditLine(app.EditRequest{Text: "x", Start: "0:01", End: "0:02"}), "Escolha uma fala")
@@ -128,6 +129,7 @@ func TestCorrectingALineFromThePanel(t *testing.T) {
 }
 
 func TestExportWritesWhatTheUserSees(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	onTheLine(t, r)
 	if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Hello.", Start: "0:01", End: "0:02"})); err != nil {
@@ -181,6 +183,7 @@ func TestExportWritesWhatTheUserSees(t *testing.T) {
 }
 
 func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(movie); err != nil {
@@ -277,6 +280,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 }
 
 func TestARememberedChoiceMustStillFit(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	// Track 6 is a picture subtitle the app cannot read; 9 is not in the video.
 	remembered := project.New()
@@ -301,6 +305,7 @@ func TestARememberedChoiceMustStillFit(t *testing.T) {
 }
 
 func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name    string
 		loadErr error
@@ -339,6 +344,7 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 }
 
 func TestAFailedSaveIsShown(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.projects.saveErr = errors.New("disk full")
 	r.attach(t)
@@ -356,6 +362,7 @@ func TestAFailedSaveIsShown(t *testing.T) {
 }
 
 func TestEditingNeedsASession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	for name, call := range map[string]func() error{

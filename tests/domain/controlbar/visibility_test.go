@@ -8,6 +8,7 @@ import (
 )
 
 func TestVisibility(t *testing.T) {
+	t.Parallel()
 	start := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 	var v controlbar.Visibility
 	if shown, recheck := v.Update(start, false); shown || recheck != 0 {

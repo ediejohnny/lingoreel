@@ -7,6 +7,7 @@ import (
 )
 
 func TestDecodeText(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		data []byte

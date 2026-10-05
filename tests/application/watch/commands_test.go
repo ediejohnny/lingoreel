@@ -39,6 +39,7 @@ func playingRig(t *testing.T) (*rig, *watch.Session) {
 }
 
 func TestEveryCommandAsksThePlayer(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	// From 20 s, paused, at 1×. The only line on top is 1 s–3 s, so the
 	// phrase starts at 1 s minus the 0.5 s lead-in: 0.5 s.
@@ -94,6 +95,7 @@ func TestEveryCommandAsksThePlayer(t *testing.T) {
 }
 
 func TestCommandsTheSessionDoesNotRun(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 20*time.Second)
 	for _, command := range []shortcut.Command{shortcut.Fullscreen, shortcut.ExitFullscreen, shortcut.Translation} {
@@ -121,6 +123,7 @@ func TestCommandsTheSessionDoesNotRun(t *testing.T) {
 }
 
 func TestRepeatPhraseBeforeTheFirstLine(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 500*time.Millisecond) // the first line starts at 1 s
 	if err := s.Run(shortcut.RepeatPhrase, false); err != nil {
@@ -140,6 +143,7 @@ func TestRepeatPhraseBeforeTheFirstLine(t *testing.T) {
 }
 
 func TestTheSyncCommandsStepTheLines(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	if err := s.Run(shortcut.SyncTranslationEarlier, false); err != nil {
 		t.Fatal(err)
@@ -159,6 +163,7 @@ func TestTheSyncCommandsStepTheLines(t *testing.T) {
 }
 
 func TestThePrecisionStep(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	if s.PrecisionStep() != watch.DefaultPrecisionStep {
 		t.Fatalf("default step = %v", s.PrecisionStep())
@@ -193,6 +198,7 @@ func TestThePrecisionStep(t *testing.T) {
 }
 
 func TestTheStudyModes(t *testing.T) {
+	t.Parallel()
 	start := func(mode study.Mode) (*rig, *watch.Session) {
 		r := newRig(t)
 		r.request.Mode = mode
@@ -255,6 +261,7 @@ func TestTheStudyModes(t *testing.T) {
 }
 
 func TestChangingTheModeWhilePlaying(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t) // dual
 	testkit.Eventually(t, "a screen", func() bool { _, shown, _, _ := r.display.last(); return shown > 0 })
 	if err := s.SetMode(study.ModeOnDemand); err != nil {

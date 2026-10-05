@@ -14,6 +14,7 @@ import (
 )
 
 func TestDefaultsAreValidAndConsistent(t *testing.T) {
+	t.Parallel()
 	config, profiles := settings.DefaultConfig(), settings.DefaultProfiles()
 	if err := config.Validate(); err != nil {
 		t.Fatalf("default config invalid: %v", err)
@@ -27,6 +28,7 @@ func TestDefaultsAreValidAndConsistent(t *testing.T) {
 }
 
 func TestConfigValidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		mutate func(*settings.Config)
@@ -56,6 +58,7 @@ func TestConfigValidate(t *testing.T) {
 }
 
 func TestProfileValidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		mutate func(*settings.Profile)
@@ -117,6 +120,7 @@ func TestProfileValidate(t *testing.T) {
 }
 
 func TestProfilesValidateAndFind(t *testing.T) {
+	t.Parallel()
 	french := settings.DefaultProfile()
 	french.Name = "Francês"
 	duplicate := settings.DefaultProfile()
@@ -143,6 +147,7 @@ func TestProfilesValidateAndFind(t *testing.T) {
 }
 
 func TestDurationTextEncoding(t *testing.T) {
+	t.Parallel()
 	encoded, err := json.Marshal(settings.Duration(1500 * time.Millisecond))
 	if err != nil || string(encoded) != `"1.5s"` {
 		t.Fatalf("Marshal = %s, %v; want \"1.5s\"", encoded, err)

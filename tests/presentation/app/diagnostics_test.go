@@ -18,6 +18,7 @@ func factOf(d app.Diagnostics, label string) (string, bool) {
 }
 
 func TestDiagnosticsWithoutASession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.monitors = []app.Monitor{
 		{Width: 1440, Height: 900, DPI: 96, Primary: true},
@@ -50,6 +51,7 @@ func TestDiagnosticsWithoutASession(t *testing.T) {
 }
 
 func TestDiagnosticsOfASession(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	onTheLine(t, r)
 	if err := r.api.Nudge("translation", false); err != nil {

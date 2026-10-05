@@ -18,6 +18,7 @@ func drained(subtitles *session.Subtitles) bool {
 }
 
 func TestSyncMovesEachLineOnItsOwn(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	clock := newFakeTime()
 	sync := session.NewSync(subtitles, subtitle.DefaultNudgeSteps(), clock.Now)
@@ -44,6 +45,7 @@ func TestSyncMovesEachLineOnItsOwn(t *testing.T) {
 }
 
 func TestSyncSpeedsUpWhileHeld(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	clock := newFakeTime()
 	sync := session.NewSync(subtitles, subtitle.NudgeSteps{Step: 100 * time.Millisecond, FastStep: time.Second}, clock.Now)
@@ -71,6 +73,7 @@ func TestSyncSpeedsUpWhileHeld(t *testing.T) {
 }
 
 func TestSyncOnAMissingLineDoesNothing(t *testing.T) {
+	t.Parallel()
 	subtitles := session.NewSubtitles(&session.Track{Timeline: timeline(t, cue("a", 1_000, 2_000))}, nil)
 	sync := session.NewSync(subtitles, subtitle.DefaultNudgeSteps(), newFakeTime().Now)
 	if _, ok := sync.Nudge(session.LineTranslation, true, false); ok {
@@ -85,6 +88,7 @@ func TestSyncOnAMissingLineDoesNothing(t *testing.T) {
 }
 
 func TestSyncResetAndLimits(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	sync := session.NewSync(subtitles, subtitle.NudgeSteps{Step: time.Second, FastStep: 5 * time.Second}, newFakeTime().Now)
 	subtitles.SetOffset(session.LinePrimary, subtitle.NewOffset(subtitle.MaxOffset-500*time.Millisecond))

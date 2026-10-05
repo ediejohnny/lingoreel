@@ -8,6 +8,7 @@ import (
 )
 
 func TestWebVTTParsesCuesAndIgnoresMetadata(t *testing.T) {
+	t.Parallel()
 	document := "WEBVTT - sample file\nKind: captions\n\n" +
 		"NOTE this is a comment\nspanning lines\n\n" +
 		"STYLE\n::cue { color: yellow }\n\n" +
@@ -24,6 +25,7 @@ func TestWebVTTParsesCuesAndIgnoresMetadata(t *testing.T) {
 }
 
 func TestWebVTTRequiresSignature(t *testing.T) {
+	t.Parallel()
 	for _, document := range []string{"", "WEBVTTX\n\n00:01.000 --> 00:02.000\nx\n", "1\n00:00:01,000 --> 00:00:02,000\nx\n", "webvtt\n"} {
 		if _, err := (subtitleformat.WebVTTParser{}).Parse([]byte(document)); !errors.Is(err, subtitleformat.ErrMalformed) {
 			t.Fatalf("Parse(%q) error = %v, want ErrMalformed", document, err)
@@ -32,6 +34,7 @@ func TestWebVTTRequiresSignature(t *testing.T) {
 }
 
 func TestWebVTTSkipsBlocksWithoutTiming(t *testing.T) {
+	t.Parallel()
 	document := "WEBVTT\n\njust text\nwithout timing\n\n00:01.000 --> 00:02.000\nok\n"
 
 	result := mustParse(t, subtitleformat.WebVTTParser{}, document)
@@ -43,6 +46,7 @@ func TestWebVTTSkipsBlocksWithoutTiming(t *testing.T) {
 }
 
 func TestWebVTTNoteWordInsideCueTextIsNotMetadata(t *testing.T) {
+	t.Parallel()
 	document := "WEBVTT\n\n00:01.000 --> 00:02.000\nNOTE the time\n"
 
 	result := mustParse(t, subtitleformat.WebVTTParser{}, document)

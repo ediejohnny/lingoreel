@@ -18,6 +18,7 @@ func twoProfiles(t *testing.T) settings.Profiles {
 }
 
 func TestAddCopiesTheBaseUnderANewName(t *testing.T) {
+	t.Parallel()
 	base := settings.DefaultProfile()
 	base.Speed = 0.75
 	base.Shortcuts = shortcut.Map{shortcut.Mute: {Key: "KeyU"}}
@@ -44,6 +45,7 @@ func TestAddCopiesTheBaseUnderANewName(t *testing.T) {
 }
 
 func TestAddRefusesTakenAndBadNames(t *testing.T) {
+	t.Parallel()
 	profiles := twoProfiles(t)
 	for name, want := range map[string]error{
 		"FRANCÊS":                settings.ErrProfileExists,
@@ -59,6 +61,7 @@ func TestAddRefusesTakenAndBadNames(t *testing.T) {
 }
 
 func TestRenameKeepsNamesUnique(t *testing.T) {
+	t.Parallel()
 	profiles := twoProfiles(t)
 	renamed, err := profiles.Rename("francês", "Francês (Paris)")
 	if err != nil {
@@ -86,6 +89,7 @@ func TestRenameKeepsNamesUnique(t *testing.T) {
 }
 
 func TestRemoveKeepsTheLastProfile(t *testing.T) {
+	t.Parallel()
 	profiles := twoProfiles(t)
 	removed, err := profiles.Remove("INGLÊS")
 	if err != nil {
@@ -103,6 +107,7 @@ func TestRemoveKeepsTheLastProfile(t *testing.T) {
 }
 
 func TestReplaceSwapsTheProfileOfTheSameName(t *testing.T) {
+	t.Parallel()
 	profiles := twoProfiles(t)
 	changed := settings.DefaultProfile()
 	changed.Name = "Francês"
@@ -118,6 +123,7 @@ func TestReplaceSwapsTheProfileOfTheSameName(t *testing.T) {
 }
 
 func TestProfileValidateChecksTheShortcuts(t *testing.T) {
+	t.Parallel()
 	profile := settings.DefaultProfile()
 	profile.Shortcuts = shortcut.Map{shortcut.Mute: {Key: shortcut.KeySpace}}
 	var conflict *shortcut.ConflictError
@@ -131,6 +137,7 @@ func TestProfileValidateChecksTheShortcuts(t *testing.T) {
 }
 
 func TestConfigWindowBounds(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		window settings.WindowBounds

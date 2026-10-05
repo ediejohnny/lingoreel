@@ -9,6 +9,7 @@ import (
 )
 
 func TestVideoArgument(t *testing.T) {
+	t.Parallel()
 	const dir = `C:\Programas\LingoReel`
 	cases := []struct {
 		args  []string
@@ -34,6 +35,7 @@ func TestVideoArgument(t *testing.T) {
 // A video opened again while one plays (a double click on another file)
 // is refused with a reason, and the session goes on.
 func TestAVideoWaitsForTheOneThatPlays(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	_, err := r.api.OpenVideo(`D:\Filmes\Outro.mkv`)
 	if err == nil || !strings.Contains(err.Error(), "Encerre") {

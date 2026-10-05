@@ -25,6 +25,7 @@ func found(string) (string, error) { return `C:\winget.exe`, nil }
 func missing(string) (string, error) { return "", errors.New("not found") }
 
 func TestInstallRunsWingetExactlyAndSilently(t *testing.T) {
+	t.Parallel()
 	r := &recorder{}
 	winget := install.Winget{LookPath: found, Run: r.run}
 	if err := winget.Install(t.Context(), "VideoLAN.VLC"); err != nil {
@@ -38,6 +39,7 @@ func TestInstallRunsWingetExactlyAndSilently(t *testing.T) {
 }
 
 func TestInstallRefusesWhatIsNotAPackageID(t *testing.T) {
+	t.Parallel()
 	for _, id := range []string{"", "--source", "VideoLAN VLC", "a&b", "x;rm", `..\x`} {
 		r := &recorder{}
 		err := install.Winget{LookPath: found, Run: r.run}.Install(t.Context(), id)
@@ -48,6 +50,7 @@ func TestInstallRefusesWhatIsNotAPackageID(t *testing.T) {
 }
 
 func TestInstallWithoutWinget(t *testing.T) {
+	t.Parallel()
 	r := &recorder{}
 	winget := install.Winget{LookPath: missing, Run: r.run}
 	if winget.Available() {
@@ -62,6 +65,7 @@ func TestInstallWithoutWinget(t *testing.T) {
 }
 
 func TestInstallReportsAFailedInstallation(t *testing.T) {
+	t.Parallel()
 	boom := errors.New("exit status 1")
 	err := install.Winget{LookPath: found, Run: (&recorder{err: boom}).run}.Install(t.Context(), "VideoLAN.VLC")
 	if !errors.Is(err, boom) {

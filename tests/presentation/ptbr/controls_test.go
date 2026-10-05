@@ -13,6 +13,7 @@ import (
 )
 
 func TestSpeedAndTime(t *testing.T) {
+	t.Parallel()
 	for speed, want := range map[playback.Speed]string{1: "1,00×", 0.75: "0,75×", 2: "2,00×", 1.25: "1,25×"} {
 		if got := ptbr.Speed(speed); got != want {
 			t.Errorf("Speed(%v) = %q, want %q", speed, got, want)
@@ -27,6 +28,7 @@ func TestSpeedAndTime(t *testing.T) {
 }
 
 func TestBarItemWritesTheSpeeds(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		item controlbar.Item
 		want string
@@ -47,6 +49,7 @@ func TestBarItemWritesTheSpeeds(t *testing.T) {
 
 // The tips that change with the state: what a click would do now.
 func TestBarTips(t *testing.T) {
+	t.Parallel()
 	on := func(action controlbar.Action) controlbar.Item { return controlbar.Item{Action: action, Enabled: true} }
 	state := controlbar.State{Volume: 0.8, HasTranslation: true, TranslationVisible: true}
 	cases := []struct {
@@ -79,6 +82,7 @@ func TestBarTips(t *testing.T) {
 }
 
 func TestWindowTitle(t *testing.T) {
+	t.Parallel()
 	if got := ptbr.WindowTitle("Filme.mkv"); got != "Filme.mkv — LingoReel" {
 		t.Errorf("WindowTitle = %q", got)
 	}
@@ -88,6 +92,7 @@ func TestWindowTitle(t *testing.T) {
 }
 
 func TestBarTipsShowTheProfileKeys(t *testing.T) {
+	t.Parallel()
 	keys := shortcut.Map{
 		shortcut.PlayPause: {Modifiers: shortcut.Ctrl, Key: "KeyP"},
 		shortcut.VolumeUp:  {Key: "NumpadAdd"}, shortcut.VolumeDown: {Key: "NumpadSubtract"},
@@ -118,6 +123,7 @@ func TestBarTipsShowTheProfileKeys(t *testing.T) {
 }
 
 func TestBarTipsWithoutAKey(t *testing.T) {
+	t.Parallel()
 	// Commands without a shortcut leave the parentheses out.
 	keys := shortcut.Map{shortcut.PlayPause: {}, shortcut.VolumeUp: {}, shortcut.Translation: {}}
 	play := controlbar.Item{Action: controlbar.ActionPlayPause, Enabled: true}

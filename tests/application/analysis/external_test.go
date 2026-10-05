@@ -55,6 +55,7 @@ func portugueseOnlyMovie() media.Info {
 }
 
 func TestExternalSubtitlesJoinTheAnalysisAndTheSelection(t *testing.T) {
+	t.Parallel()
 	files := &fakeFiles{
 		paths: []string{`D:\Filmes\Exemplo.en.srt`, `D:\Filmes\Subs\legenda.srt`},
 		content: map[string]media.SubtitleContent{
@@ -84,6 +85,7 @@ func TestExternalSubtitlesJoinTheAnalysisAndTheSelection(t *testing.T) {
 }
 
 func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
+	t.Parallel()
 	files := &fakeFiles{
 		paths:   []string{`D:\Filmes\Exemplo.en.srt`},
 		content: map[string]media.SubtitleContent{`D:\Filmes\Exemplo.en.srt`: lines("Captain Nova and Comet!", "Get them both!")},
@@ -117,6 +119,7 @@ func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 }
 
 func TestUnreadableFilesAreListedButNeverSelected(t *testing.T) {
+	t.Parallel()
 	files := &fakeFiles{
 		paths:   []string{`D:\Filmes\Exemplo.en.srt`},
 		failing: map[string]error{`D:\Filmes\Exemplo.en.srt`: errors.New("garbage")},
@@ -135,6 +138,7 @@ func TestUnreadableFilesAreListedButNeverSelected(t *testing.T) {
 }
 
 func TestAFolderThatCannotBeListedStillAnalyzesTheVideo(t *testing.T) {
+	t.Parallel()
 	files := &fakeFiles{findErr: errors.New("access denied")}
 	result, err := analysis.NewService(&fakeReader{info: studyInfo()}, files).Analyze(context.Background(), `D:\Filmes\x.mkv`, preferences)
 	if err != nil || len(result.Info.Tracks) != 3 {
@@ -143,6 +147,7 @@ func TestAFolderThatCannotBeListedStillAnalyzesTheVideo(t *testing.T) {
 }
 
 func TestLoadSubtitlesRejectsUnknownTracksWithoutReading(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{}
 	files := &fakeFiles{}
 	_, err := analysis.NewService(reader, files).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{2, media.ExternalTrackBase + 9}, nil)

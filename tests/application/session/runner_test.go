@@ -100,6 +100,7 @@ func twoLines(t *testing.T) *session.Subtitles {
 }
 
 func TestRunnerReportsEachBoundaryWhilePlaying(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(0, playback.StatusPlaying, 1, epoch))
 	none := []string{}
 
@@ -119,6 +120,7 @@ func TestRunnerReportsEachBoundaryWhilePlaying(t *testing.T) {
 }
 
 func TestRunnerFollowsSpeed(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(0, playback.StatusPlaying, 2, epoch))
 	none := []string{}
 
@@ -128,6 +130,7 @@ func TestRunnerFollowsSpeed(t *testing.T) {
 }
 
 func TestRunnerRecomputesRightAfterASeek(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(0, playback.StatusPaused, 1, epoch))
 	none := []string{}
 	h.expect(0, none, none)
@@ -142,6 +145,7 @@ func TestRunnerRecomputesRightAfterASeek(t *testing.T) {
 }
 
 func TestRunnerStaysQuietWhilePaused(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(ms(1_200), playback.StatusPaused, 1, epoch))
 	h.expect(ms(1_200), []string{"a"}, []string{})
 
@@ -150,6 +154,7 @@ func TestRunnerStaysQuietWhilePaused(t *testing.T) {
 }
 
 func TestRunnerAppliesOffsetsAfterRefresh(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	h := startRunner(t, subtitles, sample(ms(1_200), playback.StatusPaused, 1, epoch))
 	h.expect(ms(1_200), []string{"a"}, []string{})
@@ -164,6 +169,7 @@ func TestRunnerAppliesOffsetsAfterRefresh(t *testing.T) {
 // Refresh (the sync shortcuts, the settings panel) would otherwise wait for
 // the next subtitle boundary, or forever while paused.
 func TestRunnerAppliesOffsetsWithoutRefresh(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	h := startRunner(t, subtitles, sample(ms(1_200), playback.StatusPaused, 1, epoch))
 	h.expect(ms(1_200), []string{"a"}, []string{})
@@ -179,6 +185,7 @@ func TestRunnerAppliesOffsetsWithoutRefresh(t *testing.T) {
 // Scenario E of the requirements: speed changes while playing, each one
 // taking effect at once.
 func TestRunnerFollowsSpeedChangesWhilePlaying(t *testing.T) {
+	t.Parallel()
 	subtitles := session.NewSubtitles(&session.Track{Timeline: timeline(t,
 		cue("1", 1_000, 1_900), cue("2", 2_000, 2_900), cue("3", 3_000, 3_900), cue("4", 4_000, 4_900))}, nil)
 	h := startRunner(t, subtitles, sample(0, playback.StatusPlaying, 1, epoch))
@@ -213,6 +220,7 @@ func TestRunnerFollowsSpeedChangesWhilePlaying(t *testing.T) {
 // A hostile file can stack thousands of overlapping events; only the most
 // recent few of each line are shown.
 func TestSubtitlesCapTheEventsShownPerLine(t *testing.T) {
+	t.Parallel()
 	var events []subtitle.Event
 	for i := range 1_000 {
 		events = append(events, cue(fmt.Sprint(i), i, 100_000))
@@ -226,6 +234,7 @@ func TestSubtitlesCapTheEventsShownPerLine(t *testing.T) {
 
 // An unknown line is ignored instead of panicking.
 func TestSubtitlesIgnoreUnknownLines(t *testing.T) {
+	t.Parallel()
 	subtitles := twoLines(t)
 	subtitles.SetOffset(session.Line(7), subtitle.NewOffset(ms(1)))
 	subtitles.SetOffset(session.Line(-1), subtitle.NewOffset(ms(1)))
@@ -235,6 +244,7 @@ func TestSubtitlesIgnoreUnknownLines(t *testing.T) {
 }
 
 func TestRunnerAdoptsSamplesAndStopsWhenThePlayerEnds(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(0, playback.StatusPaused, 1, epoch))
 	h.expect(0, []string{}, []string{})
 
@@ -255,6 +265,7 @@ func TestRunnerAdoptsSamplesAndStopsWhenThePlayerEnds(t *testing.T) {
 // A session opened at 3.5 s must never flash the line at 0 s while the player
 // has not reported its position yet.
 func TestRunnerWaitsForThePlayerBeforeTheFirstReport(t *testing.T) {
+	t.Parallel()
 	subtitles := session.NewSubtitles(
 		&session.Track{Timeline: timeline(t, cue("opening", 0, 1_000), cue("late", 3_000, 4_000))},
 		&session.Track{Timeline: timeline(t, cue("abertura", 0, 1_000))},
@@ -270,6 +281,7 @@ func TestRunnerWaitsForThePlayerBeforeTheFirstReport(t *testing.T) {
 // Play or pause issued by the session is enough: the clock then knows the
 // state without waiting for the player.
 func TestRunnerReportsOnceTheSessionSetsTheStatus(t *testing.T) {
+	t.Parallel()
 	subtitles := session.NewSubtitles(&session.Track{Timeline: timeline(t, cue("opening", 0, 1_000))}, nil)
 	h := launchRunner(t, subtitles, func(clock *session.Clock, _ time.Time) {
 		clock.SetStatus(playback.StatusPaused)
@@ -278,6 +290,7 @@ func TestRunnerReportsOnceTheSessionSetsTheStatus(t *testing.T) {
 }
 
 func TestRunnerStopsOnCancellation(t *testing.T) {
+	t.Parallel()
 	h := startRunner(t, twoLines(t), sample(0, playback.StatusPlaying, 1, epoch))
 	h.expect(0, []string{}, []string{})
 

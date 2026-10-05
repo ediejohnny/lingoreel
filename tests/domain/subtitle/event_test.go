@@ -7,6 +7,7 @@ import (
 )
 
 func TestEventTextPrefersOverride(t *testing.T) {
+	t.Parallel()
 	e := subtitle.Event{OriginalText: "That's sick!", OverrideText: "Que loucura!"}
 	if got := e.Text(); got != "Que loucura!" {
 		t.Fatalf("Text() = %q, want the override", got)
@@ -19,6 +20,7 @@ func TestEventTextPrefersOverride(t *testing.T) {
 }
 
 func TestEventValid(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		event subtitle.Event
@@ -39,6 +41,7 @@ func TestEventValid(t *testing.T) {
 }
 
 func TestEventActiveAtIsHalfOpen(t *testing.T) {
+	t.Parallel()
 	e := event("a", 1_000, 2_000)
 	cases := map[int]bool{999: false, 1_000: true, 1_999: true, 2_000: false}
 	for at, want := range cases {

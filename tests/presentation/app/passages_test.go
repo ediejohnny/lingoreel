@@ -40,6 +40,7 @@ func (d *recordingDisplay) lastNotice() string {
 // Ctrl+F9 then Ctrl+F10 saves the passage at once, named by its times, and
 // it is studied straight away; the same span again keeps both.
 func TestTheEndMarkSavesThePassageNamedByItsTimes(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	seekTo(t, r, 20)
 	if err := r.api.RunShortcut("passage-mark-start", false); err != nil {
@@ -94,6 +95,7 @@ func TestTheEndMarkSavesThePassageNamedByItsTimes(t *testing.T) {
 // A project that already holds the most passages it may refuses the next,
 // saying so on the video, and keeps what it had.
 func TestTheEndMarkRespectsThePassageLimit(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	full := project.New()
 	for i := range project.MaxPassages {
@@ -157,6 +159,7 @@ func (w *hostWindow) names() []string {
 // The bar's menu lists what the app lists: the saved passages reach the
 // session when the video opens, and follow every save, rename and delete.
 func TestTheBarMenuListsTheSavedPassages(t *testing.T) {
+	t.Parallel()
 	window := &hostWindow{recordingDisplay: &recordingDisplay{}}
 	r := newRigWith(t, func(d *app.Deps) {
 		d.Ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) { return window, nil }

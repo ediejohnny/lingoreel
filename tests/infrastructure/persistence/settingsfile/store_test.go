@@ -19,6 +19,7 @@ import (
 )
 
 func TestSettingsStartWithTheDefaults(t *testing.T) {
+	t.Parallel()
 	files := settingsfile.Open(t.TempDir())
 	config, err := files.LoadConfig()
 	if err != nil || config.Theme != settings.ThemeSystem || config.PlayerPaths == nil {
@@ -31,6 +32,7 @@ func TestSettingsStartWithTheDefaults(t *testing.T) {
 }
 
 func TestSettingsRoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	files := settingsfile.Open(dir)
 	config := settings.DefaultConfig()
@@ -68,6 +70,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 // rest of each profile stays as the user left it. Two profiles: decoding
 // over the default list, the first one would inherit the defaults anyway.
 func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	profile := `{"name": "NAME", "preferredPlayer": "vlc",
 		"languages": {"audio": "fr", "primary": "fr", "translation": "pt-BR"},
@@ -112,6 +115,7 @@ func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
 // A config saved before the sync notice could be turned off keeps it on;
 // one that turned it off keeps it off, with the window where it was.
 func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	old := `{"version":1,"theme":"dark","activeProfile":"Inglês","playerPaths":{},"installRecommendations":{"dismissAll":false,"dismissed":[]}}`
@@ -135,6 +139,7 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 }
 
 func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	profiles := settings.DefaultProfiles()
 	profiles.Items[0].Shortcuts = shortcut.Map{shortcut.Mute: {Modifiers: shortcut.Ctrl, Key: "KeyU"}}
@@ -160,6 +165,7 @@ func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
 // shortcut (or with the other key), and the profile still loads. Without the
 // migration the whole profile would be refused and replaced by the defaults.
 func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	data := `{"version": 3, "profiles": [` +
 		profileJSON(t, "Meu", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
@@ -217,6 +223,7 @@ func profileJSON(t *testing.T, name, shortcuts string) string {
 // decoding over the default list, the first one would inherit the defaults
 // anyway.
 func TestOldProfilesFollowTheAppFont(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	defaults := settings.DefaultProfile()
 	styles := func(family string) (string, string) {
@@ -275,6 +282,7 @@ func karaokeJSON(t *testing.T) string {
 
 // A document without study preferences is refused, not silently patched.
 func TestBrokenOldProfilesAreRefused(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(`{"version": 1, "profiles": [{"name": "X"}]}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -285,6 +293,7 @@ func TestBrokenOldProfilesAreRefused(t *testing.T) {
 }
 
 func TestSettingsRefuseBadValues(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	files := settingsfile.Open(dir)
 	config := settings.DefaultConfig()

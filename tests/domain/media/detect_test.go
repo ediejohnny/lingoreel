@@ -23,6 +23,7 @@ No hay nada que podamos hacer ahora. Vamos, pues. Muchas gracias. Estoy bien, na
 )
 
 func TestDetectLanguageRecognizesDialogue(t *testing.T) {
+	t.Parallel()
 	cases := map[string]media.LanguageTag{
 		englishDialogue:                     "en",
 		portugueseDialogue:                  "pt",
@@ -39,6 +40,7 @@ func TestDetectLanguageRecognizesDialogue(t *testing.T) {
 // Too little text, or two languages mixed half and half, must stay unknown:
 // a wrong guess would put a file on the wrong line.
 func TestDetectLanguageRefusesToGuess(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"vazio":           "",
 		"só números":      "1 2 3 00:01:02,000 --> 00:01:03,000",
@@ -58,6 +60,7 @@ func TestDetectLanguageRefusesToGuess(t *testing.T) {
 }
 
 func TestDetectLanguageOnlyReadsTheBeginningOfHugeText(t *testing.T) {
+	t.Parallel()
 	// 5000 words of English, then a flood of Portuguese: the start decides.
 	text := strings.Repeat("what are you doing here ", 1000) + strings.Repeat("você não está aqui ", 100000)
 	if got := media.DetectLanguage(text); got != "en" {

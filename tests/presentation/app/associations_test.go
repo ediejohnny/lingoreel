@@ -33,6 +33,7 @@ func (f *fakeAssociations) Disable() error {
 }
 
 func TestTheWindowsAssociationIsTheUsersChoice(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if on, err := r.api.FileAssociation(); on || err != nil {

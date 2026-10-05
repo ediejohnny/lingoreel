@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseAndStringRoundTrip(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		text, canonical string
 		want            shortcut.Chord
@@ -36,6 +37,7 @@ func TestParseAndStringRoundTrip(t *testing.T) {
 }
 
 func TestParseRefusesWhatCannotBeAShortcut(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		text string
 		want error
@@ -79,6 +81,7 @@ func TestParseRefusesWhatCannotBeAShortcut(t *testing.T) {
 }
 
 func TestChordJSONRefusesInvalidText(t *testing.T) {
+	t.Parallel()
 	var chords map[string]shortcut.Chord
 	if err := json.Unmarshal([]byte(`{"a":"Ctrl+Comma"}`), &chords); err != nil || chords["a"] != (shortcut.Chord{Modifiers: shortcut.Ctrl, Key: shortcut.KeyComma}) {
 		t.Fatalf("decode = %v %+v", err, chords)
@@ -97,6 +100,7 @@ func TestChordJSONRefusesInvalidText(t *testing.T) {
 }
 
 func TestNoShortcutIsTheEmptyChord(t *testing.T) {
+	t.Parallel()
 	// Written and read back as an empty text.
 	text, err := json.Marshal(map[string]shortcut.Chord{"a": {}})
 	if err != nil || string(text) != `{"a":""}` {
@@ -135,6 +139,7 @@ func TestNoShortcutIsTheEmptyChord(t *testing.T) {
 }
 
 func TestJumpsRewindsAndRepeats(t *testing.T) {
+	t.Parallel()
 	jumps := map[shortcut.Command]time.Duration{
 		shortcut.SeekBack: -5 * time.Second, shortcut.SeekForward: 5 * time.Second,
 		shortcut.SeekBack10: -10 * time.Second, shortcut.SeekForward10: 10 * time.Second,
@@ -173,6 +178,7 @@ func TestJumpsRewindsAndRepeats(t *testing.T) {
 }
 
 func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
+	t.Parallel()
 	defaults := shortcut.Defaults()
 	if err := defaults.Validate(); err != nil {
 		t.Fatal(err)
@@ -220,6 +226,7 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 // The passage marks live with the other study commands, and holding them
 // never repeats: one press, one mark.
 func TestThePassageMarksAreStudyCommandsThatNeverRepeat(t *testing.T) {
+	t.Parallel()
 	for _, command := range []shortcut.Command{shortcut.PassageMarkStart, shortcut.PassageMarkEnd, shortcut.PassageStop, shortcut.PassageResume} {
 		if command.Category() != shortcut.CategoryStudy {
 			t.Errorf("%s is in %q, want the study commands", command, command.Category())
@@ -236,6 +243,7 @@ func TestThePassageMarksAreStudyCommandsThatNeverRepeat(t *testing.T) {
 }
 
 func TestConflictsAreFoundAgainstTheDefaultsToo(t *testing.T) {
+	t.Parallel()
 	// Play/Pause moved onto the default of the first sync shortcut: the
 	// map holds one entry, the conflict is with a default.
 	m := shortcut.Map{shortcut.PlayPause: {Modifiers: shortcut.Shift, Key: shortcut.KeyComma}}
@@ -260,6 +268,7 @@ func TestConflictsAreFoundAgainstTheDefaultsToo(t *testing.T) {
 }
 
 func TestValidateRefusesUnknownCommandsAndBadChords(t *testing.T) {
+	t.Parallel()
 	if err := (shortcut.Map{"rewind-everything": {Key: "KeyR"}}).Validate(); !errors.Is(err, shortcut.ErrUnknownCommand) {
 		t.Fatalf("unknown command = %v", err)
 	}
@@ -272,6 +281,7 @@ func TestValidateRefusesUnknownCommandsAndBadChords(t *testing.T) {
 }
 
 func TestResolvedFillsTheMissingCommandsAndDropsUnknownOnes(t *testing.T) {
+	t.Parallel()
 	m := shortcut.Map{shortcut.Mute: {Key: "KeyU"}, "gone": {Key: "KeyG"}}
 	resolved := m.Resolved()
 	if resolved[shortcut.Mute].Key != "KeyU" || resolved[shortcut.PlayPause].Key != shortcut.KeySpace {

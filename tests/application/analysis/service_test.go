@@ -74,6 +74,7 @@ func studyAnalysis() analysis.Analysis {
 }
 
 func TestAnalyzeRejectsUnsupportedFilesWithoutReadingThem(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{info: studyInfo()}
 	service := analysis.NewService(reader, nil)
 
@@ -88,6 +89,7 @@ func TestAnalyzeRejectsUnsupportedFilesWithoutReadingThem(t *testing.T) {
 }
 
 func TestAnalyzeSuggestsTracks(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{info: studyInfo()}
 	service := analysis.NewService(reader, nil)
 
@@ -108,6 +110,7 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 // Other videos open too (the app works "especially" with .mkv): their own tracks are not
 // read, so their subtitles come only from the files next to them.
 func TestVideosWithoutReadableTracksUseOnlySubtitleFiles(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{info: studyInfo()}
 	files := &fakeFiles{
 		paths:   []string{`D:\Filmes\Filme.en.srt`},
@@ -136,6 +139,7 @@ func TestVideosWithoutReadableTracksUseOnlySubtitleFiles(t *testing.T) {
 }
 
 func TestAnalyzeStopsWhenCancelled(t *testing.T) {
+	t.Parallel()
 	files := &fakeFiles{paths: []string{`D:\a.srt`, `D:\b.srt`}, content: map[string]media.SubtitleContent{}}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -148,6 +152,7 @@ func TestAnalyzeStopsWhenCancelled(t *testing.T) {
 }
 
 func TestAnalyzePropagatesReaderErrors(t *testing.T) {
+	t.Parallel()
 	failure := errors.New("disk on fire")
 	service := analysis.NewService(&fakeReader{err: failure}, nil)
 
@@ -161,6 +166,7 @@ func event(id string, start, end int, text string) subtitle.Event {
 }
 
 func TestLoadSubtitlesBuildsTimelinesForUniqueTracks(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{content: map[uint64]media.SubtitleContent{
 		2: {Events: []subtitle.Event{event("2", 5_000, 6_000, "second"), event("1", 1_000, 2_000, "first")}, Skipped: 1},
 		3: {Events: []subtitle.Event{event("1", 1_000, 2_000, "primeira")}},
@@ -193,6 +199,7 @@ func TestLoadSubtitlesBuildsTimelinesForUniqueTracks(t *testing.T) {
 }
 
 func TestLoadSubtitlesWithoutTracksDoesNotReadTheFile(t *testing.T) {
+	t.Parallel()
 	reader := &fakeReader{}
 	loaded, err := analysis.NewService(reader, nil).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{0, 0}, nil)
 	if err != nil || len(loaded) != 0 || reader.requested != nil {
@@ -201,6 +208,7 @@ func TestLoadSubtitlesWithoutTracksDoesNotReadTheFile(t *testing.T) {
 }
 
 func TestLoadSubtitlesReportsMissingTracksAndInvalidEvents(t *testing.T) {
+	t.Parallel()
 	missing := &fakeReader{content: map[uint64]media.SubtitleContent{}}
 	if _, err := analysis.NewService(missing, nil).LoadSubtitles(context.Background(), studyAnalysis(), []uint64{4}, nil); err == nil {
 		t.Fatal("a track missing from the reader result was accepted")
@@ -213,6 +221,7 @@ func TestLoadSubtitlesReportsMissingTracksAndInvalidEvents(t *testing.T) {
 }
 
 func TestLoadSubtitlesHonorsCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err := analysis.NewService(&fakeReader{}, nil).LoadSubtitles(ctx, studyAnalysis(), []uint64{2}, nil)

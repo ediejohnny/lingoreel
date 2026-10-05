@@ -10,6 +10,7 @@ import (
 )
 
 func TestSubtitlesApplyEachLineOffset(t *testing.T) {
+	t.Parallel()
 	primary := &session.Track{Timeline: timeline(t, cue("en", 10_000, 12_000))}
 	translation := &session.Track{Timeline: timeline(t, cue("pt", 10_500, 12_500)), Offset: subtitle.NewOffset(-ms(500))}
 	subtitles := session.NewSubtitles(primary, translation)
@@ -24,6 +25,7 @@ func TestSubtitlesApplyEachLineOffset(t *testing.T) {
 }
 
 func TestSubtitlesNextChangeConsidersBothLinesAndOffsets(t *testing.T) {
+	t.Parallel()
 	primary := &session.Track{Timeline: timeline(t, cue("en", 10_000, 12_000))}
 	translation := &session.Track{Timeline: timeline(t, cue("pt", 10_500, 12_500)), Offset: subtitle.NewOffset(-ms(800))}
 	subtitles := session.NewSubtitles(primary, translation)
@@ -46,6 +48,7 @@ func TestSubtitlesNextChangeConsidersBothLinesAndOffsets(t *testing.T) {
 }
 
 func TestSubtitlesWithMissingLines(t *testing.T) {
+	t.Parallel()
 	subtitles := session.NewSubtitles(nil, nil)
 	if visible := subtitles.At(time.Second); visible.Primary != nil || visible.Translation != nil {
 		t.Fatalf("empty session shows %+v", visible)
@@ -60,6 +63,7 @@ func TestSubtitlesWithMissingLines(t *testing.T) {
 }
 
 func TestSetOffsetMovesOnlyThatLine(t *testing.T) {
+	t.Parallel()
 	primary := &session.Track{Timeline: timeline(t, cue("en", 1_000, 2_000))}
 	translation := &session.Track{Timeline: timeline(t, cue("pt", 1_000, 2_000))}
 	subtitles := session.NewSubtitles(primary, translation)
@@ -79,6 +83,7 @@ func TestSetOffsetMovesOnlyThatLine(t *testing.T) {
 }
 
 func TestVisibleEqualComparesIDsAndDisplayedText(t *testing.T) {
+	t.Parallel()
 	base := session.Visible{Primary: []subtitle.Event{cue("1", 0, 1)}}
 	edited := session.Visible{Primary: []subtitle.Event{cue("1", 0, 1)}}
 	edited.Primary[0].OverrideText = "edited"

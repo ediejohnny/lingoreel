@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseClock(t *testing.T) {
+	t.Parallel()
 	good := map[string]time.Duration{
 		"1:10:23": s(4223), "10:23": s(623), "23": s(23), "10:23,5": s(623.5), "10:23.25": s(623.25),
 		" 0:00 ": 0, "0": 0, "100:00:00": 100 * time.Hour, "59:59": s(3599),
@@ -28,6 +29,7 @@ func TestParseClock(t *testing.T) {
 }
 
 func TestSegmentValidate(t *testing.T) {
+	t.Parallel()
 	minute := time.Minute
 	cases := []struct {
 		segment  study.Segment
@@ -55,6 +57,7 @@ func TestSegmentValidate(t *testing.T) {
 }
 
 func TestSnapToLines(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	cases := []struct {
 		name       string
@@ -96,6 +99,7 @@ func TestSnapToLines(t *testing.T) {
 }
 
 func TestSegmentForLine(t *testing.T) {
+	t.Parallel()
 	got := study.SegmentForLine(line("e2", 20, 23, "Second line."), scene(t), 0)
 	if got != (study.Segment{Start: s(19.5), End: s(23)}) {
 		t.Fatalf("SegmentForLine = %+v", got)
@@ -103,6 +107,7 @@ func TestSegmentForLine(t *testing.T) {
 }
 
 func TestPracticePlanLaps(t *testing.T) {
+	t.Parallel()
 	full := study.PracticePlan{Mode: study.EndPause, Progressive: true, Ladder: true}
 	want := []study.Lap{
 		{Speed: 0.75, ShowPrimary: true, ShowTranslation: true},
@@ -129,6 +134,7 @@ func TestPracticePlanLaps(t *testing.T) {
 }
 
 func TestPracticePlanValidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		plan study.PracticePlan
 		ok   bool
@@ -153,6 +159,7 @@ func TestPracticePlanValidate(t *testing.T) {
 // the credits; FitTo brings it back inside, and an unknown duration (zero)
 // leaves the end alone.
 func TestSegmentFitTo(t *testing.T) {
+	t.Parallel()
 	s := func(start, end time.Duration) study.Segment { return study.Segment{Start: start, End: end} }
 	cases := []struct {
 		name     string

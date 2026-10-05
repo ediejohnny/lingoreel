@@ -27,6 +27,7 @@ Dialogue: 0,broken,0:00:12.00,Default,,0,0,0,,bad start
 `
 
 func TestASSParsesDialogueAndStripsOverrides(t *testing.T) {
+	t.Parallel()
 	result := mustParse(t, subtitleformat.ASSParser{}, assDocument)
 
 	assertEvents(t, result.Events, []wantEvent{
@@ -43,6 +44,7 @@ func TestASSParsesDialogueAndStripsOverrides(t *testing.T) {
 // In ASS, \N always breaks the line, but the lowercase \n is a soft break:
 // it only breaks under WrapStyle 2 and reads as a space otherwise.
 func TestASSLowercaseBreakFollowsTheWrapStyle(t *testing.T) {
+	t.Parallel()
 	events := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,one\\ntwo\\Nthree\n"
 
 	soft := mustParse(t, subtitleformat.ASSParser{}, "[Script Info]\nWrapStyle: 0\n\n"+events)
@@ -56,6 +58,7 @@ func TestASSLowercaseBreakFollowsTheWrapStyle(t *testing.T) {
 }
 
 func TestASSHonorsCustomFormatOrder(t *testing.T) {
+	t.Parallel()
 	document := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.5,0:00:02.25,text, with, commas\n"
 
 	result := mustParse(t, subtitleformat.ASSParser{}, document)
@@ -64,6 +67,7 @@ func TestASSHonorsCustomFormatOrder(t *testing.T) {
 }
 
 func TestASSReadsLegacySSAMarkedField(t *testing.T) {
+	t.Parallel()
 	document := "[Events]\nFormat: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
 		"Dialogue: Marked=0,0:00:01.00,0:00:02.00,Default,,0000,0000,0000,,old style\n"
 
@@ -73,6 +77,7 @@ func TestASSReadsLegacySSAMarkedField(t *testing.T) {
 }
 
 func TestASSSkipsDialogueWithTooFewFields(t *testing.T) {
+	t.Parallel()
 	document := "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
 		"Dialogue: 0,0:00:01.00,0:00:02.00,Default\n"
 
@@ -84,6 +89,7 @@ func TestASSSkipsDialogueWithTooFewFields(t *testing.T) {
 }
 
 func TestASSKeepsUnterminatedOverrideAsText(t *testing.T) {
+	t.Parallel()
 	document := "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,Hello {world\n"
 
 	result := mustParse(t, subtitleformat.ASSParser{}, document)
@@ -92,6 +98,7 @@ func TestASSKeepsUnterminatedOverrideAsText(t *testing.T) {
 }
 
 func TestASSWithoutEventsSectionIsMalformed(t *testing.T) {
+	t.Parallel()
 	_, err := subtitleformat.ASSParser{}.Parse([]byte("[Script Info]\nTitle: nothing here\n"))
 	if !errors.Is(err, subtitleformat.ErrMalformed) {
 		t.Fatalf("error = %v, want ErrMalformed", err)

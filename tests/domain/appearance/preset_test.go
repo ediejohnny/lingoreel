@@ -18,6 +18,7 @@ func customizedStyle() appearance.SubtitleStyle {
 }
 
 func TestPresetsKeepFontAndPlacement(t *testing.T) {
+	t.Parallel()
 	for _, preset := range appearance.Presets() {
 		t.Run(string(preset), func(t *testing.T) {
 			before := customizedStyle()
@@ -37,6 +38,7 @@ func TestPresetsKeepFontAndPlacement(t *testing.T) {
 }
 
 func TestPresetsProduceDistinctLooks(t *testing.T) {
+	t.Parallel()
 	seen := map[string]appearance.Preset{}
 	for _, preset := range appearance.Presets() {
 		style, err := preset.Apply(customizedStyle())
@@ -58,6 +60,7 @@ func TestPresetsProduceDistinctLooks(t *testing.T) {
 }
 
 func TestHighContrastAddsBackgroundAndOthersRemoveIt(t *testing.T) {
+	t.Parallel()
 	highContrast, _ := appearance.PresetHighContrast.Apply(customizedStyle())
 	if !highContrast.Background.Enabled || highContrast.Color != appearance.RGB(0xFF, 0xE6, 0x00) {
 		t.Fatalf("high contrast = %+v, want yellow text on a background", highContrast)
@@ -71,6 +74,7 @@ func TestHighContrastAddsBackgroundAndOthersRemoveIt(t *testing.T) {
 }
 
 func TestUnknownPresetIsRejectedWithoutChanges(t *testing.T) {
+	t.Parallel()
 	style := customizedStyle()
 	for _, preset := range []appearance.Preset{"neon", "", "Classic"} {
 		got, err := preset.Apply(style)
