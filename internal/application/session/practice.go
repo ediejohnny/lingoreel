@@ -106,6 +106,15 @@ func (p *Practice) SetLineRepeats(times int) error {
 	return nil
 }
 
+// LinesChanged starts the line repeats over when a line takes another
+// subtitle file: the count goes by line ID, and every file numbers its
+// lines from the start.
+func (p *Practice) LinesChanged() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	clear(p.repeated)
+}
+
 // LineRepeats is how many times each line plays again.
 func (p *Practice) LineRepeats() int {
 	p.mu.Lock()

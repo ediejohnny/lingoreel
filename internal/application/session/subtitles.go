@@ -272,6 +272,24 @@ func (s *Subtitles) SetTimeline(line Line, timeline *subtitle.Timeline) {
 	}
 }
 
+// SetTrack puts another track on a line, or none (nil), and signals the
+// change: switching the subtitle of a line while the video plays, adding a
+// translation or taking it away. An unknown line does not change.
+func (s *Subtitles) SetTrack(line Line, track *Track) {
+	if !knownLine(line) {
+		return
+	}
+	var kept *Track
+	if track != nil {
+		copied := *track
+		kept = &copied
+	}
+	s.mu.Lock()
+	s.lines[line] = kept
+	s.mu.Unlock()
+	s.notify()
+}
+
 // SetOffset changes the offset of a line and signals the change; it has no
 // effect on a missing or unknown line.
 func (s *Subtitles) SetOffset(line Line, offset subtitle.Offset) {

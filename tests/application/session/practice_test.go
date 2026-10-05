@@ -261,6 +261,23 @@ func TestRepeatEachLine(t *testing.T) {
 	if r.player.seekTarget != ms(15_000) {
 		t.Fatal("a seek of the user did not start the repeats over")
 	}
+	// Another subtitle file numbers its lines afresh: a line with the same
+	// number plays again as many times, as a new line.
+	for range 2 {
+		r.reset()
+		r.at(ms(23_300), true)
+	}
+	r.reset()
+	r.at(ms(23_300), true)
+	if len(r.calls()) != 0 {
+		t.Fatal("the count did not run out before the lines changed")
+	}
+	r.practice.LinesChanged()
+	r.reset()
+	r.at(ms(23_300), true)
+	if len(r.calls()) == 0 || r.player.seekTarget != ms(15_000) {
+		t.Fatal("after the lines changed, a line of the same number did not repeat")
+	}
 	// A jump far past the line is not a line ending.
 	r.reset()
 	r.at(ms(30_000), true)

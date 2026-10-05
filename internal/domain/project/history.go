@@ -57,6 +57,23 @@ func (h *History) Redo() (Change, bool) {
 	return change, true
 }
 
+// Forget drops every change of one line, from both undo and redo, keeping
+// the order of the others. It runs when the line takes another subtitle
+// file: its lines are numbered afresh, so an old change would write a line
+// of the old file over a line of the new one.
+func (h *History) Forget(line int) {
+	keep := func(changes []Change) []Change {
+		kept := changes[:0]
+		for _, change := range changes {
+			if change.Line != line {
+				kept = append(kept, change)
+			}
+		}
+		return kept
+	}
+	h.done, h.undone = keep(h.done), keep(h.undone)
+}
+
 // CanUndo and CanRedo tell whether there is something to take back or make
 // again.
 func (h *History) CanUndo() bool { return len(h.done) > 0 }
