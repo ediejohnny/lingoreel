@@ -9,7 +9,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
-func TestTheModesStartAndHideAsThePRDSays(t *testing.T) {
+func TestEachModeStartsAndHidesItsOwnWay(t *testing.T) {
 	cases := []struct {
 		mode               study.Mode
 		revealed, hideable bool

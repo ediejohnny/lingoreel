@@ -29,7 +29,7 @@ function Test-PowerShellScripts {
         $bytes = [System.IO.File]::ReadAllBytes($script.FullName)
         $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
         if (-not $hasBom) {
-            $problems += "$($script.Name): sem BOM UTF-8"
+            $problems += "$($script.Name): no UTF-8 BOM"
         }
         $parseErrors = $null
         [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$null, [ref]$parseErrors) | Out-Null

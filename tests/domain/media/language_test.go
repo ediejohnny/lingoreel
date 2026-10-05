@@ -15,7 +15,7 @@ func TestNormalizeLanguage(t *testing.T) {
 		{"pt_br", "", "", "pt-BR"},
 		{"PT-br", "", "", "pt-BR"},
 		{"", "por", "", "pt"},
-		{"", "por", "Brazilian Portuguese", "pt-BR"}, // the PRD example
+		{"", "por", "Brazilian Portuguese", "pt-BR"},
 		{"", "por", "Português (Brasil)", "pt-BR"},
 		{"", "por", "PT-BR", "pt-BR"},
 		{"", "por", "Portuguese (European)", "pt-PT"},

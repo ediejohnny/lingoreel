@@ -17,7 +17,7 @@ interface BannerProps {
   onClose?: () => void;
 }
 
-/** Banner states a problem or a fact and offers what to do (DESIGN §31); errors stay until closed. */
+/** Banner states a problem or a fact and offers what to do; errors stay until closed. */
 export function Banner({ tone, children, action, onClose }: BannerProps) {
   const { box, icon: Icon } = tones[tone];
   return (

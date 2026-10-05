@@ -12,7 +12,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
-// The errors of PRD §52, each with a sentence that says what happened and
+// The errors a user can meet, each with a sentence that says what happened and
 // what to do.
 
 func TestOpeningAVideoThatCannotBeRead(t *testing.T) {

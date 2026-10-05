@@ -10,7 +10,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
-// PRD §58: 50 000 lines with no noticeable cost. The whole way a subtitle
+// 50 000 lines with no noticeable cost. The whole way a subtitle
 // file takes, read, ordered and looked up, stays far below a quadratic cost
 // (minutes at this size). Without the race detector it takes about a
 // second; with it, and the other packages testing beside it, about ten, so

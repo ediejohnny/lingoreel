@@ -206,7 +206,7 @@ func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
 	}
 }
 
-// RNF-015 with a pass/fail line: 50,000 events and 100,000 lookups. The index
+// A pass/fail line for big files: 50,000 events and 100,000 lookups. The index
 // does this in milliseconds; scanning every event per lookup would take
 // billions of steps. The ceiling is generous (race detector, loaded machine).
 func TestFiftyThousandEventsStayFast(t *testing.T) {

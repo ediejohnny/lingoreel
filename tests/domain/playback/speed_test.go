@@ -67,7 +67,7 @@ func TestSpeedSlower(t *testing.T) {
 	}
 }
 
-// The RF-023 list must be reachable step by step in both directions.
+// The preset list must be reachable step by step in both directions.
 func TestSpeedStepsWalkEveryPresetBothWays(t *testing.T) {
 	want := []playback.Speed{0.25, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2}
 	steps := playback.SpeedSteps()

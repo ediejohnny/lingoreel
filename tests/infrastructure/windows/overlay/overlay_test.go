@@ -397,7 +397,7 @@ func (s *scene) waitForEnd() {
 	}
 }
 
-// A plugin that knows its player's windows (PotPlayer, F9) names the main
+// A plugin that knows its player's windows (PotPlayer) names the main
 // window and the one holding the picture: the subtitles cover only the
 // picture, so the player's own list and buttons stay free.
 func TestOverlayCoversTheVideoAreaThePluginNames(t *testing.T) {
@@ -1067,7 +1067,7 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 		return s.covering()
 	})
 
-	// RF-065: real fullscreen, not a resize. If VLC moved the video to
+	// Real fullscreen, not a resize. If VLC moved the video to
 	// another window, the overlay would hide with the old one. Right after a
 	// restore VLC refits its window to the video and was seen ignoring a
 	// fullscreen request sent meanwhile, so the request waits for the window

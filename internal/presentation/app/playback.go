@@ -174,7 +174,7 @@ func (a *API) Watch(request WatchRequest) error {
 	return nil
 }
 
-// startFailure words why a session did not start (PRD §52), with what the
+// startFailure words why a session did not start, with what the
 // user can do.
 func (a *API) startFailure(err error, installation player.Installation) error {
 	name := string(installation.ID)

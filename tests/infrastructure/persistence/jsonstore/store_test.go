@@ -66,7 +66,7 @@ func (c checked) Validate() error {
 }
 
 // A hand-edited document with bad values must not reach the app: Load returns
-// the defaults and says why (RNF-020).
+// the defaults and says why.
 func TestLoadValidatesValuesThatCheckThemselves(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	store := jsonstore.New(path, 1, func() checked { return checked{Limit: 5} }, nil)

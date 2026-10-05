@@ -22,7 +22,7 @@ func TestDefaultStylesAreValidAndOrdered(t *testing.T) {
 	if primary.VerticalPosition != 0.82 || translation.VerticalPosition != 0.91 {
 		t.Fatalf("positions = %v/%v, want 0.82/0.91", primary.VerticalPosition, translation.VerticalPosition)
 	}
-	// DESIGN §10: the translation must not compete with the primary line.
+	// The translation must not compete with the primary line.
 	if primary.Opacity != 1 || !(translation.Opacity < primary.Opacity && translation.Opacity >= 0.8) {
 		t.Fatalf("opacities = %v/%v, want the translation slightly behind (0.8 to 1)", primary.Opacity, translation.Opacity)
 	}

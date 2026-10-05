@@ -105,7 +105,7 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 	}
 }
 
-// Other videos open too (PRD §1: "especially" .mkv): their own tracks are not
+// Other videos open too (the app works "especially" with .mkv): their own tracks are not
 // read, so their subtitles come only from the files next to them.
 func TestVideosWithoutReadableTracksUseOnlySubtitleFiles(t *testing.T) {
 	reader := &fakeReader{info: studyInfo()}

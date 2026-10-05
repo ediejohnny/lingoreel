@@ -199,7 +199,7 @@ func TestDefaultsCoverEveryCommandWithoutConflicts(t *testing.T) {
 	if len(defaults) != len(shortcut.Commands()) {
 		t.Fatalf("%d defaults for %d commands", len(defaults), len(shortcut.Commands()))
 	}
-	// The consolidated map of the plan; the explicit translation choices
+	// The default map; the explicit translation choices
 	// start without a shortcut.
 	want := map[shortcut.Command]string{
 		shortcut.PlayPause: "Space", shortcut.SeekBack: "ArrowLeft", shortcut.SeekForward: "ArrowRight",

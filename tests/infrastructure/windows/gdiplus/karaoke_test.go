@@ -121,8 +121,8 @@ func TestHiddenPrimaryDrawsNothing(t *testing.T) {
 	}
 }
 
-// M12: a karaoke frame at 1080p (clear, text, fill) must fit well inside
-// the 40 ms between frames; the plan's target is 8 ms. Wall time is noisy
+// A karaoke frame at 1080p (clear, text, fill) must fit well inside
+// the 40 ms between frames; the target is 8 ms. Wall time is noisy
 // under the race detector, so the test fails only past a whole frame and
 // reports the measure.
 func TestKaraokeFrameCost(t *testing.T) {

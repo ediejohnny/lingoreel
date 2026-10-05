@@ -1,7 +1,7 @@
 //go:build windows
 
 // Package association lets Windows open videos with the app, when the user
-// asks for it (RF-001): the app appears in "Abrir com" and the videos'
+// asks for it: the app appears in "Abrir com" and the videos'
 // context menu gets "Assistir com o LingoReel". Everything is written
 // for the current user only, and no other program loses its place as the
 // default.

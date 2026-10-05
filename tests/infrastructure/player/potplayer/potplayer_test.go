@@ -342,7 +342,7 @@ func TestPotPlayerPlaysAtTheSpeedAsked(t *testing.T) {
 }
 
 // A PotPlayer that stops answering for a while is waited for, and the
-// session goes on; one that stays silent past the limit is lost (RNF-013).
+// session goes on; one that stays silent past the limit is lost.
 func TestAFrozenPotPlayerIsWaitedForThenLost(t *testing.T) {
 	executable, video := realPotPlayer(t)
 	session, err := potplayer.Launch(t.Context(), executable,

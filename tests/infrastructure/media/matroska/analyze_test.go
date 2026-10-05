@@ -110,7 +110,7 @@ func TestAnalyzeAppliesSpecDefaults(t *testing.T) {
 
 // Without a Language element the specification says "eng", but that is a
 // default, not a statement: the track name decides when it names a language
-// (PRD §36), so a track called "Português" is never taken for English.
+// itself, so a track called "Português" is never taken for English.
 func TestTrackNameDecidesWhenTheLanguageIsOnlyTheDefault(t *testing.T) {
 	data := matroskaFile(
 		segmentInfo(1_000_000, 1000),
