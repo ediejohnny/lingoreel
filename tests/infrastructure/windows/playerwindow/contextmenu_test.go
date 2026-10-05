@@ -160,6 +160,46 @@ func picking(t *testing.T, path ...string) func(windows.Handle, int32, int32) ui
 	}
 }
 
+// A window opened on the app's stage takes the app's actions from the
+// stage, as the app opens its windows: its menu has the app's items, and
+// they reach the app.
+func TestAWindowOnTheStageReachesTheApp(t *testing.T) {
+	actions := &fakeActions{}
+	stage := playerwindow.NewStage(playerwindow.StageOptions{
+		Parent: newFakeApp(t, offScreenApp, true).handle,
+		App:    func() playerwindow.AppActions { return actions },
+	})
+	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
+	settings := make(chan bool, 1)
+	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+		Look:       overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()},
+		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
+		NoActivate: true, Stage: stage,
+		Choose: func(menu uintptr, _, _ int32) uint32 {
+			item, found := itemAt(windows.Handle(menu), ptbr.T("menu.settings"))
+			settings <- found
+			return item.ID
+		},
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { w.Close() })
+	w.Attach(newRemote(&recordingPlayer{}))
+	host := windows.HWND(w.Handle())
+	post(t, host, win32.WM_CONTEXTMENU, uintptr(host), at(10, 10))
+	select {
+	case found := <-settings:
+		if !found {
+			t.Fatal("the menu of a window on the stage has none of the app's items")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the menu did not open")
+	}
+	testkit.Eventually(t, "the settings asked of the app", func() bool { return slices.Contains(actions.asked(), "settings general") })
+}
+
 // A right click opens the menu where the mouse is; the menu key opens it
 // at the center of the video.
 func TestTheMenuOpensWhereAsked(t *testing.T) {
@@ -376,18 +416,24 @@ func menuShowing() bool {
 var procFindWindow = windows.NewLazySystemDLL("user32.dll").NewProc("FindWindowW")
 
 // The real menu, on screen (only with LINGOREEL_MENU_TEST=1: it shows
-// on the monitor for a moment, so nothing else may be in use): what closes
-// a menu (a click elsewhere cancels the mode) closes it, the window then
-// opens it again, and a window closed while its menu shows goes well within
-// the time a stuck thread is given.
+// on the monitor for a moment, so nothing else may be in use), opened as the
+// app opens it, on the stage of an app window with the app's actions: what
+// closes a menu (a click elsewhere cancels the mode) closes it, the window
+// then opens it again, and a window closed while its menu shows goes well
+// within the time a stuck thread is given.
 func TestARealMenuClosesAndLetsTheWindowGo(t *testing.T) {
 	if os.Getenv("LINGOREEL_MENU_TEST") != "1" {
 		t.Skip("set LINGOREEL_MENU_TEST=1 to show a real menu on screen")
 	}
+	stage := playerwindow.NewStage(playerwindow.StageOptions{
+		Parent: newFakeApp(t, offScreenApp, true).handle,
+		App:    func() playerwindow.AppActions { return &fakeActions{} },
+	})
+	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
-		NoActivate: true,
+		NoActivate: true, Stage: stage,
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
