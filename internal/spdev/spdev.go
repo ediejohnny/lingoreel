@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"lingoreel/internal/buildinfo"
+	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 )
 
 // ErrUnknownCommand reports a command name that spdev does not know.

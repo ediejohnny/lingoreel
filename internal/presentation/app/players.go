@@ -4,8 +4,8 @@ import (
 	"errors"
 	"slices"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 )
 
 // ErrUnknownPlayer reports a player id the app has no plugin for.

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/buildinfo"
-	"lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/buildinfo"
+	"github.com/ediejohnny/lingoreel/internal/spdev"
 )
 
 // The version is swapped for a distinctive value so the test fails if Run

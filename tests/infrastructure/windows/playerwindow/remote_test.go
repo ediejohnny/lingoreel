@@ -5,9 +5,9 @@ import (
 	"slices"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // The fake session's side of the bar's menus: what they read, and a record

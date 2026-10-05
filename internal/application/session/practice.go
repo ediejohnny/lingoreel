@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // ErrNoPassage reports a passage command with no passage being studied.

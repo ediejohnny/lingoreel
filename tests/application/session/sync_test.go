@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 func drained(subtitles *session.Subtitles) bool {

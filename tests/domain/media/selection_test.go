@@ -3,7 +3,7 @@ package media_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
 
 var studyPreferences = media.Preferences{Audio: "en", Primary: "en", Translation: "pt-BR"}

@@ -22,9 +22,9 @@ import (
 	"strconv"
 	"time"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 )
 
 //go:embed http

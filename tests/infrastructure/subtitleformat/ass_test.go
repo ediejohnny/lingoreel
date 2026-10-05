@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 const assDocument = `[Script Info]

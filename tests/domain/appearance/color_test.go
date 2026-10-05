@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 )
 
 func TestParseColorAcceptsBothForms(t *testing.T) {

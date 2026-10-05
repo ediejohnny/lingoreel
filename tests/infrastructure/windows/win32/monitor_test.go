@@ -5,7 +5,7 @@ package win32_test
 import (
 	"testing"
 
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // Every machine has at least one monitor; exactly one is primary, each work

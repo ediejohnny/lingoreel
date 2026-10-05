@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"regexp"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 )
 
 // Plugin drives VLC. It is the first player plugin and the example the guide

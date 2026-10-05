@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 func TestParseTimestamp(t *testing.T) {

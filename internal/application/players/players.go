@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"slices"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 // ErrUnknownPlayer reports a player without a registered plugin.

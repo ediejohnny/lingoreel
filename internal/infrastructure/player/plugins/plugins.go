@@ -5,10 +5,10 @@ package plugins
 import (
 	"log/slog"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/potplayer"
-	"lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/potplayer"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
 )
 
 // Plugin is a player plugin that also tells where its player is usually

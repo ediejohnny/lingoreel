@@ -8,9 +8,9 @@ import (
 	"math"
 	"unsafe"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // maxCachedFonts bounds the font cache; layouts use a handful of sizes.

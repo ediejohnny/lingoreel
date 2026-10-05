@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/signal"
 
-	"lingoreel/internal/infrastructure/windows/win32"
-	"lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/spdev"
 )
 
 func main() {

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 )
 
 func TestParseAndStringRoundTrip(t *testing.T) {

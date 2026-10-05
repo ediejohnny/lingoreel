@@ -4,10 +4,10 @@
 package placement
 
 import (
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ForVideo opens the player inside the primary monitor's work area, so a

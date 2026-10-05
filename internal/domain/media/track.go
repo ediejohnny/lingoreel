@@ -5,7 +5,7 @@ package media
 import (
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // TrackType is the kind of content a track carries.

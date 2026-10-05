@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"sync"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/keyboard"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
 )
 
 // BindingOf is the system-wide hotkey of a chord on the current keyboard

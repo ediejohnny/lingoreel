@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 func TestLanguageName(t *testing.T) {

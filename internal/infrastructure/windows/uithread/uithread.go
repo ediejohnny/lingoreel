@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ErrClosed reports a call on a thread that already stopped.

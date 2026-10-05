@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
 // Extension ends a project file's name.

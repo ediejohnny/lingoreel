@@ -1,8 +1,8 @@
 package watch
 
 import (
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
 )
 
 // Health is how the player is doing during a session.

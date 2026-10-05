@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/infrastructure/windows/uithread"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
 )
 
 func start(t *testing.T) *uithread.Thread {

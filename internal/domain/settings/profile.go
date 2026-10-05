@@ -7,12 +7,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // DefaultProfileName is the profile created on the first run.

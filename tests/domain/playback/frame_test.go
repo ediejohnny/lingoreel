@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 func TestFrameDurationUsesTheRealRate(t *testing.T) {

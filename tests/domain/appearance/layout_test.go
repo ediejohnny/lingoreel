@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 )
 
 func TestLayoutValidateRanges(t *testing.T) {

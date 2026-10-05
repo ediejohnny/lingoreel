@@ -1,4 +1,4 @@
-module lingoreel
+module github.com/ediejohnny/lingoreel
 
 go 1.26
 

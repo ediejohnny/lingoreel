@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 // maxIdleWait bounds how long the runner sleeps without any subtitle change

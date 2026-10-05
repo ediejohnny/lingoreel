@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 func validDescriptor() player.Descriptor {

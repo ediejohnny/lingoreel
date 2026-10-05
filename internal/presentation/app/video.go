@@ -11,10 +11,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // minNoteOffset is the least automatic correction worth telling the user.

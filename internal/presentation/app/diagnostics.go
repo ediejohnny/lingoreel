@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // Diagnostics is the state of the app for a problem report (RNF-032). It

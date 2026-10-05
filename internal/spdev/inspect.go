@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/media/matroska"
-	"lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 )
 
 // ErrMissingArgument reports a command called without a required argument.

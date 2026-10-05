@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // rhythm returns n start instants of a film-like dialogue: from 30 s on,

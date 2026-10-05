@@ -22,7 +22,7 @@ $wailsConfig = Join-Path $root "wails.json"
 
 $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
-$ldflags = "-s -w -X lingoreel/internal/buildinfo.Version=$buildVersion"
+$ldflags = "-s -w -X github.com/ediejohnny/lingoreel/internal/buildinfo.Version=$buildVersion"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 Push-Location -LiteralPath $root

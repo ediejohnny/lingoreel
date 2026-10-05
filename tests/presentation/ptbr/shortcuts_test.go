@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 func TestShortcutLabels(t *testing.T) {

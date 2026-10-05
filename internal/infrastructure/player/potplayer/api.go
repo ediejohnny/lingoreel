@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // PotPlayer answers a WM_USER message carrying one of these codes in its

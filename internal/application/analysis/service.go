@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // ErrUnsupportedFile reports a file the player cannot open.

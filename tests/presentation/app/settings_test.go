@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 func settingsOf(t *testing.T, r *rig) app.SettingsView {

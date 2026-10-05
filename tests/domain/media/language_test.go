@@ -3,7 +3,7 @@ package media_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
 
 func TestNormalizeLanguage(t *testing.T) {

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 func TestThePlayersHealth(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 // PRD §58: 50 000 lines with no noticeable cost. The whole way a subtitle

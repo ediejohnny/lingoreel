@@ -13,12 +13,12 @@ import (
 	"image/color"
 	"image/png"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
-	"lingoreel/internal/infrastructure/windows/uithread"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // Limits of a preview picture.

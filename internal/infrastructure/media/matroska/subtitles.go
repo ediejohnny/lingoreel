@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 // ErrNotReadableTrack reports a track that is not a readable text subtitle.

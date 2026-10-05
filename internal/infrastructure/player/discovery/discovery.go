@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 // Root selects a registry hive.

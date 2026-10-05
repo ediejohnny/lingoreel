@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/infrastructure/media/matroska"
-	"lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 )
 
 // movieCeiling is the most a real film may take from a drop on the window to

@@ -11,10 +11,10 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/vlc"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 var (

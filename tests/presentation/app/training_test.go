@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 func startWatching(t *testing.T) *rig {

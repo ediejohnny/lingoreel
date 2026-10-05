@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 )
 
 func analyze(t *testing.T, data []byte) matroska.Container {

@@ -3,12 +3,12 @@ package app
 import (
 	"errors"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 var (

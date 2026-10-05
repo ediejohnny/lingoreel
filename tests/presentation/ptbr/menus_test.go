@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 func menuState() controlbar.State {

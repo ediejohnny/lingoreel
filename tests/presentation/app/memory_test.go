@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 // savedProject is a project already kept for the movie: two passages, a

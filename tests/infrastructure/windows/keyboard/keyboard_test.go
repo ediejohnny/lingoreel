@@ -5,9 +5,9 @@ package keyboard_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/keyboard"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // keyLParam builds a key message's lParam for a scan code.
