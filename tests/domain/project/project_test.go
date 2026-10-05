@@ -221,6 +221,18 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 				p.Tracks["file:"+strings.Repeat("x", i+1)] = project.Track{}
 			}
 		}, false},
+		{"added files at the limit", func(p *project.Project) {
+			for i := range project.MaxAddedFiles {
+				p.AddedFiles = append(p.AddedFiles, fmt.Sprintf("Legendas/%d.srt", i))
+			}
+		}, true},
+		{"too many added files", func(p *project.Project) {
+			for i := range project.MaxAddedFiles + 1 {
+				p.AddedFiles = append(p.AddedFiles, fmt.Sprintf("Legendas/%d.srt", i))
+			}
+		}, false},
+		{"blank added file", func(p *project.Project) { p.AddedFiles = []string{"  "} }, false},
+		{"added file too long", func(p *project.Project) { p.AddedFiles = []string{strings.Repeat("a", project.MaxKeyRunes+1)} }, false},
 	}
 	for _, c := range cases {
 		p := valid()

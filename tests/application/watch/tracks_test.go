@@ -25,11 +25,10 @@ func loadedFile(t *testing.T, text string) analysis.LoadedTrack {
 	return analysis.LoadedTrack{Timeline: timeline}
 }
 
-// A line takes another file while the video is paused on it: the screen
-// shows the new file, the selection on that line goes, and undo no longer
-// reaches the old file's changes, while the other line keeps its own.
-func TestALineTakesAnotherSubtitle(t *testing.T) {
-	t.Parallel()
+// switchedRig is a session paused on a line, with a correction on each line,
+// whose line on top then takes another file (track 99).
+func switchedRig(t *testing.T) (*rig, *watch.Session) {
+	t.Helper()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	screenShows(t, r, "both lines", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
@@ -44,14 +43,34 @@ func TestALineTakesAnotherSubtitle(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
 	if err := s.SetLine(session.LinePrimary, 99, loadedFile(t, "Another file."), project.Track{}); err != nil {
 		t.Fatal(err)
 	}
+	return r, s
+}
+
+// A line takes another file while the video is paused on it: the screen
+// shows the new file, and the selection on that line goes.
+func TestALineTakesAnotherSubtitle(t *testing.T) {
+	t.Parallel()
+	r, s := switchedRig(t)
 	screenShows(t, r, "the new file on top", func(screen session.Screen) bool { return screen.Primary == "Another file." })
 	if _, found := s.Selection(); found {
 		t.Fatal("the selection on the switched line stayed")
 	}
+	if _, found := s.Loaded()[99]; !found {
+		t.Fatal("the new track is not among the loaded ones")
+	}
+	if current := s.Tracks().Current; current.Primary != 99 || current.Translation != 5 {
+		t.Fatalf("current tracks = %+v, want 99 on top and 5 below", current)
+	}
+}
+
+// After a switch, undo no longer reaches the old file's changes, while the
+// other line keeps its own.
+func TestUndoForgetsTheSwitchedLine(t *testing.T) {
+	t.Parallel()
+	r, s := switchedRig(t)
 	if undone, err := s.Undo(); !undone || err != nil {
 		t.Fatalf("Undo = %v, %v; the other line's change should be there", undone, err)
 	}
@@ -61,15 +80,13 @@ func TestALineTakesAnotherSubtitle(t *testing.T) {
 	if s.CanUndo() {
 		t.Fatal("a change of the old file is still to undo")
 	}
-	if _, found := s.Loaded()[99]; !found {
-		t.Fatal("the new track is not among the loaded ones")
-	}
-	if current := s.Tracks().Current; current.Primary != 99 || current.Translation != 5 {
-		t.Fatalf("current tracks = %+v, want 99 on top and 5 below", current)
-	}
+}
 
-	// What changes on the switched line is told with the new track, so the
-	// app keeps it on the new file and not on the old one.
+// What changes on the switched line is told with the new track, so the app
+// keeps it on the new file and not on the old one.
+func TestChangesOnASwitchedLineGoToItsNewTrack(t *testing.T) {
+	t.Parallel()
+	r, s := switchedRig(t)
 	s.Nudge(session.LinePrimary, true)
 	if _, tracks := r.listener.syncs(); len(tracks) != 1 || tracks[0] != 99 {
 		t.Fatalf("sync told with tracks %v, want [99]", tracks)
@@ -83,8 +100,12 @@ func TestALineTakesAnotherSubtitle(t *testing.T) {
 	if edits := r.listener.edits(); edits[len(edits)-1].track != 99 {
 		t.Fatalf("edit told with track %d, want 99", edits[len(edits)-1].track)
 	}
+}
 
-	// Taking the translation away leaves no translation to show.
+// Taking the translation away leaves no translation to show.
+func TestNoneBelowTakesTheTranslationAway(t *testing.T) {
+	t.Parallel()
+	r, s := playingRig(t)
 	if err := s.SetLine(session.LineTranslation, 0, analysis.LoadedTrack{}, project.Track{}); err != nil {
 		t.Fatal(err)
 	}
@@ -92,8 +113,13 @@ func TestALineTakesAnotherSubtitle(t *testing.T) {
 		t.Fatalf("the session still has a translation (tracks %+v)", s.Tracks().Current)
 	}
 	screenShows(t, r, "no translation", func(screen session.Screen) bool { return screen.Translation == "" })
+}
 
-	// A file that came without subtitles, or a line that does not exist, is refused.
+// A file that came without subtitles, or a line that does not exist, is
+// refused.
+func TestASwitchNeedsSubtitlesAndALine(t *testing.T) {
+	t.Parallel()
+	_, s := playingRig(t)
 	if err := s.SetLine(session.LineTranslation, 7, analysis.LoadedTrack{}, project.Track{}); err == nil {
 		t.Error("a track without subtitles was put on a line")
 	}

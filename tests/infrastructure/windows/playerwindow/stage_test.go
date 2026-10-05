@@ -452,7 +452,10 @@ func TestClosingTheVideoLeavesTheAppWindowAsItWas(t *testing.T) {
 	// The stage outlives the window: asking it things now does nothing.
 	stage.SetLayout(playerwindow.StageLayout{Visible: true})
 	stage.SetFullscreen(true)
-	time.Sleep(100 * time.Millisecond)
+	// Anything asked of the app's window has run once its thread answers.
+	if err := app.thread.Do(func() {}); err != nil {
+		t.Fatal(err)
+	}
 	if after, _ := win32.WindowRect(app.hwnd); after != before {
 		t.Fatal("a stage without a video changed the app's window")
 	}

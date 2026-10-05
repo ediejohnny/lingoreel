@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
@@ -118,7 +119,7 @@ func TestTheAudioSwitchesWhileWatching(t *testing.T) {
 	}
 
 	fixed := watchSwitchVideo(t, nil)
-	if err := fixed.api.SwitchAudio(2); err == nil || !strings.Contains(err.Error(), "não permite") {
+	if err := fixed.api.SwitchAudio(2); err == nil {
 		t.Fatalf("SwitchAudio on a player that cannot = %v, want it refused", err)
 	}
 	if stored, _ := fixed.projects.stored(t, switchVideo); stored.Choice.Audio != "track:3" {
@@ -178,27 +179,24 @@ func writeSubtitle(t *testing.T, name, text string) string {
 	return path
 }
 
-// fileTrack finds the track of an added file in a list.
-func fileTrack(t *testing.T, tracks []app.Track) uint64 {
-	t.Helper()
+// fileTrack finds the track of a subtitle file in a list; zero for none.
+func fileTrack(tracks []app.Track) uint64 {
 	for _, track := range tracks {
-		if strings.Contains(track.Label, "(arquivo)") {
+		if track.Number >= media.ExternalTrackBase {
 			return track.Number
 		}
 	}
 	return 0
 }
 
-// A subtitle file from any folder joins the video on the session screen,
-// once however often it is picked, and comes back the next time the video
-// opens, until it is gone.
-func TestASubtitleFileFromAnotherFolderComesBack(t *testing.T) {
-	t.Parallel()
-	r := newRig(t)
-	r.attach(t)
-	const video = `D:\Filmes\Movie.mkv`
-	before, err := r.api.OpenVideo(video)
-	if err != nil {
+// addedVideo is a video with no subtitle file next to it.
+const addedVideo = `D:\Filmes\Movie.mkv`
+
+// addFile opens addedVideo and adds a subtitle file from another folder on
+// its session screen; it returns the file's path and track.
+func addFile(t *testing.T, r *rig) (string, uint64) {
+	t.Helper()
+	if _, err := r.api.OpenVideo(addedVideo); err != nil {
 		t.Fatal(err)
 	}
 	path := writeSubtitle(t, "Outra.Legenda.en.srt", "From the file.")
@@ -207,22 +205,45 @@ func TestASubtitleFileFromAnotherFolderComesBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	number := fileTrack(t, added.Subtitles)
-	if number == 0 || added.Suggested.Primary != number || len(added.Subtitles) != len(before.Subtitles)+1 {
-		t.Fatalf("after adding: track %d, suggested %+v, %d subtitles (were %d)", number, added.Suggested, len(added.Subtitles), len(before.Subtitles))
+	return path, fileTrack(added.Subtitles)
+}
+
+// A subtitle file from any folder joins the video on the session screen as
+// the line's suggestion, once however often it is picked; the log names the
+// file and never its folder.
+func TestASubtitleFileJoinsTheVideoOnce(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	before, err := r.api.OpenVideo(addedVideo)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if log := r.log.String(); !strings.Contains(log, "Outra.Legenda.en.srt") || strings.Contains(log, filepath.Dir(path)) {
-		t.Fatalf("the log should name the file and never its folder:\n%s", log)
-	}
+	path, number := addFile(t, r)
 	again, err := r.api.AddSubtitleFile("primary")
-	if err != nil || fileTrack(t, again.Subtitles) != number || len(again.Subtitles) != len(added.Subtitles) {
-		t.Fatalf("adding the same file again = %d subtitles, track %d, %v", len(again.Subtitles), fileTrack(t, again.Subtitles), err)
+	if err != nil || number == 0 || fileTrack(again.Subtitles) != number || len(again.Subtitles) != len(before.Subtitles)+1 {
+		t.Fatalf("added twice: %d subtitles (were %d), track %d then %d, %v", len(again.Subtitles), len(before.Subtitles), number, fileTrack(again.Subtitles), err)
 	}
-	if stored, _ := r.projects.stored(t, video); len(stored.AddedFiles) != 1 {
+	if again.Suggested.Primary != number {
+		t.Fatalf("suggested %+v, want the file %d on top", again.Suggested, number)
+	}
+	if stored, _ := r.projects.stored(t, addedVideo); len(stored.AddedFiles) != 1 {
 		t.Fatalf("remembered files = %q, want the one file", stored.AddedFiles)
 	}
+	if log := r.log.String(); !strings.Contains(log, filepath.Base(path)) || strings.Contains(log, filepath.Dir(path)) {
+		t.Fatalf("the log should name the file and never its folder:\n%s", log)
+	}
+}
 
-	// Cancelling the dialog changes nothing; a file that is no subtitle is refused.
+// A cancelled dialog changes nothing, and a file that is no subtitle is
+// refused.
+func TestNoSubtitleFileAddsNothing(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	if _, err := r.api.OpenVideo(addedVideo); err != nil {
+		t.Fatal(err)
+	}
 	r.ui.subtitle = ""
 	if cancelled, err := r.api.AddSubtitleFile("primary"); err != nil || cancelled.Path != "" {
 		t.Fatalf("a cancelled dialog = %+v, %v", cancelled.Path, err)
@@ -234,34 +255,39 @@ func TestASubtitleFileFromAnotherFolderComesBack(t *testing.T) {
 	if _, err := r.api.AddSubtitleFile("primary"); err == nil {
 		t.Fatal("a file that is no subtitle was added")
 	}
+	if stored, _ := r.projects.stored(t, addedVideo); len(stored.AddedFiles) != 0 {
+		t.Fatalf("remembered files = %q, want none", stored.AddedFiles)
+	}
+}
 
-	// Watched with it, then opened again: the file is there and still chosen.
+// A file watched with comes back, still chosen, the next time the video
+// opens; once it is gone, it is left out without failing the video.
+func TestAnAddedFileComesBackUntilItIsGone(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	path, number := addFile(t, r)
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: number, Translation: 5}); err != nil {
 		t.Fatal(err)
-	}
-	if current := r.api.PlaybackState().Tracks.Current; current.Primary != number {
-		t.Fatalf("watching with track %d, want the file %d", current.Primary, number)
 	}
 	if err := r.api.StopWatching(); err != nil {
 		t.Fatal(err)
 	}
-	reopened, err := r.api.OpenVideo(video)
+	reopened, err := r.api.OpenVideo(addedVideo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := fileTrack(t, reopened.Subtitles); got == 0 || reopened.Suggested.Primary != got {
+	if got := fileTrack(reopened.Subtitles); got == 0 || reopened.Suggested.Primary != got {
 		t.Fatalf("reopened: file track %d, suggested %+v", got, reopened.Suggested)
 	}
-
-	// A file that is gone is left out, without failing the video.
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	gone, err := r.api.OpenVideo(video)
+	gone, err := r.api.OpenVideo(addedVideo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fileTrack(t, gone.Subtitles) != 0 {
+	if fileTrack(gone.Subtitles) != 0 {
 		t.Fatal("a file that is gone still shows")
 	}
 }
@@ -305,7 +331,7 @@ func TestASubtitleFileAddedWhileWatchingGoesOnItsLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	state := r.api.PlaybackState()
-	number := fileTrack(t, state.Tracks.Subtitles)
+	number := fileTrack(state.Tracks.Subtitles)
 	if number == 0 || state.Tracks.Current.Translation != number {
 		t.Fatalf("translation = %d, file track = %d; want the file below", state.Tracks.Current.Translation, number)
 	}

@@ -365,17 +365,10 @@ func TestVLCSwitchesTheAudioWhilePlaying(t *testing.T) {
 		if err := session.SelectAudioTrack(index); err != nil {
 			t.Fatalf("SelectAudioTrack(%d): %v", index, err)
 		}
-		deadline := time.Now().Add(5 * time.Second)
-		for {
+		testkit.Eventually(t, fmt.Sprintf("VLC playing audio track %d", index), func() bool {
 			got, playing, err := session.ReportedAudioTrack()
-			if err == nil && playing && got == index {
-				break
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("after SelectAudioTrack(%d) VLC plays track %d (%v, %v)", index, got, playing, err)
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
+			return err == nil && playing && got == index
+		})
 	}
 }
 
