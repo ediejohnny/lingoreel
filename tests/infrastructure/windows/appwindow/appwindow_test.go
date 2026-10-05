@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/windows/appwindow"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // hiddenWindow creates a window that is never shown, with a title.

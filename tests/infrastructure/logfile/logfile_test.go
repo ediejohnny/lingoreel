@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/infrastructure/logfile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 )
 
 // clock is a settable time for the writer.

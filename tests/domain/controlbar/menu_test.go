@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 func studyState() controlbar.StudyState {

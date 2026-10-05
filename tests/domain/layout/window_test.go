@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 // The user's monitor: 1440x900 with a 40 px taskbar at the bottom.

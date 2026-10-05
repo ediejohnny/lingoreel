@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/application/analysis"
-	"lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/spdev"
 )
 
 var fixture = filepath.Join("..", "testdata", "matroska", "subtitles.mkv")

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 // The errors of PRD §52, each with a sentence that says what happened and

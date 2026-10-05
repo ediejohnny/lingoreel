@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/potplayer"
-	"lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/potplayer"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
 )
 
 // fakeEnvironment is an in-memory machine.

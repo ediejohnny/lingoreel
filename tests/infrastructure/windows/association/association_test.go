@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/windows/registry"
 
-	"lingoreel/internal/infrastructure/windows/association"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/association"
 )
 
 // testBase is a key of the current user that only these tests use; it is

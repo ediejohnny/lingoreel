@@ -6,12 +6,12 @@ import (
 	"slices"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // The changes the settings screen makes while a video plays: each one

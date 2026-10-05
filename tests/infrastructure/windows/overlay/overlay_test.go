@@ -19,15 +19,15 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/player/discovery"
-	"lingoreel/internal/infrastructure/player/vlc"
-	"lingoreel/internal/infrastructure/windows/overlay"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")

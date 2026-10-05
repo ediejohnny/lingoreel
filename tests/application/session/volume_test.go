@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 // volumePlayer is a player whose volume can change; it records the levels

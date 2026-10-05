@@ -10,10 +10,10 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/infrastructure/windows/hotkeys"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 var (

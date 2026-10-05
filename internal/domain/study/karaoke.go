@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // ErrInvalidKaraoke reports Modo Karaokê settings outside their ranges.

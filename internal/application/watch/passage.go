@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // ErrNoPassageStart reports the end of a passage marked before its start.

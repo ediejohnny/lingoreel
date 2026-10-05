@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
 const (

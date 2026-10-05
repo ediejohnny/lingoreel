@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 const frameRate24 = 24.0

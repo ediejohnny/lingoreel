@@ -8,8 +8,8 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 )
 
 const srt = "1\n00:00:01,000 --> 00:00:02,500\nHello there.\n\n2\n00:00:03,000 --> 00:00:04,000\nGeneral Kenobi.\n"

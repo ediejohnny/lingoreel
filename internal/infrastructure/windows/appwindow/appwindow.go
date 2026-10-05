@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ErrNotFound reports that no window of this process has the title.

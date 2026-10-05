@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // MaxInputBytes bounds the size of a subtitle document accepted by the parsers.

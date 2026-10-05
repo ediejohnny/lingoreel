@@ -3,8 +3,8 @@ package matroska
 import (
 	"time"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // maxPixelDimension rejects absurd frame sizes declared by broken files.

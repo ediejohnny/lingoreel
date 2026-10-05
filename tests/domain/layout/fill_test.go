@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 // With monoMeasurer at size 10 every character is 5 pixels wide: "ab cd"

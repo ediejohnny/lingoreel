@@ -5,8 +5,8 @@ package vlc_test
 import (
 	"testing"
 
-	"lingoreel/internal/infrastructure/player/vlc"
-	"lingoreel/tests/infrastructure/player/plugintest"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
+	"github.com/ediejohnny/lingoreel/tests/infrastructure/player/plugintest"
 )
 
 func TestVLCPluginDescriptor(t *testing.T) {

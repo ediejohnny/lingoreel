@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 func ms(value int) time.Duration {

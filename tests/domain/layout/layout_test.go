@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 // monoMeasurer is an independent oracle: every character is half the font

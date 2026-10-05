@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/infrastructure/persistence/jsonstore"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
 type sample struct {

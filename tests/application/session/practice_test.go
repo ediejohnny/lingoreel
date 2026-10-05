@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // practiceRig drives a practice by hand: the test sets the clock's state

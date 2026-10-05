@@ -6,9 +6,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 )
 
 // FuzzMatroska feeds arbitrary bytes to the analyzer and, when it accepts

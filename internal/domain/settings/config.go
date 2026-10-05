@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 // ErrInvalidSettings reports a preference outside its allowed values.

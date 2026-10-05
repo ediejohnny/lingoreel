@@ -10,11 +10,11 @@ import (
 	"slices"
 	"testing"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/windows/preview"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 )
 
 // sample is the screen of the settings' preview.

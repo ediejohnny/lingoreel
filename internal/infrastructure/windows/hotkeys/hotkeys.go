@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/infrastructure/windows/uithread"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ErrInvalidBinding reports a combination that cannot be a shortcut.

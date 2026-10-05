@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 var (

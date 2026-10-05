@@ -16,9 +16,9 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/infrastructure/windows/job"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ErrNotSupported reports a command PotPlayer cannot perform.

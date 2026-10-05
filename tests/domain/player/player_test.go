@@ -3,7 +3,7 @@ package player_test
 import (
 	"testing"
 
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 func supportedOnly(ids ...player.ID) func(player.ID) bool {

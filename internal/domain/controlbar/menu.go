@@ -4,9 +4,9 @@ import (
 	"math"
 	"time"
 
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // Menu names a menu of the bar: the passage, the Modo Karaokê and the

@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/domain/appearance"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/domain/subtitle"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // profileView turns a profile into what the settings screen shows.

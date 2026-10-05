@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 )
 
 var (

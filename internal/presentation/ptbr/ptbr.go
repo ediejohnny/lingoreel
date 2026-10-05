@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"lingoreel/internal/application/session"
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // languageNames are the languages named in the interface, by base tag.

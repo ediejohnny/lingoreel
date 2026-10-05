@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // A 640x360 window at 100%: panel from y 302 (58 high), band from 302-34 =

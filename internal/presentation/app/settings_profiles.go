@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 )
 
 var (

@@ -29,7 +29,7 @@ function Invoke-Native {
     }
 
     if ($exitCode -ne 0) {
-        throw "$FailureMessage (código de saída $exitCode)."
+        throw "$FailureMessage (exit code $exitCode)."
     }
     if ($Capture) {
         return $output
@@ -69,7 +69,7 @@ function Wait-NativeJobs {
             [System.IO.File]::Delete($file)
         }
         if ($job.Process.ExitCode -ne 0) {
-            $failures += "$($job.FailureMessage) (código de saída $($job.Process.ExitCode))."
+            $failures += "$($job.FailureMessage) (exit code $($job.Process.ExitCode))."
         }
     }
     if ($failures.Count -gt 0) {

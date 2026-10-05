@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/controlbar"
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/playback"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/infrastructure/windows/gdiplus"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // wideBar draws the bar of a 1280x720 window for a state; pixels are read

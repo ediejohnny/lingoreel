@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/infrastructure/player/discovery"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 )
 
 func writeFakeExecutable(t *testing.T, dir string) string {

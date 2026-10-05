@@ -20,9 +20,9 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"lingoreel/internal/domain/player"
-	"lingoreel/internal/infrastructure/windows/job"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // ErrStartTimeout reports a PotPlayer that did not show its window, or did

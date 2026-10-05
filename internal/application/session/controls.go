@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 var (

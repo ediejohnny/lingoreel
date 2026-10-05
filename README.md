@@ -1,72 +1,70 @@
 # LingoReel
 
-Aplicativo para Windows 10/11 que ajuda a estudar idiomas com filmes e séries. Ele abre o vídeo
-no seu player preferido e desenha, por cima, duas legendas sincronizadas: a do idioma estudado e a
-tradução em português, que pode ficar sempre visível ou aparecer só quando você pedir.
+A Windows 10/11 app that helps you study languages with movies and series. It opens the video in your favorite
+player and draws two synchronized subtitles over it: one in the language you are learning and its translation, which
+can stay on screen or show up only when you ask for it.
 
-> **Estado:** beta (versões `0.x`). Tudo o que está descrito abaixo já funciona, e o app segue recebendo melhorias.
-> A primeira versão estável será a `1.0.0`.
+> **Status:** beta (`0.x` versions). Everything described below already works, and the app keeps getting better.
+> The interface is in Brazilian Portuguese for now (the first audience is Brazilian students learning English);
+> the app is being prepared to take translations into other languages.
 
-## Recursos
+## Features
 
-- Leitura das legendas internas de arquivos `.mkv`, sem alterar o arquivo original.
-- Leitura de legendas externas (`.srt`, `.ass`, `.ssa`, `.vtt`) da pasta do vídeo e das
-  subpastas `Subs`/`Subtitles`, para quando o filme não traz a legenda que você quer.
-- Duas legendas simultâneas, com sincronização e deslocamento (offset) independentes.
-- Três modos de estudo: Dupla, Tradução sob demanda (mostrar, ocultar ou segurar uma tecla para
-  revelar) e Tradução sempre visível.
-- Atalhos configuráveis: busca de 5, 10 e 30 s, passo de precisão, quadro a quadro, velocidade,
-  repetir a frase e os últimos segundos.
-- Modo Karaokê: nas pausas longas, a próxima fala aparece antes da hora, com uma barra ou uma
-  contagem, e vai sendo preenchida enquanto o ator fala, para você falar junto.
-- Estudos salvos: Ctrl+F9 marca o início de um trecho e Ctrl+F10 o fim. O trecho é salvo com os
-  tempos no nome e repete até você sair. Ao reabrir o vídeo, ele continua de onde você parou, com
-  a velocidade, o Modo Karaokê, a sincronização e a lista de trechos.
-- Uma barra de controles própria sobre o vídeo, com quadro a quadro e menus para o trecho, o Modo
-  Karaokê e as legendas, sem precisar voltar ao app.
-- Suporte a VLC e PotPlayer, com o player preferido escolhido por você. Outros players entram como
-  plugins (veja o guia em `docs/plugins-de-player.md`).
-- Janela, tela cheia, vários monitores e escalas de DPI de 100% a 200%.
-- Correção de legendas com o vídeo pausado: dois cliques na fala abrem uma caixa ali mesmo, sobre o
-  vídeo, para corrigir o texto; os tempos se ajustam no painel do app. Com desfazer/refazer
-  (Ctrl+Z/Ctrl+Y), e o texto original nunca se perde.
-- Um arquivo de correções por vídeo (`Filme.dualsub.json`, ao lado do vídeo), que guarda as
-  correções, a sincronização, as faixas e o modo escolhidos e os trechos salvos para estudo.
-- Exportação da legenda corrigida e sincronizada em `.srt` ou `.ass`, para usar em outro player.
-- Um único `.exe` portátil, sem instalação: o WebView2 vai embutido para o Windows 10 que não o tem.
-- Abrir vídeos pelo menu do Windows ("Assistir com o LingoReel" e "Abrir com"), se você
-  ligar a opção; o programa padrão de cada vídeo não muda.
-- Registros diários dos últimos 14 dias e uma tela de diagnóstico para relatar problemas, sem o
-  texto das legendas e sem enviar nada pela internet.
+- Reads the subtitles inside `.mkv` files without ever changing the original file.
+- Reads external subtitles (`.srt`, `.ass`, `.ssa`, `.vtt`) from the video's folder and its `Subs`/`Subtitles`
+  subfolders, for when the movie does not ship the subtitle you want.
+- Two subtitles at once, each with its own synchronization and offset.
+- Three study modes: both subtitles, translation on demand (show, hide or hold a key to reveal) and translation always
+  visible.
+- Configurable shortcuts: 5, 10 and 30 second seeks, a precision step, frame by frame, speed, repeat the line and the
+  last few seconds.
+- Karaoke mode ("Modo Karaokê"): in long pauses the next line shows up ahead of time, with a bar or a countdown, and
+  fills in while the actor speaks, so you can speak along.
+- Saved studies: Ctrl+F9 marks where a passage begins and Ctrl+F10 where it ends. The passage is saved with its times as
+  its name and repeats until you leave it. When you open the video again, it resumes where you left off, with the speed,
+  the karaoke mode, the sync and the list of passages.
+- Its own control bar over the video, with frame stepping and menus for the passage, the karaoke mode and the
+  subtitles, without going back to the app.
+- Works with VLC and PotPlayer, and you choose your favorite player. Other players come in as plugins (see
+  [Player plugins](docs/player-plugins.md)).
+- Windowed, fullscreen, several monitors and display scaling from 100% to 200%.
+- Subtitle corrections while the video is paused: double-click a line to open a box right over the video and fix the
+  text; the timing is adjusted in the app's panel. Undo and redo (Ctrl+Z/Ctrl+Y), and the original text is never lost.
+- One corrections file per video (`Movie.dualsub.json`, next to the video) that keeps the corrections, the sync, the
+  chosen tracks and mode, and the passages saved for study.
+- Exports the corrected, synchronized subtitle as `.srt` or `.ass`, to use in another player.
+- A single portable `.exe`, no installation: WebView2 is bundled for the Windows 10 machines that lack it.
+- Open videos from the Windows menu ("Assistir com o LingoReel" and "Open with"), if you turn the option on; the
+  default program of each video does not change.
+- Daily logs for the last 14 days and a diagnostics screen to report problems, without the subtitles' text and without
+  sending anything over the internet.
 
-## Desenvolvimento
+## Development
 
-Requisitos: Windows 10/11 64-bit, Go 1.26+ e PowerShell 5.1+. Para `go test -race`, um `gcc`
-no `PATH`.
+Requirements: Windows 10/11 64-bit, Go 1.26+ and PowerShell 5.1+. For `go test -race`, a `gcc` on the `PATH`.
 
-| Comando | O que faz |
+| Command | What it does |
 |---|---|
-| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatação, análise estática e testes |
-| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1` | Compila os executáveis em `build\bin` |
-| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package.ps1` | Monta o zip portátil em `build\dist` (depois do build) |
-| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev.ps1` | Abre o app em modo de desenvolvimento (recarrega ao mudar o código) |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatting, static analysis and tests |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1` | Builds the executables into `build\bin` |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package.ps1` | Builds the portable zip into `build\dist` (after the build) |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev.ps1` | Opens the app in development mode (reloads when the code changes) |
 
-As versões seguem o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+Versions follow [Semantic Versioning](https://semver.org/); see the [changelog](CHANGELOG.md).
 
-## Contribuindo
+## Contributing
 
-Contribuições são bem-vindas! Abra uma issue para conversar sobre a ideia ou envie um pull request.
-Antes de enviar, rode o `scripts\check.ps1`: ele precisa passar sem erros. A interface segue o [Prettier](https://prettier.io/): `npm run format` na pasta `frontend` formata o código.
+Contributions are welcome! Open an issue to talk about an idea or send a pull request. Before sending it, run
+`scripts\check.ps1`: it must pass without errors. The interface follows [Prettier](https://prettier.io/): run
+`npm run format` in the `frontend` folder to format the code.
 
-Quer usar outro player? Cada player é um plugin que segue o mesmo contrato: veja
-[Plugins de player](docs/plugins-de-player.md).
+Want to use another player? Every player is a plugin that follows the same contract: see
+[Player plugins](docs/player-plugins.md).
 
-## Licença e créditos
+## License and credits
 
-O LingoReel é distribuído sob a [licença MIT](LICENSE): você pode usar, copiar, modificar e
-distribuir o projeto, inteiro ou em partes, inclusive em projetos comerciais, desde que mantenha o
-aviso de copyright e o texto da licença.
+LingoReel is distributed under the [MIT license](LICENSE): you may use, copy, modify and distribute the project,
+in whole or in part, including in commercial projects, as long as you keep the copyright notice and the license text.
 
-Se este projeto for útil para você, **dê os créditos** mencionando o LingoReel e o autor,
-Edie Johnny, com um link para o repositório. Não é uma obrigação da licença, mas é um gesto ético
-que ajuda o projeto a continuar.
+If this project is useful to you, **please give credit** by mentioning LingoReel and its author, Edie Johnny,
+with a link to the repository. The license does not require it, but it is a kind gesture that helps the project go on.

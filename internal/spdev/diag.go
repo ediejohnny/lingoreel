@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 // diag prints what decides where the player and the subtitles go on this

@@ -1,12 +1,12 @@
 package spdev
 
 import (
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/settings"
-	"lingoreel/internal/infrastructure/windows/keyboard"
-	"lingoreel/internal/infrastructure/windows/overlay"
-	"lingoreel/internal/infrastructure/windows/playerwindow"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // defaultLook draws the subtitles with the default profile's look.

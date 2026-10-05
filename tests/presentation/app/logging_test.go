@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 // A player that stops answering shows on the panel and on the video, and

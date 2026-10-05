@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"lingoreel/internal/domain/media"
-	"lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 )
 
 type wantCue struct {

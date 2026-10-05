@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"lingoreel/internal/application/players"
-	"lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/domain/player"
 )
 
 // stubPlugin describes a player and records launches.

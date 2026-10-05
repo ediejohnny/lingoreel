@@ -8,11 +8,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/study"
-	"lingoreel/internal/infrastructure/subtitleformat"
-	"lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // Messages of the editor.

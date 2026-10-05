@@ -9,8 +9,8 @@ import (
 	"math"
 	"time"
 
-	"lingoreel/internal/domain/layout"
-	"lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
 // Action is what a part of the bar does.

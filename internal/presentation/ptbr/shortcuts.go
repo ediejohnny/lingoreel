@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 )
 
 // KeyChar is the character a key types on the user's keyboard layout, such

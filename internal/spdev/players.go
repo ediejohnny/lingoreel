@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"lingoreel/internal/application/players"
+	"github.com/ediejohnny/lingoreel/internal/application/players"
 )
 
 // stderrLogger writes the events that have no caller to the console.

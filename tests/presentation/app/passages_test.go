@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"lingoreel/internal/application/watch"
-	"lingoreel/internal/domain/project"
-	"lingoreel/internal/domain/shortcut"
-	"lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
 
 // seekTo moves the paused video and waits for the panel to show it there.
