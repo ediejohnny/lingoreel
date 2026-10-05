@@ -6,9 +6,30 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-05
+
+A right click on the video opens a full menu, and subtitles switch while the video plays.
+
+### Added
+
+- The right button on the video or its bar, the menu key or Shift+F10 opens Windows' own menu over the video: the line
+  under the click (correct it in place, copy it, its look), playback, speed, audio, subtitles and sync, study mode, Modo
+  Karaokê, passages, another video, the settings and closing, with icons, submenus and the key the profile gives each
+  command.
+- Switching the subtitle on top or below, or the audio, while the video plays, from the menu or from the panel's new
+  "Legendas" card; "Nenhuma" takes the translation away.
+- "Adicionar arquivo de legenda…" on the session screen, the panel and the menu: a subtitle file from any folder joins
+  the video and comes back the next time it opens.
+
 ### Changed
 
 - A held volume key goes all the way to the player's ceiling (200% on VLC), no longer stopping at 100%.
+- Interface texts no longer mix English into Portuguese: the export dialog's formats keep their own names, and the
+  diagnostics and track notes read in Portuguese.
+
+### Fixed
+
+- A sync step or a correction made right as a line's subtitle is switched is kept on the track it was made on.
 
 ## [0.19.0] - 2026-10-05
 
@@ -26,6 +47,7 @@ The app is ready for translations.
 ### Fixed
 
 - "1 voltas" and "Meta de 1 repetições concluída" now read in the singular.
+
 ## [0.18.0] - 2026-10-05
 
 One window: with VLC, the video plays inside the app's window, with the panel beside it.
@@ -46,6 +68,7 @@ One window: with VLC, the video plays inside the app's window, with the panel be
 ### Fixed
 
 - A right click on the video no longer sends the app's window a message that waits for it.
+
 ## [0.17.0] - 2026-10-05
 
 The volume goes up to 200% on VLC, gradually while a key is held.
@@ -367,7 +390,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/ediejohnny/lingoreel/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/ediejohnny/lingoreel/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...v0.17.0
