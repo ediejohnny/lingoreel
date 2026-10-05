@@ -1,6 +1,7 @@
 package playerwindow_test
 
 import (
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -362,6 +363,59 @@ func TestAWindowClosedWithItsMenuOpenDropsTheChoice(t *testing.T) {
 	if slices.Contains(m.remote.ran(), "mute") {
 		t.Fatal("the item chosen in the menu of a closed window ran")
 	}
+}
+
+// menuShowing tells whether a popup menu shows on screen (its window class
+// is "#32768").
+func menuShowing() bool {
+	class, _ := windows.UTF16PtrFromString("#32768")
+	menu, _, _ := procFindWindow.Call(uintptr(unsafe.Pointer(class)), 0)
+	return menu != 0 && windows.IsWindowVisible(windows.HWND(menu))
+}
+
+var procFindWindow = windows.NewLazySystemDLL("user32.dll").NewProc("FindWindowW")
+
+// The real menu, on screen (only with LINGOREEL_MENU_TEST=1: it shows
+// on the monitor for a moment, so nothing else may be in use): what closes
+// a menu (a click elsewhere cancels the mode) closes it, the window then
+// opens it again, and a window closed while its menu shows goes well within
+// the time a stuck thread is given.
+func TestARealMenuClosesAndLetsTheWindowGo(t *testing.T) {
+	if os.Getenv("LINGOREEL_MENU_TEST") != "1" {
+		t.Skip("set LINGOREEL_MENU_TEST=1 to show a real menu on screen")
+	}
+	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
+		NoActivate: true,
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { w.Close() })
+	host := windows.HWND(w.Handle())
+	w.Attach(newRemote(&recordingPlayer{}))
+	client, err := win32.ClientRectOnScreen(host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const wmCancelMode = 0x001F
+	for round := range 2 {
+		post(t, host, win32.WM_CONTEXTMENU, uintptr(host), at(int(client.Left+20), int(client.Top+20)))
+		testkit.Eventually(t, "the menu on screen", menuShowing)
+		if round == 0 {
+			post(t, host, wmCancelMode, 0, 0)
+			testkit.Eventually(t, "the menu closed", func() bool { return !menuShowing() })
+		}
+	}
+	started := time.Now()
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close with the menu open: %v", err)
+	}
+	if took := time.Since(started); took > time.Second {
+		t.Fatalf("closing with the menu open took %v", took)
+	}
+	testkit.Eventually(t, "the menu gone with the window", func() bool { return !menuShowing() })
 }
 
 // Ending the video from the menu runs off the window's thread: the app's
