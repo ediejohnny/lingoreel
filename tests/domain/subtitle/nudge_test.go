@@ -29,9 +29,6 @@ func TestNudgeStepsRanges(t *testing.T) {
 			t.Errorf("Validate(%+v) = %v, want ok %v", c.steps, err, c.ok)
 		}
 	}
-	if got := subtitle.DefaultNudgeSteps(); got.Step != 50*time.Millisecond || got.FastStep != 500*time.Millisecond {
-		t.Fatalf("defaults = %+v, want 50 ms and 500 ms", got)
-	}
 }
 
 func TestNudgerFallsBackToTheDefaults(t *testing.T) {

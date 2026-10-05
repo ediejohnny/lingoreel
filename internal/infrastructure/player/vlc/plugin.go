@@ -29,6 +29,8 @@ func (Plugin) Descriptor() player.Descriptor {
 			DownloadURL: "https://www.videolan.org/vlc/download-windows.html",
 			Benefit:     "O player mais popular: abre praticamente qualquer formato e é ótimo se você já usa.",
 		},
+		// VLC 3 ignores the close button of its own window: it must draw
+		// into the app's, which closes like any other.
 		DrawsInHost: true,
 	}
 }

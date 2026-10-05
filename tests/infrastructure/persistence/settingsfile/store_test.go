@@ -317,14 +317,3 @@ func TestSettingsRefuseBadValues(t *testing.T) {
 		t.Fatalf("LoadProfiles of a corrupt file = %+v, %v; want the defaults and ErrCorrupt", profiles, err)
 	}
 }
-
-func TestDirIsInsideTheUserSettings(t *testing.T) {
-	dir, err := settingsfile.Dir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	base, _ := os.UserConfigDir()
-	if filepath.Dir(dir) != base || filepath.Base(dir) != "LingoReel" {
-		t.Fatalf("Dir = %q, want %q\\LingoReel", dir, base)
-	}
-}

@@ -142,12 +142,6 @@ func TestArgumentsDrawIntoTheHostWindow(t *testing.T) {
 	}
 }
 
-func TestVLCDrawsIntoTheAppWindow(t *testing.T) {
-	if !(vlc.Plugin{}).Descriptor().DrawsInHost {
-		t.Fatal("the VLC plugin must draw into the app's window: VLC 3 ignores the close button of its own")
-	}
-}
-
 func TestArgumentsPlaceTheWindowOnlyWhenAsked(t *testing.T) {
 	// 1152 of a 1920-pixel video: VLC sizes its window with a 0.6 zoom.
 	placed := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920,

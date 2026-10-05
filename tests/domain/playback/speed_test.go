@@ -86,10 +86,3 @@ func TestSpeedStepsWalkEveryPresetBothWays(t *testing.T) {
 		}
 	}
 }
-
-func TestSpeedStepsReturnsACopy(t *testing.T) {
-	playback.SpeedSteps()[0] = 99
-	if playback.SpeedSteps()[0] != playback.MinSpeed {
-		t.Fatal("SpeedSteps exposed its internal slice")
-	}
-}

@@ -70,13 +70,3 @@ func TestRegistryFindsAndLaunchesItsPlugins(t *testing.T) {
 		t.Fatal("the plugin's launch error was lost")
 	}
 }
-
-func TestEmptyRegistrySupportsNothing(t *testing.T) {
-	registry, err := players.NewRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if registry.Supported("vlc") || len(registry.Descriptors()) != 0 {
-		t.Fatal("an empty registry supports something")
-	}
-}

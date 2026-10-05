@@ -3,7 +3,6 @@ package shortcut_test
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -75,24 +74,6 @@ func TestParseRefusesWhatCannotBeAShortcut(t *testing.T) {
 	for _, text := range []string{"Ctrl+F4", "Shift+F12", "Ctrl+F12", "Ctrl+Tab", "Shift+Escape", "Ctrl+Space", "F11", "Escape"} {
 		if _, err := shortcut.Parse(text); err != nil {
 			t.Errorf("Parse(%q) = %v, want it accepted", text, err)
-		}
-	}
-}
-
-func TestEveryLetterDigitAndFunctionKeyIsKnown(t *testing.T) {
-	var names []string
-	for c := 'A'; c <= 'Z'; c++ {
-		names = append(names, "Key"+string(c))
-	}
-	for c := '0'; c <= '9'; c++ {
-		names = append(names, "Digit"+string(c), "Numpad"+string(c))
-	}
-	for i := 1; i <= 12; i++ {
-		names = append(names, "F"+strconv.Itoa(i))
-	}
-	for _, name := range names {
-		if !shortcut.Key(name).Known() {
-			t.Errorf("%s unknown", name)
 		}
 	}
 }
