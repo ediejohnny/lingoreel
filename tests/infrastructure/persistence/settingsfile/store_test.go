@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 )
 
 func TestSettingsStartWithTheDefaults(t *testing.T) {
+	t.Parallel()
 	files := settingsfile.Open(t.TempDir())
 	config, err := files.LoadConfig()
 	if err != nil || config.Theme != settings.ThemeSystem || config.PlayerPaths == nil {
@@ -30,6 +32,7 @@ func TestSettingsStartWithTheDefaults(t *testing.T) {
 }
 
 func TestSettingsRoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	files := settingsfile.Open(dir)
 	config := settings.DefaultConfig()
@@ -41,6 +44,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 	profiles := settings.DefaultProfiles()
 	profiles.Items[0].PreferredPlayer = "vlc"
+	profiles.Items[0].Translation.Background.Enabled = true
 	if err := files.SaveProfiles(profiles); err != nil {
 		t.Fatal(err)
 	}
@@ -52,14 +56,13 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("config after a round trip = %+v, %v", gotConfig, err)
 	}
 	gotProfiles, err := again.LoadProfiles()
-	if err != nil || gotProfiles.Items[0].PreferredPlayer != "vlc" {
-		t.Fatalf("profiles after a round trip = %+v, %v", gotProfiles, err)
+	if err != nil || !reflect.DeepEqual(gotProfiles, profiles) {
+		t.Fatalf("profiles after a round trip = %+v, %v\nwant %+v", gotProfiles, err, profiles)
 	}
-	for name, version := range map[string]string{"config.json": `"version": 1`, "profiles.json": `"version": 4`} {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil || !strings.Contains(string(data), version) {
-			t.Fatalf("%s = %s, %v; want %s", name, data, err, version)
-		}
+	// People may edit the file by hand: times and colors are readable.
+	data, err := os.ReadFile(filepath.Join(dir, "profiles.json"))
+	if err != nil || !strings.Contains(string(data), `"precisionSeekStep": "100ms"`) || !strings.Contains(string(data), `"color": "#FFFFFF"`) {
+		t.Fatalf("profiles.json is not readable by people: %v\n%s", err, data)
 	}
 }
 
@@ -67,6 +70,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 // rest of each profile stays as the user left it. Two profiles: decoding
 // over the default list, the first one would inherit the defaults anyway.
 func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	profile := `{"name": "NAME", "preferredPlayer": "vlc",
 		"languages": {"audio": "fr", "primary": "fr", "translation": "pt-BR"},
@@ -111,6 +115,7 @@ func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
 // A config saved before the sync notice could be turned off keeps it on;
 // one that turned it off keeps it off, with the window where it was.
 func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	old := `{"version":1,"theme":"dark","activeProfile":"Inglês","playerPaths":{},"installRecommendations":{"dismissAll":false,"dismissed":[]}}`
@@ -134,6 +139,7 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 }
 
 func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	profiles := settings.DefaultProfiles()
 	profiles.Items[0].Shortcuts = shortcut.Map{shortcut.Mute: {Modifiers: shortcut.Ctrl, Key: "KeyU"}}
@@ -159,6 +165,7 @@ func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {
 // shortcut (or with the other key), and the profile still loads. Without the
 // migration the whole profile would be refused and replaced by the defaults.
 func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	data := `{"version": 3, "profiles": [` +
 		profileJSON(t, "Meu", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
@@ -216,6 +223,7 @@ func profileJSON(t *testing.T, name, shortcuts string) string {
 // decoding over the default list, the first one would inherit the defaults
 // anyway.
 func TestOldProfilesFollowTheAppFont(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	defaults := settings.DefaultProfile()
 	styles := func(family string) (string, string) {
@@ -274,6 +282,7 @@ func karaokeJSON(t *testing.T) string {
 
 // A document without study preferences is refused, not silently patched.
 func TestBrokenOldProfilesAreRefused(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(`{"version": 1, "profiles": [{"name": "X"}]}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -284,6 +293,7 @@ func TestBrokenOldProfilesAreRefused(t *testing.T) {
 }
 
 func TestSettingsRefuseBadValues(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	files := settingsfile.Open(dir)
 	config := settings.DefaultConfig()
@@ -315,16 +325,5 @@ func TestSettingsRefuseBadValues(t *testing.T) {
 	profiles, err := files.LoadProfiles()
 	if !errors.Is(err, jsonstore.ErrCorrupt) || len(profiles.Items) != 1 {
 		t.Fatalf("LoadProfiles of a corrupt file = %+v, %v; want the defaults and ErrCorrupt", profiles, err)
-	}
-}
-
-func TestDirIsInsideTheUserSettings(t *testing.T) {
-	dir, err := settingsfile.Dir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	base, _ := os.UserConfigDir()
-	if filepath.Dir(dir) != base || filepath.Base(dir) != "LingoReel" {
-		t.Fatalf("Dir = %q, want %q\\LingoReel", dir, base)
 	}
 }

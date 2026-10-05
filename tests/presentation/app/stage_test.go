@@ -12,9 +12,10 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
-// The video inside the app's window (B2): the screens place it, ask for the
+// The video inside the app's window: the screens place it, ask for the
 // fullscreen and keep the panel beside it; closing the window ends the video
 // first.
 
@@ -144,7 +145,7 @@ func TestAVideoInsideTheAppWindowStaysWithTheApp(t *testing.T) {
 		t.Fatal("a video drawn inside the app's window is not said to be")
 	}
 	r.plugin.current().Close()
-	eventually(t, "the end told to the screens", func() bool {
+	testkit.Eventually(t, "the end told to the screens", func() bool {
 		_, told := r.ui.last(app.EventEnded)
 		return told && !r.api.PlaybackState().Active
 	})
@@ -186,7 +187,7 @@ func TestTheSessionEndsBeforeTheAppCloses(t *testing.T) {
 		t.Fatal("the window closed with the video still playing in it")
 	}
 	r.lifecycle.EndBeforeClosing(quit) // a second click on X
-	eventually(t, "the app to quit", func() bool { mu.Lock(); defer mu.Unlock(); return quits > 0 })
+	testkit.Eventually(t, "the app to quit", func() bool { mu.Lock(); defer mu.Unlock(); return quits > 0 })
 	time.Sleep(50 * time.Millisecond)
 	mu.Lock()
 	defer mu.Unlock()

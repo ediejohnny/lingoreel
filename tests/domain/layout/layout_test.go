@@ -82,6 +82,7 @@ func checkInvariants(t *testing.T, in layout.Input, frame layout.Frame) {
 }
 
 func TestDefaultsScaleWithTheVideo(t *testing.T) {
+	t.Parallel()
 	for _, size := range [][2]float64{{1280, 720}, {1920, 1080}, {2560, 1440}, {3840, 2160}} {
 		w, h := size[0], size[1]
 		in := defaults(video(w, h), "Hello there.", "Olá.")
@@ -110,6 +111,7 @@ func TestDefaultsScaleWithTheVideo(t *testing.T) {
 }
 
 func TestLetterboxedVideoPositionsInsideThePicture(t *testing.T) {
+	t.Parallel()
 	picture := layout.VideoRect(layout.Rect{W: 1920, H: 1080}, 2400, 1000)
 	in := defaults(picture, "Hi.", "Oi.")
 	frame := layout.Compute(in, monoMeasurer{})
@@ -125,6 +127,7 @@ func TestLetterboxedVideoPositionsInsideThePicture(t *testing.T) {
 // The primary line must stay put when the translation is shown or hidden; a
 // short translation must not move it either.
 func TestPrimaryDoesNotDependOnAShortTranslation(t *testing.T) {
+	t.Parallel()
 	alone := layout.Compute(defaults(video(1920, 1080), "I'm not going there.", ""), monoMeasurer{})
 	paired := layout.Compute(defaults(video(1920, 1080), "I'm not going there.", "Eu não vou para lá.\nNão mesmo."), monoMeasurer{})
 	if alone.Translation != nil {
@@ -136,6 +139,7 @@ func TestPrimaryDoesNotDependOnAShortTranslation(t *testing.T) {
 }
 
 func TestLongTranslationNeverCoversThePrimary(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "Short.", strings.Repeat("palavra comprida ", 60))
 	in.Translation.Style.MaxLines = appearance.MaxLines
 	frame := layout.Compute(in, monoMeasurer{})
@@ -149,11 +153,12 @@ func TestLongTranslationNeverCoversThePrimary(t *testing.T) {
 	}
 }
 
-// DESIGN §23: the English line never moves when the translation appears, not
+// The English line never moves when the translation appears, not
 // even when the translation does not fit on its side. At 1280x720 the
 // primary (82%) has about 97 px below it; this translation needs more even at
 // 80%, so it must go above the primary, which stays put.
 func TestPrimaryNeverMovesForATranslationThatDoesNotFitBelow(t *testing.T) {
+	t.Parallel()
 	primary := "I'm not going there."
 	translation := strings.TrimSpace(strings.Repeat("uma frase bem longa ", 45))
 	in := defaults(video(1280, 720), primary, translation)
@@ -176,6 +181,7 @@ func TestPrimaryNeverMovesForATranslationThatDoesNotFitBelow(t *testing.T) {
 // When neither side has room even at the minimum size, the translation stays
 // on its side and the primary still does not move.
 func TestPrimaryStaysEvenWhenNothingFits(t *testing.T) {
+	t.Parallel()
 	// 3200 characters at the 10 px minimum (5 px each, 576 px per line) need
 	// about 28 lines of 12.5 px: more than the whole 360 px picture.
 	solo := defaults(video(640, 360), "Center.", "")
@@ -192,11 +198,12 @@ func TestPrimaryStaysEvenWhenNothingFits(t *testing.T) {
 	}
 }
 
-// PRD §34: a block may not take more than 35% of the picture height; past
+// A block may not take more than 35% of the picture height; past
 // the line limit it keeps shrinking (never cut) until it fits or reaches the
 // minimum. 400 words at 1920x1080: at 80% (25.6 px) they need 15 lines of
 // 32 px = 480 px, more than 378 px (35%).
 func TestLongTextShrinksToItsShareOfThePicture(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), strings.TrimSpace(strings.Repeat("abcd ", 400)), "")
 	frame := layout.Compute(in, monoMeasurer{})
 	checkInvariants(t, in, frame)
@@ -226,6 +233,7 @@ func (c *countingMeasurer) Width(text string, font layout.Font) float64 {
 // measurements per word and per shrink step (hundreds of thousands in all),
 // a binary search about 10 per piece.
 func TestHostileTextNeedsFewMeasurements(t *testing.T) {
+	t.Parallel()
 	word := strings.Repeat("w", 1000)
 	hostile := strings.TrimSuffix(strings.Repeat(word+"\n", 8), "\n")
 	in := defaults(video(1920, 1080), hostile, hostile)
@@ -240,6 +248,7 @@ func TestHostileTextNeedsFewMeasurements(t *testing.T) {
 
 // The top margin keeps a subtitle placed at the very top off the edge.
 func TestTopMarginKeepsTopSubtitlesOffTheEdge(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), "At the top.", "")
 	in.Primary.Style.VerticalPosition = 0.01
 	frame := layout.Compute(in, monoMeasurer{})
@@ -250,6 +259,7 @@ func TestTopMarginKeepsTopSubtitlesOffTheEdge(t *testing.T) {
 }
 
 func TestTranslationAboveThePrimaryIsRespected(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), "Primary.", "Tradução em cima.")
 	in.Translation.Style.VerticalPosition = 0.3
 	frame := layout.Compute(in, monoMeasurer{})
@@ -263,6 +273,7 @@ func TestTranslationAboveThePrimaryIsRespected(t *testing.T) {
 }
 
 func TestPositionsStayInsideTheBottomMargin(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), "Bottom.", "")
 	in.Primary.Style.VerticalPosition = 1
 	frame := layout.Compute(in, monoMeasurer{})
@@ -273,6 +284,7 @@ func TestPositionsStayInsideTheBottomMargin(t *testing.T) {
 }
 
 func TestFixedSizeFollowsTheDisplayDPIAndResponsiveDoesNot(t *testing.T) {
+	t.Parallel()
 	for _, dpi := range []int{0, 96, 120, 144, 168, 192} {
 		in := defaults(video(1920, 1080), "Text.", "")
 		in.DPI = dpi
@@ -297,6 +309,7 @@ func TestFixedSizeFollowsTheDisplayDPIAndResponsiveDoesNot(t *testing.T) {
 }
 
 func TestTinyVideoKeepsAReadableFont(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		dpi  int
 		want float64
@@ -311,6 +324,7 @@ func TestTinyVideoKeepsAReadableFont(t *testing.T) {
 }
 
 func TestWrapFitsTheWidthAndKeepsEveryWord(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "I'm gonna have to think about it, because this is the kind of decision that changes everything we planned for the summer.", "")
 	in.Primary.Style.MaxLines = appearance.MaxLines
 	frame := layout.Compute(in, monoMeasurer{})
@@ -326,6 +340,7 @@ func TestWrapFitsTheWidthAndKeepsEveryWord(t *testing.T) {
 }
 
 func TestWordWiderThanTheLineIsBrokenBetweenCharacters(t *testing.T) {
+	t.Parallel()
 	word := strings.Repeat("é", 400)
 	in := defaults(video(1280, 720), word, "")
 	in.Primary.Style.MaxLines = appearance.MaxLines
@@ -341,6 +356,7 @@ func TestWordWiderThanTheLineIsBrokenBetweenCharacters(t *testing.T) {
 }
 
 func TestExplicitLineBreaksAreKept(t *testing.T) {
+	t.Parallel()
 	cases := map[string][]string{
 		"Eu não vou para lá.\nNão mesmo.": {"Eu não vou para lá.", "Não mesmo."},
 		"Eu não vou.\r\nNão mesmo.":       {"Eu não vou.", "Não mesmo."},
@@ -364,6 +380,7 @@ func TestExplicitLineBreaksAreKept(t *testing.T) {
 // so 108 fit per line; 46 words of "abcd" need 3 lines at 100% and 95%, and
 // 2 lines at 90% (14.4 px per character, 120 per line).
 func TestMaxLinesShrinksTheFontBeforeAddingLines(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), strings.TrimSpace(strings.Repeat("abcd ", 46)), "")
 	frame := layout.Compute(in, monoMeasurer{})
 	checkInvariants(t, in, frame)
@@ -378,6 +395,7 @@ func TestMaxLinesShrinksTheFontBeforeAddingLines(t *testing.T) {
 // 200 words do not fit in 2 lines even at 80% (25.6 px, 27 words per line):
 // the text keeps every word on extra lines instead of being cut.
 func TestTextThatCannotFitTakesExtraLinesInsteadOfBeingCut(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), strings.TrimSpace(strings.Repeat("abcd ", 200)), "")
 	frame := layout.Compute(in, monoMeasurer{})
 	checkInvariants(t, in, frame)
@@ -392,6 +410,7 @@ func TestTextThatCannotFitTakesExtraLinesInsteadOfBeingCut(t *testing.T) {
 // With margins of 5% the default maximum width (90%) changes nothing, so this
 // uses 50%: at 1920 px the text must stay inside the centered 960 px.
 func TestMaxWidthNarrowsTheLinesAroundTheCenter(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), strings.Repeat("palavra ", 40), "")
 	in.Layout.MaxWidth = 0.5
 	in.Primary.Style.MaxLines = appearance.MaxLines
@@ -408,6 +427,7 @@ func TestMaxWidthNarrowsTheLinesAroundTheCenter(t *testing.T) {
 }
 
 func TestAlignmentUsesTheSafeAreaEdges(t *testing.T) {
+	t.Parallel()
 	for _, alignment := range []appearance.Alignment{appearance.AlignLeft, appearance.AlignRight, appearance.AlignCenter} {
 		in := defaults(video(1920, 1080), "Aligned text.", "")
 		in.Primary.Style.Alignment = alignment
@@ -431,6 +451,7 @@ func TestAlignmentUsesTheSafeAreaEdges(t *testing.T) {
 }
 
 func TestBackgroundPaddingSurroundsTheText(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1920, 1080), "Boxed.", "")
 	in.Primary.Style.Background = appearance.Background{Enabled: true, Color: appearance.RGB(0, 0, 0), Padding: 10}
 	in.Primary.Style.Alignment = appearance.AlignLeft
@@ -449,6 +470,7 @@ func TestBackgroundPaddingSurroundsTheText(t *testing.T) {
 }
 
 func TestHostileInputsProduceNoBlocks(t *testing.T) {
+	t.Parallel()
 	for name, v := range map[string]layout.Rect{
 		"zero": video(0, 0), "negative": video(-1920, 1080), "NaN": video(math.NaN(), 1080), "Inf": video(1920, math.Inf(1)),
 	} {

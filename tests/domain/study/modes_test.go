@@ -1,7 +1,6 @@
 package study_test
 
 import (
-	"slices"
 	"testing"
 	"time"
 
@@ -9,7 +8,8 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
-func TestTheModesStartAndHideAsThePRDSays(t *testing.T) {
+func TestEachModeStartsAndHidesItsOwnWay(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		mode               study.Mode
 		revealed, hideable bool
@@ -23,47 +23,49 @@ func TestTheModesStartAndHideAsThePRDSays(t *testing.T) {
 			t.Errorf("%s: starts revealed %v, hideable %v", c.mode, c.mode.StartsRevealed(), c.mode.Hideable())
 		}
 	}
-	if !slices.Equal(study.Modes(), []study.Mode{study.ModeDual, study.ModeOnDemand, study.ModeAlwaysTranslated}) {
-		t.Fatalf("Modes() = %v", study.Modes())
-	}
-	for _, mode := range study.Modes() {
-		if !mode.Valid() {
-			t.Errorf("%s is not valid", mode)
-		}
-	}
 }
 
+// What the translation key does, written out: in dual mode it toggles
+// whatever the behavior says, on demand the behavior decides (a held key
+// hides on release), and when always shown nothing changes it.
 func TestTheTranslationKeyInEachMode(t *testing.T) {
-	behaviors := []study.RevealBehavior{study.RevealToggle, study.RevealHold}
-	for _, behavior := range behaviors {
-		for _, visible := range []bool{false, true} {
-			for _, pressed := range []bool{false, true} {
-				// Always shown: nothing changes it.
-				if !study.ModeAlwaysTranslated.Reveal(behavior, visible, pressed) {
-					t.Errorf("always, %s, visible %v, pressed %v: hidden", behavior, visible, pressed)
-				}
-				// Dual: the key toggles, whatever the behavior says.
-				if got, want := study.ModeDual.Reveal(behavior, visible, pressed), study.RevealToggle.Revealed(visible, pressed); got != want {
-					t.Errorf("dual, %s, visible %v, pressed %v = %v, want %v", behavior, visible, pressed, got, want)
-				}
-				// On demand: the behavior decides.
-				if got, want := study.ModeOnDemand.Reveal(behavior, visible, pressed), behavior.Revealed(visible, pressed); got != want {
-					t.Errorf("on demand, %s, visible %v, pressed %v = %v, want %v", behavior, visible, pressed, got, want)
-				}
-			}
+	t.Parallel()
+	const (
+		toggle = study.RevealToggle
+		hold   = study.RevealHold
+	)
+	cases := []struct {
+		mode             study.Mode
+		behavior         study.RevealBehavior
+		visible, pressed bool
+		want             bool
+	}{
+		{study.ModeDual, toggle, false, true, true},
+		{study.ModeDual, toggle, true, true, false},
+		{study.ModeDual, toggle, true, false, true},
+		{study.ModeDual, hold, false, true, true},
+		{study.ModeDual, hold, true, true, false},
+		{study.ModeDual, hold, true, false, true},
+		{study.ModeDual, hold, false, false, false},
+		{study.ModeOnDemand, toggle, false, true, true},
+		{study.ModeOnDemand, toggle, true, true, false},
+		{study.ModeOnDemand, toggle, true, false, true},
+		{study.ModeOnDemand, hold, false, true, true},
+		{study.ModeOnDemand, hold, true, true, true},
+		{study.ModeOnDemand, hold, true, false, false},
+		{study.ModeAlwaysTranslated, toggle, true, true, true},
+		{study.ModeAlwaysTranslated, hold, true, false, true},
+		{study.ModeAlwaysTranslated, hold, false, false, true},
+	}
+	for _, c := range cases {
+		if got := c.mode.Reveal(c.behavior, c.visible, c.pressed); got != c.want {
+			t.Errorf("%s.Reveal(%s, visible %v, pressed %v) = %v, want %v", c.mode, c.behavior, c.visible, c.pressed, got, c.want)
 		}
-	}
-	// The hold and the toggle differ on demand: a release hides only when held.
-	if study.ModeOnDemand.Reveal(study.RevealHold, true, false) || !study.ModeOnDemand.Reveal(study.RevealToggle, true, false) {
-		t.Fatal("on demand ignored the behavior")
-	}
-	// In dual, holding still toggles: the release keeps the hidden line hidden.
-	if study.ModeDual.Reveal(study.RevealHold, false, false) {
-		t.Fatal("dual showed the translation on a release")
 	}
 }
 
 func TestPhraseStart(t *testing.T) {
+	t.Parallel()
 	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
 	timeline, err := subtitle.NewTimeline([]subtitle.Event{
 		{ID: "a", Start: ms(10000), End: ms(14000), OriginalText: "A long line."},

@@ -13,6 +13,7 @@ import (
 )
 
 func TestLanguageName(t *testing.T) {
+	t.Parallel()
 	cases := map[media.LanguageTag]string{
 		"en": "inglês", "en-US": "inglês", "pt": "português", "pt-BR": "português do Brasil",
 		"pt-PT": "português de Portugal", "es": "espanhol", "": "idioma desconhecido", "tlh": "tlh",
@@ -25,6 +26,7 @@ func TestLanguageName(t *testing.T) {
 }
 
 func TestOffset(t *testing.T) {
+	t.Parallel()
 	cases := map[time.Duration]string{
 		0:                         "+0,000 s",
 		150 * time.Millisecond:    "+0,150 s",
@@ -39,6 +41,7 @@ func TestOffset(t *testing.T) {
 }
 
 func TestClock(t *testing.T) {
+	t.Parallel()
 	cases := map[time.Duration]string{
 		0:                                     "0:00",
 		59*time.Second + 999*time.Millisecond: "0:59",
@@ -56,6 +59,7 @@ func TestClock(t *testing.T) {
 // A passage saved by its shortcut is named by its times, the way the panel
 // writes them, so ParseClock reads each side back.
 func TestPassageName(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		start, end time.Duration
 		want       string
@@ -93,6 +97,7 @@ func TestPassageName(t *testing.T) {
 }
 
 func TestLineNamesAndNotice(t *testing.T) {
+	t.Parallel()
 	info := media.Info{Tracks: []media.Track{
 		{Number: 3, Type: media.TrackSubtitle, Language: "en"},
 		{Number: 5, Type: media.TrackSubtitle, Language: "pt-BR"},

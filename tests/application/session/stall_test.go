@@ -20,6 +20,7 @@ func repeat(clock *session.Clock, now *fakeTime, position, span time.Duration) {
 // frozen: the clock waits at its position instead of running ahead, and goes
 // on when the position moves again.
 func TestAFrozenPlayerHoldsTheClock(t *testing.T) {
+	t.Parallel()
 	for _, precision := range []playback.Precision{playback.PrecisionEstimated, playback.PrecisionExact} {
 		now := newFakeTime()
 		clock := session.NewClock(precision, now.Now)
@@ -49,6 +50,7 @@ func TestAFrozenPlayerHoldsTheClock(t *testing.T) {
 
 // Paused, the same position is no freeze; a session command starts over.
 func TestPausesAndCommandsAreNoFreeze(t *testing.T) {
+	t.Parallel()
 	now := newFakeTime()
 	clock := session.NewClock(playback.PrecisionEstimated, now.Now)
 	clock.Observe(sample(ms(10_000), playback.StatusPaused, 1, now.Now()))

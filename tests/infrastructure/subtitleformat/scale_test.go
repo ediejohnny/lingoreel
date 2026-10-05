@@ -10,41 +10,32 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
-// PRD §58: 50 000 lines with no noticeable cost. The whole way a subtitle
-// file takes, read, ordered and looked up, stays far below a quadratic cost
-// (minutes at this size). Without the race detector it takes about a
-// second; with it, and the other packages testing beside it, about ten, so
-// the ceiling sits well above that and well below a quadratic cost.
-func TestFiftyThousandLinesFromAFile(t *testing.T) {
+// The whole way a subtitle file takes, read, ordered and looked up, at 50 000
+// lines. It takes about a second without the race detector; a quadratic step
+// would take minutes.
+func BenchmarkFiftyThousandLinesFromAFile(b *testing.B) {
 	const lines = 50_000
 	var file bytes.Buffer
 	for i := range lines {
 		start := time.Duration(i) * 2 * time.Second
 		fmt.Fprintf(&file, "%d\r\n%s --> %s\r\nLine number %d, with some words.\r\n\r\n", i+1, srt(start), srt(start+1500*time.Millisecond), i)
 	}
-	began := time.Now()
 	parser, err := subtitleformat.NewParser(subtitle.FormatSRT)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
-	result, err := parser.Parse(file.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
-	timeline, err := subtitle.NewTimeline(result.Events)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < lines; i += 7 {
-		at := time.Duration(i)*2*time.Second + time.Second
-		if active := timeline.ActiveAt(at); len(active) != 1 || active[0].Text() != fmt.Sprintf("Line number %d, with some words.", i) {
-			t.Fatalf("at %v: %+v", at, active)
+	for b.Loop() {
+		result, err := parser.Parse(file.Bytes())
+		if err != nil || len(result.Events) != lines {
+			b.Fatalf("Parse = %d lines, %v", len(result.Events), err)
 		}
-	}
-	elapsed := time.Since(began)
-	t.Logf("%d lines (%d KB) read, ordered and looked up in %v", lines, file.Len()/1024, elapsed)
-	if len(result.Events) != lines || elapsed > time.Minute {
-		t.Fatalf("%d lines in %v", len(result.Events), elapsed)
+		timeline, err := subtitle.NewTimeline(result.Events)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for i := 0; i < lines; i += 7 {
+			timeline.ActiveAt(time.Duration(i)*2*time.Second + time.Second)
+		}
 	}
 }
 

@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestVideoArgument(t *testing.T) {
+	t.Parallel()
 	const dir = `C:\Programas\LingoReel`
 	cases := []struct {
 		args  []string
@@ -33,6 +35,7 @@ func TestVideoArgument(t *testing.T) {
 // A video opened again while one plays (a double click on another file)
 // is refused with a reason, and the session goes on.
 func TestAVideoWaitsForTheOneThatPlays(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	_, err := r.api.OpenVideo(`D:\Filmes\Outro.mkv`)
 	if err == nil || !strings.Contains(err.Error(), "Encerre") {
@@ -42,7 +45,7 @@ func TestAVideoWaitsForTheOneThatPlays(t *testing.T) {
 		t.Fatal("the session ended")
 	}
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	if _, err := r.api.OpenVideo(`D:\Filmes\Outro.mkv`); err != nil {
 		t.Fatalf("OpenVideo after the session = %v", err)
 	}

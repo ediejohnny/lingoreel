@@ -190,7 +190,7 @@ func (a *API) embeds(id player.ID) bool {
 	return found && plugin.Descriptor().DrawsInHost
 }
 
-// startFailure words why a session did not start (PRD §52), with what the
+// startFailure words why a session did not start, with what the
 // user can do.
 func (a *API) startFailure(err error, installation player.Installation) error {
 	name := string(installation.ID)

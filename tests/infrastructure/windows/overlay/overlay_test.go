@@ -28,6 +28,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/vlc"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sample.mkv")
@@ -397,7 +398,7 @@ func (s *scene) waitForEnd() {
 	}
 }
 
-// A plugin that knows its player's windows (PotPlayer, F9) names the main
+// A plugin that knows its player's windows (PotPlayer) names the main
 // window and the one holding the picture: the subtitles cover only the
 // picture, so the player's own list and buttons stay free.
 func TestOverlayCoversTheVideoAreaThePluginNames(t *testing.T) {
@@ -562,6 +563,7 @@ func waitForChildOf(t *testing.T, parent windows.HWND, class string) windows.HWN
 // TestOverlayFollowsAPlayerWindow drives a window that obeys every change,
 // so each rule is checked exactly.
 func TestOverlayFollowsAPlayerWindow(t *testing.T) {
+	testkit.Slow(t)
 	player := startFakePlayer(t)
 	s := openOver(t, player.pid())
 
@@ -603,6 +605,7 @@ func TestOverlayFollowsAPlayerWindow(t *testing.T) {
 // that is how the development machine got stuck. Open must give up in
 // bounded time instead.
 func TestOpenOverAHungPlayerGivesUpInTime(t *testing.T) {
+	testkit.Slow(t)
 	player := startFakePlayer(t)
 	// Wait for its window before hanging it, so the failure is the hang.
 	deadline := time.Now().Add(5 * time.Second)
@@ -723,6 +726,7 @@ func changedPixels(a, b []byte) int {
 // stays the same and the bitmap is reused. A real paused session showed a
 // subtitle only after the window was resized; this reads the screen itself.
 func TestEveryShowReachesTheScreen(t *testing.T) {
+	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
@@ -794,6 +798,7 @@ func TestEveryShowReachesTheScreen(t *testing.T) {
 // A new look reaches the screen at once, with no new content: a change on
 // the settings screen shows on the video being watched.
 func TestRestyleRedrawsTheSubtitles(t *testing.T) {
+	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	look := overlay.Look{Layout: appearance.DefaultLayout(), Primary: appearance.DefaultPrimaryStyle(), Translation: appearance.DefaultTranslationStyle()}
 	screen, err := overlay.Open(t.Context(), overlay.Options{
@@ -853,6 +858,7 @@ func TestRestyleRedrawsTheSubtitles(t *testing.T) {
 // A notice shows in the top left corner and leaves by itself after 1.5 s,
 // counted from the latest notice.
 func TestNoticeShowsAndLeavesByItself(t *testing.T) {
+	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
@@ -923,6 +929,7 @@ func TestNoticeShowsAndLeavesByItself(t *testing.T) {
 // at once (the session keeps running) and Close must give up in bounded time
 // instead of hanging the app, which is what a real hang did in development.
 func TestHungPlayerNeverBlocksShowOrClose(t *testing.T) {
+	testkit.Slow(t)
 	player := startFakePlayer(t)
 	s := openOver(t, player.pid())
 	player.hang(t)
@@ -973,6 +980,7 @@ func TestHungPlayerNeverBlocksShowOrClose(t *testing.T) {
 // Two overlays in one process each follow their own player: the callbacks
 // they share must reach the right one.
 func TestTwoOverlaysFollowTheirOwnPlayers(t *testing.T) {
+	testkit.Slow(t)
 	first := openOver(t, startFakePlayer(t).pid())
 	second := openOverAnother(t, startFakePlayer(t).pid(), first.window)
 
@@ -1067,7 +1075,7 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 		return s.covering()
 	})
 
-	// RF-065: real fullscreen, not a resize. If VLC moved the video to
+	// Real fullscreen, not a resize. If VLC moved the video to
 	// another window, the overlay would hide with the old one. Right after a
 	// restore VLC refits its window to the video and was seen ignoring a
 	// fullscreen request sent meanwhile, so the request waits for the window

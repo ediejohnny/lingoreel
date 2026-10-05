@@ -81,6 +81,7 @@ func (r *practiceRig) lastEvent() session.PracticeEvent {
 var passage = study.Segment{Start: ms(19_500), End: ms(23_000)}
 
 func TestStartGoesToThePassageAndPlays(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	if err := r.practice.Start(passage, study.PracticePlan{Mode: study.EndPause}); err != nil {
 		t.Fatal(err)
@@ -106,6 +107,7 @@ func TestStartGoesToThePassageAndPlays(t *testing.T) {
 }
 
 func TestPauseAtTheEndThenPlayStartsOver(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndPause})
 	r.at(ms(22_000), true)
@@ -132,6 +134,7 @@ func TestPauseAtTheEndThenPlayStartsOver(t *testing.T) {
 }
 
 func TestLoopWithoutAndWithGap(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndLoop})
 	r.reset()
@@ -163,6 +166,7 @@ func TestLoopWithoutAndWithGap(t *testing.T) {
 }
 
 func TestGoalEndsThePractice(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndLoop, Goal: 2, Ladder: true})
 	r.at(ms(23_000), true) // lap 1 done, lap 2 begins
@@ -179,6 +183,7 @@ func TestGoalEndsThePractice(t *testing.T) {
 }
 
 func TestLapsFollowThePlan(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndLoop, Progressive: true, Ladder: true})
 	if r.player.speed != 0.75 {
@@ -194,6 +199,7 @@ func TestLapsFollowThePlan(t *testing.T) {
 }
 
 func TestSeekingOutSuspendsThePassage(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndPause})
 	if err := r.controls.SeekTo(ms(40_000)); err != nil {
@@ -226,6 +232,7 @@ func TestSeekingOutSuspendsThePassage(t *testing.T) {
 }
 
 func TestRepeatEachLine(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	if err := r.practice.SetLineRepeats(2); err != nil {
 		t.Fatal(err)
@@ -266,6 +273,7 @@ func TestRepeatEachLine(t *testing.T) {
 }
 
 func TestReplayLine(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	r.at(ms(21_000), false)
 	r.reset()
@@ -296,6 +304,7 @@ func TestReplayLine(t *testing.T) {
 // not from the passage's start, and the lap goes on. A line whose preview
 // starts before the passage is trained from the passage's start.
 func TestReplayLineInAPassagePausedAtItsEnd(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		passage study.Segment
 		want    time.Duration
@@ -328,6 +337,7 @@ func TestReplayLineInAPassagePausedAtItsEnd(t *testing.T) {
 }
 
 func TestPracticeWakesForTheEnd(t *testing.T) {
+	t.Parallel()
 	r := newPracticeRig(t, nil)
 	_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndPause})
 	r.at(ms(21_000), true)

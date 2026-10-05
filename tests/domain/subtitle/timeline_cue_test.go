@@ -8,6 +8,7 @@ import (
 )
 
 func TestTimelineNeighbors(t *testing.T) {
+	t.Parallel()
 	sec := func(v float64) time.Duration { return time.Duration(v * float64(time.Second)) }
 	ev := func(id string, start, end float64) subtitle.Event {
 		return subtitle.Event{ID: id, Start: sec(start), End: sec(end), OriginalText: id}

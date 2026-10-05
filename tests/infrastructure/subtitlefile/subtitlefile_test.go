@@ -63,6 +63,7 @@ func assertFound(t *testing.T, got []string, want ...string) {
 
 // A YTS-style release: the only video in its folder, subtitles in Subs/.
 func TestFindTakesEverySubtitleOfTheFoldersOnlyVideo(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Movie (2020).mkv", "Movie.en.srt", "extra.ass", "notes.txt", "cover.jpg",
 		"Subs/2_English.srt", "Subs/3_Portuguese.srt", "Subs/readme.nfo")
 	assertFound(t, find(t, root, "Movie (2020).mkv"),
@@ -71,18 +72,21 @@ func TestFindTakesEverySubtitleOfTheFoldersOnlyVideo(t *testing.T) {
 
 // With several videos, only files named after this one belong to it.
 func TestFindTakesOnlyFilesNamedAfterTheVideo(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "A.mkv", "B.mp4", "A.en.srt", "A.pt-BR.forced.srt", "B.en.srt", "A 2.srt", "AB.srt", "random.srt",
 		"Subs/A.es.srt", "Subs/B.es.srt", "Subs/English.srt")
 	assertFound(t, find(t, root, "A.mkv"), "A.en.srt", "A.pt-BR.forced.srt", "Subs/A.es.srt")
 }
 
 func TestFindIgnoresLetterCase(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Movie.mkv", "Other.mkv", "MOVIE.EN.SRT", "movie.Pt.VTT", "SUBTITLES/movie.es.Ass")
 	assertFound(t, find(t, root, "Movie.mkv"), "MOVIE.EN.SRT", "movie.Pt.VTT", "SUBTITLES/movie.es.Ass")
 }
 
 // Series releases keep one folder per episode inside Subs.
 func TestFindUsesTheEpisodeFolderInsideSubs(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "S01E01.mkv", "S01E02.mkv", "Subs/S01E01/2_English.srt", "Subs/S01E01/3_Spanish.srt",
 		"Subs/S01E02/2_English.srt", "Legendas/s01e01/Português.srt")
 	assertFound(t, find(t, root, "S01E01.mkv"),
@@ -90,6 +94,7 @@ func TestFindUsesTheEpisodeFolderInsideSubs(t *testing.T) {
 }
 
 func TestFindSkipsFoldersNamedLikeSubtitlesAndOtherFolders(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Movie.mkv", "Movie.en.srt/", "Extras/Movie.en.srt", "Subs/Deep/Movie.en.srt")
 	if got := find(t, root, "Movie.mkv"); len(got) != 0 {
 		t.Fatalf("Find = %q, want nothing", got)
@@ -97,6 +102,7 @@ func TestFindSkipsFoldersNamedLikeSubtitlesAndOtherFolders(t *testing.T) {
 }
 
 func TestFindTakesAFolderNamedAfterTheVideo(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Movie.mkv", "Other.mkv", "movie/English.srt", "Movie/Deep/x.srt", "Other/English.srt")
 	assertFound(t, find(t, root, "Movie.mkv"), "movie/English.srt")
 }
@@ -126,6 +132,7 @@ func candidates(t *testing.T, root, video string) []string {
 // The real case: subtitles downloaded into folders named after the zip, in a
 // folder with several films.
 func TestFindCandidatesLooksOneLevelIntoAnySubfolder(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Exemplo.mkv", "End.mkv", "Exemplo.pt.srt", "End.en.srt", "notes.txt",
 		"exemplo.de.filme.(1000001)/Example Movie.eng.srt", "exemplo.de.filme.(1000001)/info.nfo",
 		"exemplo.de.filme.(1000002)/Example Movie DC.en.srt", "Subs/English.srt", "deep/er/x.srt", "empty/")
@@ -135,6 +142,7 @@ func TestFindCandidatesLooksOneLevelIntoAnySubfolder(t *testing.T) {
 }
 
 func TestFindCandidatesLeavesOutTheVideosOwnFiles(t *testing.T) {
+	t.Parallel()
 	root := layout(t, "Movie.mkv", "Movie.en.srt", "Subs/Movie.pt.srt", "Subs/other.srt", "MOVIE/x.srt")
 	assertFound(t, candidates(t, root, "Movie.mkv"))
 	root = layout(t, "Movie.mkv", "Other.mkv", "Movie.en.srt", "SUBS/movie.pt.srt", "Subs2/Movie.en.srt")
@@ -142,6 +150,7 @@ func TestFindCandidatesLeavesOutTheVideosOwnFiles(t *testing.T) {
 }
 
 func TestFindCandidatesIsBounded(t *testing.T) {
+	t.Parallel()
 	var names []string
 	for i := range 60 {
 		names = append(names, "A.mkv", "B.mkv", filepath.ToSlash(filepath.Join("f"+string(rune('a'+i%26))+string(rune('a'+i/26)), "x.srt")))
@@ -157,6 +166,7 @@ func TestFindCandidatesIsBounded(t *testing.T) {
 }
 
 func TestFindReportsAMissingFolder(t *testing.T) {
+	t.Parallel()
 	if _, err := (subtitlefile.Files{}).Find(filepath.Join(t.TempDir(), "gone", "Movie.mkv")); err == nil {
 		t.Fatal("Find in a missing folder succeeded")
 	}
@@ -172,6 +182,7 @@ func write(t *testing.T, name string, data []byte) string {
 }
 
 func TestLoadReadsEachFormat(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"a.srt": srt,
 		"a.vtt": "WEBVTT\n\n00:00:01.000 --> 00:00:02.500\nHello there.\n",
@@ -190,6 +201,7 @@ func TestLoadReadsEachFormat(t *testing.T) {
 
 // Subtitles downloaded from the internet come in legacy encodings.
 func TestLoadDecodesUTF16AndWindows1252(t *testing.T) {
+	t.Parallel()
 	text := "1\r\n00:00:01,000 --> 00:00:02,000\r\nNão, você está aqui.\r\n"
 	units := utf16.Encode([]rune(text))
 	utf16LE := []byte{0xFF, 0xFE}
@@ -209,6 +221,7 @@ func TestLoadDecodesUTF16AndWindows1252(t *testing.T) {
 }
 
 func TestLoadRejectsWhatIsNotASubtitle(t *testing.T) {
+	t.Parallel()
 	folder := t.TempDir()
 	big := filepath.Join(t.TempDir(), "huge.srt")
 	f, err := os.Create(big)
@@ -238,6 +251,7 @@ func TestLoadRejectsWhatIsNotASubtitle(t *testing.T) {
 }
 
 func TestLoadSurvivesGarbage(t *testing.T) {
+	t.Parallel()
 	garbage := make([]byte, 64<<10)
 	for i := range garbage {
 		garbage[i] = byte(i * 7919)

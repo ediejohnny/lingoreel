@@ -42,6 +42,7 @@ func stepButton(entries []controlbar.Entry, field controlbar.Field, delta int) c
 // The passage menu marks, leaves and resumes a passage, and holds its
 // options and the latest saved passages.
 func TestThePassageMenu(t *testing.T) {
+	t.Parallel()
 	s := studyState()
 	entries := controlbar.Entries(controlbar.MenuPassage, s)
 	if start, ok := command(entries, shortcut.PassageMarkStart); !ok || !start.Enabled {
@@ -115,6 +116,7 @@ func TestThePassageMenu(t *testing.T) {
 }
 
 func TestTheKaraokeMenu(t *testing.T) {
+	t.Parallel()
 	s := studyState()
 	entries := controlbar.Entries(controlbar.MenuKaraoke, s)
 	on, _ := find(entries, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldKaraoke })
@@ -166,6 +168,7 @@ func TestTheKaraokeMenu(t *testing.T) {
 }
 
 func TestTheSubtitlesMenu(t *testing.T) {
+	t.Parallel()
 	s := studyState()
 	entries := controlbar.Entries(controlbar.MenuSubtitles, s)
 	checked := 0
@@ -217,6 +220,7 @@ func TestTheSubtitlesMenu(t *testing.T) {
 // An open menu sits above its button, inside the window; its buttons take
 // the clicks before its rows, and its titles take none.
 func TestAnOpenMenuIsLaidOutAboveItsButton(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.OpenMenu, state.Study = controlbar.MenuKaraoke, studyState()
 	bar := controlbar.Layout(wide, 1, state)
@@ -276,6 +280,7 @@ func menuButton(t *testing.T, bar controlbar.Bar, menu controlbar.Menu) controlb
 // In a low window the menu keeps what fits above the bar, from the top: the
 // saved passages are the first to go.
 func TestAMenuInALowWindowKeepsWhatFits(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.OpenMenu, state.Study = controlbar.MenuPassage, studyState()
 	for i := range 6 {

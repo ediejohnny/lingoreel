@@ -20,6 +20,7 @@ func line(id string, start, end int64, text string) subtitle.Event {
 }
 
 func TestHashOf(t *testing.T) {
+	t.Parallel()
 	a, b := project.HashOf("That's sick!"), project.HashOf("That's sick?")
 	if len(a) != 16 || strings.Trim(a, "0123456789abcdef") != "" {
 		t.Fatalf("HashOf = %q, want 16 hex digits", a)
@@ -33,6 +34,7 @@ func TestHashOf(t *testing.T) {
 }
 
 func TestMillisRounds(t *testing.T) {
+	t.Parallel()
 	cases := map[time.Duration]project.Millis{
 		1499 * time.Microsecond: 1, 1500 * time.Microsecond: 2, 0: 0,
 		-1500 * time.Microsecond: -2, time.Hour: 3_600_000,
@@ -48,6 +50,7 @@ func TestMillisRounds(t *testing.T) {
 }
 
 func TestAnEditAppliesOnlyToItsOwnText(t *testing.T) {
+	t.Parallel()
 	base := line("7", 10_000, 12_000, "Isso está doente!")
 	edit := project.Edit{Original: project.HashOf(base.OriginalText), Text: ptr("Que loucura!"), End: ptr(project.Millis(12_500))}
 	got, ok := edit.Apply(base)
@@ -67,6 +70,7 @@ func TestAnEditAppliesOnlyToItsOwnText(t *testing.T) {
 }
 
 func TestDiffAndApplyAreInverse(t *testing.T) {
+	t.Parallel()
 	base := line("3", 61_120, 63_800, "I am going to...")
 	cases := []subtitle.Event{
 		{ID: "3", Start: base.Start, End: base.End, OriginalText: base.OriginalText, OverrideText: "I'm gonna..."},
@@ -100,6 +104,7 @@ func TestDiffAndApplyAreInverse(t *testing.T) {
 }
 
 func TestATrackAppliesWhatStillFits(t *testing.T) {
+	t.Parallel()
 	lines := []subtitle.Event{line("1", 0, 1000, "One."), line("2", 2000, 3000, "Two."), line("3", 4000, 5000, "Three.")}
 	track := project.Track{Edits: map[string]project.Edit{
 		"1": {Original: project.HashOf("One."), Text: ptr("Uno.")},
@@ -133,6 +138,7 @@ func valid() project.Project {
 }
 
 func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
+	t.Parallel()
 	if err := valid().Validate(); err != nil {
 		t.Fatalf("a good project: %v", err)
 	}
@@ -227,6 +233,7 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 }
 
 func TestTheHistoryUndoesAndRedoesInOrder(t *testing.T) {
+	t.Parallel()
 	change := func(text string) project.Change {
 		return project.Change{Line: 1, After: subtitle.Event{ID: "1", OriginalText: text}}
 	}
@@ -269,6 +276,7 @@ func TestTheHistoryUndoesAndRedoesInOrder(t *testing.T) {
 // Saving the same span twice keeps both: the second gets " (2)", and so on.
 // Case and the spaces around do not make a name new.
 func TestUniqueNameKeepsEveryPassage(t *testing.T) {
+	t.Parallel()
 	passages := func(names ...string) []project.Passage {
 		list := make([]project.Passage, len(names))
 		for i, name := range names {
@@ -334,6 +342,7 @@ func TestUniqueNameKeepsEveryPassage(t *testing.T) {
 }
 
 func TestIndexOfIgnoresCaseAndSpaces(t *testing.T) {
+	t.Parallel()
 	list := []project.Passage{{Name: "Loja", End: 1}, {Name: "Rua", End: 1}}
 	for name, want := range map[string]int{"Rua": 1, "rua": 1, " LOJA ": 0, "Praça": -1, "": -1} {
 		if got := project.IndexOf(list, name); got != want {
@@ -345,6 +354,7 @@ func TestIndexOfIgnoresCaseAndSpaces(t *testing.T) {
 // A passage's plan goes to the file and back unchanged; without a plan it
 // pauses at the end with no helps.
 func TestAPassagePlanComesBackTheSame(t *testing.T) {
+	t.Parallel()
 	plans := []project.PassagePlan{
 		{},
 		{Loop: true, Gap: 2500, Progressive: true, Ladder: true, Goal: 7},

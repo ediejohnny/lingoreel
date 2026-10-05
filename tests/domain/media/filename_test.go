@@ -8,6 +8,7 @@ import (
 )
 
 func TestHintsFromFileName(t *testing.T) {
+	t.Parallel()
 	const video = "Filme.Exemplo.2001.BluRay.1080p.x264.DUAL-GRUPO.mkv"
 	cases := []struct {
 		file string
@@ -47,6 +48,7 @@ func TestHintsFromFileName(t *testing.T) {
 // not a code, but "It" (Italian's code) and "Hi" (hearing impaired) are
 // words that appear in titles.
 func TestVideoNameWordsAreIgnored(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"It.Was.Raining.2017.srt":   "It.Was.Raining.2017.mkv",
 		"Say.Hi.To.The.Bad.Guy.srt": "Say.Hi.To.The.Bad.Guy.mkv",
@@ -65,6 +67,7 @@ func TestVideoNameWordsAreIgnored(t *testing.T) {
 }
 
 func TestShortWordsAreNotLanguages(t *testing.T) {
+	t.Parallel()
 	for _, file := range []string{"to.srt", "of the day.srt", "a.b.c.srt", "xx.srt", "zzz.srt", "und.srt", "12345.srt"} {
 		if got := media.HintsFromFileName(file, "Movie.mkv"); got.Language != "" {
 			t.Errorf("HintsFromFileName(%q) language = %q, want none", file, got.Language)
@@ -73,6 +76,7 @@ func TestShortWordsAreNotLanguages(t *testing.T) {
 }
 
 func TestHintsSurviveHostileNames(t *testing.T) {
+	t.Parallel()
 	hostile := []string{
 		strings.Repeat("en.", 5000) + "srt",
 		"....srt",

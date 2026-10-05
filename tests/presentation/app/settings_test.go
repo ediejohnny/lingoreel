@@ -9,9 +9,12 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func settingsOf(t *testing.T, r *rig) app.SettingsView {
@@ -24,6 +27,7 @@ func settingsOf(t *testing.T, r *rig) app.SettingsView {
 }
 
 func TestSettingsShowTheActiveProfileAndTheOptions(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r)
@@ -60,6 +64,7 @@ func TestSettingsShowTheActiveProfileAndTheOptions(t *testing.T) {
 }
 
 func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	view := settingsOf(t, r).Profile
 	view.Primary.FontSize = 40
@@ -106,6 +111,54 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	}
 }
 
+// The Modo Karaokê of the video being watched (from its project or the bar)
+// is the video's: saving the settings changes only what changed in the
+// profile.
+func TestSavingTheSettingsKeepsTheVideosKaraoke(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	kept := project.New()
+	kept.Last.Karaoke = &project.Karaoke{Enabled: true, MinGap: 10_000, Lead: 5_000, Indicator: study.IndicatorCountdown, Fill: true, Repeat: 2}
+	if err := r.projects.Save(movie, kept); err != nil {
+		t.Fatal(err)
+	}
+	r.attach(t)
+	if _, err := r.api.OpenVideo(movie); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.api.StopWatching() })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	want := app.Karaoke{Enabled: true, Indicator: "countdown", Repeat: 2}
+	if got := r.api.PlaybackState().Karaoke; got != want {
+		t.Fatalf("karaoke on opening = %+v, want the video's %+v", got, want)
+	}
+	save := func(change func(*app.ProfileSettings)) {
+		t.Helper()
+		view := settingsOf(t, r).Profile
+		change(&view)
+		if err := r.api.SaveProfile(view); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(func(v *app.ProfileSettings) { v.Primary.FontSize = 40 })
+	if got := r.api.PlaybackState().Karaoke; got != want {
+		t.Fatalf("after saving a font, karaoke = %+v, want the video's %+v", got, want)
+	}
+	// What changes in the profile still reaches the video.
+	save(func(v *app.ProfileSettings) { v.Karaoke.Repeat = 4 })
+	if got := r.api.PlaybackState().Karaoke; got != (app.Karaoke{Enabled: true, Indicator: "countdown", Repeat: 4}) {
+		t.Fatalf("after changing the repeats, karaoke = %+v", got)
+	}
+	save(func(v *app.ProfileSettings) { v.Karaoke.Indicator = "countdown"; v.Karaoke.Enabled = true })
+	save(func(v *app.ProfileSettings) { v.Karaoke.Indicator = "bar"; v.Karaoke.Enabled = false })
+	if got := r.api.PlaybackState().Karaoke; got != (app.Karaoke{Enabled: false, Indicator: "bar", Repeat: 4}) {
+		t.Fatalf("after turning it off with a bar, karaoke = %+v", got)
+	}
+}
+
 // shortcutAt is where a command is on the settings screen.
 func shortcutAt(t *testing.T, p app.ProfileSettings, command shortcut.Command) int {
 	t.Helper()
@@ -116,7 +169,10 @@ func shortcutAt(t *testing.T, p app.ProfileSettings, command shortcut.Command) i
 	return i
 }
 
+// Each refusal names, in Portuguese, the field it is about; the limits in
+// the messages come from the domain, which tests them.
 func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	base := settingsOf(t, r).Profile
@@ -125,20 +181,17 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		change func(*app.ProfileSettings)
 		want   string
 	}{
-		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte vai de 8 a 200."},
+		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte"},
 		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Legenda de baixo: o tamanho da fonte"},
 		{"bad color", func(p *app.ProfileSettings) { p.Primary.OutlineColor = "red" }, `a cor "red" não é válida`},
 		{"no font", func(p *app.ProfileSettings) { p.Primary.FontFamily = " " }, "escolha uma fonte"},
-		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade vai de 0% a 100%"},
-		{"margin", func(p *app.ProfileSettings) { p.Layout.MarginLeft = 0.3 }, "Margens: cada margem vai de 0% a 25%."},
-		{"lead", func(p *app.ProfileSettings) { p.Karaoke.Lead = 20 }, "a antecedência de 2 a 10 s"},
-		{"NaN gap", func(p *app.ProfileSettings) { p.Karaoke.MinGap = math.Inf(1) }, "a lacuna mínima vai de 3 a 60 s"},
+		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade"},
+		{"margin", func(p *app.ProfileSettings) { p.Layout.MarginLeft = 0.3 }, "Margens: cada margem"},
+		{"lead", func(p *app.ProfileSettings) { p.Karaoke.Lead = 20 }, "Modo Karaokê: a lacuna mínima"},
 		{"indicator", func(p *app.ProfileSettings) { p.Karaoke.Indicator = "dots" }, "escolha a barra ou a contagem"},
-		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "de 0 a 10 vezes"},
+		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "Modo Karaokê: repetir cada fala"},
 		{"speed", func(p *app.ProfileSettings) { p.Speed = 3 }, "Escolha uma das velocidades"},
-		{"NaN speed", func(p *app.ProfileSettings) { p.Speed = math.NaN() }, "Escolha uma das velocidades"},
-		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "o passo vai de 10 a 1000 ms"},
-		{"fast below step", func(p *app.ProfileSettings) { p.SyncStep, p.SyncFastStep = 200, 100 }, "Passos da sincronização"},
+		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "Passos da sincronização"},
 		{"reveal", func(p *app.ProfileSettings) { p.Reveal = "wink" }, "tecla da tradução"},
 		{"language", func(p *app.ProfileSettings) { p.Languages.Primary = "english!" }, "Confira os idiomas"},
 		{"Alt+Shift", func(p *app.ProfileSettings) {
@@ -149,9 +202,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		}, "“Espaço” já é o atalho de “Reproduzir / pausar”"},
 		{"modifiers alone", func(p *app.ProfileSettings) { p.Shortcuts[0].Chord = "Ctrl+" }, "Falta a tecla principal"},
 		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
-		{"no mode", func(p *app.ProfileSettings) { p.Mode = "" }, "Escolha um modo de estudo."},
-		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão: vai de 10 a 10000 ms."},
-		{"precision too big", func(p *app.ProfileSettings) { p.PrecisionStep = 10001 }, "Passo de precisão"},
+		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
 	}
 	for _, c := range cases {
@@ -179,6 +230,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 }
 
 func TestProfilesCanBeCreatedSwitchedRenamedAndRemoved(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -229,6 +281,7 @@ func TestProfilesCanBeCreatedSwitchedRenamedAndRemoved(t *testing.T) {
 }
 
 func TestTheProfileCannotChangeUnderAVideo(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	if err := r.api.CreateProfile("Francês"); err == nil || !strings.Contains(err.Error(), "Encerre o vídeo") {
 		t.Fatalf("CreateProfile while watching = %v", err)
@@ -242,6 +295,7 @@ func TestTheProfileCannotChangeUnderAVideo(t *testing.T) {
 }
 
 func TestResetProfileKeepsTheName(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	if err := r.api.RenameProfile("Inglês", "Meu"); err != nil {
 		t.Fatal(err)
@@ -264,6 +318,7 @@ func TestResetProfileKeepsTheName(t *testing.T) {
 }
 
 func TestSyncNoticeAndPresetsAndShortcutChecks(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.SetSyncNotice(false); err != nil || r.settings.config.SyncNotice || settingsOf(t, r).General.SyncNotice {
@@ -287,6 +342,7 @@ func TestSyncNoticeAndPresetsAndShortcutChecks(t *testing.T) {
 }
 
 func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -314,6 +370,7 @@ func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
 }
 
 func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -333,6 +390,7 @@ func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
 }
 
 func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -348,7 +406,50 @@ func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
 	}
 }
 
+func TestThePreviewShowsTheKaraokeFill(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	request.View, request.FillColor = "fill", "#FF8C00"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatalf("fill view: %v", err)
+	}
+	orange, _ := appearance.ParseColor("#FF8C00")
+	call := r.preview.requests[0]
+	if call.look.FillColor != orange || call.screen.Fill != 0.5 || call.screen.Cue != nil {
+		t.Fatalf("fill view drew look %+v, screen %+v", call.look, call.screen)
+	}
+	// Between lines nothing is spoken, whatever color comes along.
+	request.View, request.FillColor = "", "#12"
+	if _, err := r.api.PreviewSubtitles(request); err != nil || r.preview.requests[1].screen.Fill != 0 {
+		t.Fatalf("plain view: %v, fill %v", err, r.preview.requests[1].screen.Fill)
+	}
+}
+
+func TestThePreviewRefusesAnUnknownViewOrFill(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	for _, c := range []struct{ view, fill string }{
+		{"karaoke", "#FF8C00"}, {"Fill", "#FF8C00"}, {" fill", "#FF8C00"}, {"cue", "#FF8C00"},
+		{"fill", "#12"}, {"fill", ""}, {"fill", "amarelo"},
+	} {
+		request.View, request.FillColor = c.view, c.fill
+		if _, err := r.api.PreviewSubtitles(request); err == nil {
+			t.Errorf("view %q with fill %q was drawn", c.view, c.fill)
+		}
+	}
+	if len(r.preview.requests) != 0 {
+		t.Fatalf("%d refused previews reached the renderer", len(r.preview.requests))
+	}
+}
+
 func TestPlayerPaths(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.SetPlayerPath("fake", `D:\Apps\Fake\fake.exe`); err != nil || r.settings.config.PlayerPaths["fake"] != `D:\Apps\Fake\fake.exe` {
@@ -376,6 +477,7 @@ func TestPlayerPaths(t *testing.T) {
 }
 
 func TestTheWindowPlaceIsKept(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	bounds := settings.WindowBounds{X: -1500, Y: 40, Width: 1100, Height: 760, Maximized: true}
@@ -390,6 +492,7 @@ func TestTheWindowPlaceIsKept(t *testing.T) {
 }
 
 func TestTheVideoOpensWithTheProfileChoices(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -428,6 +531,7 @@ func TestTheVideoOpensWithTheProfileChoices(t *testing.T) {
 }
 
 func TestOpenSettingsFolder(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.OpenSettingsFolder(); err != nil {

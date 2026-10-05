@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func startWatching(t *testing.T) *rig {
@@ -17,12 +18,13 @@ func startWatching(t *testing.T) *rig {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	t.Cleanup(func() { r.api.StopWatching() })
 	return r
 }
 
 func TestKaraokeChoicesAreKeptInTheProfile(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	state := r.api.PlaybackState()
 	if state.Karaoke.Enabled || state.Karaoke.Indicator != "bar" || state.Karaoke.Repeat != 0 {
@@ -58,6 +60,7 @@ func TestKaraokeChoicesAreKeptInTheProfile(t *testing.T) {
 }
 
 func TestStudyPassageChecksWhatTheUserTyped(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	cases := []struct {
 		request app.PassageRequest
@@ -92,6 +95,7 @@ func TestStudyPassageChecksWhatTheUserTyped(t *testing.T) {
 }
 
 func TestTrainingNeedsASession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.ReplayLine(); err == nil {

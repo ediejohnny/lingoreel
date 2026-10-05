@@ -37,6 +37,7 @@ func scene(t *testing.T) *subtitle.Timeline {
 var defaults = study.DefaultCueRules() // 10 s gap, 5 s lead
 
 func TestUpcomingCueAfterALongSilence(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	// e2: 16 s of silence, so its preview starts 5 s before it, at 15 s.
 	cue, ok := study.UpcomingCue(timeline, 0, s(15), defaults)
@@ -61,6 +62,7 @@ func TestUpcomingCueAfterALongSilence(t *testing.T) {
 }
 
 func TestMinimumGapBoundary(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	exact := study.CueRules{MinGap: s(16), Lead: s(5)}
 	if _, ok := study.UpcomingCue(timeline, 0, s(16), exact); !ok {
@@ -73,6 +75,7 @@ func TestMinimumGapBoundary(t *testing.T) {
 }
 
 func TestLeadNeverCoversTheLineBefore(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	// e5 after 5 s of silence with a 10 s lead: the preview starts when e4
 	// ends (40 s), not before.
@@ -91,6 +94,7 @@ func TestLeadNeverCoversTheLineBefore(t *testing.T) {
 }
 
 func TestUpcomingCueFollowsTheOffset(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	// +2 s shows the track later: e2 is spoken at 22 s, its preview at 17 s.
 	offset := subtitle.Offset(s(2))
@@ -107,6 +111,7 @@ func TestUpcomingCueFollowsTheOffset(t *testing.T) {
 }
 
 func TestNextCueStartAfter(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	if next, ok := study.NextCueStartAfter(timeline, 0, 0, defaults); !ok || next != s(15) {
 		t.Fatalf("from 0: %v %v", next, ok)
@@ -121,6 +126,7 @@ func TestNextCueStartAfter(t *testing.T) {
 }
 
 func TestCountdownIsInRealTime(t *testing.T) {
+	t.Parallel()
 	cue := study.Cue{Remaining: s(1), Lead: s(5)}
 	for speed, want := range map[float64]int{1: 1, 0.75: 2, 2: 1, 0: 0, -1: 0} {
 		if got := cue.Countdown(speed); got != want {
@@ -139,6 +145,7 @@ func TestCountdownIsInRealTime(t *testing.T) {
 }
 
 func TestReplayTarget(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	cases := []struct {
 		name     string
@@ -163,6 +170,7 @@ func TestReplayTarget(t *testing.T) {
 }
 
 func TestReplayTargetInAPassage(t *testing.T) {
+	t.Parallel()
 	timeline := scene(t)
 	cases := []struct {
 		name            string
@@ -189,6 +197,7 @@ func TestReplayTargetInAPassage(t *testing.T) {
 	}
 }
 func TestSpokenFraction(t *testing.T) {
+	t.Parallel()
 	// "ab cd" over 10 s is spoken in the first 8.5 s. Weights: letters 1,
 	// the space 0.5: 4.5 in all. Half the speaking time (4.25 s) reaches
 	// weight 2.25: past "ab" (2), inside the space, so 2 of 4 letters.
@@ -228,6 +237,7 @@ func FuzzSpokenFraction(f *testing.F) {
 }
 
 func TestCueRulesValidate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		rules study.CueRules
 		ok    bool

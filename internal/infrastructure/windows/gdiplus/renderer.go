@@ -323,6 +323,13 @@ func (r *Renderer) path(block *layout.Block) (uintptr, error) {
 }
 
 func (r *Renderer) drawBlock(c *canvas, target *win32.DIB, block *layout.Block, style appearance.SubtitleStyle) error {
+	return r.drawBlockThen(c, target, block, style, nil)
+}
+
+// drawBlockThen draws a block and then, when then is set, paints over its
+// text with the same path. Both go on the same layer, so the block's
+// opacity applies to what then paints too.
+func (r *Renderer) drawBlockThen(c *canvas, target *win32.DIB, block *layout.Block, style appearance.SubtitleStyle, then func(c *canvas, path uintptr) error) error {
 	if !usable(block.Font) || len(block.Lines) == 0 {
 		return nil
 	}
@@ -337,9 +344,15 @@ func (r *Renderer) drawBlock(c *canvas, target *win32.DIB, block *layout.Block, 
 			return err
 		}
 	}
+	paint := func(c *canvas, surface *win32.DIB) error {
+		if err := r.drawText(c, surface, block, style, path); err != nil || then == nil {
+			return err
+		}
+		return then(c, path)
+	}
 	opacity := math.Max(0, math.Min(style.Opacity, 1))
 	if opacity >= 1 {
-		return r.drawText(c, target, block, style, path)
+		return paint(c, target)
 	}
 	if opacity == 0 {
 		return nil
@@ -359,7 +372,7 @@ func (r *Renderer) drawBlock(c *canvas, target *win32.DIB, block *layout.Block, 
 	if err != nil {
 		return err
 	}
-	err = r.drawText(layer, group, block, style, path)
+	err = paint(layer, group)
 	layer.close()
 	if err != nil {
 		return err

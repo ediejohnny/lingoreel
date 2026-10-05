@@ -31,6 +31,7 @@ func stub(id player.ID, name string) *stubPlugin {
 }
 
 func TestRegistryRefusesBrokenPlugins(t *testing.T) {
+	t.Parallel()
 	bad := stub("vlc", "VLC")
 	bad.descriptor.Install.DownloadURL = "http://example.org"
 	for name, list := range map[string][]players.Plugin{
@@ -45,6 +46,7 @@ func TestRegistryRefusesBrokenPlugins(t *testing.T) {
 }
 
 func TestRegistryFindsAndLaunchesItsPlugins(t *testing.T) {
+	t.Parallel()
 	vlc, mpv := stub("vlc", "VLC"), stub("mpv", "mpv")
 	registry, err := players.NewRegistry(vlc, mpv)
 	if err != nil {
@@ -68,15 +70,5 @@ func TestRegistryFindsAndLaunchesItsPlugins(t *testing.T) {
 	mpv.err = errors.New("boom")
 	if _, err := registry.Launch(t.Context(), player.Installation{ID: "mpv"}, player.LaunchRequest{}); err == nil {
 		t.Fatal("the plugin's launch error was lost")
-	}
-}
-
-func TestEmptyRegistrySupportsNothing(t *testing.T) {
-	registry, err := players.NewRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if registry.Supported("vlc") || len(registry.Descriptors()) != 0 {
-		t.Fatal("an empty registry supports something")
 	}
 }

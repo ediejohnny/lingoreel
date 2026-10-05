@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
 func start(t *testing.T) *uithread.Thread {
@@ -128,5 +129,47 @@ func TestJobsRacingWithCloseAreNeverLost(t *testing.T) {
 		if err := <-closed; err != nil {
 			t.Fatalf("Close: %v", err)
 		}
+	}
+}
+
+// wmTimer is the message of a timer that has no window: it reaches the
+// thread's own loop.
+const wmTimer = 0x0113
+
+func TestJobsRunInsideAForeignModalLoop(t *testing.T) {
+	thread := start(t)
+	var released atomic.Bool
+	var timedOut bool
+	// The job runs a message loop of its own, as a menu or a window being
+	// dragged does, and leaves it only when a job posted meanwhile runs.
+	err := thread.Do(func() {
+		if err := win32.SetTimer(0, 0, 2000); err != nil {
+			t.Errorf("SetTimer: %v", err)
+			return
+		}
+		go func() {
+			if err := thread.Post(func() { released.Store(true) }); err != nil {
+				t.Errorf("Post: %v", err)
+			}
+		}()
+		var msg win32.Msg
+		for !released.Load() {
+			ok, err := win32.GetMessage(&msg)
+			if !ok || err != nil {
+				t.Errorf("GetMessage = %v, %v", ok, err)
+				return
+			}
+			if msg.HWnd == 0 && msg.Message == wmTimer {
+				timedOut = true
+				return
+			}
+			win32.DispatchMessage(&msg)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timedOut {
+		t.Fatal("a job posted during a modal loop waited for the loop to end")
 	}
 }

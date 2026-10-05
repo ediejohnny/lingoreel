@@ -10,25 +10,24 @@ import (
 )
 
 func TestDefaultStylesAreValidAndOrdered(t *testing.T) {
+	t.Parallel()
 	primary, translation := appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle()
 	for name, style := range map[string]appearance.SubtitleStyle{"primary": primary, "translation": translation} {
 		if err := style.Validate(); err != nil {
 			t.Fatalf("default %s style invalid: %v", name, err)
 		}
 	}
-	if primary.FontSize != 32 || translation.FontSize != 28 {
-		t.Fatalf("font sizes = %v/%v, want 32/28", primary.FontSize, translation.FontSize)
+	// The translation sits below the primary line and must not compete with the primary line.
+	if translation.VerticalPosition <= primary.VerticalPosition {
+		t.Fatalf("positions = %v/%v, want the translation below", primary.VerticalPosition, translation.VerticalPosition)
 	}
-	if primary.VerticalPosition != 0.82 || translation.VerticalPosition != 0.91 {
-		t.Fatalf("positions = %v/%v, want 0.82/0.91", primary.VerticalPosition, translation.VerticalPosition)
-	}
-	// DESIGN §10: the translation must not compete with the primary line.
 	if primary.Opacity != 1 || !(translation.Opacity < primary.Opacity && translation.Opacity >= 0.8) {
 		t.Fatalf("opacities = %v/%v, want the translation slightly behind (0.8 to 1)", primary.Opacity, translation.Opacity)
 	}
 }
 
 func TestStyleValidateRanges(t *testing.T) {
+	t.Parallel()
 	nan, inf := math.NaN(), math.Inf(1)
 	cases := []struct {
 		name   string

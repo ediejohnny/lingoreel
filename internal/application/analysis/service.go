@@ -25,7 +25,7 @@ var trackExtensions = []string{".mkv", ".webm"}
 
 // externalOnlyExtensions are videos the players open whose own tracks are not
 // read: their subtitles come only from the files next to them (the product
-// works "especially" with .mkv, PRD §1).
+// works "especially" with .mkv).
 var externalOnlyExtensions = []string{".mp4", ".m4v", ".avi", ".mov", ".wmv"}
 
 // Reader reads media files. The Matroska file reader implements it.

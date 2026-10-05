@@ -7,29 +7,30 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
-func TestVolumeRange(t *testing.T) {
-	for v, want := range map[playback.Volume]bool{0: true, 1: true, 0.5: true, -0.01: false, 1.01: false} {
-		if got := v.Valid(); got != want {
-			t.Errorf("Volume(%v).Valid() = %v, want %v", v, got, want)
-		}
-	}
-	for _, bad := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		if playback.Volume(bad).Valid() {
-			t.Errorf("Volume(%v) valid", bad)
-		}
-	}
-}
-
-func TestVolumeClamp(t *testing.T) {
-	cases := []struct{ in, want playback.Volume }{
-		{0.5, 0.5}, {-1, 0}, {2, 1}, {0, 0}, {1, 1},
-		{playback.Volume(math.Inf(1)), 1}, {playback.Volume(math.Inf(-1)), 0},
-		// Not a number is silent: never louder than asked.
-		{playback.Volume(math.NaN()), 0},
+// A volume goes from 0 to 1; outside it is invalid and clamps to the
+// nearest end. Not a number is silent: never louder than asked.
+func TestVolumeBounds(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in      playback.Volume
+		valid   bool
+		clamped playback.Volume
+	}{
+		{0, true, 0},
+		{0.5, true, 0.5},
+		{1, true, 1},
+		{-0.01, false, 0},
+		{1.01, false, 1},
+		{playback.Volume(math.Inf(1)), false, 1},
+		{playback.Volume(math.Inf(-1)), false, 0},
+		{playback.Volume(math.NaN()), false, 0},
 	}
 	for _, c := range cases {
-		if got := c.in.Clamp(); got != c.want {
-			t.Errorf("Clamp(%v) = %v, want %v", c.in, got, c.want)
+		if got := c.in.Valid(); got != c.valid {
+			t.Errorf("Volume(%v).Valid() = %v, want %v", c.in, got, c.valid)
+		}
+		if got := c.in.Clamp(); got != c.clamped {
+			t.Errorf("Volume(%v).Clamp() = %v, want %v", c.in, got, c.clamped)
 		}
 	}
 }

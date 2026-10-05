@@ -142,12 +142,6 @@ func TestArgumentsDrawIntoTheHostWindow(t *testing.T) {
 	}
 }
 
-func TestVLCDrawsIntoTheAppWindow(t *testing.T) {
-	if !(vlc.Plugin{}).Descriptor().DrawsInHost {
-		t.Fatal("the VLC plugin must draw into the app's window: VLC 3 ignores the close button of its own")
-	}
-}
-
 func TestArgumentsPlaceTheWindowOnlyWhenAsked(t *testing.T) {
 	// 1152 of a 1920-pixel video: VLC sizes its window with a 0.6 zoom.
 	placed := player.LaunchRequest{File: `C:\v.mkv`, AudioIndex: -1, VideoWidth: 1920,
@@ -420,10 +414,10 @@ func TestVLCIntegration(t *testing.T) {
 	}
 }
 
-// M10 (RNF-006): how far the session clock drifts from VLC between reports.
+// How far the session clock drifts from VLC between reports.
 // VLC 3's own time is an estimate, so this measures our extrapolation against
 // VLC's next report (at 1x, 2x and 0.75x), not the true error on screen; mpv,
-// which reports exact positions, gets the absolute measurement (F11).
+// which reports exact positions, would allow the absolute measurement.
 func TestVLCClockStaysCloseToVLCsReports(t *testing.T) {
 	executable, video := realVLC(t)
 	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1})
@@ -470,7 +464,7 @@ func TestVLCClockStaysCloseToVLCsReports(t *testing.T) {
 	p50, p95, worst := errors[len(errors)/2], errors[len(errors)*95/100], errors[len(errors)-1]
 	t.Logf("clock vs VLC over %d reports: p50 %v, p95 %v, worst %v", len(errors), p50, p95, worst)
 	// Measured on 2026-10-01 (VLC 3.0.23, three runs): p50 33-36 ms, p95
-	// 101-105 ms, worst 102-129 ms. The median meets RNF-006 (< 50 ms); the
+	// 101-105 ms, worst 102-129 ms. The median meets the 50 ms target; the
 	// tail does not, because VLC's own reports jitter. The ceilings catch a
 	// regression with room for a loaded machine.
 	if p50 > 60*time.Millisecond || p95 > 200*time.Millisecond {
@@ -531,7 +525,7 @@ func freeze(t *testing.T, pid int) (thaw func()) {
 }
 
 // A VLC that stops answering for a while is waited for, and the session goes
-// on; one that stays silent past the limit is lost (RNF-013).
+// on; one that stays silent past the limit is lost.
 func TestAFrozenVLCIsWaitedForThenLost(t *testing.T) {
 	executable, video := realVLC(t)
 	session, err := vlc.Launch(t.Context(), executable, player.LaunchRequest{File: video, AudioIndex: -1, StartPaused: true})

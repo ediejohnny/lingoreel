@@ -11,7 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
-// Colors of the control bar: the dark theme's tokens (DESIGN), since the bar
+// Colors of the control bar: the dark theme's tokens, since the bar
 // always sits over a video.
 var (
 	barPanel    = appearance.Color{R: 0x0e, G: 0x12, B: 0x17, A: 0xb8}

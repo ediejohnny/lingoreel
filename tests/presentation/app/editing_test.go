@@ -8,9 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 const movie = `D:\Filmes\Movie.mkv`
@@ -24,7 +27,7 @@ func onTheLine(t *testing.T, r *rig) {
 	if err := r.api.SeekTo(1.5); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-1.5) < 0.01 })
+	testkit.Eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-1.5) < 0.01 })
 }
 
 // wantMessage fails unless err is the user's message holding part.
@@ -36,6 +39,7 @@ func wantMessage(t *testing.T, what string, err error, part string) {
 }
 
 func TestCorrectingALineFromThePanel(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	onTheLine(t, r)
 	wantMessage(t, "EditLine without a selection", r.api.EditLine(app.EditRequest{Text: "x", Start: "0:01", End: "0:02"}), "Escolha uma fala")
@@ -115,7 +119,7 @@ func TestCorrectingALineFromThePanel(t *testing.T) {
 	if err := r.api.TogglePause(); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "playing", func() bool { return r.api.PlaybackState().Status == "playing" })
+	testkit.Eventually(t, "playing", func() bool { return r.api.PlaybackState().Status == "playing" })
 	wantMessage(t, "EditLine while playing", r.api.EditLine(app.EditRequest{Text: "Oi.", Start: "0:01", End: "0:02"}), "Pause o vídeo")
 	wantMessage(t, "UndoEdit while playing", r.api.UndoEdit(), "Pause o vídeo")
 
@@ -125,6 +129,7 @@ func TestCorrectingALineFromThePanel(t *testing.T) {
 }
 
 func TestExportWritesWhatTheUserSees(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	onTheLine(t, r)
 	if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Hello.", Start: "0:01", End: "0:02"})); err != nil {
@@ -178,6 +183,7 @@ func TestExportWritesWhatTheUserSees(t *testing.T) {
 }
 
 func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(movie); err != nil {
@@ -188,7 +194,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 2, Primary: 5, Translation: 4, Mode: "always"}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	onTheLine(t, r)
 	if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Olá.", Start: "0:01", End: "0:02"})); err != nil {
 		t.Fatal(err)
@@ -201,11 +207,11 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	if err := r.api.SavePassage("   "); err != nil {
 		t.Fatal(err)
 	}
-	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0].Name != "Trecho 0:10–0:20" || saved[0].Summary != "Pausa no fim" {
+	if saved := r.api.PlaybackState().SavedPassages; len(saved) != 1 || saved[0].Name != ptbr.PassageName(10*time.Second, 20*time.Second) || saved[0].Summary != "Pausa no fim" {
 		t.Fatalf("saved without a name = %+v", saved)
 	}
 	wantMessage(t, "SavePassage with a long name", r.api.SavePassage(strings.Repeat("a", project.MaxPassageNameLen+1)), "Dê um nome")
-	if err := errors.Join(r.api.DeletePassage("Trecho 0:10–0:20"), r.api.SavePassage("Rua")); err != nil {
+	if err := errors.Join(r.api.DeletePassage(ptbr.PassageName(10*time.Second, 20*time.Second)), r.api.SavePassage("Rua")); err != nil {
 		t.Fatal(err)
 	}
 	// The same name, in any case, replaces the passage, with its plan.
@@ -231,7 +237,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 		t.Fatal("the offset was saved at every step")
 	}
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
 	stored, _ := r.projects.stored(t, movie)
 	if stored.Tracks["track:4"].Offset <= 0 || stored.Choice != (project.Choice{Audio: "track:2", Primary: "track:5", Translation: "track:4", Mode: "always"}) {
@@ -249,7 +255,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	state := r.api.PlaybackState()
 	if state.TranslationOffset != offset || len(state.SavedPassages) != 1 || state.SavedPassages[0].Name != "Loja" ||
 		state.SavedPassages[0].Start != "0:10" || state.SavedPassages[0].End != "0:20" {
@@ -274,6 +280,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 }
 
 func TestARememberedChoiceMustStillFit(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	// Track 6 is a picture subtitle the app cannot read; 9 is not in the video.
 	remembered := project.New()
@@ -298,6 +305,7 @@ func TestARememberedChoiceMustStillFit(t *testing.T) {
 }
 
 func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name    string
 		loadErr error
@@ -318,7 +326,7 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { r.api.StopWatching() })
-			eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+			testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 			onTheLine(t, r)
 			// The correction still works for this session, in memory only.
 			if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Hello.", Start: "0:01", End: "0:02"})); err != nil {
@@ -336,6 +344,7 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 }
 
 func TestAFailedSaveIsShown(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.projects.saveErr = errors.New("disk full")
 	r.attach(t)
@@ -346,13 +355,14 @@ func TestAFailedSaveIsShown(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if note := r.api.PlaybackState().ProjectNote; !strings.Contains(note, "Não foi possível gravar") {
 		t.Fatalf("note = %q", note)
 	}
 }
 
 func TestEditingNeedsASession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	for name, call := range map[string]func() error{

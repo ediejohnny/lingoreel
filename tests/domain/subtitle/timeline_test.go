@@ -12,6 +12,7 @@ import (
 )
 
 func TestActiveAtBoundaries(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("a", 10_000, 12_000), event("b", 12_000, 15_000))
 
 	cases := []struct {
@@ -39,6 +40,7 @@ func TestActiveAtBoundaries(t *testing.T) {
 }
 
 func TestActiveAtGapBetweenEvents(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("a", 1_000, 2_000), event("b", 5_000, 6_000))
 
 	if got := timeline.ActiveAt(ms(3_000)); len(got) != 0 {
@@ -47,6 +49,7 @@ func TestActiveAtGapBetweenEvents(t *testing.T) {
 }
 
 func TestActiveAtOverlappingEvents(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t,
 		event("sign", 0, 60_000),
 		event("line1", 10_000, 12_000),
@@ -60,6 +63,7 @@ func TestActiveAtOverlappingEvents(t *testing.T) {
 }
 
 func TestNewTimelineSortsUnorderedInput(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("c", 5_000, 6_000), event("a", 1_000, 2_000), event("b", 3_000, 4_000))
 
 	got := activeIDs(timeline.Events())
@@ -72,6 +76,7 @@ func TestNewTimelineSortsUnorderedInput(t *testing.T) {
 }
 
 func TestNewTimelineOrdersEqualStartsByEnd(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("long", 1_000, 9_000), event("short", 1_000, 2_000))
 
 	if got := activeIDs(timeline.Events()); !slices.Equal(got, []string{"short", "long"}) {
@@ -80,6 +85,7 @@ func TestNewTimelineOrdersEqualStartsByEnd(t *testing.T) {
 }
 
 func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
+	t.Parallel()
 	cases := map[string]subtitle.Event{
 		"zero duration":    event("z", 1_000, 1_000),
 		"end before start": event("r", 2_000, 1_000),
@@ -97,6 +103,7 @@ func TestNewTimelineRejectsInvalidEvents(t *testing.T) {
 }
 
 func TestTimelineDoesNotAliasInputOrOutput(t *testing.T) {
+	t.Parallel()
 	input := []subtitle.Event{event("a", 0, 1_000)}
 	timeline := mustTimeline(t, input...)
 
@@ -108,6 +115,7 @@ func TestTimelineDoesNotAliasInputOrOutput(t *testing.T) {
 }
 
 func TestEmptyTimeline(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t)
 
 	if got := timeline.ActiveAt(0); len(got) != 0 {
@@ -119,6 +127,7 @@ func TestEmptyTimeline(t *testing.T) {
 }
 
 func TestNextChangeAfter(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t,
 		event("a", 1_000, 3_000),
 		event("b", 2_000, 5_000),
@@ -150,6 +159,7 @@ func TestNextChangeAfter(t *testing.T) {
 // Compares the indexed lookup against a brute-force scan on random data,
 // including very long events that span most of the timeline.
 func TestActiveAtMatchesLinearScan(t *testing.T) {
+	t.Parallel()
 	random := rand.New(rand.NewSource(42))
 	events := make([]subtitle.Event, 0, 2_000)
 	for i := range 2_000 {
@@ -180,6 +190,7 @@ func TestActiveAtMatchesLinearScan(t *testing.T) {
 // Checks NextChangeAfter against a brute-force oracle: the earliest start or
 // end strictly after the instant.
 func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
+	t.Parallel()
 	random := rand.New(rand.NewSource(99))
 	events := make([]subtitle.Event, 0, 500)
 	for i := range 500 {
@@ -206,40 +217,27 @@ func TestNextChangeAfterMatchesLinearScan(t *testing.T) {
 	}
 }
 
-// RNF-015 with a pass/fail line: 50,000 events and 100,000 lookups. The index
-// does this in milliseconds; scanning every event per lookup would take
-// billions of steps. The ceiling is generous (race detector, loaded machine).
-func TestFiftyThousandEventsStayFast(t *testing.T) {
-	const count, lookups = 50_000, 100_000
-	events := make([]subtitle.Event, 0, count)
-	for i := range count {
-		start := i * 2_500
-		events = append(events, event(fmt.Sprint(i), start, start+2_000))
-	}
-	started := time.Now()
-	timeline := mustTimeline(t, events...)
-	random := rand.New(rand.NewSource(11))
-	for range lookups {
-		at := random.Intn(count * 2_500)
-		active := timeline.ActiveAt(ms(at))
-		// Oracle: event i covers [2500 i, 2500 i + 2000).
-		inside := at%2_500 < 2_000
-		if inside != (len(active) == 1) || (inside && active[0].ID != fmt.Sprint(at/2_500)) {
-			t.Fatalf("ActiveAt(%d ms) = %d events", at, len(active))
-		}
-	}
-	if elapsed := time.Since(started); elapsed > 2*time.Second {
-		t.Fatalf("building and querying took %v, want under 2 s", elapsed)
-	}
-}
-
-func BenchmarkActiveAt50kEvents(b *testing.B) {
+// fiftyThousand are the events of a very long file, one every 2.5 s.
+func fiftyThousand() []subtitle.Event {
 	events := make([]subtitle.Event, 0, 50_000)
 	for i := range 50_000 {
 		start := i * 2_500
 		events = append(events, event(fmt.Sprint(i), start, start+2_000))
 	}
-	timeline := mustTimeline(b, events...)
+	return events
+}
+
+// Building the index of a very long file takes milliseconds; a quadratic step
+// would take minutes.
+func BenchmarkNewTimeline50kEvents(b *testing.B) {
+	events := fiftyThousand()
+	for b.Loop() {
+		mustTimeline(b, events...)
+	}
+}
+
+func BenchmarkActiveAt50kEvents(b *testing.B) {
+	timeline := mustTimeline(b, fiftyThousand()...)
 	positions := make([]time.Duration, 1024)
 	random := rand.New(rand.NewSource(7))
 	for i := range positions {

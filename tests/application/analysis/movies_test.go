@@ -19,8 +19,9 @@ import (
 const movieCeiling = 10 * time.Second
 
 // TestRealMoviesOpenQuickly measures the films in LINGOREEL_MOVIES (the
-// .docs\movies folder of the developer's machine); without it, it skips.
+// movies folder of the developer's machine); without it, it skips.
 func TestRealMoviesOpenQuickly(t *testing.T) {
+	t.Parallel()
 	dir := os.Getenv("LINGOREEL_MOVIES")
 	if dir == "" {
 		t.Skip("set LINGOREEL_MOVIES to a folder of real films")

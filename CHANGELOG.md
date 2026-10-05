@@ -6,6 +6,22 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-10-05
+
+The Modo Karaokê's fill color on the page of the line on top, and three fixes.
+
+### Added
+
+- Settings › Legendas › De cima edits the Modo Karaokê's fill color, and its preview can show the line half spoken.
+
+### Fixed
+
+- The spoken part and the bar of a preview follow the line's opacity: at 50% they no longer stay opaque, at 0% they no
+  longer show.
+- Jobs of a window's thread run while a modal loop is open (a window being dragged or sized, a menu), instead of waiting
+  for the next one.
+- Saving the settings no longer undoes the Modo Karaokê of the video being watched, set by its project or the bar.
+
 ### Changed
 
 - The Go module is named after its GitHub home: `github.com/ediejohnny/lingoreel`.
@@ -97,9 +113,9 @@ Robustness and packaging.
 - Daily logs with the session's events
 - One app at a time, a second launch opens its video here
 - Wait for a silent player, and hold the subtitles of a frozen one
-- Say what went wrong and what to do (PRD §52)
-- Diagnostics in the advanced settings (RNF-032)
-- Optional "Abrir com" and context menu entry for videos (RF-001)
+- Say what went wrong and what to do
+- Diagnostics in the advanced settings
+- Optional "Abrir com" and context menu entry for videos
 
 ### Changed
 
@@ -297,7 +313,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.16.3...HEAD
+[0.16.3]: https://github.com/ediejohnny/lingoreel/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/ediejohnny/lingoreel/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/ediejohnny/lingoreel/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/ediejohnny/lingoreel/compare/v0.15.1...v0.16.0

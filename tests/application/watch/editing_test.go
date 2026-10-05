@@ -11,6 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // The rig's lines: on top "Hello there." (e1), below "Olá." (p1), both
@@ -24,7 +25,7 @@ func playbackAt(position time.Duration) playback.Sample {
 // screenShows waits until the display's latest screen passes check.
 func screenShows(t *testing.T, r *rig, what string, check func(session.Screen) bool) {
 	t.Helper()
-	eventually(t, what, func() bool {
+	testkit.Eventually(t, what, func() bool {
 		screen, shown, _, _ := r.display.last()
 		return shown > 0 && check(screen)
 	})
@@ -41,6 +42,7 @@ func shownLine(t *testing.T, s *watch.Session) subtitle.Event {
 }
 
 func TestEditingAPausedLine(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
@@ -136,6 +138,7 @@ func TestEditingAPausedLine(t *testing.T) {
 }
 
 func TestEditsThatAreRefused(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	if err := s.Edit(watch.EditChange{Text: new("x")}); !errors.Is(err, watch.ErrNothingSelected) {
@@ -207,6 +210,7 @@ func TestEditsThatAreRefused(t *testing.T) {
 }
 
 func TestSavedEditsComeBack(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.Saved = map[session.Line]project.Track{
 		session.LinePrimary: {Edits: map[string]project.Edit{
@@ -246,6 +250,7 @@ func TestSavedEditsComeBack(t *testing.T) {
 }
 
 func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	// The top line plays 0.5 s late; the bottom one 1.5 s early.
 	r.request.Saved = map[session.Line]project.Track{
@@ -254,7 +259,7 @@ func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
 	}
 	s := r.start(t)
 	r.running.samples <- playbackAt(2 * time.Second)
-	eventually(t, "the position", func() bool { return s.State().Position >= 2*time.Second })
+	testkit.Eventually(t, "the position", func() bool { return s.State().Position >= 2*time.Second })
 
 	selection, err := s.Select(session.LinePrimary)
 	if err != nil || selection.Offset.PlaybackTime(selection.Event.Start) != 1500*time.Millisecond {
@@ -287,6 +292,7 @@ func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
 }
 
 func TestTheOutlineFollowsTheSelectedLine(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	if _, err := s.Select(session.LineTranslation); err != nil {
@@ -311,13 +317,20 @@ func TestTheOutlineFollowsTheSelectedLine(t *testing.T) {
 // paints the screen from before it over the new one, however the runner's
 // own drawing of the change interleaves with it.
 func TestEveryEditReachesTheScreen(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
 	if _, err := s.Select(session.LinePrimary); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 300 {
+	// The race it guards against shows only now and then: the full check
+	// tries many times, the quick one a few.
+	tries := 300
+	if testing.Short() {
+		tries = 30
+	}
+	for i := range tries {
 		text := fmt.Sprintf("Edit number %d.", i)
 		if err := s.Edit(watch.EditChange{Text: &text}); err != nil {
 			t.Fatal(err)

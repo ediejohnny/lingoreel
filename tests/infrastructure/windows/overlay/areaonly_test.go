@@ -26,7 +26,7 @@ var (
 	})
 )
 
-// The app's own window, with the video in a part of it (B2): the subtitles
+// The app's own window, with the video in a part of it: the subtitles
 // cover that part only and hide with it, never the app's controls around it.
 func TestAnAreaOnlyOverlayHidesWithItsArea(t *testing.T) {
 	thread, err := uithread.Start()

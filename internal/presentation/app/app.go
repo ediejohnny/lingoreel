@@ -121,9 +121,11 @@ type Deps struct {
 	OpenFolder  func(path string) error
 	// Projects keeps each video's project; nil keeps nothing between runs.
 	// SaveDelay is how long after a change the waiting saves happen (the
-	// offsets, the position, the speed); zero is 2 s.
+	// offsets, the position, the speed); zero is 2 s. Later runs them after
+	// that delay and returns what stops them; nil is time.AfterFunc.
 	Projects  Projects
 	SaveDelay time.Duration
+	Later     func(delay time.Duration, run func()) (stop func() bool)
 	// About is the app's and the system's version, for the diagnostics;
 	// Monitors lists the screens (nil lists none); LogDir holds the logs.
 	About    About

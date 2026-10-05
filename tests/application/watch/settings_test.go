@@ -14,9 +14,11 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestTheVideoStartsAtTheProfileSpeed(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.Speed = 0.75
 	r.start(t)
@@ -47,6 +49,7 @@ func TestTheVideoStartsAtTheProfileSpeed(t *testing.T) {
 // The system-wide shortcuts are the four sync steps and the two passage
 // marks, in that order, with the profile's chords.
 func TestTheGlobalShortcutsUseTheProfileChords(t *testing.T) {
+	t.Parallel()
 	r, window, _ := hostedRig(t)
 	r.request.Shortcuts = shortcut.Map{
 		shortcut.SyncPrimaryEarlier: {Modifiers: shortcut.Ctrl | shortcut.Shift, Key: "KeyJ"},
@@ -70,6 +73,7 @@ func TestTheGlobalShortcutsUseTheProfileChords(t *testing.T) {
 }
 
 func TestChangingTheShortcutsWhilePlaying(t *testing.T) {
+	t.Parallel()
 	r, window, _ := hostedRig(t)
 	s := r.start(t)
 
@@ -97,7 +101,7 @@ func TestChangingTheShortcutsWhilePlaying(t *testing.T) {
 		t.Fatalf("%d starts, first closed %v, chords %v", starts, r.shortcuts.closed, last)
 	}
 	next[0].presses <- watch.Press{Index: 3}
-	eventually(t, "the translation later", func() bool {
+	testkit.Eventually(t, "the translation later", func() bool {
 		return s.Offset(session.LineTranslation) == subtitle.Offset(subtitle.DefaultNudgeStep)
 	})
 
@@ -127,23 +131,20 @@ func TestChangingTheShortcutsWhilePlaying(t *testing.T) {
 }
 
 func TestTheTranslationKey(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.Mode = study.ModeOnDemand
 	s := r.start(t)
 	if s.TranslationVisible() {
 		t.Fatal("on demand, the translation started shown")
 	}
-	// Toggle (the default): each press flips it; the release changes nothing.
+	// Toggle (the default; the rules are the domain's): a press shows it.
 	s.Reveal(true)
 	s.Reveal(false)
 	if !s.TranslationVisible() {
 		t.Fatal("a press did not show the translation")
 	}
-	s.Reveal(true)
-	if s.TranslationVisible() {
-		t.Fatal("a second press did not hide it")
-	}
-	s.Reveal(false)
+	s.SetTranslationVisible(false)
 
 	if err := s.SetRevealBehavior(study.RevealHold); err != nil {
 		t.Fatal(err)
@@ -172,6 +173,7 @@ func TestTheTranslationKey(t *testing.T) {
 }
 
 func TestTheSyncNoticeCanBeLeftOut(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.NoSyncNotice = true
 	s := r.start(t)
@@ -187,6 +189,7 @@ func TestTheSyncNoticeCanBeLeftOut(t *testing.T) {
 }
 
 func TestSyncStepsChangeWhilePlaying(t *testing.T) {
+	t.Parallel()
 	s := newRig(t).start(t)
 	if err := s.SetSyncSteps(subtitle.NudgeSteps{Step: 200 * time.Millisecond, FastStep: time.Second}); err != nil {
 		t.Fatal(err)
@@ -203,6 +206,7 @@ func TestSyncStepsChangeWhilePlaying(t *testing.T) {
 }
 
 func TestRestyleReachesTheWindow(t *testing.T) {
+	t.Parallel()
 	r, window, _ := hostedRig(t)
 	s := r.start(t)
 	profile := settings.DefaultProfile()

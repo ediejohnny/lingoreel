@@ -9,9 +9,11 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestNothingWorksBeforeTheWindow(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\x.mkv`); !errors.Is(err, app.ErrNotReady) {
 		t.Fatalf("OpenVideo before Attach = %v", err)
@@ -22,6 +24,7 @@ func TestNothingWorksBeforeTheWindow(t *testing.T) {
 }
 
 func TestOpenVideoDescribesTracksAndPlayers(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\notas.txt`); err == nil || !strings.Contains(err.Error(), ".txt") {
@@ -61,6 +64,7 @@ func TestOpenVideoDescribesTracksAndPlayers(t *testing.T) {
 }
 
 func TestWatchAndControlTheSession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.Watch(app.WatchRequest{Player: "fake"}); err == nil {
@@ -82,7 +86,7 @@ func TestWatchAndControlTheSession(t *testing.T) {
 		t.Fatalf("'always use' saved %q as the preferred player", preferred)
 	}
 
-	eventually(t, "the state of the session", func() bool {
+	testkit.Eventually(t, "the state of the session", func() bool {
 		state := r.api.PlaybackState()
 		return state.Active && state.Status == "paused" && state.PositionText == "0:30" && state.DurationText == "1:30:00"
 	})
@@ -124,6 +128,7 @@ func TestWatchAndControlTheSession(t *testing.T) {
 }
 
 func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -153,6 +158,7 @@ func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
 // A player in a window of its own (PotPlayer) is one with the app: the user
 // closing it closes the app too, the session's work saved first.
 func TestThePlayerClosingClosesTheApp(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -168,7 +174,7 @@ func TestThePlayerClosingClosesTheApp(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.plugin.current().Close() // the user closed the player
-	eventually(t, "the app to close", func() bool { return r.ui.quitCount() == 1 && !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the app to close", func() bool { return r.ui.quitCount() == 1 && !r.api.PlaybackState().Active })
 	// Saved before closing: the place reached is kept for "Continuar de".
 	if saved, _ := r.projects.stored(t, `D:\Filmes\Movie.mkv`); saved.Last.Position.Duration() == 0 {
 		t.Fatal("the app closed without keeping where the video was")
@@ -183,6 +189,7 @@ func TestThePlayerClosingClosesTheApp(t *testing.T) {
 
 // A session the app ends itself never closes the app, whatever the player.
 func TestStoppingTheVideoNeverClosesTheApp(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -205,6 +212,7 @@ func TestStoppingTheVideoNeverClosesTheApp(t *testing.T) {
 
 // The player lost (a crash) leaves the app open, offering to watch again.
 func TestALostPlayerKeepsTheAppOpen(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -216,7 +224,7 @@ func TestALostPlayerKeepsTheAppOpen(t *testing.T) {
 	running := r.plugin.current()
 	running.lost.Store(true)
 	running.Close()
-	eventually(t, "the end of the session", func() bool {
+	testkit.Eventually(t, "the end of the session", func() bool {
 		data, told := r.ui.last(app.EventEnded)
 		ended, _ := data.(app.Ended)
 		return told && ended.Resume
@@ -229,6 +237,7 @@ func TestALostPlayerKeepsTheAppOpen(t *testing.T) {
 // A player that keeps its own audio track (PotPlayer) says so to the
 // session screen, which then offers no choice.
 func TestAPlayerThatKeepsItsAudioTrackSaysSo(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	players, err := r.api.Players()
@@ -245,6 +254,7 @@ func TestAPlayerThatKeepsItsAudioTrackSaysSo(t *testing.T) {
 }
 
 func TestWithoutAPlayerTheCardsOfferOne(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	r.installed = nil
@@ -281,12 +291,13 @@ func TestWithoutAPlayerTheCardsOfferOne(t *testing.T) {
 }
 
 func TestInstallAndDownload(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.InstallPlayer("fake"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the installation result", func() bool {
+	testkit.Eventually(t, "the installation result", func() bool {
 		data, ok := r.ui.last(app.EventInstall)
 		return ok && data.(app.InstallProgress).Done && data.(app.InstallProgress).Error == ""
 	})
@@ -297,7 +308,7 @@ func TestInstallAndDownload(t *testing.T) {
 	if err := r.api.InstallPlayer("fake"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the failure", func() bool {
+	testkit.Eventually(t, "the failure", func() bool {
 		data, _ := r.ui.last(app.EventInstall)
 		return data.(app.InstallProgress).Error != ""
 	})
@@ -318,6 +329,7 @@ func TestInstallAndDownload(t *testing.T) {
 }
 
 func TestPreferencesAndTheme(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	preferences := r.api.Preferences()
@@ -337,6 +349,7 @@ func TestPreferencesAndTheme(t *testing.T) {
 }
 
 func TestDamagedSettingsFallBackToTheDefaults(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.settings.config.Theme = settings.ThemeDark
 	r.settings.loadErr = errors.New("corrupt")
@@ -347,6 +360,7 @@ func TestDamagedSettingsFallBackToTheDefaults(t *testing.T) {
 }
 
 func TestDroppedFilesAndTheInitialVideo(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	r.lifecycle.Dropped(nil)

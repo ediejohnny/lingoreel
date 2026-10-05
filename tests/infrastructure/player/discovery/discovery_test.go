@@ -88,12 +88,14 @@ func found(t *testing.T, installations []player.Installation) map[player.ID]stri
 }
 
 func TestDetectFindsNothingOnACleanMachine(t *testing.T) {
+	t.Parallel()
 	if got := discovery.Detect(newEnvironment(), allHints(), nil); len(got) != 0 {
 		t.Fatalf("Detect on an empty machine = %+v", got)
 	}
 }
 
 func TestDetectUsesEachSource(t *testing.T) {
+	t.Parallel()
 	env := newEnvironment()
 	// VLC through its own registry key holding the install folder.
 	env.setValue(discovery.LocalMachine, `SOFTWARE\VideoLAN\VLC`, "InstallDir", `D:\Apps\VLC`)
@@ -130,6 +132,7 @@ func TestDetectUsesEachSource(t *testing.T) {
 }
 
 func TestConfiguredPathWinsWhenItExists(t *testing.T) {
+	t.Parallel()
 	env := newEnvironment()
 	env.addFile(`C:\Program Files\VideoLAN\VLC\vlc.exe`)
 	env.addFile(`D:\Portable\VLC\vlc.exe`)
@@ -146,6 +149,7 @@ func TestConfiguredPathWinsWhenItExists(t *testing.T) {
 }
 
 func TestDetectRejectsPathsThatAreNotThePlayer(t *testing.T) {
+	t.Parallel()
 	env := newEnvironment()
 	// A registry value pointing to another program, and a relative PATH hit.
 	env.setValue(discovery.LocalMachine, `SOFTWARE\VideoLAN\VLC`, "", `C:\Windows\System32\cmd.exe`)
@@ -164,6 +168,7 @@ func TestDetectRejectsPathsThatAreNotThePlayer(t *testing.T) {
 }
 
 func TestDetectFollowsTheHintsItIsGiven(t *testing.T) {
+	t.Parallel()
 	env := newEnvironment()
 	env.addFile(`C:\Program Files\VideoLAN\VLC\vlc.exe`)
 	env.addFile(`C:\Program Files\mpv\mpv.exe`)
@@ -188,6 +193,7 @@ func TestDetectFollowsTheHintsItIsGiven(t *testing.T) {
 }
 
 func TestDetectOnThisMachineReturnsOnlyExistingExecutables(t *testing.T) {
+	t.Parallel()
 	installations := discovery.Detect(discovery.SystemEnvironment{}, allHints(), nil)
 	for _, installation := range installations {
 		info, err := os.Stat(installation.Path)

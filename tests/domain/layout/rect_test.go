@@ -8,6 +8,7 @@ import (
 )
 
 func TestVideoRectKeepsTheAspectRatio(t *testing.T) {
+	t.Parallel()
 	area := layout.Rect{X: 10, Y: 20, W: 1920, H: 1080}
 	cases := []struct {
 		name          string
@@ -33,6 +34,7 @@ func TestVideoRectKeepsTheAspectRatio(t *testing.T) {
 }
 
 func TestVideoRectOfAnInvalidAreaIsTheArea(t *testing.T) {
+	t.Parallel()
 	for _, area := range []layout.Rect{{}, {W: -5, H: 10}, {W: math.NaN(), H: 10}, {W: 10, H: math.Inf(1)}} {
 		got := layout.VideoRect(area, 1920, 1080)
 		nanKept := math.IsNaN(got.W) && math.IsNaN(area.W) && got.H == area.H
@@ -43,6 +45,7 @@ func TestVideoRectOfAnInvalidAreaIsTheArea(t *testing.T) {
 }
 
 func TestRectValidAndContains(t *testing.T) {
+	t.Parallel()
 	r := layout.Rect{X: 0, Y: 0, W: 10, H: 5}
 	for _, p := range [][2]float64{{0, 0}, {9.99, 4.99}} {
 		if !r.Contains(p[0], p[1]) {

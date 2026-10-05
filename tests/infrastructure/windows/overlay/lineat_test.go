@@ -13,6 +13,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // hits scans the player's client area and tells where each line answers.
@@ -74,6 +75,7 @@ func settled(t *testing.T, target windows.HWND) []byte {
 
 // The line being edited is outlined on the video, and only while it shows.
 func TestTheOutlineReachesTheScreen(t *testing.T) {
+	testkit.Slow(t)
 	player := launchFakePlayer(t, true)
 	screen, err := overlay.Open(t.Context(), overlay.Options{
 		ProcessID: player.pid(), Layout: appearance.DefaultLayout(),
@@ -119,6 +121,7 @@ func TestTheOutlineReachesTheScreen(t *testing.T) {
 }
 
 func TestLineAtFindsTheDrawnLines(t *testing.T) {
+	testkit.Slow(t)
 	player := startFakePlayer(t)
 	s := openOver(t, player.pid()) // shows both lines
 

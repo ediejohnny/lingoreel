@@ -22,6 +22,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -209,17 +210,6 @@ func open(t *testing.T) *playerwindow.Window {
 	return w
 }
 
-func eventually(t *testing.T, what string, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(4 * time.Second)
-	for !condition() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-}
-
 func post(t *testing.T, hwnd windows.HWND, message uint32, wparam, lparam uintptr) {
 	t.Helper()
 	if err := win32.PostMessage(hwnd, message, wparam, lparam); err != nil {
@@ -297,6 +287,7 @@ func TestTheClientAreaIsTheOneAsked(t *testing.T) {
 // TestCloseButtonEndsTheWindow is the reported bug: the close button and
 // Alt+F4 (both WM_CLOSE) must reach the app, which then ends everything.
 func TestCloseButtonEndsTheWindow(t *testing.T) {
+	testkit.Slow(t)
 	w := open(t)
 	host := windows.HWND(w.Handle())
 	post(t, host, win32.WM_CLOSE, 0, 0)
@@ -351,7 +342,7 @@ func TestKeysDriveTheSession(t *testing.T) {
 		"play-pause", "seek-forward", "mute", "replay-line",
 		"frame-back", "frame-forward", "repeat-phrase", "repeat-last-3", "repeat-last-10",
 	}
-	eventually(t, "every key to run its command", func() bool { return len(remote.ran()) >= len(want) })
+	testkit.Eventually(t, "every key to run its command", func() bool { return len(remote.ran()) >= len(want) })
 	if got := remote.ran(); !slices.Equal(got, want) {
 		t.Fatalf("ran %q, want %q (the key before the session ran nothing)", got, want)
 	}
@@ -365,14 +356,14 @@ func TestTheBarJumpsAndTheLockedTranslation(t *testing.T) {
 	w.Attach(remote)
 	bar := controlBar(host)
 	post(t, host, win32.WM_MOUSEMOVE, 0, at(320, 340))
-	eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
 	// From the left padding of 12: play 12..52, a gap of 4, back 56..96,
 	// forward 100..140 (the bar starts at client x 0). The translation
 	// (x 480..520) is off in the mode that always shows it.
 	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(76, 60))
 	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(120, 60))
 	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(490, 60))
-	eventually(t, "the jumps", func() bool { return len(remote.ran()) >= 2 })
+	testkit.Eventually(t, "the jumps", func() bool { return len(remote.ran()) >= 2 })
 	time.Sleep(100 * time.Millisecond)
 	if got := remote.ran(); !slices.Equal(got, []string{"seek-back", "seek-forward"}) {
 		t.Fatalf("ran %q", got)
@@ -383,6 +374,7 @@ func TestTheBarJumpsAndTheLockedTranslation(t *testing.T) {
 }
 
 func TestTheBarShowsAtTheBottomAndTakesClicks(t *testing.T) {
+	testkit.Slow(t)
 	w := open(t)
 	host := windows.HWND(w.Handle())
 	p := &recordingPlayer{}
@@ -403,20 +395,20 @@ func TestTheBarShowsAtTheBottomAndTakesClicks(t *testing.T) {
 	}
 	// 640x360 at 100%: the zone starts max(72, 116) pixels from the bottom.
 	post(t, host, win32.WM_MOUSEMOVE, 0, at(320, 340))
-	eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
 
 	// The bar window starts at the band: panel 360-58 = 302, band 302-34 =
 	// 268. Play is at client (12, 318), so at (20, 60) in the bar; the
 	// translation at client x 480..520 (right edge 628, fullscreen 588,
 	// speed 524).
 	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(20, 60))
-	eventually(t, "a click on play to pause", func() bool { return p.saw("pause") })
+	testkit.Eventually(t, "a click on play to pause", func() bool { return p.saw("pause") })
 	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(490, 60))
-	eventually(t, "a click on the translation to hide it", func() bool { return !remote.TranslationVisible() })
+	testkit.Eventually(t, "a click on the translation to hide it", func() bool { return !remote.TranslationVisible() })
 
 	// The real mouse is elsewhere: the bar leaves after its delay.
 	start := time.Now()
-	eventually(t, "the bar to hide", func() bool { return !windows.IsWindowVisible(bar) })
+	testkit.Eventually(t, "the bar to hide", func() bool { return !windows.IsWindowVisible(bar) })
 	if waited := time.Since(start); waited < controlbar.HideDelay/2 {
 		t.Fatalf("the bar left after %v, before its delay", waited)
 	}
@@ -442,7 +434,7 @@ func TestFullscreenAndBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	post(t, host, win32.WM_KEYDOWN, 0, key(scanF, false, false))
-	eventually(t, "the window to cover its monitor", func() bool {
+	testkit.Eventually(t, "the window to cover its monitor", func() bool {
 		r, err := win32.WindowRect(host)
 		return err == nil && r == monitor
 	})
@@ -540,10 +532,10 @@ func TestFullscreenKeepsTheSubtitlesAndTheBarOnTop(t *testing.T) {
 	}
 	onTop("windowed")
 	doubleClick()
-	eventually(t, "the window to cover its monitor", func() bool { r, err := win32.WindowRect(host); return err == nil && r == monitor })
+	testkit.Eventually(t, "the window to cover its monitor", func() bool { r, err := win32.WindowRect(host); return err == nil && r == monitor })
 	onTop("fullscreen")
 	doubleClick()
-	eventually(t, "the window back", func() bool { r, err := win32.WindowRect(host); return err == nil && r == before })
+	testkit.Eventually(t, "the window back", func() bool { r, err := win32.WindowRect(host); return err == nil && r == before })
 	onTop("back from fullscreen")
 }
 func (p *recordingPlayer) count(call string) int {
@@ -580,7 +572,7 @@ func TestTheProfileKeysDriveTheWindow(t *testing.T) {
 	send(host, win32.WM_KEYDOWN, key(scanArrowRight, true, false))
 	send(host, win32.WM_KEYDOWN, key(scanArrowRight, true, true))
 	want := []string{"play-pause", "seek-forward", "seek-forward (held)"}
-	eventually(t, "P and the held arrow", func() bool { return len(remote.ran()) >= len(want) })
+	testkit.Eventually(t, "P and the held arrow", func() bool { return len(remote.ran()) >= len(want) })
 	time.Sleep(50 * time.Millisecond)
 	if got := remote.ran(); !slices.Equal(got, want) {
 		t.Fatalf("ran %q, want %q (Space and the repeats of P did nothing)", got, want)
@@ -591,14 +583,14 @@ func TestTheProfileKeysDriveTheWindow(t *testing.T) {
 	send(host, win32.WM_SYSKEYDOWN, key(scanAlt, true, false))
 	send(host, win32.WM_SYSKEYDOWN, key(scanAlt, true, true))
 	send(host, win32.WM_SYSKEYUP, key(scanAlt, true, true))
-	eventually(t, "the translation key down and up", func() bool { return slices.Equal(remote.revealed(), []bool{true, false}) })
+	testkit.Eventually(t, "the translation key down and up", func() bool { return slices.Equal(remote.revealed(), []bool{true, false}) })
 	// The left Alt is not the translation key.
 	send(host, win32.WM_SYSKEYDOWN, key(scanAlt, false, false))
 	send(host, win32.WM_SYSKEYUP, key(scanAlt, false, true))
 	// Losing the keyboard with the key down lets it go.
 	send(host, win32.WM_SYSKEYDOWN, key(scanAlt, true, false))
 	send(host, win32.WM_KILLFOCUS, 0)
-	eventually(t, "the key let go on losing the focus", func() bool {
+	testkit.Eventually(t, "the key let go on losing the focus", func() bool {
 		return slices.Equal(remote.revealed(), []bool{true, false, true, false})
 	})
 	time.Sleep(100 * time.Millisecond)

@@ -7,6 +7,7 @@ import (
 )
 
 func TestNormalizeLanguage(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		bcp47, iso639, name string
 		want                media.LanguageTag
@@ -15,7 +16,7 @@ func TestNormalizeLanguage(t *testing.T) {
 		{"pt_br", "", "", "pt-BR"},
 		{"PT-br", "", "", "pt-BR"},
 		{"", "por", "", "pt"},
-		{"", "por", "Brazilian Portuguese", "pt-BR"}, // the PRD example
+		{"", "por", "Brazilian Portuguese", "pt-BR"},
 		{"", "por", "Português (Brasil)", "pt-BR"},
 		{"", "por", "PT-BR", "pt-BR"},
 		{"", "por", "Portuguese (European)", "pt-PT"},
@@ -49,6 +50,7 @@ func TestNormalizeLanguage(t *testing.T) {
 }
 
 func TestLanguageTagParts(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		tag          media.LanguageTag
 		base, region string

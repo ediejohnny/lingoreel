@@ -51,6 +51,7 @@ func write(t *testing.T, w *logfile.Writer, line string) {
 }
 
 func TestOneFilePerDayAppending(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	c := &clock{now: day(2026, 10, 3, 23, 59)}
 	w, err := logfile.Open(dir, c.Now)
@@ -84,6 +85,7 @@ func TestOneFilePerDayAppending(t *testing.T) {
 }
 
 func TestOldDaysAreRemoved(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	keep := []string{
 		"lingoreel-2026-09-20.log", // 13 days before: the 14th day kept
@@ -128,6 +130,7 @@ func TestOldDaysAreRemoved(t *testing.T) {
 }
 
 func TestADayIsCapped(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	c := &clock{now: day(2026, 10, 3, 12, 0)}
 	w, err := logfile.OpenLimited(dir, c.Now, 100)
@@ -164,6 +167,7 @@ func TestADayIsCapped(t *testing.T) {
 }
 
 func TestConcurrentLinesStayWhole(t *testing.T) {
+	t.Parallel()
 	c := &clock{now: day(2026, 10, 3, 12, 0)}
 	w, err := logfile.Open(t.TempDir(), c.Now)
 	if err != nil {
@@ -191,6 +195,7 @@ func TestConcurrentLinesStayWhole(t *testing.T) {
 }
 
 func TestAFolderThatIsAFile(t *testing.T) {
+	t.Parallel()
 	file := filepath.Join(t.TempDir(), "taken")
 	if err := os.WriteFile(file, nil, 0o600); err != nil {
 		t.Fatal(err)

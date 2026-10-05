@@ -11,7 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
-// ModeName names a study mode, as RF-026 and RF-029 call them.
+// ModeName names a study mode as the screens call it.
 func ModeName(mode study.Mode) string {
 	switch mode {
 	case study.ModeDual:

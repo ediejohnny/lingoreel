@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"image"
+	"image/draw"
 	"image/png"
 	"slices"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // sample is the screen of the settings' preview.
@@ -34,24 +36,28 @@ func start(t *testing.T) *preview.Renderer {
 	return r
 }
 
-func decode(t *testing.T, data []byte) image.Image {
+// decode reads the PNG into plain RGBA bytes, so the checks read pixels
+// without a call per pixel.
+func decode(t *testing.T, data []byte) *image.RGBA {
 	t.Helper()
 	picture, err := png.Decode(bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("not a PNG: %v", err)
 	}
-	return picture
+	rgba := image.NewRGBA(picture.Bounds())
+	draw.Draw(rgba, rgba.Bounds(), picture, picture.Bounds().Min, draw.Src)
+	return rgba
 }
 
 // count is how many pixels of a band of rows are close to a color.
-func count(picture image.Image, top, bottom int, r, g, b uint8) int {
+func count(picture *image.RGBA, top, bottom int, r, g, b uint8) int {
+	near := func(got, want uint8) bool { d := int(got) - int(want); return d > -12 && d < 12 }
 	n := 0
 	bounds := picture.Bounds()
 	for y := max(top, bounds.Min.Y); y < min(bottom, bounds.Max.Y); y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			pr, pg, pb, _ := picture.At(x, y).RGBA()
-			near := func(a uint32, want uint8) bool { d := int(a>>8) - int(want); return d > -12 && d < 12 }
-			if near(pr, r) && near(pg, g) && near(pb, b) {
+		row := picture.Pix[picture.PixOffset(bounds.Min.X, y):picture.PixOffset(bounds.Max.X, y)]
+		for i := 0; i < len(row); i += 4 {
+			if near(row[i], r) && near(row[i+1], g) && near(row[i+2], b) {
 				n++
 			}
 		}
@@ -60,6 +66,7 @@ func count(picture image.Image, top, bottom int, r, g, b uint8) int {
 }
 
 func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
+	testkit.Slow(t)
 	r := start(t)
 	profile := settings.DefaultProfile()
 	look := watch.LookOf(profile)
@@ -123,12 +130,13 @@ func TestThePreviewRefusesSizesOutsideTheLimits(t *testing.T) {
 }
 
 // changed is the smallest rectangle where two pictures differ.
-func changed(a, b image.Image) image.Rectangle {
+func changed(a, b *image.RGBA) image.Rectangle {
 	var out image.Rectangle
 	bounds := a.Bounds()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			if a.At(x, y) != b.At(x, y) {
+			i := a.PixOffset(x, y)
+			if !bytes.Equal(a.Pix[i:i+4], b.Pix[i:i+4]) {
 				out = out.Union(image.Rect(x, y, x+1, y+1))
 			}
 		}
@@ -137,9 +145,10 @@ func changed(a, b image.Image) image.Rectangle {
 }
 
 func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
+	testkit.Slow(t)
 	r := start(t)
 	look := watch.LookOf(settings.DefaultProfile())
-	draw := func(screen session.Screen) image.Image {
+	render := func(screen session.Screen) *image.RGBA {
 		t.Helper()
 		data, err := r.Preview(look, 1280, 720, 96, screen)
 		if err != nil {
@@ -147,7 +156,7 @@ func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
 		}
 		return decode(t, data)
 	}
-	plain := draw(sample)
+	plain := render(sample)
 	top, bottom := sample, sample
 	top.Highlighted, top.Highlight = true, session.LinePrimary
 	bottom.Highlighted, bottom.Highlight = true, session.LineTranslation
@@ -155,11 +164,11 @@ func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
 	// The primary's text sits in rows 560-592 and the translation's in
 	// 628-657 (see above): each outline frames its own line, a few pixels
 	// around it, and stays clear of the other.
-	primary := changed(plain, draw(top))
+	primary := changed(plain, render(top))
 	if primary.Empty() || primary.Min.Y < 540 || primary.Max.Y > 610 || primary.Min.Y > 560 || primary.Max.Y < 592 {
 		t.Fatalf("the outline of the line on top changed %v, want a frame around rows 560-592", primary)
 	}
-	translation := changed(plain, draw(bottom))
+	translation := changed(plain, render(bottom))
 	if translation.Empty() || translation.Min.Y < 610 || translation.Max.Y > 680 || translation.Min.Y > 628 || translation.Max.Y < 657 {
 		t.Fatalf("the outline of the line below changed %v, want a frame around rows 628-657", translation)
 	}
@@ -167,8 +176,57 @@ func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
 		t.Fatalf("the two outlines overlap: %v and %v", primary, translation)
 	}
 	// No highlight draws exactly what an unmarked screen does.
-	if again := changed(plain, draw(sample)); !again.Empty() {
+	if again := changed(plain, render(sample)); !again.Empty() {
 		t.Fatalf("drawing the same screen twice changed %v", again)
+	}
+}
+
+// columns is the first and last column of a band of rows with a pixel close
+// to a color; first > last when there is none.
+func columns(picture *image.RGBA, top, bottom int, r, g, b uint8) (first, last int) {
+	bounds := picture.Bounds()
+	first, last = bounds.Max.X, bounds.Min.X-1
+	for y := top; y < bottom; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			p := picture.Pix[picture.PixOffset(x, y):]
+			near := func(got, want uint8) bool { d := int(got) - int(want); return d > -12 && d < 12 }
+			if near(p[0], r) && near(p[1], g) && near(p[2], b) {
+				first, last = min(first, x), max(last, x)
+			}
+		}
+	}
+	return first, last
+}
+
+func TestThePreviewPaintsTheSpokenPartInTheFillColor(t *testing.T) {
+	testkit.Slow(t)
+	r := start(t)
+	look := watch.LookOf(settings.DefaultProfile())
+	look.FillColor = appearance.RGB(0xFF, 0x8C, 0x00)
+	render := func(fill float64) *image.RGBA {
+		t.Helper()
+		screen := sample
+		screen.Fill = fill
+		data, err := r.Preview(look, 1280, 720, 96, screen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	// The primary's text sits in rows 560-592 (see above).
+	half := render(0.5)
+	orangeFirst, orangeLast := columns(half, 560, 592, 0xFF, 0x8C, 0x00)
+	whiteFirst, whiteLast := columns(half, 560, 592, 0xFF, 0xFF, 0xFF)
+	if orangeFirst > orangeLast || whiteFirst > whiteLast {
+		t.Fatalf("half spoken: orange in columns %d-%d, white in %d-%d; want both", orangeFirst, orangeLast, whiteFirst, whiteLast)
+	}
+	// The spoken part begins at the line's left edge and ends before the
+	// part still to come.
+	if orangeLast >= whiteLast || orangeFirst > whiteFirst+4 {
+		t.Fatalf("orange in columns %d-%d, white in %d-%d: the fill is not the left part of the line", orangeFirst, orangeLast, whiteFirst, whiteLast)
+	}
+	if first, last := columns(render(0), 560, 720, 0xFF, 0x8C, 0x00); first <= last {
+		t.Fatalf("nothing spoken, yet orange in columns %d-%d", first, last)
 	}
 }
 

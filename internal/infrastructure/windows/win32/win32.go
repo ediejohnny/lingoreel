@@ -26,7 +26,6 @@ var (
 	procGetMessageW                   = user32.NewProc("GetMessageW")
 	procTranslateMessage              = user32.NewProc("TranslateMessage")
 	procDispatchMessageW              = user32.NewProc("DispatchMessageW")
-	procPostThreadMessageW            = user32.NewProc("PostThreadMessageW")
 	procPostQuitMessage               = user32.NewProc("PostQuitMessage")
 	procUpdateLayeredWindow           = user32.NewProc("UpdateLayeredWindow")
 	procShowWindow                    = user32.NewProc("ShowWindow")
@@ -244,14 +243,6 @@ func PeekMessage(msg *Msg) bool {
 func DispatchMessage(msg *Msg) {
 	procTranslateMessage.Call(uintptr(unsafe.Pointer(msg)))
 	procDispatchMessageW.Call(uintptr(unsafe.Pointer(msg)))
-}
-
-// PostThreadMessage posts a message to a thread's queue.
-func PostThreadMessage(threadID uint32, msg uint32) error {
-	if r, _, err := procPostThreadMessageW.Call(uintptr(threadID), uintptr(msg), 0, 0); r == 0 {
-		return callErr(err)
-	}
-	return nil
 }
 
 // PostQuitMessage ends the calling thread's message loop.

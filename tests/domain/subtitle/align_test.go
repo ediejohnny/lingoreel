@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // rhythm returns n start instants of a film-like dialogue: from 30 s on,
@@ -52,6 +53,7 @@ func expectVerdict(t *testing.T, got subtitle.Alignment, want subtitle.Verdict) 
 }
 
 func TestAlignIdenticalFile(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(1, 800)
 	got := subtitle.Align(reference, reference, 0)
 	expectVerdict(t, got, subtitle.VerdictMatch)
@@ -61,6 +63,7 @@ func TestAlignIdenticalFile(t *testing.T) {
 }
 
 func TestAlignFindsConstantOffset(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(2, 800)
 	for _, shift := range []time.Duration{1500 * time.Millisecond, -1500 * time.Millisecond, 45 * time.Second, -4 * time.Minute} {
 		// The file shows each line shift earlier, so it needs +shift.
@@ -74,6 +77,7 @@ func TestAlignFindsConstantOffset(t *testing.T) {
 }
 
 func TestAlignOffsetBeyondTheWindowIsNotFound(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(3, 800)
 	// Six minutes is past the 5-minute search window.
 	candidate := mapped(reference, func(at time.Duration) time.Duration { return at + 6*time.Minute })
@@ -84,6 +88,7 @@ func TestAlignOffsetBeyondTheWindowIsNotFound(t *testing.T) {
 }
 
 func TestAlignCorrectsFrameRate(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(4, 800)
 	// The file was timed for 25 fps and the video runs at 23.976: a line at
 	// reference time r sits at (r-2s)*23.976/25 in the file, so
@@ -103,6 +108,7 @@ func TestAlignCorrectsFrameRate(t *testing.T) {
 }
 
 func TestAlignRemovesSlowDrift(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(5, 1000)
 	// 0.005% slower: the last line (about an hour in) is ~170 ms off with a
 	// single offset; the line fit must bring every line within 10 ms.
@@ -115,6 +121,7 @@ func TestAlignRemovesSlowDrift(t *testing.T) {
 }
 
 func TestAlignToleratesMissingAndExtraLines(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(6, 900)
 	t.Run("a third of the lines missing", func(t *testing.T) {
 		var candidate []time.Duration
@@ -141,6 +148,7 @@ func TestAlignToleratesMissingAndExtraLines(t *testing.T) {
 }
 
 func TestAlignDoesNotTrustAFileThatIsHalfExtras(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(13, 600)
 	candidate := slices.Clone(reference)
 	for _, at := range rhythm(130, 600) {
@@ -154,6 +162,7 @@ func TestAlignDoesNotTrustAFileThatIsHalfExtras(t *testing.T) {
 }
 
 func TestAlignJitteredTimingBeatsASharpFalsePeak(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(14, 1000)
 	random := rand.New(rand.NewPCG(3, 3))
 	candidate := make([]time.Duration, 0, len(reference))
@@ -176,6 +185,7 @@ func TestAlignJitteredTimingBeatsASharpFalsePeak(t *testing.T) {
 }
 
 func TestAlignDetectsAnotherCut(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(7, 800)
 	added := func(from int, scene time.Duration) []time.Duration {
 		candidate := slices.Clone(reference)
@@ -191,6 +201,7 @@ func TestAlignDetectsAnotherCut(t *testing.T) {
 }
 
 func TestAlignFileRunningPastTheVideo(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(8, 300)
 	last := reference[len(reference)-1]
 	// The last line may start up to 10 s after the end (credits), not later.
@@ -209,6 +220,7 @@ func TestAlignFileRunningPastTheVideo(t *testing.T) {
 // inside the video; no quarter but the last lines up on its own. Only the
 // raw length, 3.5 minutes past the end, gives it away.
 func TestAlignExtendedCutWithManyAddedScenes(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(15, 800)
 	candidate := slices.Clone(reference)
 	for i := range candidate {
@@ -226,6 +238,7 @@ func TestAlignExtendedCutWithManyAddedScenes(t *testing.T) {
 }
 
 func TestAlignUnrelatedFile(t *testing.T) {
+	t.Parallel()
 	got := subtitle.Align(rhythm(9, 800), rhythm(10, 800), 0)
 	expectVerdict(t, got, subtitle.VerdictNoMatch)
 	if got.Score >= 0.6 {
@@ -234,6 +247,7 @@ func TestAlignUnrelatedFile(t *testing.T) {
 }
 
 func TestAlignNeedsTwentyLines(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(11, 20)
 	expectVerdict(t, subtitle.Align(reference, reference, 0), subtitle.VerdictMatch)
 	expectVerdict(t, subtitle.Align(reference[:19], reference, 0), subtitle.VerdictUnknown)
@@ -245,6 +259,7 @@ func TestAlignNeedsTwentyLines(t *testing.T) {
 }
 
 func TestAlignOrderAndJunkDoNotMatter(t *testing.T) {
+	t.Parallel()
 	reference := rhythm(12, 500)
 	candidate := mapped(reference, func(at time.Duration) time.Duration { return at - time.Second })
 	want := subtitle.Align(reference, candidate, 0)
@@ -262,6 +277,8 @@ func TestAlignOrderAndJunkDoNotMatter(t *testing.T) {
 }
 
 func TestAlignHostileInputsFinish(t *testing.T) {
+	t.Parallel()
+	testkit.Slow(t)
 	same := make([]time.Duration, 50_000)
 	got := subtitle.Align(same, same, 0)
 	if got.Score < 0 || got.Score > 1 || !(got.Rate > 0) {
@@ -270,6 +287,7 @@ func TestAlignHostileInputsFinish(t *testing.T) {
 }
 
 func TestStartsAreSorted(t *testing.T) {
+	t.Parallel()
 	events := []subtitle.Event{event("b", 3000, 4000), event("a", 1000, 2000), event("c", 2000, 2500)}
 	if got, want := subtitle.Starts(events), []time.Duration{ms(1000), ms(2000), ms(3000)}; !slices.Equal(got, want) {
 		t.Fatalf("Starts = %v, want %v", got, want)
@@ -277,6 +295,7 @@ func TestStartsAreSorted(t *testing.T) {
 }
 
 func TestRetimeMovesTimesOnly(t *testing.T) {
+	t.Parallel()
 	events := []subtitle.Event{event("a", 1000, 2000), event("b", 10_000, 12_000)}
 	events[1].OverrideText = "edited"
 	got := subtitle.Retime(events, subtitle.Alignment{Rate: 2, Offset: -1500 * time.Millisecond})
@@ -292,6 +311,7 @@ func TestRetimeMovesTimesOnly(t *testing.T) {
 }
 
 func TestRetimeClampsAndDrops(t *testing.T) {
+	t.Parallel()
 	events := []subtitle.Event{event("gone", 0, 1000), event("cut", 500, 3000), event("kept", 5000, 6000)}
 	// Offset -1 s: "gone" ends at 0 (dropped), "cut" starts at -0.5 s (clamped to 0).
 	got := subtitle.Retime(events, subtitle.Alignment{Rate: 1, Offset: -time.Second})
@@ -302,6 +322,7 @@ func TestRetimeClampsAndDrops(t *testing.T) {
 }
 
 func TestRetimeRefusesBadRates(t *testing.T) {
+	t.Parallel()
 	events := []subtitle.Event{event("a", 1000, 2000)}
 	for _, rate := range []float64{0, -1, math.NaN(), math.Inf(1)} {
 		got := subtitle.Retime(events, subtitle.Alignment{Rate: rate, Offset: time.Second})

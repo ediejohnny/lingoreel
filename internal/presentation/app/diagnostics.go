@@ -15,7 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
-// Diagnostics is the state of the app for a problem report (RNF-032). It
+// Diagnostics is the state of the app for a problem report. It
 // never holds the text of a line and never leaves the computer by itself:
 // the user copies it.
 type Diagnostics struct {

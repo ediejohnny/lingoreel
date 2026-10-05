@@ -23,7 +23,7 @@ const darkQuery = "(prefers-color-scheme: dark)";
 
 /**
  * useAppliedTheme applies a theme to the page at once, without a restart
- * (DESIGN §3), and follows Windows while it is "system".
+ * of the window, and follows Windows while it is "system".
  */
 export function useAppliedTheme(theme: Theme) {
   useEffect(() => {

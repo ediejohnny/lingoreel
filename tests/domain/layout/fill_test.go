@@ -17,6 +17,7 @@ func fillBlock() *layout.Block {
 }
 
 func TestFillWidths(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		fraction float64
 		want     []float64

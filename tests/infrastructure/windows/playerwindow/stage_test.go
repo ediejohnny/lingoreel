@@ -22,6 +22,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // The video inside the app's own window. fakeApp stands for that window
@@ -194,7 +195,7 @@ func videoPlace(t *testing.T, app *fakeApp, insets layout.Insets, fullscreen boo
 // placedAt waits for the video's client area to be at want.
 func placedAt(t *testing.T, host windows.HWND, want win32.Rect, what string) {
 	t.Helper()
-	eventually(t, what, func() bool {
+	testkit.Eventually(t, what, func() bool {
 		got, err := win32.ClientRectOnScreen(host)
 		return err == nil && got == want
 	})
@@ -264,14 +265,14 @@ func TestTheVideoFollowsTheAppWindow(t *testing.T) {
 	bar := controlBar(app.hwnd)
 	client, _ := win32.ClientRectOnScreen(host)
 	post(t, host, win32.WM_MOUSEMOVE, 0, at(int(client.Right-client.Left)/2, int(client.Bottom-client.Top)-20))
-	eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
 	before, _ := win32.WindowRect(bar)
 	appRect, _ := win32.WindowRect(app.hwnd)
 	moved := win32.Rect{Left: appRect.Left + 50, Top: appRect.Top + 30, Right: appRect.Right + 50, Bottom: appRect.Bottom + 30}
 	if err := win32.SetWindowPos(app.hwnd, 0, moved, win32.SWP_NOZORDER|win32.SWP_NOACTIVATE); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the bar to move with the app's window", func() bool {
+	testkit.Eventually(t, "the bar to move with the app's window", func() bool {
 		after, err := win32.WindowRect(bar)
 		return err == nil && after.Left == before.Left+50 && after.Top == before.Top+30
 	})
@@ -280,19 +281,19 @@ func TestTheVideoFollowsTheAppWindow(t *testing.T) {
 	// back to the video, it shows again where it was.
 	stage.SetLayout(playerwindow.StageLayout{Visible: false, Insets: layout.Insets{Top: 56}})
 	subtitles := ownedWindow(app.hwnd, "LingoReelOverlay")
-	eventually(t, "the video, the subtitles and the bar to hide", func() bool {
+	testkit.Eventually(t, "the video, the subtitles and the bar to hide", func() bool {
 		return !windows.IsWindowVisible(host) && !windows.IsWindowVisible(subtitles) && !windows.IsWindowVisible(bar)
 	})
 	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: layout.Insets{Top: 56}})
 	placedAt(t, host, videoPlace(t, app, layout.Insets{Top: 56}, false), "the video back")
-	eventually(t, "the video to show again", func() bool { return windows.IsWindowVisible(host) })
+	testkit.Eventually(t, "the video to show again", func() bool { return windows.IsWindowVisible(host) })
 }
 
 func TestTheVideoStaysAboveTheAppsOwnChildren(t *testing.T) {
 	app := newFakeApp(t, offScreenApp, true)
 	w := openOn(t, stageFor(app, nil))
 	host := windows.HWND(w.Handle())
-	eventually(t, "the video on top", func() bool { return win32.TopChild(app.hwnd) == host })
+	testkit.Eventually(t, "the video on top", func() bool { return win32.TopChild(app.hwnd) == host })
 	// The app's screen comes to the top of its children, as the WebView may
 	// when it changes size: the video goes back above it.
 	if err := app.thread.Do(func() {
@@ -300,7 +301,7 @@ func TestTheVideoStaysAboveTheAppsOwnChildren(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the video back on top of the app's screen", func() bool { return win32.TopChild(app.hwnd) == host })
+	testkit.Eventually(t, "the video back on top of the app's screen", func() bool { return win32.TopChild(app.hwnd) == host })
 }
 
 func TestFullscreenCoversTheMonitorWithTheAppWindow(t *testing.T) {
@@ -336,29 +337,29 @@ func TestFullscreenCoversTheMonitorWithTheAppWindow(t *testing.T) {
 	// F on the video: the app's window covers the monitor, without its frame,
 	// and the video covers the app's controls.
 	post(t, host, win32.WM_KEYDOWN, 0, key(scanF, false, false))
-	eventually(t, "the app's window to cover its monitor", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
+	testkit.Eventually(t, "the app's window to cover its monitor", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
 	if win32.Style(app.hwnd)&win32.WS_OVERLAPPEDWINDOW != 0 {
 		t.Fatal("the app's frame stayed in fullscreen")
 	}
 	placedAt(t, host, videoPlace(t, app, panelOpen, true), "the video over the whole app window")
-	eventually(t, "the app told of the fullscreen", func() bool { return slices.Equal(toldSoFar(), []bool{true}) })
+	testkit.Eventually(t, "the app told of the fullscreen", func() bool { return slices.Equal(toldSoFar(), []bool{true}) })
 	onTop("fullscreen")
 
 	// Esc: back where it was, with its frame, and the controls' room again.
 	post(t, host, win32.WM_KEYDOWN, 0, key(scanEscape, false, false))
-	eventually(t, "the app's window back", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == before })
+	testkit.Eventually(t, "the app's window back", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == before })
 	if got := win32.Style(app.hwnd); got != style {
 		t.Fatalf("the app's style is %#x after the fullscreen, was %#x", got, style)
 	}
 	placedAt(t, host, videoPlace(t, app, panelOpen, false), "the video beside the panel again")
-	eventually(t, "the app told of the way back", func() bool { return slices.Equal(toldSoFar(), []bool{true, false}) })
+	testkit.Eventually(t, "the app told of the way back", func() bool { return slices.Equal(toldSoFar(), []bool{true, false}) })
 	onTop("back from fullscreen")
 
 	// The app asks for it too, as its panel's button does.
 	stage.SetFullscreen(true)
-	eventually(t, "the fullscreen asked by the app", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
+	testkit.Eventually(t, "the fullscreen asked by the app", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
 	stage.SetFullscreen(false)
-	eventually(t, "the way back asked by the app", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == before })
+	testkit.Eventually(t, "the way back asked by the app", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == before })
 	if windows.GetForegroundWindow() == app.hwnd {
 		t.Fatal("the fullscreen took the focus")
 	}
@@ -372,7 +373,7 @@ func TestAltF4OnTheVideoClosesTheAppWindow(t *testing.T) {
 	host := windows.HWND(w.Handle())
 	w.Attach(newRemote(&recordingPlayer{}))
 	sendMessage.Call(uintptr(host), win32.WM_SYSKEYDOWN, win32.VK_F4, key(scanF4, false, false)|altContext)
-	eventually(t, "the app's window asked to close", func() bool { return app.closeCount() == 1 })
+	testkit.Eventually(t, "the app's window asked to close", func() bool { return app.closeCount() == 1 })
 }
 
 // The window's keys reach the session on a stage too, the sync ones with
@@ -387,7 +388,7 @@ func TestTheSyncKeysReachTheSessionOnAStage(t *testing.T) {
 	send(host, win32.WM_KEYDOWN, key(scanP, false, false))
 	send(host, win32.WM_KEYDOWN, key(scanP, false, true))
 	want := []string{"sync-primary-earlier", "sync-primary-earlier (held)"}
-	eventually(t, "the sync key to reach the session", func() bool { return len(remote.ran()) >= len(want) })
+	testkit.Eventually(t, "the sync key to reach the session", func() bool { return len(remote.ran()) >= len(want) })
 	if got := remote.ran(); !slices.Equal(got, want) {
 		t.Fatalf("ran %q, want %q", got, want)
 	}
@@ -402,7 +403,7 @@ func TestClosingTheVideoLeavesTheAppWindowAsItWas(t *testing.T) {
 	style := win32.Style(app.hwnd)
 	monitor, _ := win32.MonitorBounds(app.hwnd)
 	stage.SetFullscreen(true)
-	eventually(t, "the fullscreen", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
+	testkit.Eventually(t, "the fullscreen", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
 
 	// Closed in fullscreen: the app's window comes back with its frame, and
 	// nothing of the video stays in it.
@@ -494,7 +495,7 @@ func TestTheEditorBoxBelongsToTheAppWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 	var line layout.Rect
-	eventually(t, "the line drawn", func() bool {
+	testkit.Eventually(t, "the line drawn", func() bool {
 		box, ok := w.LineBounds(session.LinePrimary)
 		line = box
 		return ok
@@ -505,7 +506,7 @@ func TestTheEditorBoxBelongsToTheAppWindow(t *testing.T) {
 	post(t, host, win32.WM_LBUTTONDBLCLK, 1, at(x, y))
 	post(t, host, wmLButtonUp, 0, at(x, y))
 	var box windows.HWND
-	eventually(t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
+	testkit.Eventually(t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
 	if owner, _, _ := getWindow.Call(uintptr(box), gwOwner); windows.HWND(owner) != app.hwnd {
 		t.Fatalf("the box is owned by %x, not by the app's window %x", owner, app.hwnd)
 	}

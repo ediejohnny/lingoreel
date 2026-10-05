@@ -14,6 +14,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 var (
@@ -94,6 +95,7 @@ func taken(t *testing.T, binding hotkeys.Binding) bool {
 }
 
 func TestShortcutsAreHeldOnlyForTheForegroundProcess(t *testing.T) {
+	testkit.Slow(t)
 	if taken(t, unusedShortcut) {
 		t.Skip("another program holds Ctrl+Shift+F24")
 	}
@@ -141,6 +143,7 @@ func TestShortcutsAreHeldOnlyForTheForegroundProcess(t *testing.T) {
 // the app's other windows (the panel) share the process and must not take
 // Shift+, and Ctrl+, from the user typing in them.
 func TestShortcutsFollowThePlayerWindow(t *testing.T) {
+	testkit.Slow(t)
 	if taken(t, unusedShortcut) {
 		t.Skip("another program holds Ctrl+Shift+F24")
 	}
@@ -205,6 +208,7 @@ func next(t *testing.T, keys *hotkeys.Hotkeys) hotkeys.Press {
 // down is a repeat, one after its release is new. F24 is never down, so the
 // release check clears it within its 50 ms poll.
 func TestPressesTellRepeatsFromNewPresses(t *testing.T) {
+	testkit.Slow(t)
 	second := hotkeys.Binding{Modifiers: win32.MOD_CONTROL | win32.MOD_SHIFT, Key: vkF24 - 1}
 	keys, err := hotkeys.Start(hotkeys.Options{ProcessID: os.Getpid(), Bindings: []hotkeys.Binding{unusedShortcut, second}})
 	if err != nil {

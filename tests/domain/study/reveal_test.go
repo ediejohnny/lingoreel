@@ -7,6 +7,7 @@ import (
 )
 
 func TestRevealedTogglesOnPressesAndHoldsWhilePressed(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		behavior         study.RevealBehavior
 		visible, pressed bool
@@ -25,17 +26,6 @@ func TestRevealedTogglesOnPressesAndHoldsWhilePressed(t *testing.T) {
 	for _, c := range cases {
 		if got := c.behavior.Revealed(c.visible, c.pressed); got != c.want {
 			t.Errorf("%s.Revealed(visible %v, pressed %v) = %v, want %v", c.behavior, c.visible, c.pressed, got, c.want)
-		}
-	}
-}
-
-func TestTogglingTwiceComesBack(t *testing.T) {
-	visible := false
-	for press := 1; press <= 4; press++ {
-		visible = study.RevealToggle.Revealed(visible, true)
-		visible = study.RevealToggle.Revealed(visible, false)
-		if visible != (press%2 == 1) {
-			t.Fatalf("after %d presses visible = %v", press, visible)
 		}
 	}
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
-// Editing a line follows the DESIGN: with the video paused, a line on
+// Editing a line: with the video paused, a line on
 // screen is selected, then edited; the file's text is never lost, and every
 // change can be undone.
 

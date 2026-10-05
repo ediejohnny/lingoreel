@@ -39,10 +39,9 @@ func (r *Renderer) drawPrimary(c *canvas, target *win32.DIB, block *layout.Block
 		}
 		return r.drawCue(c, target, block, style, *look.Cue)
 	}
-	if err := r.drawBlock(c, target, block, look.Primary); err != nil {
-		return err
-	}
-	return r.drawFill(c, block, look)
+	return r.drawBlockThen(c, target, block, look.Primary, func(c *canvas, path uintptr) error {
+		return drawFill(c, block, look, path)
+	})
 }
 
 // drawCue draws the indicator above the preview: a bar the width of the
@@ -70,25 +69,18 @@ func (r *Renderer) drawCue(c *canvas, target *win32.DIB, block *layout.Block, st
 		return nil
 	}
 	thickness := math.Max(cueBarThickness*block.Scale, cueBarMinPixels)
-	bar := layout.Rect{X: bounds.X, Y: bounds.Y - gap - thickness, W: bounds.W * progress, H: thickness}
-	return newShape().rounded(bar, thickness/2).fill(c.graphics, style.Color)
-}
-
-// drawFill paints the spoken part of each line over the text, clipped at
-// the line's fill width, like a karaoke screen.
-func (r *Renderer) drawFill(c *canvas, block *layout.Block, look Look) error {
-	painted := false
-	for _, width := range look.FillWidths {
-		painted = painted || width > 0
-	}
-	if !painted {
+	// The bar fades with the line's opacity, as the text does.
+	alpha := float64(style.Color.A) * math.Max(0, math.Min(style.Opacity, 1))
+	if alpha < 1 {
 		return nil
 	}
-	path, err := r.path(block)
-	if err != nil {
-		return err
-	}
-	defer procDeletePath.Call(path)
+	bar := layout.Rect{X: bounds.X, Y: bounds.Y - gap - thickness, W: bounds.W * progress, H: thickness}
+	return newShape().rounded(bar, thickness/2).fill(c.graphics, style.Color.WithAlpha(uint8(math.Round(alpha))))
+}
+
+// drawFill paints the spoken part of each line over the text's path,
+// clipped at the line's fill width, like a karaoke screen.
+func drawFill(c *canvas, block *layout.Block, look Look, path uintptr) error {
 	// The clip reaches above and below the line for accents and descenders.
 	reach := antialiasMargin + look.Primary.Outline.Width*block.Scale
 	for i, width := range look.FillWidths {

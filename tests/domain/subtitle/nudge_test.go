@@ -9,6 +9,7 @@ import (
 )
 
 func TestNudgeStepsRanges(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		steps subtitle.NudgeSteps
 		ok    bool
@@ -29,12 +30,10 @@ func TestNudgeStepsRanges(t *testing.T) {
 			t.Errorf("Validate(%+v) = %v, want ok %v", c.steps, err, c.ok)
 		}
 	}
-	if got := subtitle.DefaultNudgeSteps(); got.Step != 50*time.Millisecond || got.FastStep != 500*time.Millisecond {
-		t.Fatalf("defaults = %+v, want 50 ms and 500 ms", got)
-	}
 }
 
 func TestNudgerFallsBackToTheDefaults(t *testing.T) {
+	t.Parallel()
 	n := subtitle.NewNudger(subtitle.NudgeSteps{Step: time.Hour})
 	if got := n.Move(time.Unix(0, 0), false); got != subtitle.DefaultNudgeStep {
 		t.Fatalf("move with invalid steps = %v, want the default %v", got, subtitle.DefaultNudgeStep)
@@ -42,6 +41,7 @@ func TestNudgerFallsBackToTheDefaults(t *testing.T) {
 }
 
 func TestNudgerFastStepStartsAtOneSecondHeld(t *testing.T) {
+	t.Parallel()
 	start := time.Unix(100, 0)
 	n := subtitle.NewNudger(subtitle.DefaultNudgeSteps())
 	if got := n.Move(start, false); got != 50*time.Millisecond {

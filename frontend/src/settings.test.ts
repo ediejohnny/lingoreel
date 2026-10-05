@@ -25,7 +25,7 @@ describe("settingsSections", () => {
     ]);
   });
 
-  it("lists every page once, in the order of DESIGN §32", () => {
+  it("lists every page once, in the menu's order", () => {
     const all = ids(sections);
     expect(new Set(all).size).toBe(all.length);
     expect(sections.map((item) => item.label)).toEqual([

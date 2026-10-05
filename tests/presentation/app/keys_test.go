@@ -8,16 +8,18 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestThePanelRunsTheShortcuts(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.RunShortcut("seek-back", false); err == nil {
 		t.Fatal("a shortcut ran without a video")
 	}
 	r = startWatching(t)
-	eventually(t, "the first sample", func() bool { return r.api.PlaybackState().Position == 30 })
+	testkit.Eventually(t, "the first sample", func() bool { return r.api.PlaybackState().Position == 30 })
 	if err := r.api.RunShortcut("seek-back-10", false); err != nil {
 		t.Fatal(err)
 	}
@@ -56,6 +58,7 @@ func TestThePanelRunsTheShortcuts(t *testing.T) {
 }
 
 func TestThePanelTranslationKeyAndTheMode(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	// The default profile studies on demand: the translation starts hidden.
 	if state := r.api.PlaybackState(); state.Mode != "on-demand" || state.TranslationVisible {
@@ -91,6 +94,7 @@ func TestThePanelTranslationKeyAndTheMode(t *testing.T) {
 }
 
 func TestWatchTakesTheModeOfTheSessionScreen(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	video, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`)
@@ -120,6 +124,7 @@ func TestWatchTakesTheModeOfTheSessionScreen(t *testing.T) {
 }
 
 func TestTheKeysThePanelShows(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	keys := r.api.Shortcuts()
