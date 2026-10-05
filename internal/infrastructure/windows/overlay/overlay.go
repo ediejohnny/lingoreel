@@ -605,7 +605,7 @@ func (o *Overlay) redraw() error {
 	o.boxes, o.fonts = boxes, fonts
 	o.boxesMu.Unlock()
 	if o.content.Highlighted {
-		look.Highlight = outlineOf(boxes[o.content.Highlight], o.dpi)
+		look.Highlight = gdiplus.OutlineAround(boxes[o.content.Highlight], o.dpi)
 	}
 	if err := o.renderer.Draw(o.dib, frame, look); err != nil {
 		return fmt.Errorf("drawing the subtitles: %w", err)
@@ -659,29 +659,6 @@ func drawnBoxes(frame layout.Frame, content session.Screen) [2]layout.Rect {
 		boxes[session.LineTranslation] = frame.Translation.Bounds
 	}
 	return boxes
-}
-
-// Sizes of the outline of a line being edited, at 100% scaling.
-const (
-	outlineGap    = 4.0
-	outlineWidth  = 1.5
-	outlineRadius = 6.0
-)
-
-// outlineOf frames a line's box a little outside it; nil for no box.
-func outlineOf(box layout.Rect, dpi int) *gdiplus.Outline {
-	if box.W <= 0 || box.H <= 0 {
-		return nil
-	}
-	scale := float64(dpi) / layout.BaseDPI
-	if scale <= 0 {
-		scale = 1
-	}
-	gap := outlineGap * scale
-	return &gdiplus.Outline{
-		Box:   layout.Rect{X: box.X - gap, Y: box.Y - gap, W: box.W + 2*gap, H: box.H + 2*gap},
-		Width: outlineWidth * scale, Radius: outlineRadius * scale,
-	}
 }
 
 // dispatchWindow is the window procedure of every overlay window.

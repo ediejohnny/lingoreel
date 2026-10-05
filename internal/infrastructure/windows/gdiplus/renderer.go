@@ -58,6 +58,30 @@ var (
 	outlineDark  = appearance.Color{R: 0x00, G: 0x00, B: 0x00, A: 0x8C}
 )
 
+// Sizes of the outline of a line being edited, at 100% scaling.
+const (
+	outlineGap    = 4.0
+	outlineWidth  = 1.5
+	outlineRadius = 6.0
+)
+
+// OutlineAround frames a line's box a little outside it, at a display
+// scaling (96 is 100%); nil for no box.
+func OutlineAround(box layout.Rect, dpi int) *Outline {
+	if box.W <= 0 || box.H <= 0 {
+		return nil
+	}
+	scale := float64(dpi) / layout.BaseDPI
+	if scale <= 0 {
+		scale = 1
+	}
+	gap := outlineGap * scale
+	return &Outline{
+		Box:   layout.Rect{X: box.X - gap, Y: box.Y - gap, W: box.W + 2*gap, H: box.H + 2*gap},
+		Width: outlineWidth * scale, Radius: outlineRadius * scale,
+	}
+}
+
 // Renderer measures and draws subtitle text. It is not safe for concurrent
 // use; the overlay calls it from its UI thread only.
 type Renderer struct {

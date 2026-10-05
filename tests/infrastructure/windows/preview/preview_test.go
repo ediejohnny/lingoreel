@@ -10,11 +10,15 @@ import (
 	"slices"
 	"testing"
 
+	"lingoreel/internal/application/session"
 	"lingoreel/internal/application/watch"
 	"lingoreel/internal/domain/appearance"
 	"lingoreel/internal/domain/settings"
 	"lingoreel/internal/infrastructure/windows/preview"
 )
+
+// sample is the screen of the settings' preview.
+var sample = session.Screen{Primary: "This is a preview.", Translation: "Esta é uma prévia.", TranslationVisible: true}
 
 func start(t *testing.T) *preview.Renderer {
 	t.Helper()
@@ -59,7 +63,7 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 	r := start(t)
 	profile := settings.DefaultProfile()
 	look := watch.LookOf(profile)
-	data, err := r.Preview(look, 1280, 720, 96, "This is a preview.", "Esta é uma prévia.")
+	data, err := r.Preview(look, 1280, 720, 96, sample)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +93,7 @@ func TestThePreviewShowsBothLinesWithTheirColors(t *testing.T) {
 
 	// A yellow primary line: yellow appears, only in its band.
 	profile.Primary.Color = appearance.RGB(0xFF, 0xE6, 0x00)
-	data, err = r.Preview(watch.LookOf(profile), 1280, 720, 96, "This is a preview.", "Esta é uma prévia.")
+	data, err = r.Preview(watch.LookOf(profile), 1280, 720, 96, sample)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,13 +110,65 @@ func TestThePreviewRefusesSizesOutsideTheLimits(t *testing.T) {
 	r := start(t)
 	look := watch.LookOf(settings.DefaultProfile())
 	for _, c := range []struct{ w, h, dpi int }{{0, 360, 96}, {640, 8, 96}, {5000, 360, 96}, {640, 360, 0}, {640, 360, 1000}, {-1, -1, -1}} {
-		if _, err := r.Preview(look, c.w, c.h, c.dpi, "a", "b"); !errors.Is(err, preview.ErrInvalidSize) {
+		if _, err := r.Preview(look, c.w, c.h, c.dpi, session.Screen{Primary: "a", Translation: "b"}); !errors.Is(err, preview.ErrInvalidSize) {
 			t.Errorf("Preview(%d×%d at %d) = %v", c.w, c.h, c.dpi, err)
 		}
 	}
-	// Hostile text is drawn, not refused.
-	if _, err := r.Preview(look, 320, 180, 144, "\x00�"+string(make([]byte, 2000)), ""); err != nil {
+	// Hostile text is drawn, not refused, and so is the outline of a line
+	// that has no text.
+	hostile := session.Screen{Primary: "\x00�" + string(make([]byte, 2000)), Highlighted: true, Highlight: session.LineTranslation}
+	if _, err := r.Preview(look, 320, 180, 144, hostile); err != nil {
 		t.Fatalf("hostile text: %v", err)
+	}
+}
+
+// changed is the smallest rectangle where two pictures differ.
+func changed(a, b image.Image) image.Rectangle {
+	var out image.Rectangle
+	bounds := a.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if a.At(x, y) != b.At(x, y) {
+				out = out.Union(image.Rect(x, y, x+1, y+1))
+			}
+		}
+	}
+	return out
+}
+
+func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
+	r := start(t)
+	look := watch.LookOf(settings.DefaultProfile())
+	draw := func(screen session.Screen) image.Image {
+		t.Helper()
+		data, err := r.Preview(look, 1280, 720, 96, screen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	plain := draw(sample)
+	top, bottom := sample, sample
+	top.Highlighted, top.Highlight = true, session.LinePrimary
+	bottom.Highlighted, bottom.Highlight = true, session.LineTranslation
+
+	// The primary's text sits in rows 560-592 and the translation's in
+	// 628-657 (see above): each outline frames its own line, a few pixels
+	// around it, and stays clear of the other.
+	primary := changed(plain, draw(top))
+	if primary.Empty() || primary.Min.Y < 540 || primary.Max.Y > 610 || primary.Min.Y > 560 || primary.Max.Y < 592 {
+		t.Fatalf("the outline of the line on top changed %v, want a frame around rows 560-592", primary)
+	}
+	translation := changed(plain, draw(bottom))
+	if translation.Empty() || translation.Min.Y < 610 || translation.Max.Y > 680 || translation.Min.Y > 628 || translation.Max.Y < 657 {
+		t.Fatalf("the outline of the line below changed %v, want a frame around rows 628-657", translation)
+	}
+	if primary.Overlaps(translation) {
+		t.Fatalf("the two outlines overlap: %v and %v", primary, translation)
+	}
+	// No highlight draws exactly what an unmarked screen does.
+	if again := changed(plain, draw(sample)); !again.Empty() {
+		t.Fatalf("drawing the same screen twice changed %v", again)
 	}
 }
 

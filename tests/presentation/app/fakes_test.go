@@ -504,15 +504,15 @@ type fakePreview struct {
 }
 
 type previewCall struct {
-	look                session.Look
-	width, height, dpi  int
-	primary, translated string
+	look               session.Look
+	width, height, dpi int
+	screen             session.Screen
 }
 
-func (p *fakePreview) Preview(look session.Look, width, height, dpi int, primary, translation string) ([]byte, error) {
+func (p *fakePreview) Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.requests = append(p.requests, previewCall{look, width, height, dpi, primary, translation})
+	p.requests = append(p.requests, previewCall{look, width, height, dpi, screen})
 	return []byte("PNG!"), p.err
 }
 

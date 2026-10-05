@@ -177,4 +177,7 @@ type PreviewRequest struct {
 	Width  int     `json:"width"`
 	Height int     `json:"height"`
 	Scale  float64 `json:"scale"`
+	// Highlight outlines the line being edited: "primary", "translation",
+	// or "" for none.
+	Highlight string `json:"highlight"`
 }

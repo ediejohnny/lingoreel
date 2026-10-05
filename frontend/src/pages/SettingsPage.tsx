@@ -1,31 +1,50 @@
 import { Save, Undo2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppearanceSection, AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
 import { GeneralSection } from "../components/settings/GeneralSection";
 import { PlayersSection } from "../components/settings/PlayersSection";
 import { ShortcutsSection } from "../components/settings/ShortcutsSection";
 import { StudySection } from "../components/settings/StudySection";
-import { SubtitlesSection } from "../components/settings/SubtitlesSection";
+import { SubtitleLineSection, SubtitlesSection } from "../components/settings/SubtitlesSection";
 import type { SectionProps } from "../components/settings/section";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { backend, messageOf, type ProfileSettings, type SettingsView } from "../services/backend";
-import { sameSettings } from "../settings";
+import { lineLanguage, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
 import type { Theme } from "../stores/theme";
 
-/** The sections, grouped by subject (DESIGN §32). */
-const sections = [
-  { id: "general", label: "Geral" },
-  { id: "playback", label: "Reprodução" },
-  { id: "subtitles", label: "Legendas" },
-  { id: "study", label: "Estudo" },
-  { id: "shortcuts", label: "Atalhos" },
-  { id: "players", label: "Player" },
-  { id: "appearance", label: "Aparência" },
-  { id: "advanced", label: "Avançado" },
-] as const;
+interface MenuEntryProps {
+  item: SectionItem;
+  current: SectionId;
+  onOpen: (section: SectionId) => void;
+}
 
-type SectionId = (typeof sections)[number]["id"];
+/** MenuEntry is one page of the settings menu, with its own pages below it. */
+function MenuEntry({ item, current, onOpen }: MenuEntryProps) {
+  const active = item.id === current;
+  return (
+    <li>
+      <button
+        type="button"
+        aria-current={active ? "page" : undefined}
+        onClick={() => onOpen(item.id)}
+        className={`flex w-full flex-col rounded-control px-3 py-2 text-left text-sm transition-colors duration-[var(--duration-fast)] ${
+          active ? "bg-accent-soft font-medium text-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg"
+        }`}
+      >
+        {item.label}
+        {item.detail && <span className={`text-xs font-normal ${active ? "text-accent" : "text-fg-muted"}`}>{item.detail}</span>}
+      </button>
+      {item.children && (
+        <ul className="mt-0.5 ml-3 flex flex-col gap-0.5 border-l border-line pl-2">
+          {item.children.map((child) => (
+            <MenuEntry key={child.id} item={child} current={current} onOpen={onOpen} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
 
 interface SettingsPageProps {
   theme: Theme;
@@ -68,6 +87,12 @@ export function SettingsPage({ theme, onTheme }: SettingsPageProps) {
     };
   }, []);
 
+  // Another page starts from its top, not where the last one was scrolled to.
+  const scroller = useRef<HTMLElement>(null);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [section]);
+
   const run = useCallback(
     async (action: () => Promise<unknown>, done?: string) => {
       setError("");
@@ -99,31 +124,28 @@ export function SettingsPage({ theme, onTheme }: SettingsPageProps) {
     await run(() => backend.saveProfile(draft), "Configurações salvas. O vídeo aberto já usa as novas escolhas.");
     setSaving(false);
   };
-  const props: SectionProps = { view, draft, setDraft, dirty, run };
+  const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection };
+  const languages = view.options.languages;
+  const sections = settingsSections({
+    primary: lineLanguage("primary", draft.languages.primary, languages),
+    translation: lineLanguage("translation", draft.languages.translation, languages),
+  });
+  // The subtitle pages hold the preview beside their fields.
+  const wide = section === "subtitles" || section === "subtitles-primary" || section === "subtitles-translation";
 
   return (
     <div className="flex min-h-0 flex-1">
-      <nav aria-label="Seções das configurações" className="w-48 shrink-0 border-r border-line bg-surface p-3">
+      <nav aria-label="Seções das configurações" className="w-52 shrink-0 overflow-y-auto border-r border-line bg-surface p-3">
         <ul className="flex flex-col gap-0.5">
           {sections.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                aria-current={item.id === section ? "page" : undefined}
-                onClick={() => setSection(item.id)}
-                className={`w-full rounded-control px-3 py-2 text-left text-sm transition-colors duration-[var(--duration-fast)] ${
-                  item.id === section ? "bg-accent-soft font-medium text-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg"
-                }`}
-              >
-                {item.label}
-              </button>
-            </li>
+            <MenuEntry key={item.id} item={item} current={section} onOpen={setSection} />
           ))}
         </ul>
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto flex max-w-4xl flex-col gap-5">
+        {/* The padding is inside the scrolling area, so whatever sticks to its top sticks to the very top. */}
+        <main ref={scroller} className="flex-1 overflow-y-auto">
+          <div className={`mx-auto flex flex-col gap-5 p-6 ${wide ? "max-w-6xl" : "max-w-4xl"}`}>
             {error && (
               <Banner tone="error" onClose={() => setError("")}>
                 {error}
@@ -137,6 +159,8 @@ export function SettingsPage({ theme, onTheme }: SettingsPageProps) {
             {section === "general" && <GeneralSection {...props} />}
             {section === "playback" && <PlaybackSection {...props} />}
             {section === "subtitles" && <SubtitlesSection {...props} />}
+            {section === "subtitles-primary" && <SubtitleLineSection {...props} line="primary" />}
+            {section === "subtitles-translation" && <SubtitleLineSection {...props} line="translation" />}
             {section === "study" && <StudySection {...props} />}
             {section === "shortcuts" && <ShortcutsSection {...props} />}
             {section === "players" && <PlayersSection {...props} />}

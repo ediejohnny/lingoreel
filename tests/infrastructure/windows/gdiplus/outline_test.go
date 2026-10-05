@@ -77,6 +77,38 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 	}
 }
 
+func TestOutlineAroundGrowsWithTheScaling(t *testing.T) {
+	box := layout.Rect{X: 100, Y: 50, W: 200, H: 40}
+	at100, at200 := gdiplus.OutlineAround(box, 96), gdiplus.OutlineAround(box, 192)
+	if at100 == nil || at200 == nil {
+		t.Fatalf("no outline around a box: %v, %v", at100, at200)
+	}
+	// A few pixels outside the box on every side, twice as far at 200%.
+	gaps := [2]float64{}
+	for i, outline := range []*gdiplus.Outline{at100, at200} {
+		gap := box.X - outline.Box.X
+		if !(gap >= 2 && gap <= 16) || box.Y-outline.Box.Y != gap || outline.Box.W != box.W+2*gap || outline.Box.H != box.H+2*gap {
+			t.Fatalf("the outline %+v does not frame %+v evenly", outline.Box, box)
+		}
+		gaps[i] = gap
+	}
+	if gaps[1] != 2*gaps[0] {
+		t.Fatalf("the gap is %v at 100%% and %v at 200%%: want twice as far", gaps[0], gaps[1])
+	}
+	if at200.Width != 2*at100.Width || at200.Radius != 2*at100.Radius || !(at100.Width > 0) || !(at100.Radius > 0) {
+		t.Fatalf("stroke %v/%v and corners %v/%v do not follow the scaling", at100.Width, at200.Width, at100.Radius, at200.Radius)
+	}
+	// A broken scaling reads as 100%; no box, no outline.
+	if broken := gdiplus.OutlineAround(box, 0); broken == nil || *broken != *at100 {
+		t.Fatalf("at 0 dpi: %+v, want %+v", broken, at100)
+	}
+	for _, empty := range []layout.Rect{{}, {X: 1, Y: 1, W: 0, H: 10}, {W: 10, H: -1}} {
+		if got := gdiplus.OutlineAround(empty, 96); got != nil {
+			t.Fatalf("an outline %+v around the empty box %+v", got, empty)
+		}
+	}
+}
+
 // cut copies a region of a drawing, row by row.
 func cut(pixels []byte, width int, region image.Rectangle) []byte {
 	var out []byte

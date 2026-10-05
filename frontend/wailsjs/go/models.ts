@@ -635,6 +635,7 @@ export namespace app {
 	    width: number;
 	    height: number;
 	    scale: number;
+	    highlight: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new PreviewRequest(source);
@@ -648,6 +649,7 @@ export namespace app {
 	        this.width = source["width"];
 	        this.height = source["height"];
 	        this.scale = source["scale"];
+	        this.highlight = source["highlight"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

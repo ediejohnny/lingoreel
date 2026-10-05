@@ -1,21 +1,41 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { backend, messageOf, type StyleSettings } from "../../services/backend";
+import { lineLanguage, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
-import { NumberField, Segmented } from "../ui/Inputs";
+import { NumberField } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { change, type SectionProps } from "./section";
 import { StyleEditor } from "./StyleEditor";
 import { SubtitlePreview } from "./SubtitlePreview";
 
-type Line = "primary" | "translation";
+/**
+ * SubtitlesLayout puts the preview beside the fields, where it stays in
+ * sight while only the fields scroll; when there is no room for both, it
+ * goes on top and scrolls with them. It follows its own width, not the
+ * window's, so a narrow panel lays it out the narrow way.
+ */
+function SubtitlesLayout({
+  draft,
+  highlight,
+  children,
+}: Pick<SectionProps, "draft"> & { highlight: SubtitleLine | ""; children: ReactNode }) {
+  return (
+    <div className="@container">
+      <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
+        <aside aria-label="Prévia das legendas" className="@2xl:sticky @2xl:top-4 @2xl:order-2">
+          <SubtitlePreview primary={draft.primary} translation={draft.translation} layout={draft.layout} highlight={highlight} />
+        </aside>
+        <div className="flex min-w-0 flex-col gap-5 @container @2xl:order-1">{children}</div>
+      </div>
+    </div>
+  );
+}
 
-/** SubtitlesSection edits the two lines, the margins and the sync steps, with the preview on top. */
-export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
-  const [line, setLine] = useState<Line>("primary");
+/** SubtitleLineSection edits how one subtitle line looks, and its language. */
+export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProps & { line: SubtitleLine }) {
   const [problem, setProblem] = useState("");
   const options = view.options;
-  const languageName = (tag: string) => options.languages.find((option) => option.value === tag)?.label ?? tag;
   const style = draft[line];
   const setStyle = (next: StyleSettings) => setDraft((current) => (current ? { ...current, [line]: next } : current));
   const preset = (name: string) => {
@@ -27,29 +47,14 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
       })
       .catch((failure) => setProblem(messageOf(failure)));
   };
-  const setLayout = change(setDraft, "layout");
-  const layout = draft.layout;
   const languages = draft.languages;
   const languageOptions = options.languages.map((option) => ({ value: option.value, label: option.label }));
-  const keyOf = (command: string) => draft.shortcuts.find((item) => item.command === command)?.label ?? "";
+  const language = lineLanguage(line, languages[line], options.languages);
+  const title = line === "primary" ? `Legenda de cima · ${language}` : `Legenda de baixo · ${language}`;
 
   return (
-    <>
-      <div className="sticky top-0 z-10 -mx-6 -mt-6 bg-bg px-6 pt-6 pb-2">
-        <div className="mx-auto w-full max-w-xl">
-          <SubtitlePreview primary={draft.primary} translation={draft.translation} layout={draft.layout} />
-        </div>
-      </div>
-      <Segmented
-        label="Legenda"
-        value={line}
-        options={[
-          { value: "primary", label: `De cima (${languageName(languages.primary)})` },
-          { value: "translation", label: `De baixo (${languages.translation ? languageName(languages.translation) : "tradução"})` },
-        ]}
-        onChange={(value) => setLine(value as Line)}
-      />
-      <Card title={line === "primary" ? "Legenda de cima" : "Legenda de baixo"}>
+    <SubtitlesLayout draft={draft} highlight={line}>
+      <Card title={title}>
         <div className="flex flex-col gap-5">
           {line === "primary" ? (
             <Select
@@ -76,6 +81,41 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
           <StyleEditor style={style} options={options} onChange={setStyle} onPreset={preset} />
         </div>
       </Card>
+    </SubtitlesLayout>
+  );
+}
+
+/** SubtitlesSection holds what the two lines share: the margins and the sync steps. */
+export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) {
+  const options = view.options;
+  const setLayout = change(setDraft, "layout");
+  const layout = draft.layout;
+  const languages = draft.languages;
+  const keyOf = (command: string) => draft.shortcuts.find((item) => item.command === command)?.label ?? "";
+  const lines: { line: SubtitleLine; label: string }[] = [
+    { line: "primary", label: `Legenda de cima · ${lineLanguage("primary", languages.primary, options.languages)}` },
+    { line: "translation", label: `Legenda de baixo · ${lineLanguage("translation", languages.translation, options.languages)}` },
+  ];
+
+  return (
+    <SubtitlesLayout draft={draft} highlight="">
+      <Card title="As duas legendas">
+        <p className="mb-3 text-sm text-fg-secondary">
+          Cada legenda tem a sua fonte, o seu tamanho, as suas cores e a sua posição. Escolha qual mudar:
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {lines.map((item) => (
+            <button
+              key={item.line}
+              type="button"
+              onClick={() => open?.(item.line === "primary" ? "subtitles-primary" : "subtitles-translation")}
+              className="h-9 rounded-control border border-line-strong bg-surface px-3 text-sm text-fg hover:bg-sunken"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </Card>
       <Card
         title="Margens"
         aside={
@@ -85,7 +125,7 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
           </HelpTip>
         }
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @lg:grid-cols-2">
           <NumberField
             label="Margem esquerda"
             value={layout.marginLeft}
@@ -146,7 +186,7 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
           </HelpTip>
         }
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @lg:grid-cols-2">
           <NumberField
             label="Passo de cada toque"
             value={draft.syncStep}
@@ -167,6 +207,6 @@ export function SubtitlesSection({ view, draft, setDraft }: SectionProps) {
           />
         </div>
       </Card>
-    </>
+    </SubtitlesLayout>
   );
 }

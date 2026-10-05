@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ProfileSettings, SettingsView } from "../../services/backend";
+import type { SectionId } from "../../settings";
 
 /** SectionProps is what every section of the settings screen receives. */
 export interface SectionProps {
@@ -11,6 +12,8 @@ export interface SectionProps {
   dirty: boolean;
   /** run carries out an action that applies at once, then reloads; done is said when it worked. */
   run: (action: () => Promise<unknown>, done?: string) => Promise<void>;
+  /** open shows another page of the settings. */
+  open?: (section: SectionId) => void;
 }
 
 /** change returns a setter of one part of the draft. */

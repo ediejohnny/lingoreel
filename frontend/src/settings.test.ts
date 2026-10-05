@@ -1,5 +1,71 @@
 import { describe, expect, it } from "vitest";
-import { captureOf, clampNumber, joinColor, sameSettings, splitColor, type KeyPress } from "./settings";
+import {
+  captureOf,
+  clampNumber,
+  joinColor,
+  lineLanguage,
+  lineOfSection,
+  sameSettings,
+  settingsSections,
+  splitColor,
+  type KeyPress,
+  type SectionItem,
+} from "./settings";
+
+describe("settingsSections", () => {
+  const sections = settingsSections({ primary: "Inglês", translation: "Português do Brasil" });
+  const ids = (items: SectionItem[]): string[] => items.flatMap((item) => [item.id, ...ids(item.children ?? [])]);
+
+  it("gives each subtitle line its own entry under Legendas, with its language", () => {
+    const subtitles = sections.find((item) => item.id === "subtitles");
+    expect(subtitles?.label).toBe("Legendas");
+    expect(subtitles?.children).toEqual([
+      { id: "subtitles-primary", label: "De cima", detail: "Inglês" },
+      { id: "subtitles-translation", label: "De baixo", detail: "Português do Brasil" },
+    ]);
+  });
+
+  it("lists every page once, in the order of DESIGN §32", () => {
+    const all = ids(sections);
+    expect(new Set(all).size).toBe(all.length);
+    expect(sections.map((item) => item.label)).toEqual([
+      "Geral",
+      "Reprodução",
+      "Legendas",
+      "Estudo",
+      "Atalhos",
+      "Player",
+      "Aparência",
+      "Avançado",
+    ]);
+  });
+
+  it("tells the line each page edits", () => {
+    expect(lineOfSection("subtitles-primary")).toBe("primary");
+    expect(lineOfSection("subtitles-translation")).toBe("translation");
+    for (const other of ids(sections).filter((id) => !id.startsWith("subtitles-"))) {
+      expect(lineOfSection(other as SectionItem["id"])).toBe("");
+    }
+  });
+});
+
+describe("lineLanguage", () => {
+  const languages = [
+    { value: "en", label: "Inglês" },
+    { value: "pt-BR", label: "Português do Brasil" },
+  ];
+
+  it("names the language by its label", () => {
+    expect(lineLanguage("primary", "en", languages)).toBe("Inglês");
+    expect(lineLanguage("translation", "pt-BR", languages)).toBe("Português do Brasil");
+  });
+
+  it("says what a line without a language is for, and keeps an unknown tag", () => {
+    expect(lineLanguage("translation", "", languages)).toBe("tradução");
+    expect(lineLanguage("primary", "", languages)).toBe("principal");
+    expect(lineLanguage("primary", "ja", languages)).toBe("ja");
+  });
+});
 
 const press = (code: string, mods: Partial<KeyPress> = {}): KeyPress => ({
   code,

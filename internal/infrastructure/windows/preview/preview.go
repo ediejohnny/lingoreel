@@ -53,15 +53,16 @@ func Start() (*Renderer, error) {
 	return r, nil
 }
 
-// Preview draws the two lines with a look on a picture of width × height
-// pixels at a display scaling (96 is 100%), as PNG.
-func (r *Renderer) Preview(look session.Look, width, height, dpi int, primary, translation string) ([]byte, error) {
+// Preview draws the screen's two lines with a look on a picture of width ×
+// height pixels at a display scaling (96 is 100%), as PNG. Both lines show;
+// the screen's highlight outlines the line being edited.
+func (r *Renderer) Preview(look session.Look, width, height, dpi int, screen session.Screen) ([]byte, error) {
 	if width < minSide || height < minSide || width > maxSide || height > maxSide || dpi < minDPI || dpi > maxDPI {
 		return nil, fmt.Errorf("%w: %d×%d at %d dpi", ErrInvalidSize, width, height, dpi)
 	}
 	var picture *image.RGBA
 	var drawErr error
-	if err := r.thread.Do(func() { picture, drawErr = r.draw(look, width, height, dpi, primary, translation) }); err != nil {
+	if err := r.thread.Do(func() { picture, drawErr = r.draw(look, width, height, dpi, screen) }); err != nil {
 		return nil, err
 	}
 	if drawErr != nil {
@@ -75,7 +76,7 @@ func (r *Renderer) Preview(look session.Look, width, height, dpi int, primary, t
 }
 
 // draw runs on the renderer's thread.
-func (r *Renderer) draw(look session.Look, width, height, dpi int, primary, translation string) (*image.RGBA, error) {
+func (r *Renderer) draw(look session.Look, width, height, dpi int, screen session.Screen) (*image.RGBA, error) {
 	dib, err := win32.NewDIB(width, height)
 	if err != nil {
 		return nil, fmt.Errorf("creating the preview bitmap: %w", err)
@@ -85,18 +86,32 @@ func (r *Renderer) draw(look session.Look, width, height, dpi int, primary, tran
 	notice := appearance.NoticeStyle()
 	frame := layout.Compute(layout.Input{
 		Video: area, DPI: dpi, Layout: look.Layout,
-		Primary:     layout.Text{Style: look.Primary, Content: primary},
-		Translation: layout.Text{Style: look.Translation, Content: translation},
+		Primary:     layout.Text{Style: look.Primary, Content: screen.Primary},
+		Translation: layout.Text{Style: look.Translation, Content: screen.Translation},
 		Notice:      layout.Text{Style: notice},
 	}, r.renderer)
-	if err := r.renderer.Draw(dib, frame, gdiplus.Look{
-		Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice,
-	}); err != nil {
+	drawn := gdiplus.Look{Primary: look.Primary, Translation: look.Translation, TranslationVisible: true, Notice: notice}
+	if screen.Highlighted {
+		drawn.Highlight = gdiplus.OutlineAround(boxOf(frame, screen.Highlight), dpi)
+	}
+	if err := r.renderer.Draw(dib, frame, drawn); err != nil {
 		return nil, fmt.Errorf("drawing the preview: %w", err)
 	}
 	picture := scene(width, height)
 	over(picture, dib.Pixels)
 	return picture, nil
+}
+
+// boxOf is where a line was laid out; empty when the frame has no such line.
+func boxOf(frame layout.Frame, line session.Line) layout.Rect {
+	block := frame.Primary
+	if line == session.LineTranslation {
+		block = frame.Translation
+	}
+	if block == nil {
+		return layout.Rect{}
+	}
+	return block.Bounds
 }
 
 // Fonts lists the font families installed on the computer.
