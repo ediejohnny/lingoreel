@@ -41,7 +41,8 @@ can stay on screen or show up only when you ask for it.
 
 ## Development
 
-Requirements: Windows 10/11 64-bit, Go 1.26+ and PowerShell 5.1+. For `go test -race`, a `gcc` on the `PATH`.
+Requirements: Windows 10/11 64-bit, Go 1.26+ and PowerShell 5.1+. For `go test -race`, a `gcc` on the `PATH`. The
+check also runs [staticcheck](https://staticcheck.dev/): `go install honnef.co/go/tools/cmd/staticcheck@v0.8.1`.
 
 | Command | What it does |
 |---|---|
