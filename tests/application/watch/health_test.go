@@ -10,6 +10,7 @@ import (
 )
 
 func TestThePlayersHealth(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	if s.Health() != watch.HealthGood {
 		t.Fatalf("health at the start = %v", s.Health())

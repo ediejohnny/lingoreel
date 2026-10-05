@@ -7,6 +7,7 @@ import (
 )
 
 func TestNormalizeLanguage(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		bcp47, iso639, name string
 		want                media.LanguageTag
@@ -49,6 +50,7 @@ func TestNormalizeLanguage(t *testing.T) {
 }
 
 func TestLanguageTagParts(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		tag          media.LanguageTag
 		base, region string

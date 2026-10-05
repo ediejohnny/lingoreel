@@ -11,6 +11,7 @@ import (
 var workArea = layout.Rect{W: 1440, H: 860}
 
 func TestFitWindowShrinksBigVideosIntoTheScreen(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name          string
 		width, height int
@@ -54,12 +55,14 @@ func insideScreen(t *testing.T, name string, got, area layout.Rect) {
 }
 
 func TestFitWindowOnAMonitorThatDoesNotStartAtZero(t *testing.T) {
+	t.Parallel()
 	second := layout.Rect{X: 1440, Y: -200, W: 1920, H: 1040}
 	got := layout.FitWindow(1920, 1080, second, layout.InitialWindowFraction)
 	insideScreen(t, "segundo monitor", got, second)
 }
 
 func TestFitWindowWithUnknownOrHostileInput(t *testing.T) {
+	t.Parallel()
 	// Unknown video size: a 16:9 window at the limit.
 	got := layout.FitWindow(0, 0, workArea, layout.InitialWindowFraction)
 	if got.W != 1152 || got.H != 648 {

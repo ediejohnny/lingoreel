@@ -9,6 +9,7 @@ import (
 )
 
 func TestNegativeOffsetShowsLateTranslationEarlier(t *testing.T) {
+	t.Parallel()
 	// The translation cue is 500 ms late compared with the speech at 10 s.
 	timeline := mustTimeline(t, event("pt", 10_500, 12_500))
 	offset := subtitle.NewOffset(-500 * time.Millisecond)
@@ -25,6 +26,7 @@ func TestNegativeOffsetShowsLateTranslationEarlier(t *testing.T) {
 }
 
 func TestPositiveOffsetDelaysTrack(t *testing.T) {
+	t.Parallel()
 	timeline := mustTimeline(t, event("en", 1_000, 2_000))
 	offset := subtitle.NewOffset(150 * time.Millisecond)
 
@@ -37,6 +39,7 @@ func TestPositiveOffsetDelaysTrack(t *testing.T) {
 }
 
 func TestZeroOffsetChangesNothing(t *testing.T) {
+	t.Parallel()
 	offset := subtitle.NewOffset(0)
 	for _, position := range []time.Duration{0, ms(1), -ms(1), 90 * time.Minute} {
 		if offset.TrackTime(position) != position || offset.PlaybackTime(position) != position {
@@ -46,6 +49,7 @@ func TestZeroOffsetChangesNothing(t *testing.T) {
 }
 
 func TestOffsetRoundTripsBetweenTimeBases(t *testing.T) {
+	t.Parallel()
 	for _, shift := range []time.Duration{-350 * time.Millisecond, 0, 2 * time.Second} {
 		offset := subtitle.NewOffset(shift)
 		position := 42 * time.Second
@@ -56,6 +60,7 @@ func TestOffsetRoundTripsBetweenTimeBases(t *testing.T) {
 }
 
 func TestOffsetIsClamped(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		got  subtitle.Offset

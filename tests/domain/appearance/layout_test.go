@@ -9,6 +9,7 @@ import (
 )
 
 func TestLayoutValidateRanges(t *testing.T) {
+	t.Parallel()
 	nan := math.NaN()
 	cases := []struct {
 		name   string

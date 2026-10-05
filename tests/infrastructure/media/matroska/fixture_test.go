@@ -21,6 +21,7 @@ func fixturePath(name string) string {
 }
 
 func TestFixturesMadeByMkvmerge(t *testing.T) {
+	t.Parallel()
 	want := map[uint64]struct {
 		language            media.LanguageTag
 		name                string
@@ -121,6 +122,7 @@ func fileExists(path string) bool {
 
 // Compares our reading of the fixtures with MKVToolNix's own identification.
 func TestFixturesAgreeWithMkvmerge(t *testing.T) {
+	t.Parallel()
 	mkvmerge := findMkvmerge()
 	if mkvmerge == "" {
 		t.Skip("MKVToolNix is not installed; cross-check skipped")

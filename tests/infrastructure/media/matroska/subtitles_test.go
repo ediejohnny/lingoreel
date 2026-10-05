@@ -49,6 +49,7 @@ func ms(value int) time.Duration {
 }
 
 func TestReadSubtitlesUsesBlockDurationsAndClusterTimestamps(t *testing.T) {
+	t.Parallel()
 	data := subtitleFile(
 		cluster(1_000,
 			blockGroup(2, 0, 2_000, []byte("Hello")),
@@ -65,6 +66,7 @@ func TestReadSubtitlesUsesBlockDurationsAndClusterTimestamps(t *testing.T) {
 }
 
 func TestReadSubtitlesInfersMissingEnds(t *testing.T) {
+	t.Parallel()
 	data := subtitleFile(cluster(0,
 		simpleBlock(2, 1_000, "first"),
 		simpleBlock(2, 4_000, "second"),
@@ -79,6 +81,7 @@ func TestReadSubtitlesInfersMissingEnds(t *testing.T) {
 }
 
 func TestReadSubtitlesHonorsTimestampScale(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(100_000, 10), // one tick is 0.1 ms
 		tracksEl(trackEntry(2, typeSubtitle, "S_TEXT/UTF8")),
@@ -88,6 +91,7 @@ func TestReadSubtitlesHonorsTimestampScale(t *testing.T) {
 }
 
 func TestReadSubtitlesSkipsOtherTracksAndOversizedFrames(t *testing.T) {
+	t.Parallel()
 	bigVideoFrame := strings.Repeat("v", 3<<20)
 	oversizedSubtitle := bytes.Repeat([]byte("s"), (1<<20)+1)
 	data := matroskaFile(
@@ -108,6 +112,7 @@ func TestReadSubtitlesSkipsOtherTracksAndOversizedFrames(t *testing.T) {
 }
 
 func TestReadSubtitlesDecodesASSBlocksAndDropsEmptyOnes(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(1_000_000, 10_000),
 		tracksEl(trackEntry(3, typeSubtitle, "S_TEXT/ASS")),
@@ -134,6 +139,7 @@ func zlibCompress(t *testing.T, data []byte) []byte {
 }
 
 func TestReadSubtitlesUndoesContentCompression(t *testing.T) {
+	t.Parallel()
 	zipBomb := zlibCompress(t, bytes.Repeat([]byte("a"), 2<<20))
 	data := matroskaFile(
 		segmentInfo(1_000_000, 10_000),
@@ -155,6 +161,7 @@ func TestReadSubtitlesUndoesContentCompression(t *testing.T) {
 }
 
 func TestTracksWithUnsupportedEncodingsAreUnreadable(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(1_000_000, 10),
 		tracksEl(
@@ -179,6 +186,7 @@ func TestTracksWithUnsupportedEncodingsAreUnreadable(t *testing.T) {
 }
 
 func TestReadSubtitlesSplitsLacedBlocks(t *testing.T) {
+	t.Parallel()
 	xiph := join([]byte{2}, []byte{2, 3}, []byte("AB"+"BCC"+"CCCC"))        // sizes 2, 3, the rest 4
 	ebml := join([]byte{2}, encodeVint(2), []byte{0xC0}, []byte("ABBBCCC")) // 2, then +1 (0xC0 = 64 - 63), rest 3
 	fixed := join([]byte{1}, []byte("AABB"))
@@ -217,6 +225,7 @@ func TestReadSubtitlesSplitsLacedBlocks(t *testing.T) {
 }
 
 func TestReadSubtitlesReadsTwoTracksInOnePassAcrossUnknownSizeClusters(t *testing.T) {
+	t.Parallel()
 	data := join(ebmlHeader("matroska"), unknownSizeEl(idSegment,
 		segmentInfo(1_000_000, 10_000),
 		tracksEl(
@@ -233,6 +242,7 @@ func TestReadSubtitlesReadsTwoTracksInOnePassAcrossUnknownSizeClusters(t *testin
 }
 
 func TestReadSubtitlesRejectsTracksThatCannotBeRead(t *testing.T) {
+	t.Parallel()
 	data := movieFile()
 	container := analyze(t, data)
 	for _, number := range []uint64{1, 2, 6, 99} { // video, audio, PGS, missing
@@ -244,6 +254,7 @@ func TestReadSubtitlesRejectsTracksThatCannotBeRead(t *testing.T) {
 }
 
 func TestReadSubtitlesStopsWhenCancelled(t *testing.T) {
+	t.Parallel()
 	data := subtitleFile(cluster(0, blockGroup(2, 0, 1_000, []byte("x"))))
 	container := analyze(t, data)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -256,6 +267,7 @@ func TestReadSubtitlesStopsWhenCancelled(t *testing.T) {
 }
 
 func TestReadSubtitlesReportsMonotonicProgressUpToTheFileSize(t *testing.T) {
+	t.Parallel()
 	var clusters [][]byte
 	for i := range 20 {
 		clusters = append(clusters, cluster(uint64(i*1_000), blockGroup(2, 0, 500, []byte("line"))))
@@ -283,6 +295,7 @@ func TestReadSubtitlesReportsMonotonicProgressUpToTheFileSize(t *testing.T) {
 }
 
 func TestFileReaderReadsFromDiskAndReportsBadPaths(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "Filme.mkv")
 	data := subtitleFile(cluster(0, blockGroup(2, 0, 1_000, []byte("do disco"))))
 	if err := os.WriteFile(path, data, 0o600); err != nil {

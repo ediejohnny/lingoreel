@@ -40,6 +40,7 @@ func writeFile(t *testing.T, path, content string) {
 }
 
 func TestLoadMissingDocumentReturnsDefaultsWithoutCreatingIt(t *testing.T) {
+	t.Parallel()
 	store, path := newSampleStore(t, 1, nil)
 
 	got, err := store.Load()
@@ -69,6 +70,7 @@ func (c checked) Validate() error {
 // A hand-edited document with bad values must not reach the app: Load returns
 // the defaults and says why.
 func TestLoadValidatesValuesThatCheckThemselves(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "settings.json")
 	store := jsonstore.New(path, 1, func() checked { return checked{Limit: 5} }, nil)
 
@@ -84,6 +86,7 @@ func TestLoadValidatesValuesThatCheckThemselves(t *testing.T) {
 }
 
 func TestSaveThenLoadRoundTrips(t *testing.T) {
+	t.Parallel()
 	store, path := newSampleStore(t, 3, nil)
 	want := sample{Name: "Inglês", Count: 0, Tags: []string{}, Extra: map[string]string{"k": "v"}}
 
@@ -101,6 +104,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 }
 
 func TestSaveOverwritesAndLeavesNoTemporaryFiles(t *testing.T) {
+	t.Parallel()
 	store, path := newSampleStore(t, 1, nil)
 
 	for i := range 3 {
@@ -122,6 +126,7 @@ func TestSaveOverwritesAndLeavesNoTemporaryFiles(t *testing.T) {
 }
 
 func TestLoadKeepsDefaultsForMissingFieldsAndIgnoresUnknownOnes(t *testing.T) {
+	t.Parallel()
 	store, path := newSampleStore(t, 1, nil)
 	writeFile(t, path, `{"version": 1, "name": "partial", "futureField": true}`)
 
@@ -137,6 +142,7 @@ func TestLoadKeepsDefaultsForMissingFieldsAndIgnoresUnknownOnes(t *testing.T) {
 }
 
 func TestLoadRunsMigrationsInOrder(t *testing.T) {
+	t.Parallel()
 	var calls []string
 	migrations := map[int]jsonstore.Migration{
 		1: func(document map[string]any) error {
@@ -179,6 +185,7 @@ func TestLoadRunsMigrationsInOrder(t *testing.T) {
 }
 
 func TestLoadRejectsBadDocuments(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		content string
@@ -214,6 +221,7 @@ func TestLoadRejectsBadDocuments(t *testing.T) {
 }
 
 func TestLoadRejectsOversizedDocumentButAcceptsTheLimit(t *testing.T) {
+	t.Parallel()
 	testkit.Slow(t)
 	store, path := newSampleStore(t, 1, nil)
 	prefix, suffix := `{"version": 1, "name": "`, `"}`
@@ -229,6 +237,7 @@ func TestLoadRejectsOversizedDocumentButAcceptsTheLimit(t *testing.T) {
 }
 
 func TestLoadReportsMissingAndFailingMigrations(t *testing.T) {
+	t.Parallel()
 	store, path := newSampleStore(t, 3, map[int]jsonstore.Migration{1: func(map[string]any) error { return nil }})
 	writeFile(t, path, `{"version": 1}`)
 	if _, err := store.Load(); !errors.Is(err, jsonstore.ErrMissingMigration) {
@@ -244,6 +253,7 @@ func TestLoadReportsMissingAndFailingMigrations(t *testing.T) {
 }
 
 func TestSaveRejectsValuesThatClashWithTheVersionField(t *testing.T) {
+	t.Parallel()
 	type clashing struct {
 		Version int `json:"version"`
 	}
@@ -259,6 +269,7 @@ func TestSaveRejectsValuesThatClashWithTheVersionField(t *testing.T) {
 }
 
 func TestSaveRejectsNonObjectValues(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "list.json")
 	store := jsonstore.New(path, 1, func() []int { return nil }, nil)
 

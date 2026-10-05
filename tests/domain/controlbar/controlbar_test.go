@@ -54,6 +54,7 @@ func overlap(a, b layout.Rect) bool {
 func center(r layout.Rect) (float64, float64) { return r.X + r.W/2, r.Y + r.H/2 }
 
 func TestTheBarIsLaidOutInOrder(t *testing.T) {
+	t.Parallel()
 	bar := controlbar.Layout(wide, 1, fullState())
 	if bar.Panel.X != 0 || bar.Panel.W != wide.W || bar.Panel.Bottom() != wide.H || !(bar.Panel.H > 0) {
 		t.Fatalf("panel = %+v, want the window's whole bottom", bar.Panel)
@@ -108,6 +109,7 @@ func TestTheBarIsLaidOutInOrder(t *testing.T) {
 // Every item takes the clicks at its center, at its top-left corner and just
 // inside its far edges; the gaps and the padding take none.
 func TestHitTestFindsEachItem(t *testing.T) {
+	t.Parallel()
 	bar := controlbar.Layout(wide, 1, fullState())
 	for _, it := range bar.Items {
 		b := it.Bounds
@@ -133,6 +135,7 @@ func TestHitTestFindsEachItem(t *testing.T) {
 // As the window narrows, the parts leave in a fixed order and never come
 // back; play and fullscreen always stay.
 func TestNarrowWindowsDropPartsInOrder(t *testing.T) {
+	t.Parallel()
 	present := func(action controlbar.Action) func(controlbar.Bar) bool {
 		return func(bar controlbar.Bar) bool { return has(bar, action) }
 	}
@@ -186,6 +189,7 @@ func TestNarrowWindowsDropPartsInOrder(t *testing.T) {
 // The frame buttons follow the player: one forward, and one back when the
 // player steps back or the session emulates it with an exact seek.
 func TestFrameButtonsFollowThePlayer(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	bar := controlbar.Layout(wide, 1, state)
 	if !item(t, bar, controlbar.ActionFrameBack).Enabled || !item(t, bar, controlbar.ActionFrameForward).Enabled {
@@ -203,6 +207,7 @@ func TestFrameButtonsFollowThePlayer(t *testing.T) {
 }
 
 func TestItemsFollowTheCapabilities(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.Capabilities = playback.Capabilities{}
 	state.HasTranslation = false
@@ -238,6 +243,7 @@ func TestItemsFollowTheCapabilities(t *testing.T) {
 }
 
 func TestToggles(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.Paused, state.Muted, state.Fullscreen = true, true, true
 	bar := controlbar.Layout(wide, 1, state)
@@ -253,6 +259,7 @@ func TestToggles(t *testing.T) {
 // The speed list opens above its button, inside the window, with every speed
 // and the current one marked; a click on a cell picks its speed.
 func TestSpeedList(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.SpeedMenuOpen = true
 	bar := controlbar.Layout(wide, 1, state)
@@ -290,6 +297,7 @@ func TestSpeedList(t *testing.T) {
 }
 
 func TestSpeedListStaysInsideASmallWindow(t *testing.T) {
+	t.Parallel()
 	state := fullState()
 	state.SpeedMenuOpen = true
 	area := layout.Rect{W: 400, H: 150}
@@ -300,6 +308,7 @@ func TestSpeedListStaysInsideASmallWindow(t *testing.T) {
 }
 
 func TestTrackPosition(t *testing.T) {
+	t.Parallel()
 	bar := controlbar.Layout(wide, 1, fullState())
 	duration := 100 * time.Second
 	track := bar.Track
@@ -327,6 +336,7 @@ func TestTrackPosition(t *testing.T) {
 }
 
 func TestVolumeAt(t *testing.T) {
+	t.Parallel()
 	bar := controlbar.Layout(wide, 1, fullState())
 	line := bar.VolumeTrack
 	for x, want := range map[float64]playback.Volume{line.X: 0, line.X + line.W/2: 0.5, line.Right(): 1, line.X - 50: 0, line.Right() + 50: 1} {
@@ -340,6 +350,7 @@ func TestVolumeAt(t *testing.T) {
 }
 
 func TestPlayedShare(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		position, duration time.Duration
 		want               float64
@@ -356,6 +367,7 @@ func TestPlayedShare(t *testing.T) {
 }
 
 func TestScale(t *testing.T) {
+	t.Parallel()
 	for dpi, want := range map[int]float64{96: 1, 144: 1.5, 192: 2, 0: 1, -96: 1} {
 		if got := controlbar.Scale(dpi); got != want {
 			t.Errorf("Scale(%d) = %v, want %v", dpi, got, want)
@@ -370,6 +382,7 @@ func TestScale(t *testing.T) {
 }
 
 func TestLayoutRejectsUnusableInput(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		area  layout.Rect
 		scale float64
@@ -386,6 +399,7 @@ func TestLayoutRejectsUnusableInput(t *testing.T) {
 // The bar shows when the mouse is in the bottom fifth of the video, or in
 // the two panels' height at the bottom when that is taller.
 func TestInZone(t *testing.T) {
+	t.Parallel()
 	for _, area := range []layout.Rect{wide, {W: 300, H: 200}} {
 		top := area.H - math.Max(0.2*area.H, 2*controlbar.PanelHeight(1))
 		for y, want := range map[float64]bool{top: true, top - 0.01: false, area.H - 0.01: true, area.H: false, 0: false, math.NaN(): false} {

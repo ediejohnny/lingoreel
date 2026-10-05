@@ -15,6 +15,7 @@ func withNotice(in layout.Input, notice string) layout.Input {
 }
 
 func TestNoticeSitsInTheTopLeftCorner(t *testing.T) {
+	t.Parallel()
 	const notice = "Legenda de cima (inglês): −0,150 s" // 34 runes
 	frame := layout.Compute(withNotice(defaults(video(1920, 1080), "Hi.", ""), notice), monoMeasurer{})
 	block := frame.Notice
@@ -33,6 +34,7 @@ func TestNoticeSitsInTheTopLeftCorner(t *testing.T) {
 }
 
 func TestNoticeFollowsTheLetterboxedPicture(t *testing.T) {
+	t.Parallel()
 	picture := layout.Rect{X: 0, Y: 140, W: 1920, H: 800}
 	block := layout.Compute(withNotice(defaults(picture, "", ""), "Aviso"), monoMeasurer{}).Notice
 	// 3% of 800 = 24 below the picture's top edge, not the window's.
@@ -42,6 +44,7 @@ func TestNoticeFollowsTheLetterboxedPicture(t *testing.T) {
 }
 
 func TestNoticeNeverMovesTheSubtitles(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "I'm not going there.", "Eu não vou para lá.")
 	without := layout.Compute(in, monoMeasurer{})
 	with := layout.Compute(withNotice(in, strings.Repeat("aviso comprido ", 20)), monoMeasurer{})
@@ -54,6 +57,7 @@ func TestNoticeNeverMovesTheSubtitles(t *testing.T) {
 }
 
 func TestLongNoticeWrapsInsideItsCornerAndKeepsEveryWord(t *testing.T) {
+	t.Parallel()
 	notice := strings.Repeat("Trecho pausado — fora do intervalo ", 6)
 	v := video(1280, 720)
 	block := layout.Compute(withNotice(defaults(v, "", ""), notice), monoMeasurer{}).Notice
@@ -77,6 +81,7 @@ func TestLongNoticeWrapsInsideItsCornerAndKeepsEveryWord(t *testing.T) {
 }
 
 func TestNoticeOnATinyVideoKeepsAReadableFont(t *testing.T) {
+	t.Parallel()
 	block := layout.Compute(withNotice(defaults(video(320, 180), "", ""), "Aviso"), monoMeasurer{}).Notice
 	if block == nil || block.Font.Size < minFontAt96-eps || math.IsNaN(block.Font.Size) {
 		t.Fatalf("notice = %+v, want a font of at least %d px", block, minFontAt96)

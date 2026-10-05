@@ -7,6 +7,7 @@ import (
 )
 
 func TestRevealedTogglesOnPressesAndHoldsWhilePressed(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		behavior         study.RevealBehavior
 		visible, pressed bool

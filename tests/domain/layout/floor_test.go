@@ -19,6 +19,7 @@ func lowest(frame layout.Frame) float64 {
 }
 
 func TestFloorKeepsTheSubtitlesAboveTheControls(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "Hello there, how are you?", "Olá, tudo bem?")
 	free := layout.Compute(in, monoMeasurer{})
 	if lowest(free) <= 600 {
@@ -40,6 +41,7 @@ func TestFloorKeepsTheSubtitlesAboveTheControls(t *testing.T) {
 }
 
 func TestFloorThatChangesNothing(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "Hello there.", "Olá.")
 	free := layout.Compute(in, monoMeasurer{})
 	for _, floor := range []float64{0, -10, 720, 5000, math.NaN(), math.Inf(1)} {
@@ -52,6 +54,7 @@ func TestFloorThatChangesNothing(t *testing.T) {
 }
 
 func TestFloorAboveTheSafeAreaKeepsTheText(t *testing.T) {
+	t.Parallel()
 	in := defaults(video(1280, 720), "Hello there.", "Olá.")
 	in.Floor = 1 // a window too small for the controls and the subtitles
 	frame := layout.Compute(in, monoMeasurer{})

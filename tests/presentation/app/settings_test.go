@@ -24,6 +24,7 @@ func settingsOf(t *testing.T, r *rig) app.SettingsView {
 }
 
 func TestSettingsShowTheActiveProfileAndTheOptions(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r)
@@ -60,6 +61,7 @@ func TestSettingsShowTheActiveProfileAndTheOptions(t *testing.T) {
 }
 
 func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	view := settingsOf(t, r).Profile
 	view.Primary.FontSize = 40
@@ -119,6 +121,7 @@ func shortcutAt(t *testing.T, p app.ProfileSettings, command shortcut.Command) i
 // Each refusal names, in Portuguese, the field it is about; the limits in
 // the messages come from the domain, which tests them.
 func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	base := settingsOf(t, r).Profile
@@ -176,6 +179,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 }
 
 func TestProfilesCanBeCreatedSwitchedRenamedAndRemoved(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -226,6 +230,7 @@ func TestProfilesCanBeCreatedSwitchedRenamedAndRemoved(t *testing.T) {
 }
 
 func TestTheProfileCannotChangeUnderAVideo(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	if err := r.api.CreateProfile("Francês"); err == nil || !strings.Contains(err.Error(), "Encerre o vídeo") {
 		t.Fatalf("CreateProfile while watching = %v", err)
@@ -239,6 +244,7 @@ func TestTheProfileCannotChangeUnderAVideo(t *testing.T) {
 }
 
 func TestResetProfileKeepsTheName(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	if err := r.api.RenameProfile("Inglês", "Meu"); err != nil {
 		t.Fatal(err)
@@ -261,6 +267,7 @@ func TestResetProfileKeepsTheName(t *testing.T) {
 }
 
 func TestSyncNoticeAndPresetsAndShortcutChecks(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.SetSyncNotice(false); err != nil || r.settings.config.SyncNotice || settingsOf(t, r).General.SyncNotice {
@@ -284,6 +291,7 @@ func TestSyncNoticeAndPresetsAndShortcutChecks(t *testing.T) {
 }
 
 func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -311,6 +319,7 @@ func TestThePreviewIsAPictureOfTheChoices(t *testing.T) {
 }
 
 func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -330,6 +339,7 @@ func TestThePreviewMarksTheLineBeingEdited(t *testing.T) {
 }
 
 func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -346,6 +356,7 @@ func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
 }
 
 func TestPlayerPaths(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.SetPlayerPath("fake", `D:\Apps\Fake\fake.exe`); err != nil || r.settings.config.PlayerPaths["fake"] != `D:\Apps\Fake\fake.exe` {
@@ -373,6 +384,7 @@ func TestPlayerPaths(t *testing.T) {
 }
 
 func TestTheWindowPlaceIsKept(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	bounds := settings.WindowBounds{X: -1500, Y: 40, Width: 1100, Height: 760, Maximized: true}
@@ -387,6 +399,7 @@ func TestTheWindowPlaceIsKept(t *testing.T) {
 }
 
 func TestTheVideoOpensWithTheProfileChoices(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r).Profile
@@ -425,6 +438,7 @@ func TestTheVideoOpensWithTheProfileChoices(t *testing.T) {
 }
 
 func TestOpenSettingsFolder(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.OpenSettingsFolder(); err != nil {

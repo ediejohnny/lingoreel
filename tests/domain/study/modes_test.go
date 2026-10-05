@@ -9,6 +9,7 @@ import (
 )
 
 func TestEachModeStartsAndHidesItsOwnWay(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		mode               study.Mode
 		revealed, hideable bool
@@ -28,6 +29,7 @@ func TestEachModeStartsAndHidesItsOwnWay(t *testing.T) {
 // whatever the behavior says, on demand the behavior decides (a held key
 // hides on release), and when always shown nothing changes it.
 func TestTheTranslationKeyInEachMode(t *testing.T) {
+	t.Parallel()
 	const (
 		toggle = study.RevealToggle
 		hold   = study.RevealHold
@@ -63,6 +65,7 @@ func TestTheTranslationKeyInEachMode(t *testing.T) {
 }
 
 func TestPhraseStart(t *testing.T) {
+	t.Parallel()
 	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
 	timeline, err := subtitle.NewTimeline([]subtitle.Event{
 		{ID: "a", Start: ms(10000), End: ms(14000), OriginalText: "A long line."},

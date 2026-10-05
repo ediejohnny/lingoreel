@@ -12,6 +12,7 @@ import (
 )
 
 func TestShortcutLabels(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"Space":            "Espaço",
 		"Shift+Comma":      "Shift+,",
@@ -48,6 +49,7 @@ func TestShortcutLabels(t *testing.T) {
 }
 
 func TestEveryCommandAndCategoryHasAName(t *testing.T) {
+	t.Parallel()
 	seen := map[string]bool{}
 	for _, command := range shortcut.Commands() {
 		name := ptbr.CommandName(command)
@@ -65,6 +67,7 @@ func TestEveryCommandAndCategoryHasAName(t *testing.T) {
 }
 
 func TestEveryStudyModeHasAName(t *testing.T) {
+	t.Parallel()
 	want := map[study.Mode]string{
 		study.ModeDual: "Dupla", study.ModeOnDemand: "Tradução sob demanda", study.ModeAlwaysTranslated: "Tradução sempre visível",
 	}
@@ -76,6 +79,7 @@ func TestEveryStudyModeHasAName(t *testing.T) {
 }
 
 func TestShortcutProblems(t *testing.T) {
+	t.Parallel()
 	conflict := shortcut.Map{shortcut.Mute: {Key: shortcut.KeySpace}}.Validate()
 	cases := []struct {
 		err  error

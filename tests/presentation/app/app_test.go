@@ -13,6 +13,7 @@ import (
 )
 
 func TestNothingWorksBeforeTheWindow(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\x.mkv`); !errors.Is(err, app.ErrNotReady) {
 		t.Fatalf("OpenVideo before Attach = %v", err)
@@ -23,6 +24,7 @@ func TestNothingWorksBeforeTheWindow(t *testing.T) {
 }
 
 func TestOpenVideoDescribesTracksAndPlayers(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\notas.txt`); err == nil || !strings.Contains(err.Error(), ".txt") {
@@ -62,6 +64,7 @@ func TestOpenVideoDescribesTracksAndPlayers(t *testing.T) {
 }
 
 func TestWatchAndControlTheSession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.Watch(app.WatchRequest{Player: "fake"}); err == nil {
@@ -125,6 +128,7 @@ func TestWatchAndControlTheSession(t *testing.T) {
 }
 
 func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -152,6 +156,7 @@ func TestSeekTakesOnlyPositionsAVideoCanHave(t *testing.T) {
 }
 
 func TestThePlayerClosingEndsTheSession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
@@ -170,6 +175,7 @@ func TestThePlayerClosingEndsTheSession(t *testing.T) {
 // A player that keeps its own audio track (PotPlayer) says so to the
 // session screen, which then offers no choice.
 func TestAPlayerThatKeepsItsAudioTrackSaysSo(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	players, err := r.api.Players()
@@ -186,6 +192,7 @@ func TestAPlayerThatKeepsItsAudioTrackSaysSo(t *testing.T) {
 }
 
 func TestWithoutAPlayerTheCardsOfferOne(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	r.installed = nil
@@ -222,6 +229,7 @@ func TestWithoutAPlayerTheCardsOfferOne(t *testing.T) {
 }
 
 func TestInstallAndDownload(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.InstallPlayer("fake"); err != nil {
@@ -259,6 +267,7 @@ func TestInstallAndDownload(t *testing.T) {
 }
 
 func TestPreferencesAndTheme(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	preferences := r.api.Preferences()
@@ -278,6 +287,7 @@ func TestPreferencesAndTheme(t *testing.T) {
 }
 
 func TestDamagedSettingsFallBackToTheDefaults(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.settings.config.Theme = settings.ThemeDark
 	r.settings.loadErr = errors.New("corrupt")
@@ -288,6 +298,7 @@ func TestDamagedSettingsFallBackToTheDefaults(t *testing.T) {
 }
 
 func TestDroppedFilesAndTheInitialVideo(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	r.lifecycle.Dropped(nil)

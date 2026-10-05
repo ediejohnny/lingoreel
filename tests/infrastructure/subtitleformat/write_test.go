@@ -40,6 +40,7 @@ func parse(t *testing.T, format subtitle.Format, data []byte) []subtitle.Event {
 }
 
 func TestSRTReadsBackAsItWasWritten(t *testing.T) {
+	t.Parallel()
 	var out bytes.Buffer
 	if err := subtitleformat.WriteSRT(&out, exportSample()); err != nil {
 		t.Fatal(err)
@@ -77,6 +78,7 @@ func TestSRTReadsBackAsItWasWritten(t *testing.T) {
 }
 
 func TestASSReadsBackToTheCentisecond(t *testing.T) {
+	t.Parallel()
 	events := []subtitle.Event{
 		{ID: "1", Start: at(0, 0, 59, 996), End: at(0, 1, 2, 5), OriginalText: "Round up: 59.996 is 1:00.00."},
 		{ID: "2", Start: at(2, 0, 0, 4), End: at(2, 0, 1, 0), OriginalText: "Two rows,\nwith, commas."},
@@ -113,6 +115,7 @@ func TestASSReadsBackToTheCentisecond(t *testing.T) {
 }
 
 func TestNothingToExport(t *testing.T) {
+	t.Parallel()
 	for name, write := range map[string]func(*bytes.Buffer, []subtitle.Event) error{
 		"srt": func(b *bytes.Buffer, e []subtitle.Event) error { return subtitleformat.WriteSRT(b, e) },
 		"ass": func(b *bytes.Buffer, e []subtitle.Event) error { return subtitleformat.WriteASS(b, e) },

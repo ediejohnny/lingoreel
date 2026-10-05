@@ -20,6 +20,7 @@ func keyLParam(scan uintptr, extended bool) uintptr {
 }
 
 func TestEveryKeyHasOnePlaceOnTheKeyboard(t *testing.T) {
+	t.Parallel()
 	keys := shortcut.Keys()
 	// 26 letters + 10 digits + 10 keypad digits + 12 F keys + 11 named
 	// (Space, Escape, Backspace, Tab, Enter, Insert, Delete, Home, End,
@@ -55,6 +56,7 @@ func TestEveryKeyHasOnePlaceOnTheKeyboard(t *testing.T) {
 }
 
 func TestKnownPlaces(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		scan     uintptr
 		extended bool
@@ -94,6 +96,7 @@ func TestKnownPlaces(t *testing.T) {
 }
 
 func TestVirtualKeysForHotkeys(t *testing.T) {
+	t.Parallel()
 	// Keys the layout cannot move.
 	cases := map[shortcut.Key]uint32{
 		shortcut.KeySpace: 0x20, shortcut.KeyArrowLeft: 0x25, shortcut.KeyArrowDown: 0x28,
@@ -119,6 +122,7 @@ func TestVirtualKeysForHotkeys(t *testing.T) {
 }
 
 func TestChordOfIgnoresModifiersOnlyForTheRightAlt(t *testing.T) {
+	t.Parallel()
 	// AltGr sends a Ctrl with the right Alt.
 	if got := keyboard.ChordOf(shortcut.KeyAltRight, shortcut.Ctrl); got != (shortcut.Chord{Key: shortcut.KeyAltRight}) {
 		t.Fatalf("right Alt with Ctrl = %+v", got)

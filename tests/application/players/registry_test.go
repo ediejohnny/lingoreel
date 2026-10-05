@@ -31,6 +31,7 @@ func stub(id player.ID, name string) *stubPlugin {
 }
 
 func TestRegistryRefusesBrokenPlugins(t *testing.T) {
+	t.Parallel()
 	bad := stub("vlc", "VLC")
 	bad.descriptor.Install.DownloadURL = "http://example.org"
 	for name, list := range map[string][]players.Plugin{
@@ -45,6 +46,7 @@ func TestRegistryRefusesBrokenPlugins(t *testing.T) {
 }
 
 func TestRegistryFindsAndLaunchesItsPlugins(t *testing.T) {
+	t.Parallel()
 	vlc, mpv := stub("vlc", "VLC"), stub("mpv", "mpv")
 	registry, err := players.NewRegistry(vlc, mpv)
 	if err != nil {

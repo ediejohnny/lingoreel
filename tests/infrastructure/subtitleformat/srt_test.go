@@ -7,6 +7,7 @@ import (
 )
 
 func TestSRTParsesWellFormedDocument(t *testing.T) {
+	t.Parallel()
 	document := "1\r\n00:10:41,120 --> 00:10:43,800\r\nI'm not going there.\r\n\r\n" +
 		"2\r\n00:10:44,000 --> 00:10:46,500\r\n<i>Why not?</i>\r\nTell me.\r\n"
 
@@ -25,6 +26,7 @@ func TestSRTParsesWellFormedDocument(t *testing.T) {
 }
 
 func TestSRTToleratesCommonDefects(t *testing.T) {
+	t.Parallel()
 	document := "\xEF\xBB\xBF" + // UTF-8 byte order mark
 		"00:00:01.000 --> 00:00:02.000\n" + // no index, dot separator
 		"no index\n" +
@@ -46,6 +48,7 @@ func TestSRTToleratesCommonDefects(t *testing.T) {
 }
 
 func TestSRTSkipsBrokenCuesAndKeepsGoing(t *testing.T) {
+	t.Parallel()
 	document := "1\n00:00:01,000 --> 00:00:02,000\nfirst\n\n" +
 		"garbage line\nmore garbage\n\n" +
 		"2\n00:00:09,000 --> 00:00:03,000\nends before it starts\n\n" +
@@ -65,6 +68,7 @@ func TestSRTSkipsBrokenCuesAndKeepsGoing(t *testing.T) {
 }
 
 func TestSRTEmptyAndBlankDocumentsHaveNoEvents(t *testing.T) {
+	t.Parallel()
 	for _, document := range []string{"", "\n\n\n", "   \r\n  "} {
 		result := mustParse(t, subtitleformat.SRTParser{}, document)
 		if len(result.Events) != 0 || result.Skipped != 0 {
@@ -74,6 +78,7 @@ func TestSRTEmptyAndBlankDocumentsHaveNoEvents(t *testing.T) {
 }
 
 func TestSRTDropsExactDuplicatesButKeepsNearDuplicates(t *testing.T) {
+	t.Parallel()
 	document := "1\n00:00:01,000 --> 00:00:02,000\nsame\n\n" +
 		"2\n00:00:01,000 --> 00:00:02,000\nsame\n\n" +
 		"3\n00:00:01,000 --> 00:00:02,001\nsame\n\n" +
@@ -87,6 +92,7 @@ func TestSRTDropsExactDuplicatesButKeepsNearDuplicates(t *testing.T) {
 }
 
 func TestSRTKeepsLiteralBracesAndComparisonSigns(t *testing.T) {
+	t.Parallel()
 	document := "1\n00:00:01,000 --> 00:00:02,000\n{laughs} a < b > c\n"
 
 	result := mustParse(t, subtitleformat.SRTParser{}, document)
@@ -95,6 +101,7 @@ func TestSRTKeepsLiteralBracesAndComparisonSigns(t *testing.T) {
 }
 
 func TestSRTReadsWindows1252Portuguese(t *testing.T) {
+	t.Parallel()
 	document := []byte("1\r\n00:00:01,000 --> 00:00:02,000\r\nVoc\xea n\xe3o vai\x85\r\n")
 
 	result, err := subtitleformat.SRTParser{}.Parse(document)
@@ -106,6 +113,7 @@ func TestSRTReadsWindows1252Portuguese(t *testing.T) {
 }
 
 func TestSRTReadsUTF16LittleEndian(t *testing.T) {
+	t.Parallel()
 	text := "1\n00:00:01,000 --> 00:00:02,000\nOlá\n"
 	document := []byte{0xFF, 0xFE}
 	for _, r := range text {

@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseTimestamp(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		value string
 		want  time.Duration
@@ -35,6 +36,7 @@ func TestParseTimestamp(t *testing.T) {
 }
 
 func TestParseTimestampRejectsInvalidValues(t *testing.T) {
+	t.Parallel()
 	for _, value := range []string{"", "10", "00:60:00,000", "00:00:60,000", "aa:bb:cc", "00:00:01,5x", "-1:00:00", "1:2:3:4", "1000:00:00,000", "00::01", ":00:01", "00:00:01,2,3"} {
 		if _, err := subtitleformat.ParseTimestamp(value); !errors.Is(err, subtitleformat.ErrBadTimestamp) {
 			t.Fatalf("ParseTimestamp(%q) error = %v, want ErrBadTimestamp", value, err)

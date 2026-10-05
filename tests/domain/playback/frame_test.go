@@ -9,6 +9,7 @@ import (
 )
 
 func TestFrameDurationUsesTheRealRate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		fps  float64
 		want time.Duration
@@ -32,6 +33,7 @@ func TestFrameDurationUsesTheRealRate(t *testing.T) {
 }
 
 func TestFrameDurationRefusesUnknownRates(t *testing.T) {
+	t.Parallel()
 	for _, fps := range []float64{0, -24, 0.5, playback.MaxFrameRate + 1, math.NaN(), math.Inf(1)} {
 		if got, ok := playback.FrameDuration(fps); ok {
 			t.Fatalf("FrameDuration(%v) = %v; an unknown rate must not be assumed", fps, got)

@@ -24,6 +24,7 @@ func startWatching(t *testing.T) *rig {
 }
 
 func TestKaraokeChoicesAreKeptInTheProfile(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	state := r.api.PlaybackState()
 	if state.Karaoke.Enabled || state.Karaoke.Indicator != "bar" || state.Karaoke.Repeat != 0 {
@@ -59,6 +60,7 @@ func TestKaraokeChoicesAreKeptInTheProfile(t *testing.T) {
 }
 
 func TestStudyPassageChecksWhatTheUserTyped(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	cases := []struct {
 		request app.PassageRequest
@@ -93,6 +95,7 @@ func TestStudyPassageChecksWhatTheUserTyped(t *testing.T) {
 }
 
 func TestTrainingNeedsASession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
 	if err := r.api.ReplayLine(); err == nil {

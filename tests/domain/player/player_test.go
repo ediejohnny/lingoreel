@@ -28,6 +28,7 @@ func installed(ids ...player.ID) []player.Installation {
 }
 
 func TestChooseRespectsThePreferredPlayer(t *testing.T) {
+	t.Parallel()
 	choice, ok := player.Choose(installed(player.MPV, player.VLC, player.PotPlayer), everything, player.VLC)
 	if !ok || choice.Installation.ID != player.VLC || choice.PreferredMissing {
 		t.Fatalf("Choose(prefer VLC) = %+v, %v", choice, ok)
@@ -35,6 +36,7 @@ func TestChooseRespectsThePreferredPlayer(t *testing.T) {
 }
 
 func TestChooseFallsBackToTheDefaultPriority(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name      string
 		installed []player.Installation
@@ -59,6 +61,7 @@ func TestChooseFallsBackToTheDefaultPriority(t *testing.T) {
 }
 
 func TestChooseSkipsPlayersWithoutAnAdapter(t *testing.T) {
+	t.Parallel()
 	onlyVLC := supportedOnly(player.VLC)
 
 	choice, ok := player.Choose(installed(player.MPV, player.VLC), onlyVLC, player.MPV)
@@ -83,6 +86,7 @@ func TestChooseSkipsPlayersWithoutAnAdapter(t *testing.T) {
 }
 
 func TestChooseWithNothingInstalled(t *testing.T) {
+	t.Parallel()
 	if choice, ok := player.Choose(nil, everything, ""); ok || choice.PreferredMissing {
 		t.Fatalf("Choose(nothing) = %+v, %v", choice, ok)
 	}

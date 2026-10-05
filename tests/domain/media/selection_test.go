@@ -33,6 +33,7 @@ func assertSelection(t *testing.T, got, want media.Selection) {
 }
 
 func TestSelectTracksTypicalStudyFile(t *testing.T) {
+	t.Parallel()
 	file := info(
 		media.Track{Number: 1, Type: media.TrackVideo},
 		audioTrack(2, "pt-BR", true),
@@ -45,6 +46,7 @@ func TestSelectTracksTypicalStudyFile(t *testing.T) {
 }
 
 func TestForcedTracksLoseAgainstFullTracksOfTheSameLanguage(t *testing.T) {
+	t.Parallel()
 	file := info(
 		asDefault(forced(subtitleTrack(1, "en"))),
 		subtitleTrack(2, "en"),
@@ -58,6 +60,7 @@ func TestForcedTracksLoseAgainstFullTracksOfTheSameLanguage(t *testing.T) {
 // a less exact region still serves better: pt-BR forced scored 307 against
 // 257 for a full "pt" track when the region outweighed "not forced".
 func TestForcedTracksLoseEvenAgainstALessExactRegion(t *testing.T) {
+	t.Parallel()
 	file := info(
 		forced(subtitleTrack(1, "pt-BR")),
 		subtitleTrack(2, "pt"),
@@ -74,6 +77,7 @@ func TestForcedTracksLoseEvenAgainstALessExactRegion(t *testing.T) {
 // A language nobody declared (the Matroska default "eng") loses against a
 // declared one, and still serves when it is the only candidate.
 func TestGuessedLanguagesLoseAgainstDeclaredOnes(t *testing.T) {
+	t.Parallel()
 	guessed := func(track media.Track) media.Track { track.LanguageGuessed = true; return track }
 	file := info(asDefault(guessed(subtitleTrack(1, "en"))), subtitleTrack(2, "en-US"))
 	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 2})
@@ -86,6 +90,7 @@ func TestGuessedLanguagesLoseAgainstDeclaredOnes(t *testing.T) {
 }
 
 func TestTranslationRegionPreference(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		tracks []media.Track
@@ -108,6 +113,7 @@ func TestTranslationRegionPreference(t *testing.T) {
 }
 
 func TestPrimaryFallsBackToFirstReadableNonForcedTrack(t *testing.T) {
+	t.Parallel()
 	file := info(
 		forced(subtitleTrack(1, "es")),
 		subtitleTrack(2, "fr"),
@@ -118,11 +124,13 @@ func TestPrimaryFallsBackToFirstReadableNonForcedTrack(t *testing.T) {
 }
 
 func TestPrimaryUsesForcedTrackWhenItIsTheOnlyOption(t *testing.T) {
+	t.Parallel()
 	file := info(forced(subtitleTrack(7, "es")))
 	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 7})
 }
 
 func TestUnreadableTracksAreNeverSelected(t *testing.T) {
+	t.Parallel()
 	file := info(
 		unreadable(subtitleTrack(1, "en")), // e.g. PGS, needs OCR
 		subtitleTrack(2, "pt-BR"),
@@ -140,6 +148,7 @@ func named(track media.Track, name string) media.Track {
 // A typical release: two Portuguese text tracks, the
 // default one named "Forced SRT" without the forced flag, and no English.
 func TestMovieWithOnlyPortugueseKeepsThePrimaryEmpty(t *testing.T) {
+	t.Parallel()
 	file := info(
 		asDefault(named(subtitleTrack(4, "pt"), "Forced SRT")),
 		named(subtitleTrack(5, "pt"), "Complet SRT"),
@@ -148,6 +157,7 @@ func TestMovieWithOnlyPortugueseKeepsThePrimaryEmpty(t *testing.T) {
 }
 
 func TestForcedByNameLosesToTheFullTrack(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"English (Forced)", "FORCED", "Legendas Forçadas", "forcadas"} {
 		file := info(asDefault(named(subtitleTrack(1, "en"), name)), subtitleTrack(2, "en"))
 		if got := media.SelectTracks(file, studyPreferences).Primary; got != 2 {
@@ -164,6 +174,7 @@ func TestForcedByNameLosesToTheFullTrack(t *testing.T) {
 // Without English, the primary still falls back to another language, as long
 // as it is not the translation's.
 func TestPrimaryFallsBackToAnotherLanguageButNotTheTranslations(t *testing.T) {
+	t.Parallel()
 	file := info(subtitleTrack(1, "pt-BR"), named(subtitleTrack(2, "es"), "Forced"), subtitleTrack(3, "fr"))
 	assertSelection(t, media.SelectTracks(file, studyPreferences), media.Selection{Primary: 3, Translation: 1})
 
@@ -172,6 +183,7 @@ func TestPrimaryFallsBackToAnotherLanguageButNotTheTranslations(t *testing.T) {
 }
 
 func TestRegularTrackBeatsHearingImpairedAndDefaultBreaksTies(t *testing.T) {
+	t.Parallel()
 	sdh := info(hearingImpaired(subtitleTrack(1, "en")), subtitleTrack(2, "en"))
 	assertSelection(t, media.SelectTracks(sdh, studyPreferences), media.Selection{Primary: 2})
 
@@ -183,6 +195,7 @@ func TestRegularTrackBeatsHearingImpairedAndDefaultBreaksTies(t *testing.T) {
 }
 
 func TestTranslationNeverReusesThePrimaryTrack(t *testing.T) {
+	t.Parallel()
 	sameLanguage := media.Preferences{Primary: "en", Translation: "en"}
 
 	one := info(subtitleTrack(1, "en"))
@@ -193,12 +206,14 @@ func TestTranslationNeverReusesThePrimaryTrack(t *testing.T) {
 }
 
 func TestNoTranslationWanted(t *testing.T) {
+	t.Parallel()
 	file := info(subtitleTrack(1, "en"), subtitleTrack(2, "pt-BR"))
 	got := media.SelectTracks(file, media.Preferences{Audio: "en", Primary: "en"})
 	assertSelection(t, got, media.Selection{Primary: 1})
 }
 
 func TestAudioFallbacks(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		tracks []media.Track
@@ -220,10 +235,12 @@ func TestAudioFallbacks(t *testing.T) {
 }
 
 func TestEmptyFileSelectsNothing(t *testing.T) {
+	t.Parallel()
 	assertSelection(t, media.SelectTracks(media.Info{}, studyPreferences), media.Selection{})
 }
 
 func TestInfoLookups(t *testing.T) {
+	t.Parallel()
 	file := info(audioTrack(2, "en", true), subtitleTrack(3, "en"), audioTrack(4, "pt", false))
 
 	if got := file.TracksOf(media.TrackAudio); len(got) != 2 || got[0].Number != 2 || got[1].Number != 4 {

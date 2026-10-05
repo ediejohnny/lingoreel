@@ -42,6 +42,7 @@ func shownLine(t *testing.T, s *watch.Session) subtitle.Event {
 }
 
 func TestEditingAPausedLine(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
@@ -137,6 +138,7 @@ func TestEditingAPausedLine(t *testing.T) {
 }
 
 func TestEditsThatAreRefused(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	if err := s.Edit(watch.EditChange{Text: new("x")}); !errors.Is(err, watch.ErrNothingSelected) {
@@ -208,6 +210,7 @@ func TestEditsThatAreRefused(t *testing.T) {
 }
 
 func TestSavedEditsComeBack(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.Saved = map[session.Line]project.Track{
 		session.LinePrimary: {Edits: map[string]project.Edit{
@@ -247,6 +250,7 @@ func TestSavedEditsComeBack(t *testing.T) {
 }
 
 func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	// The top line plays 0.5 s late; the bottom one 1.5 s early.
 	r.request.Saved = map[session.Line]project.Track{
@@ -288,6 +292,7 @@ func TestEditTimesAndExportFollowTheOffset(t *testing.T) {
 }
 
 func TestTheOutlineFollowsTheSelectedLine(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	if _, err := s.Select(session.LineTranslation); err != nil {
@@ -312,6 +317,7 @@ func TestTheOutlineFollowsTheSelectedLine(t *testing.T) {
 // paints the screen from before it over the new one, however the runner's
 // own drawing of the change interleaves with it.
 func TestEveryEditReachesTheScreen(t *testing.T) {
+	t.Parallel()
 	r, s := playingRig(t)
 	at(t, r, s, 1500*time.Millisecond)
 	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })

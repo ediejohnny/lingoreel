@@ -47,6 +47,7 @@ func samePassages(a, b []project.Passage) bool {
 }
 
 func TestBesideTheVideo(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		`D:\Filmes\Movie.mkv`:       `D:\Filmes\Movie.dualsub.json`,
 		`D:\Filmes\Movie.part1.mkv`: `D:\Filmes\Movie.part1.dualsub.json`,
@@ -60,6 +61,7 @@ func TestBesideTheVideo(t *testing.T) {
 }
 
 func TestSaveAndLoadAgain(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	store := projectfile.Open(filepath.Join(dir, "app"))
@@ -97,6 +99,7 @@ func TestSaveAndLoadAgain(t *testing.T) {
 }
 
 func TestAFolderThatTakesNoWritingUsesTheAppFolder(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	// A folder where the file should be: writing beside the video fails.
@@ -136,6 +139,7 @@ func TestAFolderThatTakesNoWritingUsesTheAppFolder(t *testing.T) {
 }
 
 func TestTheFileBesideTheVideoComesFirst(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	store := projectfile.Open(filepath.Join(dir, "app"))
@@ -162,6 +166,7 @@ func TestTheFileBesideTheVideoComesFirst(t *testing.T) {
 }
 
 func TestFilesThatCannotBeTrusted(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	store := projectfile.Open(filepath.Join(dir, "app"))
@@ -225,6 +230,7 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 // passages pausing at the end with no helps, and the next save writes
 // version 2 without losing anything.
 func TestAVersion1FileOpensAndIsKept(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	store := projectfile.Open(filepath.Join(dir, "app"))
@@ -261,6 +267,7 @@ func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 // Forgetting a video removes its file beside it and the one in the app's
 // folder, and is quiet when there is nothing to remove.
 func TestRemoveForgetsBothFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Movie.mkv")
 	store := projectfile.Open(filepath.Join(dir, "app"))
@@ -311,6 +318,7 @@ func TestRemoveForgetsBothFiles(t *testing.T) {
 }
 
 func TestTrackKeysSurviveANewAnalysis(t *testing.T) {
+	t.Parallel()
 	video := `D:\Filmes\Movie.mkv`
 	cases := []struct {
 		track media.Track

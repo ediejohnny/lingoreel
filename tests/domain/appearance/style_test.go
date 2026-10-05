@@ -10,6 +10,7 @@ import (
 )
 
 func TestDefaultStylesAreValidAndOrdered(t *testing.T) {
+	t.Parallel()
 	primary, translation := appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle()
 	for name, style := range map[string]appearance.SubtitleStyle{"primary": primary, "translation": translation} {
 		if err := style.Validate(); err != nil {
@@ -26,6 +27,7 @@ func TestDefaultStylesAreValidAndOrdered(t *testing.T) {
 }
 
 func TestStyleValidateRanges(t *testing.T) {
+	t.Parallel()
 	nan, inf := math.NaN(), math.Inf(1)
 	cases := []struct {
 		name   string

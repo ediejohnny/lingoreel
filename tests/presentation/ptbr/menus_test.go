@@ -22,6 +22,7 @@ func menuState() controlbar.State {
 }
 
 func TestBarEntryWordsEveryKind(t *testing.T) {
+	t.Parallel()
 	state, keys := menuState(), shortcut.Defaults()
 	cases := []struct {
 		entry controlbar.Entry
@@ -63,6 +64,7 @@ func TestBarEntryWordsEveryKind(t *testing.T) {
 }
 
 func TestBarStatus(t *testing.T) {
+	t.Parallel()
 	passage := study.Segment{Start: 10*time.Minute + 38*time.Second, End: 11*time.Minute + 30*time.Second}
 	cases := []struct {
 		state controlbar.StudyState
@@ -85,6 +87,7 @@ func TestBarStatus(t *testing.T) {
 }
 
 func TestBarTipsOfTheNewButtons(t *testing.T) {
+	t.Parallel()
 	keys := shortcut.Defaults()
 	cases := []struct {
 		item controlbar.Item

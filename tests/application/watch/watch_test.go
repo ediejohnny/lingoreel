@@ -370,6 +370,7 @@ func (r *rig) start(t *testing.T) *watch.Session {
 }
 
 func TestStartLaunchesWithTheRequest(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.start(t)
 	if len(r.plugin.requests) != 1 {
@@ -385,6 +386,7 @@ func TestStartLaunchesWithTheRequest(t *testing.T) {
 }
 
 func TestSubtitlesReachTheDisplay(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
@@ -404,6 +406,7 @@ func TestSubtitlesReachTheDisplay(t *testing.T) {
 }
 
 func TestShortcutsAndButtonsMoveTheLines(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	s := r.start(t)
 	r.shortcuts.presses <- watch.Press{Index: 1} // top line later
@@ -431,6 +434,7 @@ func TestShortcutsAndButtonsMoveTheLines(t *testing.T) {
 }
 
 func TestPlayerClosingEndsTheSession(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	s := r.start(t)
 	close(r.running.samples)
@@ -451,6 +455,7 @@ func TestPlayerClosingEndsTheSession(t *testing.T) {
 }
 
 func TestACrashIsReported(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.running.lost = playback.ErrPlayerLost
 	s := r.start(t)
@@ -462,6 +467,7 @@ func TestACrashIsReported(t *testing.T) {
 }
 
 func TestStopClosesEverythingOnce(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	s := r.start(t)
 	if err := s.Stop(); err != nil {
@@ -476,6 +482,7 @@ func TestStopClosesEverythingOnce(t *testing.T) {
 }
 
 func TestStartFailuresCleanUp(t *testing.T) {
+	t.Parallel()
 	t.Run("player without a plugin", func(t *testing.T) {
 		r := newRig(t)
 		r.request.Player.ID = "other"
@@ -517,6 +524,7 @@ func TestStartFailuresCleanUp(t *testing.T) {
 }
 
 func TestScreenStacksSimultaneousLines(t *testing.T) {
+	t.Parallel()
 	visible := session.Visible{
 		Primary:     []subtitle.Event{{ID: "a", OriginalText: "One."}, {ID: "b", OriginalText: "Two.", OverrideText: "Dois."}},
 		Translation: nil,
@@ -547,6 +555,7 @@ func hostedRig(t *testing.T) (*rig, *fakeWindow, *[]string) {
 }
 
 func TestAHostedPlayerDrawsIntoTheAppWindow(t *testing.T) {
+	t.Parallel()
 	r, window, _ := hostedRig(t)
 	s := r.start(t)
 	got := r.plugin.requests[0]
@@ -572,6 +581,7 @@ func TestAHostedPlayerDrawsIntoTheAppWindow(t *testing.T) {
 }
 
 func TestClosingThePlayerWindowEndsTheSession(t *testing.T) {
+	t.Parallel()
 	r, window, order := hostedRig(t)
 	s := r.start(t)
 	close(window.closed) // the close button, Alt+F4 or the taskbar
@@ -594,6 +604,7 @@ func TestClosingThePlayerWindowEndsTheSession(t *testing.T) {
 }
 
 func TestAPlayerWithItsOwnWindowGetsNoAppWindow(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) {
 		t.Error("opened the app's window for a player that draws its own")
@@ -609,6 +620,7 @@ func TestAPlayerWithItsOwnWindowGetsNoAppWindow(t *testing.T) {
 }
 
 func TestPlayerWindowFailuresCleanUp(t *testing.T) {
+	t.Parallel()
 	t.Run("window fails", func(t *testing.T) {
 		r, _, _ := hostedRig(t)
 		r.ports.OpenWindow = func(context.Context, watch.WindowRequest) (watch.Window, error) {
@@ -644,6 +656,7 @@ func TestPlayerWindowFailuresCleanUp(t *testing.T) {
 }
 
 func TestKaraokeChoices(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.request.LineRepeats = study.MaxRepeats + 1
 	if _, err := watch.Start(t.Context(), r.ports, r.request, nil, nil); err == nil {
@@ -676,6 +689,7 @@ func TestKaraokeChoices(t *testing.T) {
 }
 
 func TestStudyPassageHidesLinesByLap(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: time.Now()}

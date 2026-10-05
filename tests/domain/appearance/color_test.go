@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseColorAcceptsBothForms(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		value string
 		want  appearance.Color
@@ -29,6 +30,7 @@ func TestParseColorAcceptsBothForms(t *testing.T) {
 }
 
 func TestParseColorRejectsMalformedValues(t *testing.T) {
+	t.Parallel()
 	for _, value := range []string{"", "#", "FFFFFF", "#FFF", "#FFFFF", "#1234567", "#123456789", "#GGGGGG", "#12 456", "rgb(1,2,3)", "#-12345", "#+12345"} {
 		if _, err := appearance.ParseColor(value); !errors.Is(err, appearance.ErrInvalidColor) {
 			t.Fatalf("ParseColor(%q) error = %v, want ErrInvalidColor", value, err)
@@ -37,6 +39,7 @@ func TestParseColorRejectsMalformedValues(t *testing.T) {
 }
 
 func TestColorStringOmitsAlphaOnlyWhenOpaque(t *testing.T) {
+	t.Parallel()
 	cases := map[appearance.Color]string{
 		appearance.RGB(0xFF, 0x80, 0x00):                 "#FF8000",
 		appearance.RGB(0xFF, 0x80, 0x00).WithAlpha(0xFE): "#FF8000FE",
@@ -54,6 +57,7 @@ func TestColorStringOmitsAlphaOnlyWhenOpaque(t *testing.T) {
 }
 
 func TestColorJSONUsesHexText(t *testing.T) {
+	t.Parallel()
 	var target struct {
 		Value appearance.Color `json:"color"`
 	}

@@ -49,6 +49,7 @@ func names(passages []app.SavedPassage) []string {
 // The session screen shows the saved passages and where the video was left,
 // before anything plays.
 func TestTheSessionScreenShowsWhatTheVideoKept(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	savedProject(t, r)
 	r.attach(t)
@@ -77,6 +78,7 @@ func TestTheSessionScreenShowsWhatTheVideoKept(t *testing.T) {
 
 // "Continuar de" is not offered in the first seconds nor in the credits.
 func TestContinuarDeIsOfferedOnlyInTheMiddle(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		position time.Duration
@@ -106,6 +108,7 @@ func TestContinuarDeIsOfferedOnlyInTheMiddle(t *testing.T) {
 // Passages can be renamed and deleted on the session screen, with no video
 // playing; names stay unique whatever the case.
 func TestPassagesAreManagedBeforeWatching(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	savedProject(t, r)
 	r.attach(t)
@@ -143,6 +146,7 @@ func TestPassagesAreManagedBeforeWatching(t *testing.T) {
 // "Estudar este trecho" on the session screen opens the video studying it,
 // with its plan; a passage of another cut is refused.
 func TestWatchingFromASavedPassage(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	savedProject(t, r)
 	r.attach(t)
@@ -177,6 +181,7 @@ func TestWatchingFromASavedPassage(t *testing.T) {
 // The video comes back as it was left: the position (asked with Continuar
 // de), the speed and the Modo Karaokê used on it.
 func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	seekTo(t, r, 600)
 	if err := r.api.SetSpeed(0.75); err != nil {
@@ -234,6 +239,7 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 // A video watched without changing anything keeps where it was left, not a
 // speed or a Modo Karaokê it never had: those stay the profile's.
 func TestAnUntouchedVideoKeepsOnlyItsPosition(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	seekTo(t, r, 120)
 	r.api.StopWatching()
@@ -249,6 +255,7 @@ func TestAnUntouchedVideoKeepsOnlyItsPosition(t *testing.T) {
 // after it waits for its own. The study mode changed on the panel is kept
 // for the video the same way.
 func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
+	t.Parallel()
 	timers := &testkit.Timers{}
 	r := newRigWith(t, func(deps *app.Deps) { deps.Later = timers.Later })
 	r.attach(t)
@@ -294,6 +301,7 @@ func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
 // "Esquecer tudo deste vídeo" removes what was kept and opens the video as
 // new; never while it plays.
 func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	savedProject(t, r)
 	r.attach(t)
@@ -333,6 +341,7 @@ func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
 // The slower laps of a progressive passage are the passage's, not the
 // video's: they are not kept as the speed to come back to.
 func TestAProgressivePassageLeavesTheVideosSpeed(t *testing.T) {
+	t.Parallel()
 	r := startWatching(t)
 	seekTo(t, r, 20)
 	if err := r.api.StudyPassage(app.PassageRequest{Start: "0:20", End: "0:35", Progressive: true}); err != nil {

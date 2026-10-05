@@ -38,6 +38,7 @@ func movieFile() []byte {
 }
 
 func TestAnalyzeDescribesAMovie(t *testing.T) {
+	t.Parallel()
 	info := analyze(t, movieFile()).MediaInfo()
 
 	if info.Duration != 90*time.Minute {
@@ -83,6 +84,7 @@ func TestAnalyzeDescribesAMovie(t *testing.T) {
 }
 
 func TestAnalyzeAppliesSpecDefaults(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(1_000_000, 1000),
 		tracksEl(
@@ -112,6 +114,7 @@ func TestAnalyzeAppliesSpecDefaults(t *testing.T) {
 // default, not a statement: the track name decides when it names a language
 // itself, so a track called "Português" is never taken for English.
 func TestTrackNameDecidesWhenTheLanguageIsOnlyTheDefault(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(1_000_000, 1000),
 		tracksEl(
@@ -140,6 +143,7 @@ func TestTrackNameDecidesWhenTheLanguageIsOnlyTheDefault(t *testing.T) {
 }
 
 func TestAnalyzeRejectsFilesThatAreNotMatroska(t *testing.T) {
+	t.Parallel()
 	cases := map[string][]byte{
 		"empty":           nil,
 		"random bytes":    []byte("this is not a video at all"),
@@ -157,6 +161,7 @@ func TestAnalyzeRejectsFilesThatAreNotMatroska(t *testing.T) {
 }
 
 func TestAnalyzeAcceptsWebM(t *testing.T) {
+	t.Parallel()
 	data := join(ebmlHeader("webm"), el(idSegment, tracksEl(trackEntry(1, typeSubtitle, "D_WEBVTT/SUBTITLES"))))
 	container := analyze(t, data)
 	track, _ := container.MediaInfo().Track(1)
@@ -166,6 +171,7 @@ func TestAnalyzeAcceptsWebM(t *testing.T) {
 }
 
 func TestAnalyzeFailsWithoutTracksAndOnTruncation(t *testing.T) {
+	t.Parallel()
 	noTracks := matroskaFile(segmentInfo(1_000_000, 10))
 	if _, err := matroska.Analyze(bytes.NewReader(noTracks), int64(len(noTracks))); !errors.Is(err, matroska.ErrCorrupt) {
 		t.Fatalf("file without tracks error = %v, want ErrCorrupt", err)
@@ -183,6 +189,7 @@ func TestAnalyzeFailsWithoutTracksAndOnTruncation(t *testing.T) {
 // Tracks written after an unknown-size cluster cannot be reached by walking
 // the file, so they must be found through the SeekHead index.
 func TestAnalyzeFindsTracksThroughSeekHead(t *testing.T) {
+	t.Parallel()
 	seekHead := func(tracksOffset uint64) []byte {
 		return el(idSeekHead, el(idSeek, el(idSeekID, encodeID(idTracks)), fixedUintEl(idSeekPosition, tracksOffset)))
 	}
@@ -204,6 +211,7 @@ func TestAnalyzeFindsTracksThroughSeekHead(t *testing.T) {
 }
 
 func TestAnalyzeFindsTracksAfterKnownSizeClusters(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		segmentInfo(1_000_000, 1000),
 		cluster(0, simpleBlock(1, 0, "frame")),
@@ -216,6 +224,7 @@ func TestAnalyzeFindsTracksAfterKnownSizeClusters(t *testing.T) {
 }
 
 func TestAnalyzeIgnoresInvalidScaleAndDuration(t *testing.T) {
+	t.Parallel()
 	data := matroskaFile(
 		el(idInfo, uintEl(idTimestampScale, 0), floatEl(idDuration, math.NaN())),
 		tracksEl(trackEntry(1, typeSubtitle, "S_TEXT/UTF8")),
