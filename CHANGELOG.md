@@ -6,6 +6,21 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-05
+
+### Added
+
+- Configurações › Geral › Janela: "Manter o app sempre no topo", on by default. The app's window, with the subtitles and
+  the bar over the video, stays in front of other programs; turned off, it can go behind them.
+- The menu over the video shows stop in red, play in blue and pause in amber.
+
+### Fixed
+
+- A white band over the video after maximizing the window or going fullscreen (at the top or the bottom, full width or
+  part of it): the app's window painted its white background over the video's black bars.
+- The menu over the video's icons were black on the dark menu. The menu now follows the app's theme (dark, light or
+  Windows'), and its icons are drawn for it.
+
 ## [0.21.0] - 2026-10-05
 
 What shows on the screen can be made one's own: the subtitles' spacing, the marks over the video, the control bar and
@@ -436,7 +451,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/ediejohnny/lingoreel/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/ediejohnny/lingoreel/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/ediejohnny/lingoreel/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/ediejohnny/lingoreel/compare/v0.19.0...v0.20.0

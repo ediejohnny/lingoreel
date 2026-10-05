@@ -239,12 +239,26 @@ type fakeUI struct {
 	// to close.
 	titles []string
 	quits  int
+	// onTop is what the window was told about staying in front, in order.
+	onTop []bool
 }
 
 func (u *fakeUI) SetTitle(title string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.titles = append(u.titles, title)
+}
+
+func (u *fakeUI) SetAlwaysOnTop(on bool) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.onTop = append(u.onTop, on)
+}
+
+func (u *fakeUI) placed() []bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return slices.Clone(u.onTop)
 }
 
 func (u *fakeUI) Quit() {

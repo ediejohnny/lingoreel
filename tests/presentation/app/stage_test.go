@@ -30,14 +30,15 @@ type fakeStage struct {
 }
 
 type chrome struct {
-	bar  settings.BarPreferences
-	edit appearance.EditStyle
+	bar   settings.BarPreferences
+	edit  appearance.EditStyle
+	theme settings.Theme
 }
 
-func (s *fakeStage) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle) {
+func (s *fakeStage) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.chromes = append(s.chromes, chrome{bar, edit})
+	s.chromes = append(s.chromes, chrome{bar, edit, theme})
 }
 
 func (s *fakeStage) styled() []chrome {

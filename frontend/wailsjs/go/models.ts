@@ -247,6 +247,7 @@ export namespace app {
 	    theme: string;
 	    syncNotice: boolean;
 	    activeProfile: string;
+	    alwaysOnTop: boolean;
 	    recommendationsHidden: boolean;
 	    language: string;
 	    languages: Option[];
@@ -260,6 +261,7 @@ export namespace app {
 	        this.theme = source["theme"];
 	        this.syncNotice = source["syncNotice"];
 	        this.activeProfile = source["activeProfile"];
+	        this.alwaysOnTop = source["alwaysOnTop"];
 	        this.recommendationsHidden = source["recommendationsHidden"];
 	        this.language = source["language"];
 	        this.languages = this.convertValues(source["languages"], Option);

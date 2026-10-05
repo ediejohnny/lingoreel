@@ -178,6 +178,10 @@ export function SelectLine(arg1) {
   return window['go']['app']['API']['SelectLine'](arg1);
 }
 
+export function SetAlwaysOnTop(arg1) {
+  return window['go']['app']['API']['SetAlwaysOnTop'](arg1);
+}
+
 export function SetAppearance(arg1) {
   return window['go']['app']['API']['SetAppearance'](arg1);
 }

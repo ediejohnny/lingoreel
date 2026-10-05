@@ -35,6 +35,10 @@ func (a *API) SetTheme(theme string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.config.Theme = settings.Theme(theme)
+	// The menu over the video follows the theme, even when it is not kept.
+	if a.deps.Stage != nil {
+		a.deps.Stage.SetChrome(a.config.Bar, a.config.Edit, a.config.Theme)
+	}
 	return a.saveConfig()
 }
 

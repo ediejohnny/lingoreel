@@ -146,8 +146,7 @@ func run() error {
 				stage.SetFullscreen(false)
 				lifecycle.ShowEditor()
 				if ctx := started.Load(); ctx != nil {
-					runtime.WindowUnminimise(*ctx)
-					runtime.WindowShow(*ctx)
+					showWindow(*ctx, lifecycle)
 				}
 			},
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
@@ -199,8 +198,7 @@ func run() error {
 			OnSecondInstanceLaunch: func(second options.SecondInstanceData) {
 				logger.Info("opened again", "args", len(second.Args))
 				if ctx := started.Load(); ctx != nil {
-					runtime.WindowUnminimise(*ctx)
-					runtime.WindowShow(*ctx)
+					showWindow(*ctx, lifecycle)
 				}
 				if video, found := app.VideoArgument(second.Args, second.WorkingDirectory); found {
 					lifecycle.Dropped([]string{video})
@@ -244,14 +242,25 @@ func (s stagePort) Place(visible bool, insets layout.Insets) {
 	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
 }
 
-func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle) {
-	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit})
+func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme) {
+	shade := map[settings.Theme]playerwindow.Theme{settings.ThemeLight: playerwindow.ThemeLight, settings.ThemeDark: playerwindow.ThemeDark}[theme]
+	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit, Theme: shade})
+}
+
+// showWindow brings the app window up, in front of the others when the
+// settings say so: Wails' WindowShow leaves that place.
+func showWindow(ctx context.Context, lifecycle app.Lifecycle) {
+	runtime.WindowUnminimise(ctx)
+	runtime.WindowShow(ctx)
+	lifecycle.KeepOnTop()
 }
 
 // restoreWindow puts the app window back where it was when it closed and
 // shows it; without a saved place, or with it off every monitor, the window
 // shows where Wails opens it.
 func restoreWindow(ctx context.Context, lifecycle app.Lifecycle, logger *slog.Logger) {
+	// Deferred calls run last first: shown, then put in front.
+	defer lifecycle.KeepOnTop()
 	defer runtime.WindowShow(ctx)
 	bounds := lifecycle.WindowBounds()
 	hwnd, err := appwindow.Find(windowClass)

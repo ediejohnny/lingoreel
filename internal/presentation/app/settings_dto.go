@@ -24,6 +24,8 @@ type GeneralSettings struct {
 	Theme         string `json:"theme"`
 	SyncNotice    bool   `json:"syncNotice"`
 	ActiveProfile string `json:"activeProfile"`
+	// AlwaysOnTop keeps the app's window in front of the other programs'.
+	AlwaysOnTop bool `json:"alwaysOnTop"`
 	// Recommendations tells some player install suggestions are hidden.
 	RecommendationsHidden bool `json:"recommendationsHidden"`
 	// Language is the interface's language as chosen, empty for the

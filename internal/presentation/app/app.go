@@ -59,6 +59,9 @@ type UI interface {
 	CopyText(text string) error
 	// SetTitle names the window: the video playing, or the app.
 	SetTitle(title string)
+	// SetAlwaysOnTop keeps the window in front of the other programs', or
+	// lets it go behind them.
+	SetAlwaysOnTop(on bool)
 	// Quit closes the app.
 	Quit()
 }
@@ -69,9 +72,9 @@ type UI interface {
 type Stage interface {
 	Place(visible bool, insets layout.Insets)
 	SetFullscreen(on bool)
-	// SetChrome changes how the controls over the video look: the bar, and
-	// the box for corrections.
-	SetChrome(bar settings.BarPreferences, edit appearance.EditStyle)
+	// SetChrome changes how the controls over the video look: the bar, the
+	// box for corrections, and the theme the menu over the video follows.
+	SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme)
 }
 
 // Projects keeps each video's project: the user's corrections, the offsets,
@@ -272,7 +275,7 @@ func (l Lifecycle) Attach(ctx context.Context, ui UI) {
 		a.config = config
 	}
 	if a.deps.Stage != nil {
-		a.deps.Stage.SetChrome(a.config.Bar, a.config.Edit)
+		a.deps.Stage.SetChrome(a.config.Bar, a.config.Edit, a.config.Theme)
 	}
 	if profiles, err := a.deps.Settings.LoadProfiles(); err != nil {
 		a.logger.Warn("profiles could not be read; using the defaults", "error", err)
@@ -373,6 +376,13 @@ func (l Lifecycle) FullscreenChanged(on bool) {
 
 // ShowEditor opens the panel beside the video on the line editor: the bar's
 // "Corrigir a legenda…" has picked the line.
+// KeepOnTop puts the window in front of the other programs' when the
+// settings ask for it; showing the window (Wails' WindowShow) leaves that
+// place, so this follows every show.
+func (l Lifecycle) KeepOnTop() {
+	l.api.keepOnTop()
+}
+
 func (l Lifecycle) ShowEditor() {
 	l.api.emit(EventPanel, PanelRequest{Section: PanelEditor})
 }

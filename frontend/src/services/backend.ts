@@ -146,6 +146,7 @@ export const backend = {
   // The Go side reads plain data: the generated classes only add helpers.
   saveProfile: (profile: ProfileSettings) => api.SaveProfile(profile as app.ProfileSettings),
   setSyncNotice: (show: boolean) => api.SetSyncNotice(show),
+  setAlwaysOnTop: (on: boolean) => api.SetAlwaysOnTop(on),
   switchProfile: (name: string) => api.SwitchProfile(name),
   createProfile: (name: string) => api.CreateProfile(name),
   renameProfile: (from: string, to: string) => api.RenameProfile(from, to),

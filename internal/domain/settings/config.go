@@ -45,6 +45,8 @@ type Config struct {
 	InstallRecommendations InstallRecommendations `json:"installRecommendations"`
 	// SyncNotice shows on the video which subtitle a sync change moved.
 	SyncNotice bool `json:"syncNotice"`
+	// AlwaysOnTop keeps the app's window in front of the other programs'.
+	AlwaysOnTop bool `json:"alwaysOnTop"`
 	// Window is where the app's window was when it closed.
 	Window WindowBounds `json:"window"`
 	// Panel is how the panel beside the video was left.
@@ -131,6 +133,7 @@ func DefaultConfig() Config {
 		ActiveProfile: DefaultProfileName,
 		PlayerPaths:   map[string]string{},
 		SyncNotice:    true,
+		AlwaysOnTop:   true,
 		Bar:           DefaultBar(),
 		Edit:          appearance.DefaultEditStyle(),
 		Interface:     appearance.DefaultInterfaceStyle(),

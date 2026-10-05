@@ -24,7 +24,7 @@ type watchedStage struct {
 
 func (s *watchedStage) Place(bool, layout.Insets) {}
 
-func (s *watchedStage) SetChrome(settings.BarPreferences, appearance.EditStyle) {}
+func (s *watchedStage) SetChrome(settings.BarPreferences, appearance.EditStyle, settings.Theme) {}
 
 func (s *watchedStage) SetFullscreen(on bool) {
 	s.ui.mu.Lock()

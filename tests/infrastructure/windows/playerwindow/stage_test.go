@@ -326,6 +326,21 @@ func TestTheStagesLookReachesItsWindows(t *testing.T) {
 	})
 }
 
+// The app's window erases its background without clipping its children, as
+// Wails' does: a resize then painted it over the parts of the video VLC
+// paints itself (the black bars), white for good. With the video in it, it
+// clips its children.
+func TestTheAppWindowNeverPaintsOverTheVideo(t *testing.T) {
+	app := newFakeApp(t, offScreenApp, true)
+	if win32.Style(app.hwnd)&win32.WS_CLIPCHILDREN != 0 {
+		t.Fatal("the fake app clips its children from the start; Wails' window does not")
+	}
+	openOn(t, stageFor(app, nil))
+	if win32.Style(app.hwnd)&win32.WS_CLIPCHILDREN == 0 {
+		t.Fatal("the app's window still paints over the video")
+	}
+}
+
 func TestTheVideoStaysAboveTheAppsOwnChildren(t *testing.T) {
 	app := newFakeApp(t, offScreenApp, true)
 	w := openOn(t, stageFor(app, nil))
