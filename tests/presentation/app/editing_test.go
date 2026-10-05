@@ -13,6 +13,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 const movie = `D:\Filmes\Movie.mkv`
@@ -26,7 +27,7 @@ func onTheLine(t *testing.T, r *rig) {
 	if err := r.api.SeekTo(1.5); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-1.5) < 0.01 })
+	testkit.Eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-1.5) < 0.01 })
 }
 
 // wantMessage fails unless err is the user's message holding part.
@@ -117,7 +118,7 @@ func TestCorrectingALineFromThePanel(t *testing.T) {
 	if err := r.api.TogglePause(); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "playing", func() bool { return r.api.PlaybackState().Status == "playing" })
+	testkit.Eventually(t, "playing", func() bool { return r.api.PlaybackState().Status == "playing" })
 	wantMessage(t, "EditLine while playing", r.api.EditLine(app.EditRequest{Text: "Oi.", Start: "0:01", End: "0:02"}), "Pause o vídeo")
 	wantMessage(t, "UndoEdit while playing", r.api.UndoEdit(), "Pause o vídeo")
 
@@ -190,7 +191,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 2, Primary: 5, Translation: 4, Mode: "always"}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	onTheLine(t, r)
 	if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Olá.", Start: "0:01", End: "0:02"})); err != nil {
 		t.Fatal(err)
@@ -233,7 +234,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 		t.Fatal("the offset was saved at every step")
 	}
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
 	stored, _ := r.projects.stored(t, movie)
 	if stored.Tracks["track:4"].Offset <= 0 || stored.Choice != (project.Choice{Audio: "track:2", Primary: "track:5", Translation: "track:4", Mode: "always"}) {
@@ -251,7 +252,7 @@ func TestTheProjectComesBackWhenTheVideoReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	state := r.api.PlaybackState()
 	if state.TranslationOffset != offset || len(state.SavedPassages) != 1 || state.SavedPassages[0].Name != "Loja" ||
 		state.SavedPassages[0].Start != "0:10" || state.SavedPassages[0].End != "0:20" {
@@ -320,7 +321,7 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { r.api.StopWatching() })
-			eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+			testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 			onTheLine(t, r)
 			// The correction still works for this session, in memory only.
 			if err := errors.Join(r.api.SelectLine("primary"), r.api.EditLine(app.EditRequest{Text: "Hello.", Start: "0:01", End: "0:02"})); err != nil {
@@ -348,7 +349,7 @@ func TestAFailedSaveIsShown(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if note := r.api.PlaybackState().ProjectNote; !strings.Contains(note, "Não foi possível gravar") {
 		t.Fatalf("note = %q", note)
 	}

@@ -154,7 +154,7 @@ func TestWatchingFromASavedPassage(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 10*time.Second {
 		t.Fatalf("opened at %v, want the passage's start (the passage wins over Continuar de)", start)
 	}
@@ -185,9 +185,9 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 	if err := r.api.SetKaraoke(true); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the panel to show the speed", func() bool { return r.api.PlaybackState().Speed == 0.75 })
+	testkit.Eventually(t, "the panel to show the speed", func() bool { return r.api.PlaybackState().Speed == 0.75 })
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	stored, _ := r.projects.stored(t, movie)
 	if stored.Last.Position != 600_000 || stored.Last.Speed != 0.75 || stored.Last.Karaoke == nil || !stored.Last.Karaoke.Enabled {
 		t.Fatalf("last = %+v (karaoke %+v)", stored.Last, stored.Last.Karaoke)
@@ -200,12 +200,12 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5, Resume: true}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 600*time.Second {
 		t.Fatalf("Continuar de opened at %v, want 10:00", start)
 	}
 	running := r.plugin.current()
-	eventually(t, "the video's speed", func() bool {
+	testkit.Eventually(t, "the video's speed", func() bool {
 		running.mu.Lock()
 		defer running.mu.Unlock()
 		return slices.Contains(running.speeds, 0.75)
@@ -218,7 +218,7 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 		t.Fatalf("the profile's speed became %v", speed)
 	}
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
 	// Without Continuar de, it starts from the beginning.
 	openMovie(t, r)
@@ -237,7 +237,7 @@ func TestAnUntouchedVideoKeepsOnlyItsPosition(t *testing.T) {
 	r := startWatching(t)
 	seekTo(t, r, 120)
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	stored, _ := r.projects.stored(t, movie)
 	if stored.Last.Position != 120_000 || stored.Last.Speed != 0 || stored.Last.Karaoke != nil {
 		t.Fatalf("last = %+v", stored.Last)
@@ -257,7 +257,7 @@ func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	_, before := r.projects.stored(t, movie)
 	const steps = 20
 	for range steps {
@@ -284,7 +284,7 @@ func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
 	if err := r.api.SetStudyMode("always"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the mode kept", func() bool {
+	testkit.Eventually(t, "the mode kept", func() bool {
 		timers.Fire()
 		stored, _ := r.projects.stored(t, movie)
 		return stored.Choice.Mode == "always"
@@ -318,11 +318,11 @@ func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	_, err = r.api.ResetProject()
 	wantMessage(t, "ResetProject while watching", err, "Encerre o vídeo")
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
 	// A file that cannot be removed is told, and nothing else changes.
 	r.projects.removeErr = errors.New("in use")
@@ -338,10 +338,10 @@ func TestAProgressivePassageLeavesTheVideosSpeed(t *testing.T) {
 	if err := r.api.StudyPassage(app.PassageRequest{Start: "0:20", End: "0:35", Progressive: true}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the first lap's slower speed", func() bool { return r.api.PlaybackState().Speed < 1 })
+	testkit.Eventually(t, "the first lap's slower speed", func() bool { return r.api.PlaybackState().Speed < 1 })
 	// Stopping keeps how the video is watched right then, in the slower lap.
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	if stored, _ := r.projects.stored(t, movie); stored.Last.Speed != 0 {
 		t.Fatalf("kept speed %v, want none", stored.Last.Speed)
 	}

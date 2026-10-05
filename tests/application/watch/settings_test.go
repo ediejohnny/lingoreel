@@ -14,6 +14,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestTheVideoStartsAtTheProfileSpeed(t *testing.T) {
@@ -97,7 +98,7 @@ func TestChangingTheShortcutsWhilePlaying(t *testing.T) {
 		t.Fatalf("%d starts, first closed %v, chords %v", starts, r.shortcuts.closed, last)
 	}
 	next[0].presses <- watch.Press{Index: 3}
-	eventually(t, "the translation later", func() bool {
+	testkit.Eventually(t, "the translation later", func() bool {
 		return s.Offset(session.LineTranslation) == subtitle.Offset(subtitle.DefaultNudgeStep)
 	})
 

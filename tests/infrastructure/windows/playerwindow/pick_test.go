@@ -55,7 +55,7 @@ func TestAClickPicksTheLineOnlyWhilePaused(t *testing.T) {
 	// Paused, the line drawn answers a click.
 	observe(playback.StatusPaused)
 	rounds := 0
-	eventually(t, "a pick", func() bool {
+	testkit.Eventually(t, "a pick", func() bool {
 		clickDown(t, host)
 		rounds++
 		return len(remote.selections()) > 0

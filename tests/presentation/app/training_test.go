@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func startWatching(t *testing.T) *rig {
@@ -17,7 +18,7 @@ func startWatching(t *testing.T) *rig {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	t.Cleanup(func() { r.api.StopWatching() })
 	return r
 }

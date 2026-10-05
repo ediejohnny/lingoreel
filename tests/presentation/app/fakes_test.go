@@ -74,7 +74,6 @@ func (fakeReader) ReadSubtitles(_ context.Context, path string, _ []uint64, _ fu
 type fakeRunning struct {
 	samples chan playback.Sample
 	once    sync.Once
-	paused  int
 	mu      sync.Mutex
 	seeks   []time.Duration
 	speeds  []playback.Speed
@@ -98,7 +97,7 @@ func (r *fakeRunning) Capabilities() playback.Capabilities {
 	return playback.Capabilities{Pause: true, Seek: true, Speed: true, Precision: playback.PrecisionExact}
 }
 func (r *fakeRunning) Play() error  { return nil }
-func (r *fakeRunning) Pause() error { r.paused++; return nil }
+func (r *fakeRunning) Pause() error { return nil }
 func (r *fakeRunning) SeekTo(at time.Duration) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -446,17 +445,6 @@ func (nopDisplay) Show(session.Screen) error { return nil }
 func (nopDisplay) Notify(string) error       { return nil }
 func (nopDisplay) Done() <-chan struct{}     { return nil }
 func (nopDisplay) Close() error              { return nil }
-
-func eventually(t *testing.T, what string, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
-	for !condition() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-}
 
 // recordingDisplay is the subtitle display; it keeps the looks it was given.
 type recordingDisplay struct {

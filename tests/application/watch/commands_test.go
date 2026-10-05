@@ -12,6 +12,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // at puts a paused video at a position at the normal speed, and forgets
@@ -33,7 +34,7 @@ func playingRig(t *testing.T) (*rig, *watch.Session) {
 	r.running.frames = true
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 20 * time.Second, Duration: time.Minute, Status: playback.StatusPaused, Speed: 1}
-	eventually(t, "the first sample", func() bool { return s.State().Duration == time.Minute })
+	testkit.Eventually(t, "the first sample", func() bool { return s.State().Duration == time.Minute })
 	return r, s
 }
 
@@ -231,7 +232,7 @@ func TestTheStudyModes(t *testing.T) {
 		t.Fatal("the translation was hidden in the mode that always shows it")
 	}
 	always.running.samples <- playback.Sample{Position: 2 * time.Second, Duration: time.Minute, Status: playback.StatusPaused, Speed: 1}
-	eventually(t, "a screen", func() bool { _, shown, _, _ := always.display.last(); return shown > 0 })
+	testkit.Eventually(t, "a screen", func() bool { _, shown, _, _ := always.display.last(); return shown > 0 })
 	if screen, _, _, _ := always.display.last(); !screen.TranslationVisible {
 		t.Fatal("the screen hid the translation")
 	}
@@ -255,7 +256,7 @@ func TestTheStudyModes(t *testing.T) {
 
 func TestChangingTheModeWhilePlaying(t *testing.T) {
 	r, s := playingRig(t) // dual
-	eventually(t, "a screen", func() bool { _, shown, _, _ := r.display.last(); return shown > 0 })
+	testkit.Eventually(t, "a screen", func() bool { _, shown, _, _ := r.display.last(); return shown > 0 })
 	if err := s.SetMode(study.ModeOnDemand); err != nil {
 		t.Fatal(err)
 	}

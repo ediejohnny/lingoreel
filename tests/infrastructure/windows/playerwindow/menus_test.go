@@ -83,7 +83,7 @@ func newMenuRigFor(t *testing.T, p session.Player) *menuRig {
 func (r *menuRig) hover() {
 	r.t.Helper()
 	post(r.t, r.host, win32.WM_MOUSEMOVE, 0, at(640, 700))
-	eventually(r.t, "the bar to show", func() bool { return windows.IsWindowVisible(r.bar) })
+	testkit.Eventually(r.t, "the bar to show", func() bool { return windows.IsWindowVisible(r.bar) })
 }
 
 // layout is the bar as the window lays it out for a state of the session.
@@ -114,7 +114,7 @@ func (r *menuRig) closeMenu() {
 	r.t.Helper()
 	closed := r.layout(controlbar.MenuNone)
 	post(r.t, r.host, win32.WM_KEYDOWN, 0, key(scanEscape, false, false))
-	eventually(r.t, "the menu to close", func() bool {
+	testkit.Eventually(r.t, "the menu to close", func() bool {
 		return !windows.IsWindowVisible(r.bar) || r.barHeight() <= math.Ceil(closed.Band.H)
 	})
 	r.hover()
@@ -157,7 +157,7 @@ func (r *menuRig) open(menu controlbar.Menu) controlbar.Bar {
 	closed := r.layout(controlbar.MenuNone)
 	r.click(closed, r.button(closed, menu))
 	opened := r.layout(menu)
-	eventually(r.t, "the menu to open", func() bool {
+	testkit.Eventually(r.t, "the menu to open", func() bool {
 		rect, err := win32.WindowRect(r.bar)
 		return err == nil && float64(rect.Bottom-rect.Top) >= math.Floor(opened.Band.H)
 	})
@@ -174,7 +174,7 @@ func (r *menuRig) barHeight() float64 {
 
 func waitFor(t *testing.T, what string, list func() []string, want string) {
 	t.Helper()
-	eventually(t, what, func() bool { return slices.Contains(list(), want) })
+	testkit.Eventually(t, what, func() bool { return slices.Contains(list(), want) })
 }
 
 // The passage menu marks a passage and changes its options; a command
@@ -186,41 +186,41 @@ func TestThePassageMenuDrivesTheSession(t *testing.T) {
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Command == "passage-mark-start" }))
 	waitFor(t, "the start mark", r.remote.ran, "passage-mark-start")
 	closed := r.layout(controlbar.MenuNone)
-	eventually(t, "the menu to close after a command", func() bool { return r.barHeight() <= math.Ceil(closed.Band.H) })
+	testkit.Eventually(t, "the menu to close after a command", func() bool { return r.barHeight() <= math.Ceil(closed.Band.H) })
 
 	// Options keep the menu open; the goal changes a value, not the rows.
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldGoal && e.Delta > 0 }))
-	eventually(t, "the goal up", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Goal == 1 })
+	testkit.Eventually(t, "the goal up", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Goal == 1 })
 	if r.barHeight() < math.Floor(bar.Band.H) {
 		t.Fatal("an option closed the menu")
 	}
 	// The latest saved passage studies as it was kept, and closes the menu.
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Kind == controlbar.EntryPassage && e.Index == 1 }))
 	waitFor(t, "the saved passage", r.remote.changed, "study saved 1")
-	eventually(t, "the menu to close after studying", func() bool { return r.barHeight() <= math.Ceil(closed.Band.H) })
+	testkit.Eventually(t, "the menu to close after studying", func() bool { return r.barHeight() <= math.Ceil(closed.Band.H) })
 
 	// Looping on (last: it adds the gap's row to the menu).
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldLoop }))
-	eventually(t, "looping on", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Mode == study.EndLoop })
+	testkit.Eventually(t, "looping on", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Mode == study.EndLoop })
 }
 
 func TestTheKaraokeMenuDrivesTheSession(t *testing.T) {
 	r := newMenuRig(t)
 	bar := r.open(controlbar.MenuKaraoke)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldKaraoke }))
-	eventually(t, "the Modo Karaokê on", func() bool { return r.remote.Karaoke().Enabled })
+	testkit.Eventually(t, "the Modo Karaokê on", func() bool { return r.remote.Karaoke().Enabled })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool {
 		return e.Field == controlbar.FieldIndicator && e.Value == string(study.IndicatorCountdown)
 	}))
-	eventually(t, "the countdown", func() bool { return r.remote.Indicator() == study.IndicatorCountdown })
+	testkit.Eventually(t, "the countdown", func() bool { return r.remote.Indicator() == study.IndicatorCountdown })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldMinGap && e.Delta < 0 }))
-	eventually(t, "the gap one second shorter", func() bool {
+	testkit.Eventually(t, "the gap one second shorter", func() bool {
 		return r.remote.Karaoke().Rules.MinGap == study.DefaultCueRules().MinGap-time.Second
 	})
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldRepeat && e.Delta > 0 }))
-	eventually(t, "a repeat", func() bool { return r.remote.LineRepeats() == 1 })
+	testkit.Eventually(t, "a repeat", func() bool { return r.remote.LineRepeats() == 1 })
 }
 
 func TestTheSubtitlesMenuDrivesTheSession(t *testing.T) {
@@ -229,7 +229,7 @@ func TestTheSubtitlesMenuDrivesTheSession(t *testing.T) {
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool {
 		return e.Field == controlbar.FieldMode && e.Value == string(study.ModeDual)
 	}))
-	eventually(t, "the dual mode", func() bool { return r.remote.Mode() == study.ModeDual })
+	testkit.Eventually(t, "the dual mode", func() bool { return r.remote.Mode() == study.ModeDual })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Command == "sync-translation-later" }))
 	waitFor(t, "a sync step", r.remote.ran, "sync-translation-later")
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldResetSync }))
@@ -248,7 +248,7 @@ func TestAMenuClosesWithEscOrAClickOnTheVideo(t *testing.T) {
 	} {
 		r.open(controlbar.MenuKaraoke)
 		close()
-		eventually(t, "the menu to close", func() bool {
+		testkit.Eventually(t, "the menu to close", func() bool {
 			return !windows.IsWindowVisible(r.bar) || r.barHeight() <= math.Ceil(closed.Band.H)
 		})
 		r.hover()
@@ -291,7 +291,7 @@ func TestTheFrameButtonsStepFrames(t *testing.T) {
 			t.Fatalf("no button %d in a bar %v wide", action, bar.Panel.W)
 		}
 	}
-	eventually(t, "both frame steps", func() bool { return len(r.remote.ran()) >= 2 })
+	testkit.Eventually(t, "both frame steps", func() bool { return len(r.remote.ran()) >= 2 })
 	if got := r.remote.ran(); !slices.Equal(got, []string{"frame-back", "frame-forward"}) {
 		t.Fatalf("ran %q", got)
 	}
@@ -312,9 +312,9 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 
 	bar := r.open(controlbar.MenuKaraoke)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldRepeat && e.Delta < 0 }))
-	eventually(t, "one repeat less", func() bool { return r.remote.LineRepeats() == 2 })
+	testkit.Eventually(t, "one repeat less", func() bool { return r.remote.LineRepeats() == 2 })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldFill }))
-	eventually(t, "the fill off and nothing else", func() bool { return r.remote.Karaoke() == session.Karaoke{Rules: rules} })
+	testkit.Eventually(t, "the fill off and nothing else", func() bool { return r.remote.Karaoke() == session.Karaoke{Rules: rules} })
 
 	// The passage past the end does nothing and the menu stays; an option set
 	// on a plan with no end mode gives it the one that pauses.
@@ -322,7 +322,7 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Kind == controlbar.EntryPassage && e.Index == 2 }))
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldProgressive }))
-	eventually(t, "progressive on", func() bool {
+	testkit.Eventually(t, "progressive on", func() bool {
 		plan, _ := r.remote.PassageOptions()
 		return plan == study.PracticePlan{Mode: study.EndPause, Progressive: true}
 	})
@@ -339,7 +339,7 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 	r.adjust = func(s *controlbar.StudyState) { s.Repeat, s.Options = 3, near }
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldGap && e.Delta > 0 }))
-	eventually(t, "the gap at its maximum", func() bool {
+	testkit.Eventually(t, "the gap at its maximum", func() bool {
 		plan, _ := r.remote.PassageOptions()
 		return plan == study.PracticePlan{Mode: study.EndLoop, Gap: study.MaxLoopGap}
 	})

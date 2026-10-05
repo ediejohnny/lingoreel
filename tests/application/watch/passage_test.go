@@ -12,6 +12,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // markingRig is a session that tells its passage marks on the video as
@@ -32,7 +33,7 @@ func markingRig(t *testing.T) (*rig, *watch.Session) {
 	}
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 20 * time.Second, Duration: time.Minute, Status: playback.StatusPaused, Speed: 1}
-	eventually(t, "the first sample", func() bool { return s.State().Duration == time.Minute })
+	testkit.Eventually(t, "the first sample", func() bool { return s.State().Duration == time.Minute })
 	return r, s
 }
 
@@ -195,7 +196,7 @@ func TestTheGlobalKeysMarkOncePerPress(t *testing.T) {
 	}
 	at(t, r, s, 20*time.Second)
 	r.shortcuts.presses <- watch.Press{Index: start}
-	eventually(t, "the start marked by its key", func() bool { _, set := s.MarkedStart(); return set })
+	testkit.Eventually(t, "the start marked by its key", func() bool { _, set := s.MarkedStart(); return set })
 	at(t, r, s, 30*time.Second)
 	// Held: only repeats arrive after the first press; none of them counts.
 	// The keys are handled in order, so a start mark sent after them tells
@@ -203,13 +204,13 @@ func TestTheGlobalKeysMarkOncePerPress(t *testing.T) {
 	r.shortcuts.presses <- watch.Press{Index: end, Repeat: true}
 	r.shortcuts.presses <- watch.Press{Index: end, Repeat: true}
 	r.shortcuts.presses <- watch.Press{Index: start}
-	eventually(t, "the keys handled", func() bool { marked, _ := s.MarkedStart(); return marked == 30*time.Second })
+	testkit.Eventually(t, "the keys handled", func() bool { marked, _ := s.MarkedStart(); return marked == 30*time.Second })
 	if s.Passage().Active || len(r.listener.passages()) != 0 {
 		t.Fatal("a held key's repeats closed a passage")
 	}
 	at(t, r, s, 40*time.Second)
 	r.shortcuts.presses <- watch.Press{Index: end}
-	eventually(t, "the passage closed by its key", func() bool { return len(r.listener.passages()) == 1 })
+	testkit.Eventually(t, "the passage closed by its key", func() bool { return len(r.listener.passages()) == 1 })
 }
 
 // A session may open studying a saved passage: the player opens where it
@@ -305,7 +306,7 @@ func TestOpenEditorPausesPicksAndShowsThePanel(t *testing.T) {
 	r.ports.ShowPanel = func() { shown <- struct{}{} }
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Status: playback.StatusPlaying, Speed: 1, ObservedAt: time.Now()}
-	eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
+	testkit.Eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
 	if err := s.OpenEditor(session.LinePrimary); err != nil {
 		t.Fatalf("OpenEditor: %v", err)
 	}
@@ -340,7 +341,7 @@ func TestAMarkedPassageIsCutAtTheEndOfTheVideo(t *testing.T) {
 	r, s := markingRig(t)
 	sample := func(position time.Duration) {
 		r.running.samples <- playback.Sample{Position: position, Duration: 2500 * time.Millisecond, Status: playback.StatusPaused, Speed: 1, ObservedAt: time.Now()}
-		eventually(t, "the position", func() bool { return s.State().Position == position })
+		testkit.Eventually(t, "the position", func() bool { return s.State().Position == position })
 	}
 	sample(1200 * time.Millisecond)
 	s.MarkPassageStart()

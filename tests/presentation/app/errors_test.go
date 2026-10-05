@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // The errors a user can meet, each with a sentence that says what happened and
@@ -85,11 +86,11 @@ func TestAPlayerLostCanBeWatchedAgainFromThere(t *testing.T) {
 	if err := r.api.SeekTo(50); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-50) < 0.5 })
+	testkit.Eventually(t, "the position", func() bool { return math.Abs(r.api.PlaybackState().Position-50) < 0.5 })
 	running := r.plugin.current()
 	running.lost.Store(true)
 	running.Close()
-	eventually(t, "the end", func() bool { _, ended := r.ui.last(app.EventEnded); return ended })
+	testkit.Eventually(t, "the end", func() bool { _, ended := r.ui.last(app.EventEnded); return ended })
 	data, _ := r.ui.last(app.EventEnded)
 	ended := data.(app.Ended)
 	if !ended.Resume || !strings.Contains(ended.Error, "parou de responder") {
@@ -105,7 +106,7 @@ func TestAPlayerLostCanBeWatchedAgainFromThere(t *testing.T) {
 	// The place is used once: the next start begins as usual, unless asked
 	// to go on where the video was left.
 	r.api.StopWatching()
-	eventually(t, "the stop", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the stop", func() bool { return !r.api.PlaybackState().Active })
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // --- media ---
@@ -368,17 +369,6 @@ func (r *rig) start(t *testing.T) *watch.Session {
 	return s
 }
 
-func eventually(t *testing.T, what string, condition func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
-	for !condition() {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for %s", what)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-}
-
 func TestStartLaunchesWithTheRequest(t *testing.T) {
 	r := newRig(t)
 	r.start(t)
@@ -398,7 +388,7 @@ func TestSubtitlesReachTheDisplay(t *testing.T) {
 	r := newRig(t)
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
-	eventually(t, "both lines on the display", func() bool {
+	testkit.Eventually(t, "both lines on the display", func() bool {
 		screen, _, _, _ := r.display.last()
 		return screen.Primary == "Hello there." && screen.Translation == "Olá." && screen.TranslationVisible
 	})
@@ -419,7 +409,7 @@ func TestShortcutsAndButtonsMoveTheLines(t *testing.T) {
 	r.shortcuts.presses <- watch.Press{Index: 1} // top line later
 	r.shortcuts.presses <- watch.Press{Index: 99}
 	r.shortcuts.presses <- watch.Press{Index: 2} // bottom line earlier
-	eventually(t, "two sync changes", func() bool {
+	testkit.Eventually(t, "two sync changes", func() bool {
 		r.listener.mu.Lock()
 		defer r.listener.mu.Unlock()
 		return len(r.listener.synced) == 2
@@ -575,7 +565,7 @@ func TestAHostedPlayerDrawsIntoTheAppWindow(t *testing.T) {
 		t.Fatalf("the window's controls do not drive the session (remote %v)", remote)
 	}
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()}
-	eventually(t, "the subtitles in the window", func() bool {
+	testkit.Eventually(t, "the subtitles in the window", func() bool {
 		screen, _, _, _ := window.last()
 		return screen.Primary == "Hello there."
 	})
@@ -689,7 +679,7 @@ func TestStudyPassageHidesLinesByLap(t *testing.T) {
 	r := newRig(t)
 	s := r.start(t)
 	r.running.samples <- playback.Sample{Position: 1500 * time.Millisecond, Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: time.Now()}
-	eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
+	testkit.Eventually(t, "the line on screen", func() bool { screen, _, _, _ := r.display.last(); return screen.Primary == "Hello there." })
 	// "Esta fala" at 1.5 s: the line 1–3 s, with its lead-in.
 	if segment, err := s.LinePassage(); err != nil || segment.Start != 500*time.Millisecond || segment.End != 3*time.Second {
 		t.Fatalf("LinePassage = %+v, %v", segment, err)

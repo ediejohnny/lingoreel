@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 // A player that stops answering shows on the panel and on the video, and
@@ -14,13 +15,13 @@ func TestAPlayerBeingReconnectedIsShown(t *testing.T) {
 	r := startWatching(t)
 	before := r.display.noticeCount()
 	r.plugin.current().reconnecting.Store(true)
-	eventually(t, "the panel", func() bool { return strings.Contains(r.api.PlaybackState().Health, "Reconectando") })
-	eventually(t, "the notice on the video", func() bool { return r.display.noticeCount() == before+1 })
+	testkit.Eventually(t, "the panel", func() bool { return strings.Contains(r.api.PlaybackState().Health, "Reconectando") })
+	testkit.Eventually(t, "the notice on the video", func() bool { return r.display.noticeCount() == before+1 })
 	if !strings.Contains(r.log.String(), "Reconectando") {
 		t.Fatalf("the log does not tell it:\n%s", r.log.String())
 	}
 	r.plugin.current().reconnecting.Store(false)
-	eventually(t, "the panel clear", func() bool { return r.api.PlaybackState().Health == "" })
+	testkit.Eventually(t, "the panel clear", func() bool { return r.api.PlaybackState().Health == "" })
 }
 
 // The log tells what happened in a session, and never what the lines say.
@@ -31,7 +32,7 @@ func TestTheLogTellsTheSessionNotTheLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.api.StopWatching()
-	eventually(t, "the end in the log", func() bool { return strings.Contains(r.log.String(), "session ended") })
+	testkit.Eventually(t, "the end in the log", func() bool { return strings.Contains(r.log.String(), "session ended") })
 
 	log := r.log.String()
 	for _, want := range []string{

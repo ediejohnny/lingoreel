@@ -6,6 +6,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestThePlayersHealth(t *testing.T) {
@@ -28,9 +29,9 @@ func TestThePlayersHealth(t *testing.T) {
 	}
 	playing(20*time.Second, 0)
 	playing(20*time.Second, 3300*time.Millisecond)
-	eventually(t, "the freeze", func() bool { return s.Health() == watch.HealthStalled })
+	testkit.Eventually(t, "the freeze", func() bool { return s.Health() == watch.HealthStalled })
 	playing(21*time.Second, 100*time.Millisecond)
-	eventually(t, "the player moving again", func() bool { return s.Health() == watch.HealthGood })
+	testkit.Eventually(t, "the player moving again", func() bool { return s.Health() == watch.HealthGood })
 
 	s.Notify("Aviso")
 	if _, _, notices, _ := r.display.last(); len(notices) == 0 || notices[len(notices)-1] != "Aviso" {

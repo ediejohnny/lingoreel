@@ -9,6 +9,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestNothingWorksBeforeTheWindow(t *testing.T) {
@@ -82,7 +83,7 @@ func TestWatchAndControlTheSession(t *testing.T) {
 		t.Fatalf("'always use' saved %q as the preferred player", preferred)
 	}
 
-	eventually(t, "the state of the session", func() bool {
+	testkit.Eventually(t, "the state of the session", func() bool {
 		state := r.api.PlaybackState()
 		return state.Active && state.Status == "paused" && state.PositionText == "0:30" && state.DurationText == "1:30:00"
 	})
@@ -160,7 +161,7 @@ func TestThePlayerClosingEndsTheSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.plugin.current().Close() // the user closed the player
-	eventually(t, "the end of the session", func() bool {
+	testkit.Eventually(t, "the end of the session", func() bool {
 		_, ended := r.ui.last(app.EventEnded)
 		return ended && !r.api.PlaybackState().Active
 	})
@@ -226,7 +227,7 @@ func TestInstallAndDownload(t *testing.T) {
 	if err := r.api.InstallPlayer("fake"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the installation result", func() bool {
+	testkit.Eventually(t, "the installation result", func() bool {
 		data, ok := r.ui.last(app.EventInstall)
 		return ok && data.(app.InstallProgress).Done && data.(app.InstallProgress).Error == ""
 	})
@@ -237,7 +238,7 @@ func TestInstallAndDownload(t *testing.T) {
 	if err := r.api.InstallPlayer("fake"); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the failure", func() bool {
+	testkit.Eventually(t, "the failure", func() bool {
 		data, _ := r.ui.last(app.EventInstall)
 		return data.(app.InstallProgress).Error != ""
 	})

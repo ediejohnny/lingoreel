@@ -85,7 +85,7 @@ func newEditorRig(t *testing.T) *editorRig {
 	if err := w.Show(session.Screen{Primary: "That's sick!", TranslationVisible: true}); err != nil {
 		t.Fatal(err)
 	}
-	eventually(t, "the line drawn", func() bool {
+	testkit.Eventually(t, "the line drawn", func() bool {
 		box, ok := w.LineBounds(session.LinePrimary)
 		r.box = box
 		return ok
@@ -133,7 +133,7 @@ func editorBox() windows.HWND {
 func (r *editorRig) open() (box, field windows.HWND) {
 	r.t.Helper()
 	r.onTheLine()
-	eventually(r.t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
+	testkit.Eventually(r.t, "the box over the line", func() bool { box = editorBox(); return box != 0 && windows.IsWindowVisible(box) })
 	field = child(box, "Edit")
 	if field == 0 {
 		r.t.Fatal("the box has no text field")
@@ -161,7 +161,7 @@ func setText(hwnd windows.HWND, text string) {
 // gone waits for the box to close.
 func (r *editorRig) gone(box windows.HWND) {
 	r.t.Helper()
-	eventually(r.t, "the box to close", func() bool { return !windows.IsWindow(box) })
+	testkit.Eventually(r.t, "the box to close", func() bool { return !windows.IsWindow(box) })
 }
 
 // noEditsSince checks no text was saved beyond the first n, a moment later.
@@ -255,7 +255,7 @@ func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
 	setText(field, "Que loucura!\r\nDe verdade")
 	post(t, field, wmChar, charEnterKey, 0)
 	r.gone(box)
-	eventually(t, "the text saved", func() bool { return len(r.remote.edited()) == 1 })
+	testkit.Eventually(t, "the text saved", func() bool { return len(r.remote.edited()) == 1 })
 	if got := r.remote.edited()[0]; got != "Que loucura!\nDe verdade" {
 		t.Fatalf("saved %q", got)
 	}
@@ -287,7 +287,7 @@ func TestTheBoxSavesWithEnterAndLeavesWithEsc(t *testing.T) {
 	setText(field, "Fixed.")
 	post(t, field, wmKillFocus, 0, 0)
 	r.gone(box)
-	eventually(t, "the text saved on leaving", func() bool { return len(r.remote.edited()) == 2 })
+	testkit.Eventually(t, "the text saved on leaving", func() bool { return len(r.remote.edited()) == 2 })
 	if got := r.remote.edited()[1]; got != "Fixed." {
 		t.Fatalf("saved %q on leaving", got)
 	}
@@ -336,7 +336,7 @@ func TestTwoClicksOnAPlayingLineGoFullscreen(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.onTheLine()
-	eventually(t, "the fullscreen", func() bool { rect, err := win32.WindowRect(r.host); return err == nil && rect == monitor })
+	testkit.Eventually(t, "the fullscreen", func() bool { rect, err := win32.WindowRect(r.host); return err == nil && rect == monitor })
 	if box := editorBox(); box != 0 {
 		t.Fatal("two clicks on a playing line opened the box")
 	}

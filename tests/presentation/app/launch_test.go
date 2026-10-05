@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
 func TestVideoArgument(t *testing.T) {
@@ -42,7 +43,7 @@ func TestAVideoWaitsForTheOneThatPlays(t *testing.T) {
 		t.Fatal("the session ended")
 	}
 	r.api.StopWatching()
-	eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
+	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 	if _, err := r.api.OpenVideo(`D:\Filmes\Outro.mkv`); err != nil {
 		t.Fatalf("OpenVideo after the session = %v", err)
 	}
