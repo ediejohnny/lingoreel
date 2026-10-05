@@ -1,16 +1,47 @@
-// Package ptbr words what the app shows in Brazilian Portuguese: language
-// names, offsets, clock times and the names of the subtitle lines.
+// Package ptbr words what the app shows: language names, offsets, clock
+// times, the names of the subtitle lines and every other text, from the
+// catalog of the interface's language (Brazilian Portuguese for now).
 package ptbr
 
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/presentation/i18n"
 )
+
+// catalog is the interface's language, chosen once when the app starts
+// (Use); until then, and in tests, the fallback's.
+var (
+	catalog         atomic.Pointer[i18n.Catalog]
+	fallbackCatalog = sync.OnceValue(func() *i18n.Catalog {
+		c, err := i18n.Load(i18n.Fallback)
+		if err != nil {
+			panic(fmt.Sprintf("the embedded catalog does not load: %v", err)) // a test loads it
+		}
+		return c
+	})
+)
+
+// Use makes a catalog the interface's language. The app calls it once, at
+// start, before any text is shown.
+func Use(c *i18n.Catalog) { catalog.Store(c) }
+
+// T is a key's text in the interface's language, with its parameters (a
+// name, then its value). Keys are always written whole, never built, so a
+// test can find each one in the catalog.
+func T(key string, params ...any) string {
+	if c := catalog.Load(); c != nil {
+		return c.Text(key, params...)
+	}
+	return fallbackCatalog().Text(key, params...)
+}
 
 // languageNames are the languages named in the interface, by base tag.
 var languageNames = map[string]string{

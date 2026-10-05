@@ -23,9 +23,9 @@ func Speed(speed playback.Speed) string {
 // WindowTitle is the player window's title for a video file name.
 func WindowTitle(video string) string {
 	if strings.TrimSpace(video) == "" {
-		return "LingoReel"
+		return T("app.title")
 	}
-	return video + " — LingoReel"
+	return T("app.windowTitle", "video", video)
 }
 
 // BarTime shows the time on the control bar: "12:34 / 1:29:32".
