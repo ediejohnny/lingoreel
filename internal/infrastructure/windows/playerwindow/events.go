@@ -21,6 +21,8 @@ import (
 const (
 	wmCreate      = 0x0001
 	sizeMinimized = 1
+	// altContext is a key message's bit telling Alt is down.
+	altContext = 1 << 29
 )
 
 // dispatchHost is the window procedure of the player window.
@@ -33,6 +35,16 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 	case win32.WM_CLOSE:
 		// The session ends the player and then closes the window.
 		w.closedOnce.Do(func() { close(w.closed) })
+		return 0
+	case win32.WM_DESTROY:
+		// Only the app's window going takes a window on a stage with it (its
+		// own teardown forgets it first): the session ends too.
+		if w.options.Stage != nil {
+			w.closedOnce.Do(func() { close(w.closed) })
+		}
+	case win32.WM_DPICHANGED_AFTERPARENT:
+		// The app's window moved to a monitor with another scaling.
+		w.layoutHost()
 		return 0
 	case win32.WM_PARENTNOTIFY:
 		// The player's video window must not take the mouse or the keys.
@@ -61,6 +73,11 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		w.pointer(w.cursorInZone())
 		return 0
 	case win32.WM_LBUTTONDOWN:
+		// On a stage the click hands this window the keys from the app's
+		// panel; a window of its own got them by being activated.
+		if w.options.Stage != nil && !w.options.NoActivate {
+			win32.SetFocus(hwnd)
+		}
 		if w.speedMenu || w.openMenu != controlbar.MenuNone {
 			w.speedMenu, w.openMenu = false, controlbar.MenuNone
 			w.pointer(w.cursorInZone())
@@ -75,6 +92,12 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		}
 		return 0
 	case win32.WM_KEYDOWN, win32.WM_SYSKEYDOWN:
+		// On a stage Alt+F4 closes the app's window, as it would any other
+		// window: Windows itself would close only this child of it.
+		if message == win32.WM_SYSKEYDOWN && wparam == win32.VK_F4 && lparam&altContext != 0 && w.options.Stage != nil {
+			_ = win32.PostMessage(w.parent, win32.WM_SYSCOMMAND, win32.SC_CLOSE, 0)
+			return 0
+		}
 		// Unknown keys and Alt combinations go on: Alt+F4 must still close.
 		if w.keyDown(lparam) {
 			return 0
@@ -322,8 +345,9 @@ func (w *Window) releaseDrag(x float64) {
 }
 
 // keyDown runs the command of a key going down, by the profile's
-// shortcuts, and reports whether the window took the key. The sync
-// shortcuts never get here: their system-wide hotkeys take them first.
+// shortcuts, and reports whether the window took the key. For a window of
+// its own the sync shortcuts never get here (their system-wide hotkeys take
+// them first); on a stage there are none, and every key comes here.
 func (w *Window) keyDown(lparam uintptr) bool {
 	key, known := keyboard.KeyOfMessage(lparam)
 	if !known {
@@ -397,46 +421,56 @@ func (w *Window) run(command shortcut.Command, key shortcut.Key, repeat bool) bo
 	return true
 }
 
-// setFullscreen makes the window cover its monitor without a frame, or
-// puts it back where it was.
+// setFullscreen makes the top-level window cover its monitor without a
+// frame, or puts it back where it was: the window's own, or on a stage the
+// app's, whose controls the video then covers.
 func (w *Window) setFullscreen(on bool) {
-	if on == w.fullscreen || w.host == 0 {
+	frame := w.frame()
+	if on == w.fullscreen || w.host == 0 || frame == 0 || !windows.IsWindow(frame) {
 		return
 	}
 	if on {
-		placement, err := win32.Placement(w.host)
+		placement, err := win32.Placement(frame)
 		if err != nil {
 			w.logger.Warn("player window could not go fullscreen", "error", err)
 			return
 		}
-		monitor, err := win32.MonitorBounds(w.host)
+		monitor, err := win32.MonitorBounds(frame)
 		if err != nil {
 			w.logger.Warn("player window could not go fullscreen", "error", err)
 			return
 		}
-		w.restore, w.style = placement, win32.Style(w.host)
-		win32.SetStyle(w.host, w.style&^win32.WS_OVERLAPPEDWINDOW)
+		w.restore, w.style = placement, win32.Style(frame)
+		win32.SetStyle(frame, w.style&^win32.WS_OVERLAPPEDWINDOW)
 		// To the top with the windows it owns: the subtitles and the bar must stay
 		// above it (SWP_NOOWNERZORDER would leave them behind the video).
-		_ = win32.SetWindowPos(w.host, 0, monitor, win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
+		_ = win32.SetWindowPos(frame, 0, monitor, win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
 		w.fullscreen = true
 		w.showCursor()
 	} else {
-		win32.SetStyle(w.host, w.style)
+		win32.SetStyle(frame, w.style)
 		restore := w.restore
-		if restore.ShowCmd == win32.SW_SHOWNORMAL {
+		switch {
+		case !windows.IsWindowVisible(frame):
+			// A hidden window goes back hidden: the placement would show it.
+			restore.ShowCmd = win32.SW_HIDE
+		case restore.ShowCmd == win32.SW_SHOWNORMAL:
 			// Same state without activating: the window already is, or the
 			// user moved on to another one.
 			restore.ShowCmd = win32.SW_SHOWNOACTIVATE
 		}
-		if err := win32.SetPlacement(w.host, restore); err != nil {
+		if err := win32.SetPlacement(frame, restore); err != nil {
 			w.logger.Warn("player window could not leave fullscreen", "error", err)
 		}
-		_ = win32.SetWindowPos(w.host, 0, win32.Rect{},
+		_ = win32.SetWindowPos(frame, 0, win32.Rect{},
 			win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOZORDER|win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
 		w.fullscreen = false
 		win32.KillTimer(w.host, timerCursor)
 		w.showCursor()
+	}
+	if stage := w.options.Stage; stage != nil {
+		w.layoutHost()
+		stage.fullscreenChanged(on)
 	}
 	w.refreshBar()
 }
@@ -467,7 +501,7 @@ func (w *Window) refreshBar() {
 		return
 	}
 	remote := w.currentRemote()
-	visible := w.visibility.Shown() && remote != nil && !win32.IsIconic(w.host)
+	visible := w.visibility.Shown() && remote != nil && w.showing()
 	if visible {
 		visible = w.drawBar(remote)
 	}

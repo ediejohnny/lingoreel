@@ -93,6 +93,10 @@ type Options struct {
 	// NoActivate shows the window without taking the focus, for tests and
 	// diagnostics run while the user works.
 	NoActivate bool
+	// Stage puts the video inside the app's own window, where the stage
+	// says, instead of in a window of its own; nil opens a window of its
+	// own at Placement.
+	Stage *Stage
 }
 
 // The window is a watch session's player window, and changes its look.
@@ -109,8 +113,11 @@ type Window struct {
 	logger  *slog.Logger
 	actions chan func() error
 
-	// Owned by the UI thread.
+	// Owned by the UI thread. On a stage, parent is the app's window, host
+	// a child of it, and hooks follow the app's window.
 	host, bar  windows.HWND
+	parent     windows.HWND
+	hooks      []windows.Handle
 	renderer   *gdiplus.Renderer
 	dib        *win32.DIB
 	layout     controlbar.Bar
@@ -181,13 +188,22 @@ func Open(ctx context.Context, options Options) (*Window, error) {
 	}
 	go w.runActions()
 	look := options.Look
-	w.overlay, err = overlay.Open(ctx, overlay.Options{
+	covered := overlay.Options{
 		Target: uintptr(w.host), VideoWidth: options.VideoWidth, VideoHeight: options.VideoHeight,
 		Layout: look.Layout, Primary: look.Primary, Translation: look.Translation, Logger: logger,
 		PreviewColor: look.PreviewColor, FillColor: look.FillColor,
-	})
+	}
+	if options.Stage != nil {
+		// Over the video only: the app's controls around it stay uncovered.
+		host := uintptr(w.host)
+		covered.Target, covered.Area, covered.AreaOnly = uintptr(w.parent), func() uintptr { return host }, true
+	}
+	w.overlay, err = overlay.Open(ctx, covered)
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("opening the subtitles over the player window: %w", err), w.Close())
+	}
+	if options.Stage != nil {
+		options.Stage.attach(w)
 	}
 	return w, nil
 }
@@ -208,29 +224,41 @@ func (w *Window) setup() error {
 	if err != nil {
 		title, _ = windows.UTF16PtrFromString("LingoReel")
 	}
-	bounds := initialBounds(w.options.Placement)
-	host, err := win32.CreateTitledWindow(0, win32.WS_OVERLAPPEDWINDOW|win32.WS_CLIPCHILDREN, hostClassName, title, bounds, 0, win32.ModuleHandle())
-	if err != nil {
-		return fmt.Errorf("creating the player window: %w", err)
+	if w.options.Stage != nil {
+		if err := w.createOnStage(title); err != nil {
+			return err
+		}
+	} else {
+		bounds := initialBounds(w.options.Placement)
+		host, err := win32.CreateTitledWindow(0, win32.WS_OVERLAPPEDWINDOW|win32.WS_CLIPCHILDREN, hostClassName, title, bounds, 0, win32.ModuleHandle())
+		if err != nil {
+			return fmt.Errorf("creating the player window: %w", err)
+		}
+		w.host = host
+		remember(host, w)
+		fitClient(host, bounds)
 	}
-	w.host = host
-	remember(host, w)
-	fitClient(host, bounds)
 
+	// Owned by the top-level window: above it, hidden with it.
 	const barStyle = win32.WS_EX_LAYERED | win32.WS_EX_NOACTIVATE | win32.WS_EX_TOOLWINDOW
-	bar, err := win32.CreateWindow(barStyle, win32.WS_POPUP, barClassName, host, win32.ModuleHandle())
+	bar, err := win32.CreateWindow(barStyle, win32.WS_POPUP, barClassName, w.frame(), win32.ModuleHandle())
 	if err != nil {
 		return fmt.Errorf("creating the control bar: %w", err)
 	}
 	w.bar = bar
 	remember(bar, w)
 
-	if w.options.NoActivate {
-		win32.ShowWindow(host, win32.SW_SHOWNOACTIVATE)
+	if w.options.Stage != nil {
+		// The stage shows it where its layout says; the app's window keeps the keys.
+		w.layoutHost()
 		return nil
 	}
-	win32.ShowWindow(host, win32.SW_SHOWNORMAL)
-	win32.SetForegroundWindow(host)
+	if w.options.NoActivate {
+		win32.ShowWindow(w.host, win32.SW_SHOWNOACTIVATE)
+		return nil
+	}
+	win32.ShowWindow(w.host, win32.SW_SHOWNORMAL)
+	win32.SetForegroundWindow(w.host)
 	return nil
 }
 
@@ -252,6 +280,46 @@ func registerClasses() {
 		return
 	}
 	registerErr = registerEditor()
+}
+
+// createOnStage creates the window as a child of the app's, hidden until
+// the stage places it, and follows the app's window. Runs on the UI thread.
+//
+// The app's window belongs to another thread: the child's creation and end
+// are kept from it (WS_EX_NOPARENTNOTIFY), so this thread never waits on
+// that one to open or close the video.
+func (w *Window) createOnStage(title *uint16) error {
+	parent := w.options.Stage.parent()
+	if parent == 0 || !windows.IsWindow(parent) {
+		return ErrNoAppWindow
+	}
+	w.parent = parent
+	const style = win32.WS_CHILD | win32.WS_CLIPCHILDREN | win32.WS_CLIPSIBLINGS
+	host, err := win32.CreateTitledWindow(win32.WS_EX_NOPARENTNOTIFY, style, hostClassName, title, win32.Rect{}, parent, win32.ModuleHandle())
+	if err != nil {
+		return fmt.Errorf("creating the player window in the app's: %w", err)
+	}
+	w.host = host
+	remember(host, w)
+	if err := w.followParent(); err != nil {
+		return fmt.Errorf("following the app's window: %w", err)
+	}
+	return nil
+}
+
+// frame is the top-level window the video shows in: the app's on a stage,
+// the window's own otherwise.
+func (w *Window) frame() windows.HWND {
+	if w.options.Stage != nil {
+		return w.parent
+	}
+	return w.host
+}
+
+// showing tells whether the video is on screen: shown, and its top-level
+// window not minimized.
+func (w *Window) showing() bool {
+	return w.host != 0 && windows.IsWindowVisible(w.host) && !win32.IsIconic(w.frame())
 }
 
 // initialBounds is where the client area opens: the placement, or a
@@ -388,6 +456,15 @@ func (w *Window) release() {
 // teardown runs on the UI thread and is safe to call more than once.
 func (w *Window) teardown() {
 	w.finishEdit(false, false)
+	if stage := w.options.Stage; stage != nil {
+		stage.detach(w)
+		w.unfollowParent()
+		// The app's window as it was: out of the fullscreen, with the keys.
+		w.setFullscreen(false)
+		if w.host != 0 && win32.Focus() == w.host && windows.IsWindow(w.parent) {
+			win32.SetFocus(w.parent)
+		}
+	}
 	for _, hwnd := range []windows.HWND{w.bar, w.host} {
 		forget(hwnd)
 		if hwnd != 0 && windows.IsWindow(hwnd) {

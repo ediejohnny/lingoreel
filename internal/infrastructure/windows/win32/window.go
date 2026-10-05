@@ -29,10 +29,12 @@ var (
 	procSendMessageTimeoutW = user32.NewProc("SendMessageTimeoutW")
 	procEnableWindow        = user32.NewProc("EnableWindow")
 	procSetFocus            = user32.NewProc("SetFocus")
+	procGetFocus            = user32.NewProc("GetFocus")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procScreenToClient      = user32.NewProc("ScreenToClient")
 	procGetAncestor         = user32.NewProc("GetAncestor")
+	procGetWindow           = user32.NewProc("GetWindow")
 	procExtractIconExW      = shell32.NewProc("ExtractIconExW")
 	procDestroyIcon         = user32.NewProc("DestroyIcon")
 	procGetStockObject      = gdi32.NewProc("GetStockObject")
@@ -60,10 +62,20 @@ const (
 	WM_MOUSELEAVE     = 0x02A3
 	WM_DPICHANGED     = 0x02E0
 	WM_ERASEBKGND     = 0x0014
+	WM_SYSCOMMAND     = 0x0112
+	// WM_DPICHANGED_AFTERPARENT tells a child window its top-level window
+	// moved to a monitor with another scaling.
+	WM_DPICHANGED_AFTERPARENT = 0x02E3
 
 	WS_OVERLAPPEDWINDOW = 0x00CF0000
 	WS_CLIPCHILDREN     = 0x02000000
+	WS_CLIPSIBLINGS     = 0x04000000
 	WS_VISIBLE          = 0x10000000
+	// WS_EX_NOPARENTNOTIFY keeps a child window's creation and end from
+	// being told to its parent, which another thread may own.
+	WS_EX_NOPARENTNOTIFY = 0x00000004
+
+	SC_CLOSE = 0xF060
 
 	CS_DBLCLKS = 0x0008
 
@@ -96,6 +108,7 @@ const (
 	VK_DOWN   = 0x28
 	VK_F      = 0x46
 	VK_M      = 0x4D
+	VK_F4     = 0x73
 
 	tmeLeave   = 0x00000002
 	idcArrow   = 32512
@@ -263,6 +276,13 @@ func SetFocus(hwnd windows.HWND) {
 	procSetFocus.Call(uintptr(hwnd))
 }
 
+// Focus is the window that has the keyboard, among those whose input the
+// calling thread shares; zero for none.
+func Focus() windows.HWND {
+	r, _, _ := procGetFocus.Call()
+	return windows.HWND(r)
+}
+
 // SetForegroundWindow brings a window to the front and activates it, when
 // Windows allows the calling process to.
 func SetForegroundWindow(hwnd windows.HWND) {
@@ -286,6 +306,13 @@ func CursorInClient(hwnd windows.HWND) (Point, error) {
 func RootOwner(hwnd windows.HWND) windows.HWND {
 	const gaRootOwner = 3
 	r, _, _ := procGetAncestor.Call(uintptr(hwnd), gaRootOwner)
+	return windows.HWND(r)
+}
+
+// TopChild is the child window on top of a window's others; zero for none.
+func TopChild(hwnd windows.HWND) windows.HWND {
+	const gwChild = 5
+	r, _, _ := procGetWindow.Call(uintptr(hwnd), gwChild)
 	return windows.HWND(r)
 }
 
