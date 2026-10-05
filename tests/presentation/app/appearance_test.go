@@ -84,6 +84,33 @@ func TestTheAppearanceRefusesBadChoicesInPortuguese(t *testing.T) {
 	}
 }
 
+// The app's own look is kept and comes back with the preferences, which the
+// screens apply when the app opens; a see-through accent is refused.
+func TestTheAppsLookIsKeptForTheNextStart(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	if got := r.api.Preferences().Interface; got != (app.InterfaceSettings{TextSize: 1}) {
+		t.Fatalf("a new app's look = %+v, want the themes' accent and font at 100%%", got)
+	}
+	chosen := app.InterfaceSettings{Accent: "#FF8C00", FontFamily: "Verdana", TextSize: 1.25}
+	if err := r.api.SetInterface(chosen); err != nil {
+		t.Fatal(err)
+	}
+	want := appearance.InterfaceStyle{Accent: appearance.RGB(0xFF, 0x8C, 0x00), FontFamily: "Verdana", TextSize: 1.25}
+	if r.settings.config.Interface != want {
+		t.Fatalf("kept %+v, want %+v", r.settings.config.Interface, want)
+	}
+	if got := r.api.Preferences().Interface; got != chosen {
+		t.Fatalf("the preferences give %+v, want %+v", got, chosen)
+	}
+	saves := r.settings.saves
+	err := r.api.SetInterface(app.InterfaceSettings{Accent: "#FF8C0080", TextSize: 1})
+	if err == nil || !strings.Contains(err.Error(), "Aparência do app: a cor de destaque") || r.settings.saves != saves {
+		t.Fatalf("a see-through accent: %v, %d saves", err, r.settings.saves-saves)
+	}
+}
+
 func TestTheBarsPreviewIsAPictureOfTheStyle(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

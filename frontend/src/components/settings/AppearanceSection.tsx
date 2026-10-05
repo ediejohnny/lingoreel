@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
-import { backend, messageOf, type AppearanceSettings, type BarSettings, type EditSettings } from "../../services/backend";
+import {
+  backend,
+  messageOf,
+  type AppearanceSettings,
+  type BarSettings,
+  type EditSettings,
+  type InterfaceSettings,
+} from "../../services/backend";
 import { themeLabel, type Theme } from "../../stores/theme";
 import { Banner, Card } from "../ui/Feedback";
+import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
@@ -18,32 +26,37 @@ const waitBeforeDrawing = 150;
 /** sampleSize is the sample line's size in the correction box's sample, in pixels. */
 const sampleSize = 24;
 
+/** fallbackAccent is the light theme's blue, for an accent when the screen's cannot be read. */
+const fallbackAccent = "#1F66D1";
+
 interface AppearanceSectionProps extends Pick<SectionProps, "view" | "draft"> {
   theme: Theme;
   onTheme: (theme: Theme) => void;
+  /** look is the app's own accent, font and text size; onLook applies and keeps another. */
+  look: InterfaceSettings;
+  onLook: (look: InterfaceSettings) => void;
 }
 
 /**
- * AppearanceSection holds the app's theme and the look of the controls over
- * the video: the control bar with its menus, and the box that corrects a
- * line. Like the theme, they are not part of the profile: each change applies
- * at once, to the video being watched too.
+ * AppearanceSection holds the app's theme and own look, and the look of the
+ * controls over the video: the control bar with its menus, and the box that
+ * corrects a line. Like the theme, they are not part of the profile: each
+ * change applies at once, to the video being watched too.
  */
-export function AppearanceSection({ view, draft, theme, onTheme }: AppearanceSectionProps) {
-  const themes: Theme[] = ["system", "light", "dark"];
-  const [look, setLook] = useState<AppearanceSettings>(view.appearance);
+export function AppearanceSection({ view, draft, theme, onTheme, look, onLook }: AppearanceSectionProps) {
+  const [controls, setControls] = useState<AppearanceSettings>(view.appearance);
   const applied = useRef(JSON.stringify(view.appearance));
   const [problem, setProblem] = useState("");
 
   useEffect(() => {
-    const next = JSON.stringify(look);
+    const next = JSON.stringify(controls);
     if (next === applied.current) {
       return;
     }
     let current = true;
     const timer = window.setTimeout(() => {
       backend
-        .setAppearance(look)
+        .setAppearance(controls)
         .then(() => {
           applied.current = next;
           if (current) {
@@ -56,7 +69,7 @@ export function AppearanceSection({ view, draft, theme, onTheme }: AppearanceSec
       current = false;
       window.clearTimeout(timer);
     };
-  }, [look]);
+  }, [controls]);
 
   return (
     <>
@@ -65,7 +78,44 @@ export function AppearanceSection({ view, draft, theme, onTheme }: AppearanceSec
           {problem}
         </Banner>
       )}
-      <Card title={t("ui.settings.appearance.title")}>
+      <AppCard view={view} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
+      <BarCard view={view} bar={controls.bar} onChange={(bar) => setControls((now) => ({ ...now, bar }))} />
+      <EditCard
+        view={view}
+        edit={controls.edit}
+        font={draft.primary.fontFamily}
+        onChange={(edit) => setControls((now) => ({ ...now, edit }))}
+      />
+    </>
+  );
+}
+
+/** AppCard edits the app's own look: its theme, accent, font and text size. */
+function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionProps, "draft">) {
+  const themes: Theme[] = ["system", "light", "dark"];
+  const options = view.options;
+  const limits = options.limits;
+  const set =
+    <K extends keyof InterfaceSettings>(key: K) =>
+    (value: InterfaceSettings[K]) =>
+      onLook({ ...look, [key]: value });
+  const fonts = look.fontFamily === "" || options.fonts.includes(look.fontFamily) ? options.fonts : [look.fontFamily, ...options.fonts];
+  // A new accent starts from the one on the screen.
+  const ownAccent = (on: boolean) => {
+    const shown = getComputedStyle(document.documentElement).getPropertyValue("--sp-accent").trim();
+    set("accent")(on ? (/^#[0-9a-f]{6}$/i.test(shown) ? shown.toUpperCase() : fallbackAccent) : "");
+  };
+  return (
+    <Card
+      title={t("ui.settings.appearance.title")}
+      aside={
+        <div className="flex items-center gap-1">
+          <RestoreButton onRestore={() => onLook(options.interfaceDefaults)} />
+          <HelpTip topic={t("ui.settings.appearance.title")}>{t("ui.settings.appearance.app.help")}</HelpTip>
+        </div>
+      }
+    >
+      <div className="@container flex flex-col gap-4">
         <Segmented
           label={t("ui.settings.appearance.theme")}
           value={theme}
@@ -73,10 +123,40 @@ export function AppearanceSection({ view, draft, theme, onTheme }: AppearanceSec
           onChange={(value) => onTheme(value as Theme)}
           help={<HelpTip topic={t("ui.settings.appearance.topic")}>{t("ui.settings.appearance.help")}</HelpTip>}
         />
-      </Card>
-      <BarCard view={view} bar={look.bar} onChange={(bar) => setLook((now) => ({ ...now, bar }))} />
-      <EditCard view={view} edit={look.edit} font={draft.primary.fontFamily} onChange={(edit) => setLook((now) => ({ ...now, edit }))} />
-    </>
+        <div className="grid gap-4 @lg:grid-cols-2">
+          <div className="flex flex-col gap-3">
+            <Toggle label={t("ui.settings.appearance.app.ownAccent")} checked={look.accent !== ""} onChange={ownAccent} />
+            <ColorField
+              label={t("ui.settings.appearance.app.accent")}
+              value={look.accent || fallbackAccent}
+              disabled={look.accent === ""}
+              onChange={set("accent")}
+            />
+          </div>
+          <div className="flex flex-col gap-4">
+            <Select
+              label={t("ui.settings.style.font")}
+              value={look.fontFamily}
+              options={[
+                { value: "", label: t("ui.settings.appearance.app.fontDefault") },
+                ...fonts.map((font) => ({ value: font, label: font })),
+              ]}
+              onChange={set("fontFamily")}
+            />
+            <NumberField
+              label={t("ui.settings.appearance.app.textSize")}
+              value={look.textSize}
+              min={limits.textSizeMin}
+              max={limits.textSizeMax}
+              step={0.05}
+              scale={100}
+              unit="%"
+              onChange={set("textSize")}
+            />
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

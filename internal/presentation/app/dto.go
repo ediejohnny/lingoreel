@@ -281,6 +281,8 @@ type Preferences struct {
 	Panel PanelState `json:"panel"`
 	// Language is the interface's language, the tag of its catalog.
 	Language string `json:"language"`
+	// Interface is the app's own look over its theme.
+	Interface InterfaceSettings `json:"interface"`
 }
 
 // InstallProgress reports an installation; Done with an empty Error is a

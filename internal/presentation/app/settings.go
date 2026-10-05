@@ -129,9 +129,11 @@ func (a *API) settingsOptions() SettingsOptions {
 			BarSizeMin: appearance.MinBarSize, BarSizeMax: appearance.MaxBarSize,
 			HideDelayMin: settings.MinBarHideDelay.Seconds(), HideDelayMax: settings.MaxBarHideDelay.Seconds(),
 			HintSizeMin: appearance.MinEditHintSize, HintSizeMax: appearance.MaxEditHintSize,
+			TextSizeMin: appearance.MinTextSize, TextSizeMax: appearance.MaxTextSize,
 		},
 		AppearanceDefaults: appearanceView(settings.DefaultBar(), appearance.DefaultEditStyle()),
 		EditHint:           ptbr.EditHint,
+		InterfaceDefaults:  interfaceView(appearance.DefaultInterfaceStyle()),
 	}
 	if a.deps.Preview != nil {
 		if fonts, err := a.deps.Preview.Fonts(); err == nil {

@@ -11,7 +11,7 @@ import type { SectionProps } from "../components/settings/section";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { t } from "../i18n";
-import { backend, messageOf, type ProfileSettings, type SettingsView } from "../services/backend";
+import { backend, messageOf, type InterfaceSettings, type ProfileSettings, type SettingsView } from "../services/backend";
 import { lineLanguage, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
 import type { Theme } from "../stores/theme";
 
@@ -51,6 +51,9 @@ function MenuEntry({ item, current, onOpen }: MenuEntryProps) {
 interface SettingsPageProps {
   theme: Theme;
   onTheme: (theme: Theme) => void;
+  /** look is the app's own accent, font and text size; onLook applies and keeps another. */
+  look: InterfaceSettings;
+  onLook: (look: InterfaceSettings) => void;
   /** section is the page to open first. */
   section?: SectionId;
   /** narrow lays the page out for the panel beside the video: the pages in a list on top instead of a menu beside. */
@@ -68,7 +71,7 @@ function flatten(items: SectionItem[], depth = 0): { item: SectionItem; depth: n
  * is pressed. Choices outside the profile (theme, profiles, players) apply
  * at once.
  */
-export function SettingsPage({ theme, onTheme, section: first = "general", narrow = false }: SettingsPageProps) {
+export function SettingsPage({ theme, onTheme, look, onLook, section: first = "general", narrow = false }: SettingsPageProps) {
   const [view, setView] = useState<SettingsView | null>(null);
   const [draft, setDraft] = useState<ProfileSettings | null>(null);
   const [section, setSection] = useState<SectionId>(first);
@@ -200,7 +203,9 @@ export function SettingsPage({ theme, onTheme, section: first = "general", narro
             {section === "study" && <StudySection {...props} />}
             {section === "shortcuts" && <ShortcutsSection {...props} />}
             {section === "players" && <PlayersSection {...props} />}
-            {section === "appearance" && <AppearanceSection view={view} draft={draft} theme={theme} onTheme={onTheme} />}
+            {section === "appearance" && (
+              <AppearanceSection view={view} draft={draft} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
+            )}
             {section === "advanced" && <AdvancedSection {...props} />}
           </div>
         </main>

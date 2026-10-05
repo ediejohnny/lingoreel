@@ -190,6 +190,10 @@ export function SetFullscreen(arg1) {
   return window['go']['app']['API']['SetFullscreen'](arg1);
 }
 
+export function SetInterface(arg1) {
+  return window['go']['app']['API']['SetInterface'](arg1);
+}
+
 export function SetKaraoke(arg1) {
   return window['go']['app']['API']['SetKaraoke'](arg1);
 }

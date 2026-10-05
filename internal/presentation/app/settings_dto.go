@@ -175,6 +175,15 @@ type EditSettings struct {
 	HintSize   float64 `json:"hintSize"`
 }
 
+// InterfaceSettings is the app's own look over its theme: Accent is "" for
+// each theme's own blue; FontFamily is "" for the app's font; TextSize
+// multiplies every size of the interface.
+type InterfaceSettings struct {
+	Accent     string  `json:"accent"`
+	FontFamily string  `json:"fontFamily"`
+	TextSize   float64 `json:"textSize"`
+}
+
 // BarPreviewRequest asks for a picture of the bar in a style; Width and
 // Height are in screen pixels, Scale is the display scaling.
 type BarPreviewRequest struct {
@@ -224,6 +233,8 @@ type SettingsOptions struct {
 	// box's hint, for its sample.
 	AppearanceDefaults AppearanceSettings `json:"appearanceDefaults"`
 	EditHint           string             `json:"editHint"`
+	// InterfaceDefaults is the app's default look over its theme.
+	InterfaceDefaults InterfaceSettings `json:"interfaceDefaults"`
 }
 
 // Option is a value and its name.
@@ -279,6 +290,8 @@ type SettingsLimits struct {
 	HideDelayMax float64 `json:"hideDelayMax"`
 	HintSizeMin  float64 `json:"hintSizeMin"`
 	HintSizeMax  float64 `json:"hintSizeMax"`
+	TextSizeMin  float64 `json:"textSizeMin"`
+	TextSizeMax  float64 `json:"textSizeMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.

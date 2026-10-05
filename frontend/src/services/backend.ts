@@ -45,6 +45,7 @@ export type AppearanceSettings = Plain<app.AppearanceSettings>;
 export type BarSettings = Plain<app.BarSettings>;
 export type EditSettings = Plain<app.EditSettings>;
 export type BarPreviewRequest = Plain<app.BarPreviewRequest>;
+export type InterfaceSettings = Plain<app.InterfaceSettings>;
 export type VideoLayout = Plain<app.VideoLayout>;
 export type PanelState = Plain<app.PanelState>;
 
@@ -154,6 +155,7 @@ export const backend = {
   checkShortcut: (chord: string) => api.CheckShortcut(chord),
   previewSubtitles: (request: PreviewRequest) => api.PreviewSubtitles(request as app.PreviewRequest),
   setAppearance: (look: AppearanceSettings) => api.SetAppearance(look as app.AppearanceSettings),
+  setInterface: (look: InterfaceSettings) => api.SetInterface(look as app.InterfaceSettings),
   previewBar: (request: BarPreviewRequest) => api.PreviewBar(request as app.BarPreviewRequest),
   choosePlayerProgram: (id: string) => api.ChoosePlayerProgram(id),
   clearPlayerPath: (id: string) => api.ClearPlayerPath(id),

@@ -8,6 +8,8 @@ const (
 	MaxBarSize      = 2.0
 	MinEditHintSize = 9.0
 	MaxEditHintSize = 24.0
+	MinTextSize     = 0.85
+	MaxTextSize     = 1.5
 )
 
 // BarStyle is how the control bar over the video and its menus look. The
@@ -63,4 +65,34 @@ func DefaultEditStyle() EditStyle {
 // Validate checks the hint's size.
 func (e EditStyle) Validate() error {
 	return firstFailure([]check{{inRange(e.HintSize, MinEditHintSize, MaxEditHintSize), "edit.hintSize"}}, ErrInvalidStyle)
+}
+
+// InterfaceStyle is the app's own look, over its theme. A fully transparent
+// Accent (the zero color) keeps each theme's own; an empty FontFamily keeps
+// the app's font; TextSize multiplies every size of the interface.
+type InterfaceStyle struct {
+	Accent     Color   `json:"accent"`
+	FontFamily string  `json:"fontFamily"`
+	TextSize   float64 `json:"textSize"`
+}
+
+// DefaultInterfaceStyle is the themes' own accent and the app's font, at
+// their size.
+func DefaultInterfaceStyle() InterfaceStyle {
+	return InterfaceStyle{TextSize: 1}
+}
+
+// HasAccent tells whether an accent was chosen over the themes' own.
+func (i InterfaceStyle) HasAccent() bool {
+	return i.Accent.A != 0
+}
+
+// Validate checks the accent (none, or opaque: text sits on it), the font
+// and the text size.
+func (i InterfaceStyle) Validate() error {
+	return firstFailure([]check{
+		{!i.HasAccent() || i.Accent.A == 0xff, "interface.accent"},
+		{strings.TrimSpace(i.FontFamily) == i.FontFamily && len([]rune(i.FontFamily)) <= MaxFontNameRunes, "interface.fontFamily"},
+		{inRange(i.TextSize, MinTextSize, MaxTextSize), "interface.textSize"},
+	}, ErrInvalidStyle)
 }

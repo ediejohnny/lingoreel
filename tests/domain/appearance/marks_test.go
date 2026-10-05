@@ -46,6 +46,14 @@ func TestMarksValidateRanges(t *testing.T) {
 		{"default box", func() error { return appearance.DefaultEditStyle().Validate() }, ""},
 		{"hint too large", edit(func(e *appearance.EditStyle) { e.HintSize = appearance.MaxEditHintSize + 1 }), "edit.hintSize"},
 		{"hint size NaN", edit(func(e *appearance.EditStyle) { e.HintSize = nan }), "edit.hintSize"},
+		{"default app", func() error { return appearance.DefaultInterfaceStyle().Validate() }, ""},
+		{"app accent chosen", app(func(i *appearance.InterfaceStyle) { i.Accent = appearance.RGB(0xFF, 0x8C, 0x00) }), ""},
+		{"app accent see-through", app(func(i *appearance.InterfaceStyle) { i.Accent = appearance.RGB(0xFF, 0x8C, 0x00).WithAlpha(0x80) }), "interface.accent"},
+		{"app font chosen", app(func(i *appearance.InterfaceStyle) { i.FontFamily = "Verdana" }), ""},
+		{"app font with spaces around", app(func(i *appearance.InterfaceStyle) { i.FontFamily = " Verdana" }), "interface.fontFamily"},
+		{"app text at its largest", app(func(i *appearance.InterfaceStyle) { i.TextSize = appearance.MaxTextSize }), ""},
+		{"app text too small", app(func(i *appearance.InterfaceStyle) { i.TextSize = appearance.MinTextSize - 0.01 }), "interface.textSize"},
+		{"app text size NaN", app(func(i *appearance.InterfaceStyle) { i.TextSize = nan }), "interface.textSize"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -93,6 +101,14 @@ func edit(change func(*appearance.EditStyle)) func() error {
 		style := appearance.DefaultEditStyle()
 		change(&style)
 		return style.Validate()
+	}
+}
+
+func app(change func(*appearance.InterfaceStyle)) func() error {
+	return func() error {
+		look := appearance.DefaultInterfaceStyle()
+		change(&look)
+		return look.Validate()
 	}
 }
 

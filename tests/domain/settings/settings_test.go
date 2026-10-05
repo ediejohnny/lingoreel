@@ -53,6 +53,7 @@ func TestConfigValidate(t *testing.T) {
 		{"bar that never stays", func(c *settings.Config) { c.Bar.HideDelay = 0 }, false},
 		{"bar too small", func(c *settings.Config) { c.Bar.Style.Size = 0 }, false},
 		{"box hint too small", func(c *settings.Config) { c.Edit.HintSize = 1 }, false},
+		{"app text too large", func(c *settings.Config) { c.Interface.TextSize = 3 }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -96,6 +96,8 @@ export function SetFileAssociation(arg1:boolean):Promise<void>;
 
 export function SetFullscreen(arg1:boolean):Promise<void>;
 
+export function SetInterface(arg1:app.InterfaceSettings):Promise<void>;
+
 export function SetKaraoke(arg1:boolean):Promise<void>;
 
 export function SetKaraokeIndicator(arg1:string):Promise<void>;

@@ -283,6 +283,22 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class InterfaceSettings {
+	    accent: string;
+	    fontFamily: string;
+	    textSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new InterfaceSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.accent = source["accent"];
+	        this.fontFamily = source["fontFamily"];
+	        this.textSize = source["textSize"];
+	    }
+	}
 	export class Karaoke {
 	    enabled: boolean;
 	    indicator: string;
@@ -886,6 +902,7 @@ export namespace app {
 	    speeds: number[];
 	    panel: PanelState;
 	    language: string;
+	    interface: InterfaceSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new Preferences(source);
@@ -897,6 +914,7 @@ export namespace app {
 	        this.speeds = source["speeds"];
 	        this.panel = this.convertValues(source["panel"], PanelState);
 	        this.language = source["language"];
+	        this.interface = this.convertValues(source["interface"], InterfaceSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1159,6 +1177,8 @@ export namespace app {
 	    hideDelayMax: number;
 	    hintSizeMin: number;
 	    hintSizeMax: number;
+	    textSizeMin: number;
+	    textSizeMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -1208,6 +1228,8 @@ export namespace app {
 	        this.hideDelayMax = source["hideDelayMax"];
 	        this.hintSizeMin = source["hintSizeMin"];
 	        this.hintSizeMax = source["hintSizeMax"];
+	        this.textSizeMin = source["textSizeMin"];
+	        this.textSizeMax = source["textSizeMax"];
 	    }
 	}
 	export class SettingsOptions {
@@ -1220,6 +1242,7 @@ export namespace app {
 	    defaults: ProfileSettings;
 	    appearanceDefaults: AppearanceSettings;
 	    editHint: string;
+	    interfaceDefaults: InterfaceSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsOptions(source);
@@ -1236,6 +1259,7 @@ export namespace app {
 	        this.defaults = this.convertValues(source["defaults"], ProfileSettings);
 	        this.appearanceDefaults = this.convertValues(source["appearanceDefaults"], AppearanceSettings);
 	        this.editHint = source["editHint"];
+	        this.interfaceDefaults = this.convertValues(source["interfaceDefaults"], InterfaceSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

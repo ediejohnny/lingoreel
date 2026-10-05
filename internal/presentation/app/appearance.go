@@ -42,6 +42,20 @@ func (a *API) SetAppearance(view AppearanceSettings) error {
 	return nil
 }
 
+// SetInterface keeps the app's own look over its theme; the screens apply it
+// themselves, at once, like the theme.
+func (a *API) SetInterface(view InterfaceSettings) error {
+	look, err := interfaceFrom(view)
+	if err != nil {
+		return err
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	next := a.config
+	next.Interface = look
+	return a.commitConfig(next)
+}
+
 // PreviewBar draws the control bar in a style, as a PNG data address for an
 // image on the screen.
 func (a *API) PreviewBar(request BarPreviewRequest) (string, error) {
@@ -97,6 +111,28 @@ func barFrom(view BarSettings) (settings.BarPreferences, error) {
 			"min", ptbr.Number(settings.MinBarHideDelay.Seconds(), -1), "max", ptbr.Number(settings.MaxBarHideDelay.Seconds(), -1)))
 	}
 	return settings.BarPreferences{Style: style, HideDelay: delay}, nil
+}
+
+func interfaceView(look appearance.InterfaceStyle) InterfaceSettings {
+	view := InterfaceSettings{FontFamily: look.FontFamily, TextSize: look.TextSize}
+	if look.HasAccent() {
+		view.Accent = look.Accent.String()
+	}
+	return view
+}
+
+func interfaceFrom(view InterfaceSettings) (appearance.InterfaceStyle, error) {
+	part := ptbr.T("part.interface")
+	look := appearance.InterfaceStyle{FontFamily: view.FontFamily, TextSize: view.TextSize}
+	if view.Accent != "" {
+		if err := parseColors(part, colorField{view.Accent, &look.Accent}); err != nil {
+			return look, err
+		}
+	}
+	if err := look.Validate(); err != nil {
+		return look, refuse(ptbr.T("error.settings.style", "line", part, "problem", fieldProblem(err)))
+	}
+	return look, nil
 }
 
 func editFrom(view EditSettings) (appearance.EditStyle, error) {

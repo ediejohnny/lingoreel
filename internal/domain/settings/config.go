@@ -53,9 +53,11 @@ type Config struct {
 	// empty means the Windows display language when the app speaks it.
 	Language string `json:"language"`
 	// Bar is how the control bar over the video looks and how long it
-	// stays; Edit is how the box for correcting a line looks.
-	Bar  BarPreferences       `json:"bar"`
-	Edit appearance.EditStyle `json:"edit"`
+	// stays; Edit is how the box for correcting a line looks; Interface is
+	// the app's own look over its theme.
+	Bar       BarPreferences            `json:"bar"`
+	Edit      appearance.EditStyle      `json:"edit"`
+	Interface appearance.InterfaceStyle `json:"interface"`
 }
 
 // Ranges of how long the bar stays after the mouse leaves it.
@@ -131,6 +133,7 @@ func DefaultConfig() Config {
 		SyncNotice:    true,
 		Bar:           DefaultBar(),
 		Edit:          appearance.DefaultEditStyle(),
+		Interface:     appearance.DefaultInterfaceStyle(),
 	}
 }
 
@@ -173,6 +176,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.Edit.Validate(); err != nil {
 		return fmt.Errorf("%w: edit: %w", ErrInvalidSettings, err)
+	}
+	if err := c.Interface.Validate(); err != nil {
+		return fmt.Errorf("%w: interface: %w", ErrInvalidSettings, err)
 	}
 	return nil
 }

@@ -291,6 +291,12 @@ func fieldProblem(err error) string {
 		return ptbr.T("settings.problem.barSize", "min", limit(appearance.MinBarSize*100), "max", limit(appearance.MaxBarSize*100))
 	case "edit.hintSize":
 		return ptbr.T("settings.problem.hintSize", "min", limit(appearance.MinEditHintSize), "max", limit(appearance.MaxEditHintSize))
+	case "interface.accent":
+		return ptbr.T("settings.problem.accent")
+	case "interface.fontFamily":
+		return ptbr.T("settings.problem.fontFamily")
+	case "interface.textSize":
+		return ptbr.T("settings.problem.textSize", "min", limit(appearance.MinTextSize*100), "max", limit(appearance.MaxTextSize*100))
 	case "outline.width":
 		return ptbr.T("settings.problem.outlineWidth", "max", limit(appearance.MaxOutlineWidth))
 	case "shadow.offsetX", "shadow.offsetY":
