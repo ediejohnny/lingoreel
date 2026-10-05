@@ -95,7 +95,7 @@ const noticeBackgroundAlpha = 0xA0
 
 // NoticeStyle is the look of the short notices drawn in a corner of the
 // video, such as which subtitle a sync shortcut moved: small, plain text on
-// a see-through dark box, far from the subtitles (DESIGN: the overlay shows
+// a see-through dark box, far from the subtitles (the overlay shows
 // only subtitles, except these notices).
 func NoticeStyle() SubtitleStyle {
 	return SubtitleStyle{

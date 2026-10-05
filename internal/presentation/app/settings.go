@@ -18,7 +18,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
-// Sample lines of the preview, as the DESIGN shows them.
+// Sample lines of the preview.
 const (
 	previewPrimary     = "This is a preview."
 	previewTranslation = "Esta é uma prévia."
