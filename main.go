@@ -242,8 +242,9 @@ func (s stagePort) Place(visible bool, insets layout.Insets) {
 	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
 }
 
-func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle) {
-	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit})
+func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme) {
+	shade := map[settings.Theme]playerwindow.Theme{settings.ThemeLight: playerwindow.ThemeLight, settings.ThemeDark: playerwindow.ThemeDark}[theme]
+	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit, Theme: shade})
 }
 
 // showWindow brings the app window up, in front of the others when the

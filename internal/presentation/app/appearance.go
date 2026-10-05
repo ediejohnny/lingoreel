@@ -37,7 +37,7 @@ func (a *API) SetAppearance(view AppearanceSettings) error {
 		return err
 	}
 	if a.deps.Stage != nil {
-		a.deps.Stage.SetChrome(bar, edit)
+		a.deps.Stage.SetChrome(bar, edit, next.Theme)
 	}
 	return nil
 }

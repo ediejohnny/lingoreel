@@ -113,6 +113,20 @@ func TestTheAppsLookIsKeptForTheNextStart(t *testing.T) {
 	}
 }
 
+// The menu over the video follows the app's theme: a new theme reaches the
+// stage at once.
+func TestTheThemeReachesTheVideosMenu(t *testing.T) {
+	t.Parallel()
+	r, stage := stageRig(t)
+	if err := r.api.SetTheme("light"); err != nil {
+		t.Fatal(err)
+	}
+	styled := stage.styled()
+	if got := styled[len(styled)-1].theme; got != settings.ThemeLight {
+		t.Fatalf("the stage has the theme %q, want light", got)
+	}
+}
+
 // The app stays in front of the other programs unless the settings say
 // otherwise, and every show puts it back where they say.
 func TestTheAppStaysOnTopUnlessTurnedOff(t *testing.T) {

@@ -117,13 +117,23 @@ type Options struct {
 }
 
 // Chrome is how the controls over the video look: the bar and its menus,
-// how long the bar stays after the mouse leaves it, and the box that
-// corrects a line.
+// how long the bar stays after the mouse leaves it, the box that corrects a
+// line, and the app's theme, which the menu over the video follows.
 type Chrome struct {
 	Bar       appearance.BarStyle
 	HideDelay time.Duration
 	Edit      appearance.EditStyle
+	Theme     Theme
 }
+
+// Theme is the app's light or dark look; ThemeSystem follows Windows' apps.
+type Theme int
+
+const (
+	ThemeSystem Theme = iota
+	ThemeLight
+	ThemeDark
+)
 
 // DefaultChrome is the controls' look before the user changes it.
 func DefaultChrome() Chrome {

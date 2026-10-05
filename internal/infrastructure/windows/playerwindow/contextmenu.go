@@ -33,11 +33,41 @@ type AppActions interface {
 	StopVideo()
 }
 
-// iconKey is one picture of the menu: an icon at a size, enabled or not.
+// iconKey is one picture of the menu: an icon at a size, enabled or not, on
+// a menu of a shade.
 type iconKey struct {
 	icon    contextmenu.Icon
 	size    int
 	enabled bool
+	shade   menuShade
+}
+
+// menuShade is how the menu looks: dark, light, or in the system's colors
+// (high contrast, or a Windows that cannot be asked).
+type menuShade int
+
+const (
+	shadeSystem menuShade = iota
+	shadeLight
+	shadeDark
+)
+
+// menuPalette is the icons' colors on a light or a dark menu: the text's, a
+// disabled item's, and three icons that stand out (the user's choice): stop
+// red, play blue, pause amber, lighter on a dark menu to read on it.
+type menuPalette struct {
+	text, disabled, stop, play, pause appearance.Color
+}
+
+var menuPalettes = map[menuShade]menuPalette{
+	shadeLight: {
+		text: appearance.RGB(0x00, 0x00, 0x00), disabled: appearance.RGB(0x6D, 0x6D, 0x6D),
+		stop: appearance.RGB(0xDC, 0x26, 0x26), play: appearance.RGB(0x25, 0x63, 0xEB), pause: appearance.RGB(0xD9, 0x77, 0x06),
+	},
+	shadeDark: {
+		text: appearance.RGB(0xF2, 0xF2, 0xF2), disabled: appearance.RGB(0x6E, 0x6E, 0x6E),
+		stop: appearance.RGB(0xF8, 0x71, 0x71), play: appearance.RGB(0x60, 0xA5, 0xFA), pause: appearance.RGB(0xFB, 0xBF, 0x24),
+	},
 }
 
 // keyboardPoint is where WM_CONTEXTMENU says a key opened the menu.
@@ -66,7 +96,7 @@ func (w *Window) openContextMenu(at win32.Point) {
 		win32.SetCursor(win32.ArrowCursor())
 	}
 	items := contextmenu.Build(w.menuState(remote, w.lineUnder(remote, at, client)))
-	menu, chosen, err := w.buildMenu(items)
+	menu, chosen, err := w.buildMenu(items, w.menuShade())
 	if err != nil {
 		win32.DestroyMenu(menu)
 		w.logger.Warn("the context menu could not be built", "error", err)
@@ -133,21 +163,63 @@ func (w *Window) menuState(remote watch.Remote, under *contextmenu.Under) contex
 	}
 }
 
-// buildMenu makes the native menu of the items, numbering the items that
-// can be chosen from 1; chosen lists them in that order.
-func (w *Window) buildMenu(items []contextmenu.Item) (windows.Handle, []contextmenu.Item, error) {
+// menuShade decides how the menu looks and asks Windows for it: as the
+// app's theme says, or as Windows' apps are; with high contrast, or where
+// Windows cannot be asked, in the system's colors.
+func (w *Window) menuShade() menuShade {
+	if win32.HighContrast() {
+		return shadeSystem
+	}
+	dark := w.chrome.Theme == ThemeDark || (w.chrome.Theme == ThemeSystem && win32.AppsUseDarkMode())
+	if !win32.SetMenusDark(dark) {
+		return shadeSystem
+	}
+	if dark {
+		return shadeDark
+	}
+	return shadeLight
+}
+
+// iconColor is an icon's color on a menu of a shade.
+func iconColor(icon contextmenu.Icon, enabled bool, shade menuShade) appearance.Color {
+	palette, known := menuPalettes[shade]
+	if !known {
+		index := win32.COLOR_MENUTEXT
+		if !enabled {
+			index = win32.COLOR_GRAYTEXT
+		}
+		r, g, b := win32.SysColor(index)
+		return appearance.RGB(r, g, b)
+	}
+	switch {
+	case !enabled:
+		return palette.disabled
+	case icon == contextmenu.IconStop:
+		return palette.stop
+	case icon == contextmenu.IconPlay:
+		return palette.play
+	case icon == contextmenu.IconPause:
+		return palette.pause
+	}
+	return palette.text
+}
+
+// buildMenu makes the native menu of the items, with icons for a menu of a
+// shade, numbering the items that can be chosen from 1; chosen lists them in
+// that order.
+func (w *Window) buildMenu(items []contextmenu.Item, shade menuShade) (windows.Handle, []contextmenu.Item, error) {
 	menu, err := win32.CreatePopupMenu()
 	if err != nil {
 		return 0, nil, err
 	}
 	var chosen []contextmenu.Item
-	if err := w.fill(menu, items, &chosen); err != nil {
+	if err := w.fill(menu, items, &chosen, shade); err != nil {
 		return menu, nil, err
 	}
 	return menu, chosen, nil
 }
 
-func (w *Window) fill(menu windows.Handle, items []contextmenu.Item, chosen *[]contextmenu.Item) error {
+func (w *Window) fill(menu windows.Handle, items []contextmenu.Item, chosen *[]contextmenu.Item, shade menuShade) error {
 	keys := w.shortcuts()
 	for _, item := range items {
 		native := win32.MenuItem{Separator: item.Kind == contextmenu.KindSeparator}
@@ -157,7 +229,7 @@ func (w *Window) fill(menu windows.Handle, items []contextmenu.Item, chosen *[]c
 				native.Text = menuText(text)
 			}
 			native.Radio, native.Checked, native.Disabled = item.Radio, item.Checked, !item.Enabled
-			native.Bitmap = w.icon(item.Icon, item.Enabled)
+			native.Bitmap = w.icon(item.Icon, item.Enabled, shade)
 		}
 		switch item.Kind {
 		case contextmenu.KindSubmenu:
@@ -170,7 +242,7 @@ func (w *Window) fill(menu windows.Handle, items []contextmenu.Item, chosen *[]c
 				win32.DestroyMenu(sub)
 				return err
 			}
-			if err := w.fill(sub, item.Children, chosen); err != nil {
+			if err := w.fill(sub, item.Children, chosen, shade); err != nil {
 				return err
 			}
 			continue
@@ -195,14 +267,14 @@ func menuText(text contextmenu.Text) string {
 	return words + "\t" + text.Key
 }
 
-// icon is an icon's picture at the monitor's size, in the menu's text
-// color, or gray for an unavailable item; zero for no icon or when it
-// cannot be drawn (the item then shows without one).
-func (w *Window) icon(icon contextmenu.Icon, enabled bool) windows.Handle {
+// icon is an icon's picture at the monitor's size, in its color on a menu
+// of a shade (iconColor); zero for no icon or when it cannot be drawn (the
+// item then shows without one).
+func (w *Window) icon(icon contextmenu.Icon, enabled bool, shade menuShade) windows.Handle {
 	if icon == contextmenu.IconNone || w.renderer == nil {
 		return 0
 	}
-	key := iconKey{icon: icon, size: win32.SmallIconSize(win32.DpiForWindow(w.host)), enabled: enabled}
+	key := iconKey{icon: icon, size: win32.SmallIconSize(win32.DpiForWindow(w.host)), enabled: enabled, shade: shade}
 	if bitmap, found := w.icons[key]; found {
 		return bitmap
 	}
@@ -210,12 +282,7 @@ func (w *Window) icon(icon contextmenu.Icon, enabled bool) windows.Handle {
 	if err != nil {
 		return 0
 	}
-	index := win32.COLOR_MENUTEXT
-	if !enabled {
-		index = win32.COLOR_GRAYTEXT
-	}
-	r, g, b := win32.SysColor(index)
-	if err := w.renderer.DrawIcon(dib, icon, appearance.RGB(r, g, b)); err != nil {
+	if err := w.renderer.DrawIcon(dib, icon, iconColor(icon, enabled, shade)); err != nil {
 		dib.Close()
 		w.logger.Warn("a menu icon could not be drawn", "error", err)
 		return 0

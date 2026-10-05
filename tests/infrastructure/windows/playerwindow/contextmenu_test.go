@@ -1,6 +1,7 @@
 package playerwindow_test
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -69,12 +70,18 @@ type menuWindow struct {
 
 func openMenuWindow(t *testing.T, app playerwindow.AppActions) *menuWindow {
 	t.Helper()
+	return openMenuWindowWith(t, app, nil)
+}
+
+// openMenuWindowWith opens the window with the controls' look given.
+func openMenuWindowWith(t *testing.T, app playerwindow.AppActions, chrome *playerwindow.Chrome) *menuWindow {
+	t.Helper()
 	m := &menuWindow{}
 	options := playerwindow.Options{
 		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
-		NoActivate: true,
+		NoActivate: true, Chrome: chrome,
 		Choose: func(menu uintptr, x, y int32) uint32 {
 			m.mu.Lock()
 			m.opened = append(m.opened, win32.Point{X: x, Y: y})
@@ -269,6 +276,86 @@ func TestTheMenuShowsTheKeysAsConfigured(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the menu did not open")
 	}
+}
+
+// The menu follows the app's theme, and so do its icons: light on a dark
+// menu, dark on a light one, with pause in amber (the video plays: the item
+// is "Pausar").
+func TestTheMenusIconsFollowTheTheme(t *testing.T) {
+	if win32.HighContrast() {
+		t.Skip("high contrast is on: the menu takes the system's colors")
+	}
+	cases := []struct {
+		name        string
+		theme       playerwindow.Theme
+		text, pause [3]byte
+	}{
+		{"dark", playerwindow.ThemeDark, [3]byte{0xF2, 0xF2, 0xF2}, [3]byte{0xFB, 0xBF, 0x24}},
+		{"light", playerwindow.ThemeLight, [3]byte{0x00, 0x00, 0x00}, [3]byte{0xD9, 0x77, 0x06}},
+	}
+	for _, c := range cases {
+		chrome := playerwindow.DefaultChrome()
+		chrome.Theme = c.theme
+		m := openMenuWindowWith(t, nil, &chrome)
+		painted := make(chan [2]string, 1)
+		m.choose(func(menu windows.Handle, _, _ int32) uint32 {
+			pause, _ := itemAt(menu, ptbr.T("bar.tip.pause"))
+			full, _ := itemAt(menu, ptbr.T("bar.tip.fullscreen"))
+			painted <- [2]string{inkOf(pause.Bitmap), inkOf(full.Bitmap)}
+			return 0
+		})
+		m.openAt(t, 10, 10)
+		select {
+		case got := <-painted:
+			if want := fmt.Sprintf("%02x%02x%02x", c.pause[0], c.pause[1], c.pause[2]); got[0] != want {
+				t.Errorf("%s: pause painted %s, want %s", c.name, got[0], want)
+			}
+			if want := fmt.Sprintf("%02x%02x%02x", c.text[0], c.text[1], c.text[2]); got[1] != want {
+				t.Errorf("%s: fullscreen painted %s, want %s", c.name, got[1], want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%s: the menu did not open", c.name)
+		}
+	}
+}
+
+// bitmapInfo is a BITMAP; a DIB section's has its pixels in Bits.
+type bitmapInfo struct {
+	Type, Width, Height, WidthBytes int32
+	Planes, BitsPixel               uint16
+	Bits                            *byte
+}
+
+// inkOf is the color of a picture's opaque pixels as "rrggbb", "mixed" when
+// they differ, "none" without any.
+func inkOf(bitmap windows.Handle) string {
+	var info bitmapInfo
+	if n, _, _ := getObject.Call(uintptr(bitmap), unsafe.Sizeof(info), uintptr(unsafe.Pointer(&info))); n == 0 || info.Bits == nil {
+		return "none"
+	}
+	pixels := unsafe.Slice(info.Bits, int(info.WidthBytes)*int(abs32(info.Height)))
+	ink := ""
+	for i := 0; i+3 < len(pixels); i += 4 {
+		if pixels[i+3] != 0xFF {
+			continue
+		}
+		color := fmt.Sprintf("%02x%02x%02x", pixels[i+2], pixels[i+1], pixels[i])
+		if ink != "" && ink != color {
+			return "mixed"
+		}
+		ink = color
+	}
+	if ink == "" {
+		return "none"
+	}
+	return ink
+}
+
+func abs32(v int32) int32 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 // The pictures are as large as the monitor's small icons; the menu goes
@@ -478,6 +565,78 @@ func TestARealMenuClosesAndLetsTheWindowGo(t *testing.T) {
 		t.Fatalf("closing with the menu open took %v", took)
 	}
 	testkit.Eventually(t, "the menu gone with the window", func() bool { return !menuShowing() })
+}
+
+// The real menu (only with LINGOREEL_MENU_TEST=1) is dark in the dark
+// theme and light in the light one, as its icons are drawn for.
+func TestTheRealMenuFollowsTheTheme(t *testing.T) {
+	if os.Getenv("LINGOREEL_MENU_TEST") != "1" {
+		t.Skip("set LINGOREEL_MENU_TEST=1 to show a real menu on screen")
+	}
+	if win32.HighContrast() {
+		t.Skip("high contrast is on: the menu takes the system's colors")
+	}
+	for _, c := range []struct {
+		name  string
+		theme playerwindow.Theme
+		dark  bool
+	}{{"dark", playerwindow.ThemeDark, true}, {"light", playerwindow.ThemeLight, false}} {
+		chrome := playerwindow.DefaultChrome()
+		chrome.Theme = c.theme
+		stage := playerwindow.NewStage(playerwindow.StageOptions{
+			Parent: newFakeApp(t, offScreenApp, true).handle,
+			App:    func() playerwindow.AppActions { return &fakeActions{} },
+		})
+		stage.SetChrome(chrome)
+		stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
+		w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+			Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+			Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
+			NoActivate: true, Stage: stage,
+		})
+		if err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		host := windows.HWND(w.Handle())
+		w.Attach(newRemote(&recordingPlayer{}))
+		client, err := win32.ClientRectOnScreen(host)
+		if err != nil {
+			t.Fatal(err)
+		}
+		post(t, host, win32.WM_CONTEXTMENU, uintptr(host), at(int(client.Left+20), int(client.Top+20)))
+		testkit.Eventually(t, "the menu on screen", menuShowing)
+		// The menu as it paints itself, read at its right edge, where no
+		// text or icon goes.
+		picture := printedClient(t, shownMenu())
+		background := pixelAt(picture, int32(picture.Width-4), int32(picture.Height/2))
+		red, green, blue := background>>16, background>>8&0xFF, background&0xFF
+		if dark := red+green+blue < 3*0x80; dark != c.dark {
+			t.Errorf("%s theme: the menu's background is %06x", c.name, background)
+		}
+		const wmCancelMode = 0x001F
+		post(t, host, wmCancelMode, 0, 0)
+		testkit.Eventually(t, "the menu closed", func() bool { return !menuShowing() })
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// shownMenu is the menu window (#32768) this process shows.
+func shownMenu() windows.HWND {
+	var menu windows.HWND
+	callback := windows.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+		var pid uint32
+		windows.GetWindowThreadProcessId(hwnd, &pid)
+		name := make([]uint16, 16)
+		if n, err := windows.GetClassName(hwnd, &name[0], int32(len(name))); err == nil && pid == uint32(os.Getpid()) &&
+			windows.UTF16ToString(name[:n]) == "#32768" && windows.IsWindowVisible(hwnd) {
+			menu = hwnd
+		}
+		return 1
+	})
+	_ = windows.EnumWindows(callback, nil)
+	return menu
 }
 
 // Ending the video from the menu runs off the window's thread: the app's
