@@ -181,6 +181,55 @@ func TestThePreviewOutlinesTheLineBeingEdited(t *testing.T) {
 	}
 }
 
+// columns is the first and last column of a band of rows with a pixel close
+// to a color; first > last when there is none.
+func columns(picture *image.RGBA, top, bottom int, r, g, b uint8) (first, last int) {
+	bounds := picture.Bounds()
+	first, last = bounds.Max.X, bounds.Min.X-1
+	for y := top; y < bottom; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			p := picture.Pix[picture.PixOffset(x, y):]
+			near := func(got, want uint8) bool { d := int(got) - int(want); return d > -12 && d < 12 }
+			if near(p[0], r) && near(p[1], g) && near(p[2], b) {
+				first, last = min(first, x), max(last, x)
+			}
+		}
+	}
+	return first, last
+}
+
+func TestThePreviewPaintsTheSpokenPartInTheFillColor(t *testing.T) {
+	testkit.Slow(t)
+	r := start(t)
+	look := watch.LookOf(settings.DefaultProfile())
+	look.FillColor = appearance.RGB(0xFF, 0x8C, 0x00)
+	render := func(fill float64) *image.RGBA {
+		t.Helper()
+		screen := sample
+		screen.Fill = fill
+		data, err := r.Preview(look, 1280, 720, 96, screen)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return decode(t, data)
+	}
+	// The primary's text sits in rows 560-592 (see above).
+	half := render(0.5)
+	orangeFirst, orangeLast := columns(half, 560, 592, 0xFF, 0x8C, 0x00)
+	whiteFirst, whiteLast := columns(half, 560, 592, 0xFF, 0xFF, 0xFF)
+	if orangeFirst > orangeLast || whiteFirst > whiteLast {
+		t.Fatalf("half spoken: orange in columns %d-%d, white in %d-%d; want both", orangeFirst, orangeLast, whiteFirst, whiteLast)
+	}
+	// The spoken part begins at the line's left edge and ends before the
+	// part still to come.
+	if orangeLast >= whiteLast || orangeFirst > whiteFirst+4 {
+		t.Fatalf("orange in columns %d-%d, white in %d-%d: the fill is not the left part of the line", orangeFirst, orangeLast, whiteFirst, whiteLast)
+	}
+	if first, last := columns(render(0), 560, 720, 0xFF, 0x8C, 0x00); first <= last {
+		t.Fatalf("nothing spoken, yet orange in columns %d-%d", first, last)
+	}
+}
+
 func TestFontsListTheInstalledFamilies(t *testing.T) {
 	fonts, err := start(t).Fonts()
 	if err != nil {

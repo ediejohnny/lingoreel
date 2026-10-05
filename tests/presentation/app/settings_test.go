@@ -355,6 +355,48 @@ func TestThePreviewRefusesAnUnknownLine(t *testing.T) {
 	}
 }
 
+func TestThePreviewShowsTheKaraokeFill(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	request.View, request.FillColor = "fill", "#FF8C00"
+	if _, err := r.api.PreviewSubtitles(request); err != nil {
+		t.Fatalf("fill view: %v", err)
+	}
+	orange, _ := appearance.ParseColor("#FF8C00")
+	call := r.preview.requests[0]
+	if call.look.FillColor != orange || call.screen.Fill != 0.5 || call.screen.Cue != nil {
+		t.Fatalf("fill view drew look %+v, screen %+v", call.look, call.screen)
+	}
+	// Between lines nothing is spoken, whatever color comes along.
+	request.View, request.FillColor = "", "#12"
+	if _, err := r.api.PreviewSubtitles(request); err != nil || r.preview.requests[1].screen.Fill != 0 {
+		t.Fatalf("plain view: %v, fill %v", err, r.preview.requests[1].screen.Fill)
+	}
+}
+
+func TestThePreviewRefusesAnUnknownViewOrFill(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r).Profile
+	request := app.PreviewRequest{Primary: view.Primary, Translation: view.Translation, Layout: view.Layout, Width: 640, Height: 360, Scale: 1}
+	for _, c := range []struct{ view, fill string }{
+		{"karaoke", "#FF8C00"}, {"Fill", "#FF8C00"}, {" fill", "#FF8C00"}, {"cue", "#FF8C00"},
+		{"fill", "#12"}, {"fill", ""}, {"fill", "amarelo"},
+	} {
+		request.View, request.FillColor = c.view, c.fill
+		if _, err := r.api.PreviewSubtitles(request); err == nil {
+			t.Errorf("view %q with fill %q was drawn", c.view, c.fill)
+		}
+	}
+	if len(r.preview.requests) != 0 {
+		t.Fatalf("%d refused previews reached the renderer", len(r.preview.requests))
+	}
+}
+
 func TestPlayerPaths(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
