@@ -1,6 +1,7 @@
 import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EditorCard } from "../components/player/EditorCard";
+import { SubtitlesCard } from "../components/player/SubtitlesCard";
 import { SyncRow } from "../components/player/SyncRow";
 import { Timeline } from "../components/player/Timeline";
 import { TrainingCards } from "../components/player/TrainingCards";
@@ -42,6 +43,9 @@ interface PlayingPageProps {
     reveal: (pressed: boolean) => Promise<void>;
     stop: () => Promise<void>;
     setFullscreen: (on: boolean) => Promise<void>;
+    switchSubtitle: (line: Line, track: number) => Promise<void>;
+    switchAudio: (track: number) => Promise<void>;
+    addSubtitleFile: (line: Line) => Promise<void>;
   };
 }
 
@@ -245,6 +249,8 @@ export function PlayingPage({
             </div>
           </Card>
         </div>
+
+        <SubtitlesCard state={state} onCommand={onCommand} commands={commands} />
 
         <div id="panel-editor">
           <EditorCard state={state} label={label} onCommand={onCommand} />

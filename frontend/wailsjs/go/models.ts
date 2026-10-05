@@ -393,6 +393,82 @@ export namespace app {
 	        this.end = source["end"];
 	    }
 	}
+	export class Selection {
+	    audio: number;
+	    primary: number;
+	    translation: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Selection(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.audio = source["audio"];
+	        this.primary = source["primary"];
+	        this.translation = source["translation"];
+	    }
+	}
+	export class Track {
+	    number: number;
+	    label: string;
+	    language: string;
+	    readable: boolean;
+	    note: string;
+	    warning: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Track(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.number = source["number"];
+	        this.label = source["label"];
+	        this.language = source["language"];
+	        this.readable = source["readable"];
+	        this.note = source["note"];
+	        this.warning = source["warning"];
+	    }
+	}
+	export class PlaybackTracks {
+	    audio: Track[];
+	    subtitles: Track[];
+	    current: Selection;
+	    audioSwitch: boolean;
+	    loading: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaybackTracks(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.audio = this.convertValues(source["audio"], Track);
+	        this.subtitles = this.convertValues(source["subtitles"], Track);
+	        this.current = this.convertValues(source["current"], Selection);
+	        this.audioSwitch = source["audioSwitch"];
+	        this.loading = source["loading"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SavedPassage {
 	    name: string;
 	    start: string;
@@ -456,6 +532,7 @@ export namespace app {
 	    passageOptions: PassageOptions;
 	    projectNote: string;
 	    health: string;
+	    tracks: PlaybackTracks;
 	
 	    static createFrom(source: any = {}) {
 	        return new Playback(source);
@@ -485,6 +562,7 @@ export namespace app {
 	        this.passageOptions = this.convertValues(source["passageOptions"], PassageOptions);
 	        this.projectNote = source["projectNote"];
 	        this.health = source["health"];
+	        this.tracks = this.convertValues(source["tracks"], PlaybackTracks);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -505,6 +583,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	export class PlayerInstall {
 	    id: string;
 	    name: string;
@@ -828,22 +907,7 @@ export namespace app {
 	    }
 	}
 	
-	export class Selection {
-	    audio: number;
-	    primary: number;
-	    translation: number;
 	
-	    static createFrom(source: any = {}) {
-	        return new Selection(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.audio = source["audio"];
-	        this.primary = source["primary"];
-	        this.translation = source["translation"];
-	    }
-	}
 	export class SettingsLimits {
 	    fontSizeMin: number;
 	    fontSizeMax: number;
@@ -992,28 +1056,7 @@ export namespace app {
 	}
 	
 	
-	export class Track {
-	    number: number;
-	    label: string;
-	    language: string;
-	    readable: boolean;
-	    note: string;
-	    warning: boolean;
 	
-	    static createFrom(source: any = {}) {
-	        return new Track(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.number = source["number"];
-	        this.label = source["label"];
-	        this.language = source["language"];
-	        this.readable = source["readable"];
-	        this.note = source["note"];
-	        this.warning = source["warning"];
-	    }
-	}
 	export class Video {
 	    path: string;
 	    name: string;
