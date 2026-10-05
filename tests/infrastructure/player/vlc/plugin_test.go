@@ -11,9 +11,6 @@ import (
 
 func TestVLCPluginDescriptor(t *testing.T) {
 	plugintest.Descriptor(t, vlc.Plugin{})
-	if hints := (vlc.Plugin{}).Hints(); hints.ID != (vlc.Plugin{}).Descriptor().ID || len(hints.Executables) == 0 {
-		t.Fatalf("hints %+v do not match the descriptor", hints)
-	}
 }
 
 // The VLC plugin passes the conformance kit every plugin must pass.

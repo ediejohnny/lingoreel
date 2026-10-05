@@ -1,10 +1,8 @@
 package playerwindow_test
 
 import (
-	"fmt"
 	"math"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -193,9 +191,7 @@ func TestThePassageMenuDrivesTheSession(t *testing.T) {
 	// Options keep the menu open; the goal changes a value, not the rows.
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldGoal && e.Delta > 0 }))
-	eventually(t, "the goal up", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.Contains(c, "goal=1") })
-	})
+	eventually(t, "the goal up", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Goal == 1 })
 	if r.barHeight() < math.Floor(bar.Band.H) {
 		t.Fatal("an option closed the menu")
 	}
@@ -207,28 +203,24 @@ func TestThePassageMenuDrivesTheSession(t *testing.T) {
 	// Looping on (last: it adds the gap's row to the menu).
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldLoop }))
-	eventually(t, "looping on", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.HasPrefix(c, "options loop") })
-	})
+	eventually(t, "looping on", func() bool { plan, _ := r.remote.PassageOptions(); return plan.Mode == study.EndLoop })
 }
 
 func TestTheKaraokeMenuDrivesTheSession(t *testing.T) {
 	r := newMenuRig(t)
 	bar := r.open(controlbar.MenuKaraoke)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldKaraoke }))
-	eventually(t, "the Modo Karaokê on", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.HasPrefix(c, "karaoke on=true") })
-	})
+	eventually(t, "the Modo Karaokê on", func() bool { return r.remote.Karaoke().Enabled })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool {
 		return e.Field == controlbar.FieldIndicator && e.Value == string(study.IndicatorCountdown)
 	}))
-	waitFor(t, "the countdown", r.remote.changed, "indicator countdown")
+	eventually(t, "the countdown", func() bool { return r.remote.Indicator() == study.IndicatorCountdown })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldMinGap && e.Delta < 0 }))
 	eventually(t, "the gap one second shorter", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.Contains(c, "gap=9s") })
+		return r.remote.Karaoke().Rules.MinGap == study.DefaultCueRules().MinGap-time.Second
 	})
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldRepeat && e.Delta > 0 }))
-	waitFor(t, "a repeat", r.remote.changed, "repeats 1")
+	eventually(t, "a repeat", func() bool { return r.remote.LineRepeats() == 1 })
 }
 
 func TestTheSubtitlesMenuDrivesTheSession(t *testing.T) {
@@ -237,7 +229,7 @@ func TestTheSubtitlesMenuDrivesTheSession(t *testing.T) {
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool {
 		return e.Field == controlbar.FieldMode && e.Value == string(study.ModeDual)
 	}))
-	waitFor(t, "the dual mode", r.remote.changed, "mode dual")
+	eventually(t, "the dual mode", func() bool { return r.remote.Mode() == study.ModeDual })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Command == "sync-translation-later" }))
 	waitFor(t, "a sync step", r.remote.ran, "sync-translation-later")
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldResetSync }))
@@ -320,9 +312,9 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 
 	bar := r.open(controlbar.MenuKaraoke)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldRepeat && e.Delta < 0 }))
-	waitFor(t, "one repeat less", r.remote.changed, "repeats 2")
+	eventually(t, "one repeat less", func() bool { return r.remote.LineRepeats() == 2 })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldFill }))
-	waitFor(t, "the fill off and nothing else", r.remote.changed, fmt.Sprintf("karaoke on=false gap=%v lead=%v fill=false", rules.MinGap, rules.Lead))
+	eventually(t, "the fill off and nothing else", func() bool { return r.remote.Karaoke() == session.Karaoke{Rules: rules} })
 
 	// The passage past the end does nothing and the menu stays; an option set
 	// on a plan with no end mode gives it the one that pauses.
@@ -331,7 +323,8 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Kind == controlbar.EntryPassage && e.Index == 2 }))
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldProgressive }))
 	eventually(t, "progressive on", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool { return strings.HasPrefix(c, "options pause gap=0s goal=0 progressive=true") })
+		plan, _ := r.remote.PassageOptions()
+		return plan == study.PracticePlan{Mode: study.EndPause, Progressive: true}
 	})
 	if slices.Contains(r.remote.changed(), "study saved 2") {
 		t.Fatal("a saved passage past the end of the video was studied")
@@ -347,8 +340,7 @@ func TestTheMenusChangeOnlyWhatTheyName(t *testing.T) {
 	bar = r.open(controlbar.MenuPassage)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldGap && e.Delta > 0 }))
 	eventually(t, "the gap at its maximum", func() bool {
-		return slices.ContainsFunc(r.remote.changed(), func(c string) bool {
-			return strings.HasPrefix(c, fmt.Sprintf("options loop gap=%v ", study.MaxLoopGap))
-		})
+		plan, _ := r.remote.PassageOptions()
+		return plan == study.PracticePlan{Mode: study.EndLoop, Gap: study.MaxLoopGap}
 	})
 }

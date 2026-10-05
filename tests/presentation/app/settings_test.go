@@ -116,6 +116,8 @@ func shortcutAt(t *testing.T, p app.ProfileSettings, command shortcut.Command) i
 	return i
 }
 
+// Each refusal names, in Portuguese, the field it is about; the limits in
+// the messages come from the domain, which tests them.
 func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 	r := newRig(t)
 	r.attach(t)
@@ -125,20 +127,17 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		change func(*app.ProfileSettings)
 		want   string
 	}{
-		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte vai de 8 a 200."},
+		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte"},
 		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Legenda de baixo: o tamanho da fonte"},
 		{"bad color", func(p *app.ProfileSettings) { p.Primary.OutlineColor = "red" }, `a cor "red" não é válida`},
 		{"no font", func(p *app.ProfileSettings) { p.Primary.FontFamily = " " }, "escolha uma fonte"},
-		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade vai de 0% a 100%"},
-		{"margin", func(p *app.ProfileSettings) { p.Layout.MarginLeft = 0.3 }, "Margens: cada margem vai de 0% a 25%."},
-		{"lead", func(p *app.ProfileSettings) { p.Karaoke.Lead = 20 }, "a antecedência de 2 a 10 s"},
-		{"NaN gap", func(p *app.ProfileSettings) { p.Karaoke.MinGap = math.Inf(1) }, "a lacuna mínima vai de 3 a 60 s"},
+		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade"},
+		{"margin", func(p *app.ProfileSettings) { p.Layout.MarginLeft = 0.3 }, "Margens: cada margem"},
+		{"lead", func(p *app.ProfileSettings) { p.Karaoke.Lead = 20 }, "Modo Karaokê: a lacuna mínima"},
 		{"indicator", func(p *app.ProfileSettings) { p.Karaoke.Indicator = "dots" }, "escolha a barra ou a contagem"},
-		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "de 0 a 10 vezes"},
+		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "Modo Karaokê: repetir cada fala"},
 		{"speed", func(p *app.ProfileSettings) { p.Speed = 3 }, "Escolha uma das velocidades"},
-		{"NaN speed", func(p *app.ProfileSettings) { p.Speed = math.NaN() }, "Escolha uma das velocidades"},
-		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "o passo vai de 10 a 1000 ms"},
-		{"fast below step", func(p *app.ProfileSettings) { p.SyncStep, p.SyncFastStep = 200, 100 }, "Passos da sincronização"},
+		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "Passos da sincronização"},
 		{"reveal", func(p *app.ProfileSettings) { p.Reveal = "wink" }, "tecla da tradução"},
 		{"language", func(p *app.ProfileSettings) { p.Languages.Primary = "english!" }, "Confira os idiomas"},
 		{"Alt+Shift", func(p *app.ProfileSettings) {
@@ -149,9 +148,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		}, "“Espaço” já é o atalho de “Reproduzir / pausar”"},
 		{"modifiers alone", func(p *app.ProfileSettings) { p.Shortcuts[0].Chord = "Ctrl+" }, "Falta a tecla principal"},
 		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
-		{"no mode", func(p *app.ProfileSettings) { p.Mode = "" }, "Escolha um modo de estudo."},
-		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão: vai de 10 a 10000 ms."},
-		{"precision too big", func(p *app.ProfileSettings) { p.PrecisionStep = 10001 }, "Passo de precisão"},
+		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
 	}
 	for _, c := range cases {

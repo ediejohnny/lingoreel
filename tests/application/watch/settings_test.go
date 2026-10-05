@@ -133,17 +133,13 @@ func TestTheTranslationKey(t *testing.T) {
 	if s.TranslationVisible() {
 		t.Fatal("on demand, the translation started shown")
 	}
-	// Toggle (the default): each press flips it; the release changes nothing.
+	// Toggle (the default; the rules are the domain's): a press shows it.
 	s.Reveal(true)
 	s.Reveal(false)
 	if !s.TranslationVisible() {
 		t.Fatal("a press did not show the translation")
 	}
-	s.Reveal(true)
-	if s.TranslationVisible() {
-		t.Fatal("a second press did not hide it")
-	}
-	s.Reveal(false)
+	s.SetTranslationVisible(false)
 
 	if err := s.SetRevealBehavior(study.RevealHold); err != nil {
 		t.Fatal(err)

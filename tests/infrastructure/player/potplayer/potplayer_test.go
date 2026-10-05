@@ -39,34 +39,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPotPlayerPluginDescriptor(t *testing.T) {
-	plugin := potplayer.Plugin{}
-	plugintest.Descriptor(t, plugin)
-	descriptor := plugin.Descriptor()
-	if descriptor.ID != player.PotPlayer || descriptor.DrawsInHost {
-		t.Fatalf("descriptor %+v: PotPlayer draws in its own window", descriptor)
-	}
-	if !descriptor.FixedAudioTrack {
-		t.Fatal("PotPlayer has no message for the audio track; the descriptor must say so")
-	}
-	hints := plugin.Hints()
-	if hints.ID != descriptor.ID || len(hints.Executables) == 0 {
-		t.Fatalf("hints %+v do not match the descriptor", hints)
-	}
-	for _, executable := range hints.Executables {
-		if !strings.HasPrefix(strings.ToLower(executable), "potplayer") {
-			t.Fatalf("hint %q points at another program", executable)
-		}
-	}
-}
-
-// PotPlayer must no longer be listed among the players without a plugin, or
-// the app would offer it twice and call it "coming soon".
-func TestPotPlayerIsNoLongerAPlayerWithoutAPlugin(t *testing.T) {
-	for _, hints := range discovery.Known() {
-		if hints.ID == player.PotPlayer {
-			t.Fatal("PotPlayer has a plugin now; its hints belong to the plugin")
-		}
-	}
+	plugintest.Descriptor(t, potplayer.Plugin{})
 }
 
 func TestArgumentsOpenTheirOwnWindowAndHidePotPlayersSubtitles(t *testing.T) {

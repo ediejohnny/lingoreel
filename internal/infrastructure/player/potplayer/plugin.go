@@ -29,6 +29,8 @@ func (Plugin) Descriptor() player.Descriptor {
 			DownloadURL: "https://potplayer.tv/",
 			Benefit:     "Rápido e muito usado no Windows, com boa aceleração por hardware.",
 		},
+		// Embedding another process's window is not safe: PotPlayer keeps
+		// its own, and the subtitles follow it.
 		DrawsInHost: false,
 		// PotPlayer has no message for the audio track: it stays the one
 		// PotPlayer picks, changeable in its own menu.
