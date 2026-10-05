@@ -1,7 +1,6 @@
 package ptbr
 
 import (
-	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -12,12 +11,9 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
-// unavailable ends the tip of a control the player lacks.
-const unavailable = " (indisponível neste player)"
-
 // Speed shows a speed as "1,25×".
 func Speed(speed playback.Speed) string {
-	return strings.Replace(fmt.Sprintf("%.2f×", float64(speed)), ".", ",", 1)
+	return T("speed.value", "value", Number(float64(speed), 2))
 }
 
 // WindowTitle is the player window's title for a video file name.
@@ -57,12 +53,12 @@ func BarTips(char KeyChar) func(controlbar.Item, controlbar.State, shortcut.Map)
 }
 
 // BarTip is a control's tip, with its key when it has one: the key the
-// profile gives the command.
+// profile gives the command. The tip of a control the player lacks says so.
 func BarTip(item controlbar.Item, state controlbar.State, keys shortcut.Map, char KeyChar) string {
 	key := func(command shortcut.Command) string { return ShortcutLabel(keys.Of(command), char) }
 	tip := barTip(item, state, key)
 	if tip != "" && !item.Enabled && item.Action != controlbar.ActionTranslation {
-		tip += unavailable
+		tip = T("bar.tip.unavailable", "tip", tip)
 	}
 	return tip
 }
@@ -80,59 +76,59 @@ func barTip(item controlbar.Item, state controlbar.State, key func(shortcut.Comm
 	switch item.Action {
 	case controlbar.ActionPlayPause:
 		if state.Paused {
-			return with("Reproduzir", shortcut.PlayPause)
+			return with(T("bar.tip.play"), shortcut.PlayPause)
 		}
-		return with("Pausar", shortcut.PlayPause)
+		return with(T("bar.tip.pause"), shortcut.PlayPause)
 	case controlbar.ActionBack:
-		return with(fmt.Sprintf("Voltar %d s", int(-back/time.Second)), shortcut.SeekBack)
+		return with(T("bar.tip.back", "seconds", int(-back/time.Second)), shortcut.SeekBack)
 	case controlbar.ActionForward:
-		return with(fmt.Sprintf("Avançar %d s", int(forward/time.Second)), shortcut.SeekForward)
+		return with(T("bar.tip.forward", "seconds", int(forward/time.Second)), shortcut.SeekForward)
 	case controlbar.ActionMute:
 		if state.Muted {
-			return with("Ativar o som", shortcut.Mute)
+			return with(T("bar.tip.unmute"), shortcut.Mute)
 		}
-		return with("Sem som", shortcut.Mute)
+		return with(T("bar.tip.mute"), shortcut.Mute)
 	case controlbar.ActionVolume:
 		level := state.Volume.Clamp()
 		if state.Muted {
 			level = 0
 		}
-		volume := fmt.Sprintf("Volume: %d%%", int(math.Round(float64(level)*100)))
+		volume := T("bar.tip.volume", "percent", int(math.Round(float64(level)*100)))
 		if keys := strings.TrimSpace(key(shortcut.VolumeUp) + " " + key(shortcut.VolumeDown)); keys != "" {
 			volume += " (" + keys + ")"
 		}
 		return volume
 	case controlbar.ActionTrack:
-		return "Clique ou arraste para ir a outro ponto"
+		return T("bar.tip.track")
 	case controlbar.ActionTranslation:
 		switch {
 		case !state.HasTranslation:
-			return "Nenhuma tradução escolhida"
+			return T("bar.tip.noTranslation")
 		case state.TranslationLocked:
-			return "A tradução fica sempre visível neste modo de estudo"
+			return T("bar.tip.translationLocked")
 		case state.TranslationVisible:
-			return with("Ocultar a tradução", shortcut.Translation)
+			return with(T("bar.tip.hideTranslation"), shortcut.Translation)
 		}
-		return with("Mostrar a tradução", shortcut.Translation)
+		return with(T("bar.tip.showTranslation"), shortcut.Translation)
 	case controlbar.ActionSpeed:
-		return "Velocidade"
+		return T("bar.tip.speed")
 	case controlbar.ActionFullscreen:
 		if state.Fullscreen {
-			return with("Sair da tela cheia", shortcut.ExitFullscreen)
+			return with(T("bar.tip.exitFullscreen"), shortcut.ExitFullscreen)
 		}
-		return with("Tela cheia", shortcut.Fullscreen)
+		return with(T("bar.tip.fullscreen"), shortcut.Fullscreen)
 	case controlbar.ActionFrameBack:
-		return with("Quadro anterior", shortcut.FrameBack)
+		return with(T("bar.tip.frameBack"), shortcut.FrameBack)
 	case controlbar.ActionFrameForward:
-		return with("Próximo quadro", shortcut.FrameForward)
+		return with(T("bar.tip.frameForward"), shortcut.FrameForward)
 	case controlbar.ActionMenu:
 		switch item.Menu {
 		case controlbar.MenuPassage:
-			return "Estudar trecho"
+			return T("bar.menu.passage")
 		case controlbar.MenuKaraoke:
-			return "Modo Karaokê"
+			return T("bar.menu.karaoke")
 		case controlbar.MenuSubtitles:
-			return "Legendas"
+			return T("bar.menu.subtitles")
 		}
 	}
 	return ""
@@ -155,11 +151,11 @@ func BarEntry(entry controlbar.Entry, state controlbar.State, keys shortcut.Map,
 		switch entry.Command {
 		case shortcut.PassageMarkStart:
 			if s.MarkSet {
-				text = "Marcar o início de novo (agora em " + PassageClock(s.MarkStart) + ")"
+				text = T("bar.entry.markStartAgain", "time", PassageClock(s.MarkStart))
 			}
 		case shortcut.PassageMarkEnd:
 			if !s.MarkSet {
-				text = "Marcar o fim e salvar (marque o início antes)"
+				text = T("bar.entry.markEndNoStart")
 			}
 		}
 		return controlbar.EntryText{Text: text, Key: ShortcutLabel(keys.Of(entry.Command), char)}
@@ -170,39 +166,50 @@ func BarEntry(entry controlbar.Entry, state controlbar.State, keys shortcut.Map,
 		saved := s.Saved[entry.Index]
 		text := PassageName(saved.Start, saved.End)
 		if saved.Outside {
-			text += " (fora deste vídeo)"
+			text = T("bar.entry.outside", "name", text)
 		}
 		return controlbar.EntryText{Text: text}
 	case controlbar.EntryLabel:
-		return controlbar.EntryText{Text: map[controlbar.Field]string{
-			controlbar.FieldOptions: "OPÇÕES DO TRECHO", controlbar.FieldSaved: "TRECHOS SALVOS", controlbar.FieldSync: "SINCRONIA",
-		}[entry.Field]}
+		return controlbar.EntryText{Text: labelText(entry.Field)}
 	case controlbar.EntryStepper:
 		return stepperText(entry.Field, s)
 	}
 	return controlbar.EntryText{Text: optionText(entry, state)}
 }
 
+// labelText is the title of a group of entries.
+func labelText(field controlbar.Field) string {
+	switch field {
+	case controlbar.FieldOptions:
+		return T("bar.label.options")
+	case controlbar.FieldSaved:
+		return T("bar.label.saved")
+	case controlbar.FieldSync:
+		return T("bar.label.sync")
+	}
+	return ""
+}
+
 func stepperText(field controlbar.Field, s controlbar.StudyState) controlbar.EntryText {
 	switch field {
 	case controlbar.FieldGap:
-		return controlbar.EntryText{Text: "Intervalo entre as voltas", Value: Seconds(s.Options.Gap)}
+		return controlbar.EntryText{Text: T("bar.stepper.gap"), Value: Seconds(s.Options.Gap)}
 	case controlbar.FieldGoal:
-		value := "sem meta"
+		value := T("bar.stepper.noGoal")
 		if s.Options.Goal > 0 {
-			value = fmt.Sprintf("%d voltas", s.Options.Goal)
+			value = T("bar.stepper.goalValue", "goal", s.Options.Goal)
 		}
-		return controlbar.EntryText{Text: "Meta", Value: value}
+		return controlbar.EntryText{Text: T("bar.stepper.goal"), Value: value}
 	case controlbar.FieldMinGap:
-		return controlbar.EntryText{Text: "Pausa mínima antes da fala", Value: Seconds(s.MinGap)}
+		return controlbar.EntryText{Text: T("bar.stepper.minGap"), Value: Seconds(s.MinGap)}
 	case controlbar.FieldLead:
-		return controlbar.EntryText{Text: "Antecedência da prévia", Value: Seconds(s.Lead)}
+		return controlbar.EntryText{Text: T("bar.stepper.lead"), Value: Seconds(s.Lead)}
 	case controlbar.FieldRepeat:
-		value := "desligado"
+		value := T("bar.stepper.off")
 		if s.Repeat > 0 {
-			value = fmt.Sprintf("%d×", s.Repeat)
+			value = T("bar.stepper.repeatValue", "times", s.Repeat)
 		}
-		return controlbar.EntryText{Text: "Repetir cada fala", Value: value}
+		return controlbar.EntryText{Text: T("bar.stepper.repeat"), Value: value}
 	}
 	return controlbar.EntryText{}
 }
@@ -210,33 +217,33 @@ func stepperText(field controlbar.Field, s controlbar.StudyState) controlbar.Ent
 func optionText(entry controlbar.Entry, state controlbar.State) string {
 	switch entry.Field {
 	case controlbar.FieldSnap:
-		return "Ajustar às falas"
+		return T("bar.option.snap")
 	case controlbar.FieldLoop:
-		return "Repetir sem parar"
+		return T("bar.option.loop")
 	case controlbar.FieldProgressive:
-		return "Velocidade progressiva"
+		return T("bar.option.progressive")
 	case controlbar.FieldLadder:
-		return "Escada de legendas"
+		return T("bar.option.ladder")
 	case controlbar.FieldKaraoke:
-		return "Ligar o Modo Karaokê"
+		return T("bar.option.karaoke")
 	case controlbar.FieldIndicator:
 		if entry.Value == "countdown" {
-			return "Contagem regressiva"
+			return T("bar.option.countdown")
 		}
-		return "Barra até a fala"
+		return T("bar.option.bar")
 	case controlbar.FieldFill:
-		return "Pintar a fala enquanto é dita"
+		return T("bar.option.fill")
 	case controlbar.FieldMode:
-		return "Modo: " + ModeName(study.Mode(entry.Value))
+		return T("bar.option.mode", "mode", ModeName(study.Mode(entry.Value)))
 	case controlbar.FieldTranslation:
-		return "Mostrar a tradução"
+		return T("bar.option.translation")
 	case controlbar.FieldResetSync:
-		return "Zerar a sincronia das duas legendas"
+		return T("bar.option.resetSync")
 	case controlbar.FieldEdit:
 		if entry.Value == "translation" {
-			return "Corrigir a legenda de baixo…"
+			return T("bar.option.editTranslation")
 		}
-		return "Corrigir a legenda de cima…"
+		return T("bar.option.editPrimary")
 	}
 	return ""
 }
@@ -247,22 +254,23 @@ func BarStatus(s controlbar.StudyState) string {
 	span := func() string { return PassageClock(s.Passage.Start) + "–" + PassageClock(s.Passage.End) }
 	switch {
 	case s.Active && s.Suspended:
-		return "Trecho " + span() + " · fora do intervalo"
+		return T("bar.status.suspended", "span", span())
 	case s.Active && s.AtEnd:
-		return "Trecho " + span() + " · fim: Reproduzir repete"
+		return T("bar.status.atEnd", "span", span())
 	case s.Active && s.Goal > 0:
-		return fmt.Sprintf("Trecho %s · volta %d de %d", span(), s.Lap, s.Goal)
+		return T("bar.status.lapOfGoal", "span", span(), "lap", s.Lap, "goal", s.Goal)
 	case s.Active:
-		return fmt.Sprintf("Trecho %s · volta %d", span(), s.Lap)
+		return T("bar.status.lap", "span", span(), "lap", s.Lap)
 	case s.MarkSet:
-		return "Início do trecho: " + PassageClock(s.MarkStart)
+		return T("bar.status.marked", "time", PassageClock(s.MarkStart))
 	}
 	return ""
 }
 
 // The box that corrects a line over the video: the hint under it, and what
-// is told when Enter would leave the line empty.
-const (
-	EditHint  = "Enter salva · Esc cancela · Shift+Enter quebra a linha"
-	EditEmpty = "A legenda não pode ficar vazia. Escreva algo ou use Esc para cancelar."
+// is told when Enter would leave the line empty. Use words them again in
+// the interface's language.
+var (
+	EditHint  = T("edit.hint")
+	EditEmpty = T("edit.empty")
 )

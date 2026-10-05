@@ -5,6 +5,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // Preferences are the settings the window needs at start.
@@ -25,7 +26,7 @@ func (a *API) SetTheme(theme string) error {
 	switch settings.Theme(theme) {
 	case settings.ThemeSystem, settings.ThemeLight, settings.ThemeDark:
 	default:
-		return errors.New("Tema desconhecido.")
+		return errors.New(ptbr.T("error.unknownTheme"))
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()

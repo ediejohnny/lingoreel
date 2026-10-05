@@ -50,15 +50,15 @@ const (
 )
 
 var (
-	errNoPassageToSave  = errors.New("Comece a estudar um trecho antes de salvá-lo.")
-	errPassageName      = errors.New("Dê um nome ao trecho, com até 80 letras.")
-	errTooManySaved     = errors.New("Já há trechos salvos demais neste vídeo. Exclua algum antes.")
-	errUnknownPassage   = errors.New("Trecho salvo não encontrado.")
-	errDuplicatePassage = errors.New("Já existe um trecho com esse nome.")
-	errPassageOutside   = errors.New("Este trecho começa depois do fim do vídeo. Exclua-o ou salve-o de novo.")
-	errNotKept          = errors.New("Não foi possível gravar no arquivo de correções deste vídeo.")
-	errResetWatching    = errors.New("Encerre o vídeo antes de esquecer o que foi guardado dele.")
-	errResetFailed      = errors.New("Não foi possível apagar o arquivo de correções deste vídeo. Confira se ele está aberto em outro programa.")
+	errNoPassageToSave  = worded(func() string { return ptbr.T("error.passage.noneToSave") })
+	errPassageName      = worded(func() string { return ptbr.T("error.passage.name") })
+	errTooManySaved     = worded(func() string { return ptbr.T("error.passage.tooMany") })
+	errUnknownPassage   = worded(func() string { return ptbr.T("error.passage.unknown") })
+	errDuplicatePassage = worded(func() string { return ptbr.T("error.passage.duplicate") })
+	errPassageOutside   = worded(func() string { return ptbr.T("error.passage.outside") })
+	errNotKept          = worded(func() string { return ptbr.T("error.project.notSaved") })
+	errResetWatching    = worded(func() string { return ptbr.T("error.project.resetWhileWatching") })
+	errResetFailed      = worded(func() string { return ptbr.T("error.project.resetFailed") })
 )
 
 // loadProject reads the project of a video just analyzed; a file the app
@@ -75,11 +75,11 @@ func (a *API) loadProject(video string, info media.Info) *videoProject {
 	switch {
 	case errors.Is(err, project.ErrNewerVersion):
 		p.readOnly = true
-		p.note = "As correções deste vídeo foram gravadas por uma versão mais nova do LingoReel. Elas não serão alteradas."
+		p.note = ptbr.T("project.newerVersion")
 	case err != nil:
 		a.logger.Warn("the video's project could not be read", "video", video, "error", err)
 		p.readOnly = true
-		p.note = "O arquivo de correções deste vídeo não pôde ser lido. O que você mudar agora não será gravado."
+		p.note = ptbr.T("project.unreadable")
 	default:
 		p.value = loaded
 	}

@@ -9,15 +9,16 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 var (
-	errProfileExists   = errors.New("Já existe um perfil com esse nome.")
-	errProfileMissing  = errors.New("Esse perfil não existe mais.")
-	errLastProfile     = errors.New("É preciso manter pelo menos um perfil.")
-	errBadProfileName  = errors.New("Dê ao perfil um nome de até 60 letras, sem espaços no começo ou no fim.")
-	errBadPlayerPath   = errors.New("Escolha o programa do player: um arquivo .exe.")
-	errSwitchWhileOpen = errors.New("Encerre o vídeo antes de trocar de perfil.")
+	errProfileExists   = worded(func() string { return ptbr.T("error.profile.exists") })
+	errProfileMissing  = worded(func() string { return ptbr.T("error.profile.missing") })
+	errLastProfile     = worded(func() string { return ptbr.T("error.profile.last") })
+	errBadProfileName  = worded(func() string { return ptbr.T("error.profile.name") })
+	errBadPlayerPath   = worded(func() string { return ptbr.T("error.player.path") })
+	errSwitchWhileOpen = worded(func() string { return ptbr.T("error.profile.switchWhileWatching") })
 )
 
 // profileError words a domain error of the profile changes.
@@ -210,7 +211,7 @@ func (a *API) ChoosePlayerProgram(id string) (string, error) {
 	if ui == nil {
 		return "", ErrNotReady
 	}
-	path, err := ui.OpenProgramDialog("Onde está o " + a.playerName(player.ID(id)) + "?")
+	path, err := ui.OpenProgramDialog(ptbr.T("dialog.playerProgram", "player", a.playerName(player.ID(id))))
 	if err != nil || path == "" {
 		return "", err
 	}

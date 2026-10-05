@@ -18,11 +18,9 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
-// Sample lines of the preview.
-const (
-	previewPrimary     = "This is a preview."
-	previewTranslation = "Esta é uma prévia."
-)
+// previewPrimary is the preview's sample line on top, in the language
+// studied; the one below is in the interface's.
+const previewPrimary = "This is a preview."
 
 // baseDPI is the display scaling of 100%.
 const baseDPI = 96
@@ -35,9 +33,9 @@ const (
 )
 
 var (
-	errNoPreview  = errors.New("A prévia não está disponível.")
-	errBadPreview = errors.New("Não foi possível desenhar a prévia.")
-	errNoFolder   = errors.New("Não foi possível abrir a pasta.")
+	errNoPreview  = worded(func() string { return ptbr.T("error.preview.unavailable") })
+	errBadPreview = worded(func() string { return ptbr.T("error.preview.failed") })
+	errNoFolder   = worded(func() string { return ptbr.T("error.folder") })
 )
 
 // previewLanguages are the languages offered for the preferences, in order.
@@ -118,13 +116,13 @@ func modeOptions() []Option {
 func presetName(preset appearance.Preset) string {
 	switch preset {
 	case appearance.PresetClassic:
-		return "Clássico"
+		return ptbr.T("preset.classic")
 	case appearance.PresetFilm:
-		return "Filme"
+		return ptbr.T("preset.film")
 	case appearance.PresetHighContrast:
-		return "Alto contraste"
+		return ptbr.T("preset.highContrast")
 	case appearance.PresetMinimal:
-		return "Minimalista"
+		return ptbr.T("preset.minimal")
 	}
 	return string(preset)
 }
@@ -136,7 +134,7 @@ func (a *API) SaveProfile(view ProfileSettings) error {
 	current := a.profile()
 	if !strings.EqualFold(view.Name, current.Name) {
 		a.mu.Unlock()
-		return errors.New("O perfil mudou enquanto você editava. Abra as configurações de novo.")
+		return errors.New(ptbr.T("error.profile.changed"))
 	}
 	profile, err := profileFrom(current, view, a.deps.KeyChar)
 	if err != nil {
@@ -161,12 +159,12 @@ func (a *API) SaveProfile(view ProfileSettings) error {
 func (a *API) commitProfiles(next settings.Profiles) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused profiles", "error", err)
-		return errors.New("Não foi possível salvar o perfil.")
+		return errors.New(ptbr.T("error.profile.notSaved"))
 	}
 	if a.deps.Settings != nil {
 		if err := a.deps.Settings.SaveProfiles(next); err != nil {
 			a.logger.Warn("profiles could not be saved", "error", err)
-			return errors.New("Não foi possível salvar o perfil.")
+			return errors.New(ptbr.T("error.profile.notSaved"))
 		}
 	}
 	a.profiles = next
@@ -178,12 +176,12 @@ func (a *API) commitProfiles(next settings.Profiles) error {
 func (a *API) commitConfig(next settings.Config) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused settings", "error", err)
-		return errors.New("Não foi possível salvar as configurações.")
+		return errors.New(ptbr.T("error.settings.notSaved"))
 	}
 	if a.deps.Settings != nil {
 		if err := a.deps.Settings.SaveConfig(next); err != nil {
 			a.logger.Warn("settings could not be saved", "error", err)
-			return errors.New("Não foi possível salvar as configurações.")
+			return errors.New(ptbr.T("error.settings.notSaved"))
 		}
 	}
 	a.config = next
@@ -249,13 +247,13 @@ func (a *API) SetSyncNotice(show bool) error {
 // ApplyPreset returns a style with a preset's colors and effects; font,
 // size and placement stay.
 func (a *API) ApplyPreset(view StyleSettings, preset string) (StyleSettings, error) {
-	style, err := styleFrom(view, "Legenda")
+	style, err := styleFrom(view, ptbr.T("line.any"))
 	if err != nil {
 		return view, err
 	}
 	styled, err := appearance.Preset(preset).Apply(style)
 	if err != nil {
-		return view, errors.New("Estilo desconhecido.")
+		return view, errors.New(ptbr.T("error.unknownPreset"))
 	}
 	return styleView(styled), nil
 }
@@ -275,11 +273,11 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if a.deps.Preview == nil {
 		return "", errNoPreview
 	}
-	primary, err := styleFrom(request.Primary, "Legenda de cima")
+	primary, err := styleFrom(request.Primary, ptbr.T("line.primary"))
 	if err != nil {
 		return "", err
 	}
-	translation, err := styleFrom(request.Translation, "Legenda de baixo")
+	translation, err := styleFrom(request.Translation, ptbr.T("line.translation"))
 	if err != nil {
 		return "", err
 	}
@@ -288,9 +286,9 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		MarginTop: request.Layout.MarginTop, MarginBottom: request.Layout.MarginBottom, MaxWidth: request.Layout.MaxWidth,
 	}
 	if err := layout.Validate(); err != nil {
-		return "", refuse("Margens: %s.", fieldProblem(err))
+		return "", refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))
 	}
-	screen := session.Screen{Primary: previewPrimary, Translation: previewTranslation, TranslationVisible: true}
+	screen := session.Screen{Primary: previewPrimary, Translation: ptbr.T("preview.translation"), TranslationVisible: true}
 	if request.Highlight != "" {
 		line, err := lineOf(request.Highlight)
 		if err != nil {
@@ -304,11 +302,11 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	case previewViewFill:
 		fill, err := appearance.ParseColor(request.FillColor)
 		if err != nil {
-			return "", refuse("Modo Karaokê: a cor do preenchimento não é válida.")
+			return "", refuse(ptbr.T("error.karaoke.fillColor"))
 		}
 		look.FillColor, screen.Fill = fill, previewSpoken
 	default:
-		return "", errors.New("Prévia desconhecida.")
+		return "", errors.New(ptbr.T("error.preview.unknown"))
 	}
 	scale := request.Scale
 	if !(scale >= 0.5 && scale <= 5) {

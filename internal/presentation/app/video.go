@@ -2,7 +2,6 @@ package app
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"math"
 	"path/filepath"
@@ -21,7 +20,7 @@ import (
 const minNoteOffset = 0.001
 
 // errBusy refuses a video opened while another one plays.
-var errBusy = errors.New("Um vídeo está tocando. Encerre-o (botão Encerrar) para abrir outro.")
+var errBusy = worded(func() string { return ptbr.T("error.video.busy") })
 
 // ChooseVideo asks for a video file; an empty path means the user cancelled.
 func (a *API) ChooseVideo() (string, error) {
@@ -34,7 +33,7 @@ func (a *API) ChooseVideo() (string, error) {
 	path, err := ui.OpenVideoDialog()
 	if err != nil {
 		a.logger.Warn("file dialog failed", "error", err)
-		return "", errors.New("Não foi possível abrir a janela de escolha de arquivo.")
+		return "", errors.New(ptbr.T("error.video.dialog"))
 	}
 	return path, nil
 }
@@ -50,7 +49,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		return Video{}, errBusy
 	}
 	if !analysis.IsSupported(path) {
-		return Video{}, fmt.Errorf("O LingoReel não abre arquivos %s. Use um vídeo .mkv, .mp4, .avi, .mov ou .wmv.", extensionOf(path))
+		return Video{}, errors.New(ptbr.T("error.video.unsupported", "extension", extensionOf(path)))
 	}
 	a.mu.Lock()
 	languages := a.profile().Languages
@@ -64,9 +63,9 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	if err != nil {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
 		if errors.Is(err, fs.ErrNotExist) {
-			return Video{}, fmt.Errorf("O arquivo %s não foi encontrado. Ele pode ter sido movido, renomeado ou apagado.", filepath.Base(path))
+			return Video{}, errors.New(ptbr.T("error.video.notFound", "name", filepath.Base(path)))
 		}
-		return Video{}, fmt.Errorf("O arquivo %s não parece um vídeo que o LingoReel consiga ler: pode estar corrompido ou incompleto.", filepath.Base(path))
+		return Video{}, errors.New(ptbr.T("error.video.unreadable", "name", filepath.Base(path)))
 	}
 	a.logger.Info("video opened", "name", filepath.Base(path), "duration", result.Info.Duration.Round(time.Second),
 		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
@@ -113,18 +112,20 @@ func languageNote(info media.Info, suggested media.Selection, preferences media.
 	if suggested.Translation == 0 && preferences.Translation != "" {
 		missing = append(missing, ptbr.LanguageName(preferences.Translation))
 	}
-	if len(missing) == 0 {
+	switch len(missing) {
+	case 0:
 		return ""
+	case 1:
+		return ptbr.T("video.missingLanguage", "language", missing[0])
 	}
-	return "Não há legenda em " + strings.Join(missing, " nem em ") +
-		" neste vídeo. Escolha outra abaixo, ou coloque um arquivo .srt na pasta do vídeo e abra-o de novo."
+	return ptbr.T("video.missingLanguages", "first", missing[0], "second", missing[1])
 }
 
 func extensionOf(path string) string {
 	if extension := strings.ToLower(filepath.Ext(path)); extension != "" {
 		return extension
 	}
-	return "sem extensão"
+	return ptbr.T("video.noExtension")
 }
 
 func audioTrack(track media.Track) Track {
@@ -136,7 +137,7 @@ func audioTrack(track media.Track) Track {
 		parts = append(parts, track.Name)
 	}
 	if track.Default {
-		parts = append(parts, "padrão")
+		parts = append(parts, ptbr.T("track.default"))
 	}
 	return Track{Number: track.Number, Label: strings.Join(parts, " · "), Language: string(track.Language), Readable: true}
 }
@@ -148,13 +149,13 @@ func subtitleTrack(track media.Track) Track {
 	}
 	var flags []string
 	if track.Forced {
-		flags = append(flags, "forçada")
+		flags = append(flags, ptbr.T("track.forced"))
 	}
 	if track.HearingImpaired {
-		flags = append(flags, "para surdos")
+		flags = append(flags, ptbr.T("track.hearingImpaired"))
 	}
 	if track.External() {
-		flags = append(flags, "arquivo")
+		flags = append(flags, ptbr.T("track.external"))
 	}
 	if len(flags) > 0 {
 		label += " (" + strings.Join(flags, ", ") + ")"
@@ -167,22 +168,22 @@ func subtitleTrack(track media.Track) Track {
 // subtitleNote explains what the app found about a subtitle track.
 func subtitleNote(track media.Track) (string, bool) {
 	if !track.Readable {
-		return "Não dá para usar: legenda em imagem ou num formato que o LingoReel não lê.", true
+		return ptbr.T("track.note.unreadable"), true
 	}
 	alignment := track.Alignment
 	switch alignment.Verdict {
 	case subtitle.VerdictMatch:
 		if math.Abs(alignment.Offset.Seconds()) >= minNoteOffset || math.Abs(alignment.Rate-1) >= 1e-6 {
-			return "O tempo foi ajustado sozinho para casar com o vídeo (" + ptbr.Offset(subtitle.Offset(alignment.Offset)) + ").", false
+			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(alignment.Offset))), false
 		}
-		return "O tempo casa com o vídeo.", false
+		return ptbr.T("track.note.match"), false
 	case subtitle.VerdictOtherCut:
-		return "Parece ser de outra versão do filme (estendida ou Director's Cut): sai de sincronia a cada cena.", true
+		return ptbr.T("track.note.otherCut"), true
 	case subtitle.VerdictNoMatch:
-		return "O tempo não casa com este vídeo: pode ser de outro filme ou de outra versão.", true
+		return ptbr.T("track.note.noMatch"), true
 	}
 	if track.Candidate {
-		return "Encontrada numa subpasta; não deu para conferir se é deste vídeo.", true
+		return ptbr.T("track.note.candidate"), true
 	}
 	return "", false
 }

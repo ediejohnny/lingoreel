@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
 // videoPatterns are the videos the file dialog offers.
@@ -25,25 +27,25 @@ func (w wailsUI) Emit(event string, data any) {
 
 func (w wailsUI) OpenVideoDialog() (string, error) {
 	return runtime.OpenFileDialog(w.ctx, runtime.OpenDialogOptions{
-		Title:   "Abrir vídeo",
-		Filters: []runtime.FileFilter{{DisplayName: "Vídeos", Pattern: videoPatterns}},
+		Title:   ptbr.T("dialog.openVideo"),
+		Filters: []runtime.FileFilter{{DisplayName: ptbr.T("dialog.videos"), Pattern: videoPatterns}},
 	})
 }
 
 func (w wailsUI) OpenProgramDialog(title string) (string, error) {
 	return runtime.OpenFileDialog(w.ctx, runtime.OpenDialogOptions{
 		Title:   title,
-		Filters: []runtime.FileFilter{{DisplayName: "Programas", Pattern: "*.exe"}},
+		Filters: []runtime.FileFilter{{DisplayName: ptbr.T("dialog.programs"), Pattern: "*.exe"}},
 	})
 }
 
 func (w wailsUI) SaveSubtitleDialog(name string) (string, error) {
 	return runtime.SaveFileDialog(w.ctx, runtime.SaveDialogOptions{
-		Title:           "Exportar legenda",
+		Title:           ptbr.T("dialog.exportSubtitle"),
 		DefaultFilename: name,
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Legenda SubRip (*.srt)", Pattern: "*.srt"},
-			{DisplayName: "Legenda Advanced SubStation (*.ass)", Pattern: "*.ass"},
+			{DisplayName: ptbr.T("dialog.srtFiles"), Pattern: "*.srt"},
+			{DisplayName: ptbr.T("dialog.assFiles"), Pattern: "*.ass"},
 		},
 	})
 }

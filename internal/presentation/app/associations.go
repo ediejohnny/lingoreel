@@ -1,10 +1,10 @@
 package app
 
-import "errors"
+import "github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 
 var (
-	errNoAssociations = errors.New("Este computador não permite associar vídeos ao LingoReel.")
-	errAssociation    = errors.New("Não foi possível mudar como o Windows abre os vídeos.")
+	errNoAssociations = worded(func() string { return ptbr.T("error.association.unavailable") })
+	errAssociation    = worded(func() string { return ptbr.T("error.association.failed") })
 )
 
 // FileAssociation tells whether Windows offers the app for videos.
