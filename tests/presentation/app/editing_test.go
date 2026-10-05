@@ -137,15 +137,12 @@ func TestExportWritesWhatTheUserSees(t *testing.T) {
 	}
 	dir := t.TempDir()
 
-	// A name that is not a subtitle never writes over it: the video stays.
-	r.ui.savePath = filepath.Join(dir, "Movie.mkv")
+	// The format by the name is the writer's; here, what the user sees goes out.
+	r.ui.savePath = filepath.Join(dir, "Movie.srt")
 	if err := r.api.ExportSubtitle("primary"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "Movie.mkv")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("the export wrote the .mkv name: %v", err)
-	}
-	srt, err := os.ReadFile(filepath.Join(dir, "Movie.mkv.srt"))
+	srt, err := os.ReadFile(r.ui.savePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,17 +153,13 @@ func TestExportWritesWhatTheUserSees(t *testing.T) {
 		t.Fatalf("the dialog suggested %q", got)
 	}
 
-	// .ass in any case writes Advanced SubStation; the bottom line is its own.
-	r.ui.savePath = filepath.Join(dir, "Filme.ASS")
+	// The bottom line is its own.
+	r.ui.savePath = filepath.Join(dir, "Filme.srt")
 	if err := r.api.ExportSubtitle("translation"); err != nil {
 		t.Fatal(err)
 	}
-	ass, err := os.ReadFile(r.ui.savePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Contains(ass, []byte("Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,Hi.")) {
-		t.Fatalf("exported ASS = %q", ass)
+	if body, err := os.ReadFile(r.ui.savePath); err != nil || !bytes.Contains(body, []byte("Hi.")) {
+		t.Fatalf("exported translation = %q, %v", body, err)
 	}
 
 	// Cancelled, nothing is written; a folder that is not there is reported.

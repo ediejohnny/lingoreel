@@ -21,6 +21,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
@@ -128,6 +129,10 @@ type Deps struct {
 	// the file explorer.
 	SettingsDir string
 	OpenFolder  func(path string) error
+	// WriteSubtitle writes an exported subtitle to the file the user picked,
+	// in the format its name asks for, and returns the path written; nil
+	// exports nothing.
+	WriteSubtitle func(path string, events []subtitle.Event) (string, error)
 	// Projects keeps each video's project; nil keeps nothing between runs.
 	// SaveDelay is how long after a change the waiting saves happen (the
 	// offsets, the position, the speed); zero is 2 s. Later runs them after

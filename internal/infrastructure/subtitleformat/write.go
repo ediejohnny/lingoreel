@@ -2,15 +2,45 @@ package subtitleformat
 
 import (
 	"bufio"
+	"bytes"
 	"cmp"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
+
+// exportMode is an exported file's permission, as any program saves the
+// user's files.
+const exportMode = 0o644
+
+// WriteFile writes the events to a file the user picked: Advanced
+// SubStation for a name ending in .ass, in any case, else SubRip. A name
+// that is not a subtitle's gets ".srt" added, so a video picked by mistake
+// is never written over. It returns the path written.
+func WriteFile(path string, events []subtitle.Event) (string, error) {
+	write := WriteSRT
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ass":
+		write = WriteASS
+	case ".srt":
+	default:
+		path += ".srt"
+	}
+	var body bytes.Buffer
+	if err := write(&body, events); err != nil {
+		return path, fmt.Errorf("writing %s: %w", filepath.Base(path), err)
+	}
+	if err := os.WriteFile(path, body.Bytes(), exportMode); err != nil {
+		return path, fmt.Errorf("saving the subtitle: %w", err)
+	}
+	return path, nil
+}
 
 // The exported files start with utf8BOM: older Windows players need it to
 // read accents as UTF-8.

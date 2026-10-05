@@ -3,7 +3,6 @@ package app
 import (
 	"errors"
 	"io/fs"
-	"math"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,9 +13,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
-
-// minNoteOffset is the least automatic correction worth telling the user.
-const minNoteOffset = 0.001
 
 // errBusy refuses a video opened while another one plays.
 var errBusy = worded(func() string { return ptbr.T("error.video.busy") })
@@ -169,11 +165,10 @@ func subtitleNote(track media.Track) (string, bool) {
 	if !track.Readable {
 		return ptbr.T("track.note.unreadable"), true
 	}
-	alignment := track.Alignment
-	switch alignment.Verdict {
+	switch track.Alignment.Verdict {
 	case subtitle.VerdictMatch:
-		if math.Abs(alignment.Offset.Seconds()) >= minNoteOffset || math.Abs(alignment.Rate-1) >= 1e-6 {
-			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(alignment.Offset))), false
+		if correction, moved := analysis.Correction(track); moved {
+			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(correction.Offset))), false
 		}
 		return ptbr.T("track.note.match"), false
 	case subtitle.VerdictOtherCut:

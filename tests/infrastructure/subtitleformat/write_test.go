@@ -2,6 +2,8 @@ package subtitleformat_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,40 @@ func exportSample() []subtitle.Event {
 		{ID: "2", Start: at(0, 10, 41, 0), End: at(0, 10, 43, 500), OriginalText: "Isso está doente!\nQue coração ♥"},
 		{ID: "4", Start: at(0, 20, 0, 0), End: at(0, 20, 0, 0), OriginalText: "No time at all."},
 		{ID: "5", Start: at(0, 30, 0, 0), End: at(0, 30, 1, 0), OriginalText: " \n "},
+	}
+}
+
+// A file the user picked gets the format its name asks for, whatever the
+// case; a name that is not a subtitle's gets ".srt" added, so a video picked
+// by mistake is never written over; a folder that is not there is an error.
+func TestWriteFileTakesTheFormatOfTheName(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Movie.mkv")
+	if err := os.WriteFile(video, []byte("video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, written string
+		header        []byte
+	}{
+		{"Movie.mkv", "Movie.mkv.srt", []byte("\uFEFF1\r\n")},
+		{"Filme.ASS", "Filme.ASS", []byte("\uFEFF[Script Info]")},
+		{"Filme.srt", "Filme.srt", []byte("\uFEFF1\r\n")},
+	} {
+		written, err := subtitleformat.WriteFile(filepath.Join(dir, c.name), exportSample())
+		if err != nil || written != filepath.Join(dir, c.written) {
+			t.Fatalf("WriteFile(%s) = %s, %v; want %s", c.name, written, err, c.written)
+		}
+		if body, err := os.ReadFile(written); err != nil || !bytes.HasPrefix(body, c.header) {
+			t.Errorf("%s starts with %q (%v), want %q", c.written, body[:min(len(body), 16)], err, c.header)
+		}
+	}
+	if body, err := os.ReadFile(video); err != nil || string(body) != "video" {
+		t.Fatalf("the video was written over: %q %v", body, err)
+	}
+	if _, err := subtitleformat.WriteFile(filepath.Join(dir, "missing", "x.srt"), exportSample()); err == nil {
+		t.Fatal("a folder that is not there was written to")
 	}
 }
 

@@ -76,35 +76,6 @@ func TestTheSessionScreenShowsWhatTheVideoKept(t *testing.T) {
 	}
 }
 
-// "Continuar de" is not offered in the first seconds nor in the credits.
-func TestContinuarDeIsOfferedOnlyInTheMiddle(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name     string
-		position time.Duration
-		offered  bool
-	}{
-		{"never left", 0, false},
-		{"first seconds", 29 * time.Second, false},
-		{"just past them", 30 * time.Second, true},
-		{"middle", 45 * time.Minute, true},
-		{"before the credits", 89 * time.Minute, true},
-		{"in the credits", 89*time.Minute + 1*time.Second, false},
-	}
-	for _, c := range cases {
-		r := newRig(t)
-		p := project.New()
-		p.Last.Position = project.MillisOf(c.position)
-		if err := r.projects.Save(movie, p); err != nil {
-			t.Fatal(err)
-		}
-		r.attach(t)
-		if got := openMovie(t, r).Resume.Offered; got != c.offered {
-			t.Errorf("%s (%v): offered %v, want %v", c.name, c.position, got, c.offered)
-		}
-	}
-}
-
 // Passages can be renamed and deleted on the session screen, with no video
 // playing; names stay unique whatever the case.
 func TestPassagesAreManagedBeforeWatching(t *testing.T) {

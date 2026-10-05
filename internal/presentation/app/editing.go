@@ -1,9 +1,7 @@
 package app
 
 import (
-	"bytes"
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -11,7 +9,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
-	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
@@ -122,9 +119,8 @@ func (a *API) RedoEdit() error {
 }
 
 // ExportSubtitle writes a line's subtitle ("primary" or "translation") as
-// the user sees it, corrections and offset in, to a file the user picks:
-// .ass for Advanced SubStation, otherwise SubRip. The video is never
-// written: any other extension gets ".srt" added.
+// the user sees it, corrections and offset in, to a file the user picks, in
+// the format its name asks for (Deps.WriteSubtitle).
 func (a *API) ExportSubtitle(line string) error {
 	which, err := lineOf(line)
 	if err != nil {
@@ -153,21 +149,11 @@ func (a *API) ExportSubtitle(line string) error {
 	if path == "" {
 		return nil // cancelled
 	}
-	var body bytes.Buffer
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".ass":
-		err = subtitleformat.WriteASS(&body, events)
-	case ".srt":
-		err = subtitleformat.WriteSRT(&body, events)
-	default:
-		path += ".srt"
-		err = subtitleformat.WriteSRT(&body, events)
+	if a.deps.WriteSubtitle == nil {
+		return errExport
 	}
-	if err == nil {
-		err = os.WriteFile(path, body.Bytes(), 0o644)
-	}
-	if err != nil {
-		a.logger.Warn("export failed", "path", path, "error", err)
+	if written, err := a.deps.WriteSubtitle(path, events); err != nil {
+		a.logger.Warn("export failed", "path", written, "error", err)
 		return errExport
 	}
 	return nil

@@ -87,6 +87,24 @@ type Last struct {
 	Karaoke  *Karaoke `json:"karaoke,omitempty"`
 }
 
+// resumeLead and resumeTail bound where going on with the video is offered:
+// not in its first seconds, not in its credits.
+const (
+	resumeLead = 30 * time.Second
+	resumeTail = 60 * time.Second
+)
+
+// ResumeAt is where to offer going on with a video of the given duration
+// (zero when unknown): where it was left, past its first seconds and before
+// its credits; false offers nothing.
+func (l Last) ResumeAt(duration time.Duration) (time.Duration, bool) {
+	position := l.Position.Duration()
+	if position < resumeLead || (duration > 0 && position > duration-resumeTail) {
+		return 0, false
+	}
+	return position, true
+}
+
 // Karaoke is the Modo Karaokê as last used on the video: on or off, its
 // timing, the indicator, the fill and the repeats. The colors stay with the
 // profile, which owns the look.
@@ -202,6 +220,13 @@ func (p Passage) Practice() study.PracticePlan {
 		return study.PracticePlan{Mode: study.EndPause}
 	}
 	return p.Plan.Practice()
+}
+
+// Outside tells the passage starts at or past the end of a video of the
+// given duration (zero when unknown), or leaves less than a lap of it: a
+// passage saved on another cut of the film.
+func (p Passage) Outside(duration time.Duration) bool {
+	return duration > 0 && p.Start.Duration() > duration-study.MinSegment
 }
 
 // IndexOf finds a passage by name, whatever the case and the spaces around

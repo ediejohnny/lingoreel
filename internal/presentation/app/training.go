@@ -122,7 +122,7 @@ func (a *API) StudySavedPassage(name string) error {
 	switch {
 	case i < 0:
 		return errUnknownPassage
-	case outside(passage, current.duration):
+	case passage.Outside(current.duration):
 		return errPassageOutside
 	}
 	if err := current.session.StudySaved(passage.Segment(), passage.Practice()); err != nil {
