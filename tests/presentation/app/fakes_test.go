@@ -225,6 +225,8 @@ type fakeUI struct {
 	choose string
 	// subtitle is what the subtitle file dialog answers.
 	subtitle string
+	// copied are the texts put on the clipboard.
+	copied []string
 	// program is what the program dialog answers.
 	program string
 	// savePath is what the save dialog answers; suggested keeps what it
@@ -278,6 +280,13 @@ func (u *fakeUI) SaveSubtitleDialog(suggested string) (string, error) {
 	defer u.mu.Unlock()
 	u.suggested = append(u.suggested, suggested)
 	return u.savePath, nil
+}
+
+func (u *fakeUI) CopyText(text string) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.copied = append(u.copied, text)
+	return nil
 }
 
 func (u *fakeUI) OpenURL(url string) {

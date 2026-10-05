@@ -68,6 +68,7 @@ const events = {
   install: "player:install",
   fullscreen: "window:fullscreen",
   panel: "panel:open",
+  video: "video:changed",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -162,4 +163,5 @@ export const backend = {
   onInstall: (listener: (progress: InstallProgress) => void) => EventsOn(events.install, listener),
   onFullscreen: (listener: (on: boolean) => void) => EventsOn(events.fullscreen, listener),
   onPanel: (listener: (request: PanelRequest) => void) => EventsOn(events.panel, listener),
+  onVideo: (listener: (video: Video) => void) => EventsOn(events.video, listener),
 };

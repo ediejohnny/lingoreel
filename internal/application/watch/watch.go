@@ -131,6 +131,15 @@ type Remote interface {
 	// OpenEditor pauses, picks the line on screen and brings the app's
 	// panel, where the editor is, to the front.
 	OpenEditor(line session.Line) error
+
+	// What the menu over the video shows besides: the lines on screen (the
+	// one under a click is copied), each line's offset, what can be undone,
+	// and the tracks to switch between.
+	Shown() session.Visible
+	Offset(line session.Line) subtitle.Offset
+	CanUndo() bool
+	CanRedo() bool
+	Tracks() Tracks
 }
 
 // Window is the app's own window a player draws its video into. It shows

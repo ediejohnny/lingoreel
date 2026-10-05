@@ -52,6 +52,8 @@ type UI interface {
 	// name; empty when cancelled.
 	SaveSubtitleDialog(name string) (string, error)
 	OpenURL(url string)
+	// CopyText puts a text on the clipboard.
+	CopyText(text string) error
 	// SetTitle names the window: the video playing, or the app.
 	SetTitle(title string)
 	// Quit closes the app.

@@ -45,6 +45,18 @@ type StageOptions struct {
 	// OnFullscreen is told each time the video goes fullscreen or leaves
 	// it, whatever asked for it: a key, the bar, two clicks or the app.
 	OnFullscreen func(on bool)
+	// App returns what does the menu over the video asks of the app, asked
+	// each time a window opens on the stage (the app may come after the
+	// stage). Nil leaves those items out.
+	App func() AppActions
+}
+
+// appOf is what a stage's windows ask of the app; none without a stage.
+func appOf(stage *Stage) AppActions {
+	if stage == nil || stage.options.App == nil {
+		return nil
+	}
+	return stage.options.App()
 }
 
 // StageLayout is where the video goes inside the app's window.

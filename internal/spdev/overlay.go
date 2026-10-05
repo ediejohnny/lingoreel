@@ -21,5 +21,5 @@ var openOverlay = overlay.Opener(defaultLook, stderrLogger())
 // openPlayerWindow opens the app's player window, as the app does, for the
 // players that draw into it.
 var openPlayerWindow = playerwindow.Opener(defaultLook, playerwindow.Labels{
-	Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
+	Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(keyboard.Char),
 }, ptbr.WindowTitle, stderrLogger())

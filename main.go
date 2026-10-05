@@ -119,6 +119,7 @@ func run() error {
 			return uintptr(hwnd)
 		},
 		OnFullscreen: func(on bool) { lifecycle.FullscreenChanged(on) },
+		App:          func() playerwindow.AppActions { return lifecycle },
 	})
 	deps := app.Deps{
 		Service: service, Registry: registry,
@@ -130,7 +131,7 @@ func run() error {
 			OpenWindow: stage.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
 				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
-				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty,
+				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty, Menu: ptbr.MenuTexts(keyboard.Char),
 			}, ptbr.WindowTitle, logger),
 			WindowHearsKeys: true,
 			OpenDisplay:     overlay.Opener(look, logger),

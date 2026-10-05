@@ -57,6 +57,7 @@ const (
 	WM_LBUTTONDOWN    = 0x0201
 	WM_LBUTTONUP      = 0x0202
 	WM_LBUTTONDBLCLK  = 0x0203
+	WM_RBUTTONDOWN    = 0x0204
 	WM_RBUTTONUP      = 0x0205
 	WM_CONTEXTMENU    = 0x007B
 	WM_PARENTNOTIFY   = 0x0210
@@ -111,6 +112,8 @@ const (
 	VK_F      = 0x46
 	VK_M      = 0x4D
 	VK_F4     = 0x73
+	// VK_APPS is the menu key, which opens a context menu.
+	VK_APPS = 0x5D
 
 	tmeLeave   = 0x00000002
 	idcArrow   = 32512

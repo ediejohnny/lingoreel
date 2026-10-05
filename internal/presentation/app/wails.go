@@ -64,6 +64,10 @@ func (w wailsUI) OpenURL(url string) {
 	runtime.BrowserOpenURL(w.ctx, url)
 }
 
+func (w wailsUI) CopyText(text string) error {
+	return runtime.ClipboardSetText(w.ctx, text)
+}
+
 func (w wailsUI) SetTitle(title string) {
 	runtime.WindowSetTitle(w.ctx, title)
 }

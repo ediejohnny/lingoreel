@@ -115,26 +115,47 @@ func pick(r watch.Remote, field controlbar.Field, value string) error {
 // step moves a stepper's value one step, kept inside its limits.
 func step(r watch.Remote, field controlbar.Field, delta int) error {
 	duration, count := controlbar.Step(field)
-	by := time.Duration(delta) * duration
+	by, plus := time.Duration(delta)*duration, delta*count
+	switch field {
+	case controlbar.FieldGap:
+		plan, _ := r.PassageOptions()
+		return set(r, field, plan.Gap+by, 0)
+	case controlbar.FieldGoal:
+		plan, _ := r.PassageOptions()
+		return set(r, field, 0, plan.Goal+plus)
+	case controlbar.FieldMinGap:
+		return set(r, field, r.Karaoke().Rules.MinGap+by, 0)
+	case controlbar.FieldLead:
+		return set(r, field, r.Karaoke().Rules.Lead+by, 0)
+	case controlbar.FieldRepeat:
+		return set(r, field, 0, r.LineRepeats()+plus)
+	}
+	return nil
+}
+
+// set gives a field a value, kept inside its limits: a time (the pause
+// between laps, the Modo Karaokê's times) or a count (the goal, repeats).
+// The bar's steppers and the menu's ready-made values both go through it.
+func set(r watch.Remote, field controlbar.Field, duration time.Duration, count int) error {
 	switch field {
 	case controlbar.FieldGap, controlbar.FieldGoal:
 		plan, snap := r.PassageOptions()
 		if field == controlbar.FieldGap {
-			plan.Gap = min(max(plan.Gap+by, 0), study.MaxLoopGap)
+			plan.Gap = min(max(duration, 0), study.MaxLoopGap)
 		} else {
-			plan.Goal = min(max(plan.Goal+delta*count, 0), study.MaxGoal)
+			plan.Goal = min(max(count, 0), study.MaxGoal)
 		}
 		return r.SetPassageOptions(withMode(plan), snap)
 	case controlbar.FieldMinGap, controlbar.FieldLead:
 		karaoke := r.Karaoke()
 		if field == controlbar.FieldMinGap {
-			karaoke.Rules.MinGap = min(max(karaoke.Rules.MinGap+by, study.MinCueGap), study.MaxCueGap)
+			karaoke.Rules.MinGap = min(max(duration, study.MinCueGap), study.MaxCueGap)
 		} else {
-			karaoke.Rules.Lead = min(max(karaoke.Rules.Lead+by, study.MinCueLead), study.MaxCueLead)
+			karaoke.Rules.Lead = min(max(duration, study.MinCueLead), study.MaxCueLead)
 		}
 		return r.SetKaraokeSettings(karaoke)
 	case controlbar.FieldRepeat:
-		return r.SetLineRepeats(min(max(r.LineRepeats()+delta*count, 0), study.MaxRepeats))
+		return r.SetLineRepeats(min(max(count, 0), study.MaxRepeats))
 	}
 	return nil
 }

@@ -99,6 +99,8 @@ export function App() {
       setResumable(ended.resume);
     });
     const offFullscreen = backend.onFullscreen(setFullscreen);
+    // A subtitle file added from the menu over the video: the session screen lists it afterwards.
+    const offVideo = backend.onVideo(setVideo);
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
       if (request.section === "settings") {
@@ -121,6 +123,7 @@ export function App() {
       offPlayback();
       offEnded();
       offFullscreen();
+      offVideo();
       offPanel();
       offInstall();
     };

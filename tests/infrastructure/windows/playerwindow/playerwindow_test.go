@@ -104,6 +104,10 @@ type fakeRemote struct {
 	indicator study.Indicator
 	repeats   int
 	changes   []string
+	// visible are the lines on screen and tracks the tracks, for the
+	// context menu.
+	visible session.Visible
+	tracks  watch.Tracks
 }
 
 func newRemote(p *recordingPlayer) *fakeRemote {
@@ -194,6 +198,21 @@ func (r *fakeRemote) revealed() []bool {
 	return slices.Clone(r.reveals)
 }
 
+// What the context menu reads besides the bar's state.
+func (r *fakeRemote) Shown() session.Visible {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.visible
+}
+func (r *fakeRemote) Offset(session.Line) subtitle.Offset { return 0 }
+func (r *fakeRemote) CanUndo() bool                       { return false }
+func (r *fakeRemote) CanRedo() bool                       { return false }
+func (r *fakeRemote) Tracks() watch.Tracks {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.tracks
+}
+
 var _ watch.Remote = (*fakeRemote)(nil)
 
 func open(t *testing.T) *playerwindow.Window {
@@ -202,6 +221,8 @@ func open(t *testing.T) *playerwindow.Window {
 		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime},
 		NoActivate: true,
+		// No menu ever shows on screen in the tests.
+		Choose: func(uintptr, int32, int32) uint32 { return 0 },
 	})
 	if err != nil {
 		t.Fatalf("Open: %v", err)

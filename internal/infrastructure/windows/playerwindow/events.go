@@ -84,10 +84,17 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		}
 		w.pick(win32.PointOf(lparam))
 		return 0
+	case win32.WM_RBUTTONDOWN:
+		// On a stage the right button also hands this window the keys, as the
+		// left one does: the menu it opens is then driven from the keyboard.
+		if w.options.Stage != nil && !w.options.NoActivate {
+			win32.SetFocus(hwnd)
+		}
 	case win32.WM_CONTEXTMENU:
-		// Taken here: left to Windows, it climbs to the parent by a message that
-		// waits for it, and on a stage the parent is the app's window, on
-		// another thread this window never waits for.
+		// Always taken here: left to Windows, it climbs to the parent by a
+		// message that waits for it, and on a stage the parent is the app's
+		// window, on another thread this window never waits for.
+		w.openContextMenu(win32.PointOf(lparam))
 		return 0
 	case win32.WM_LBUTTONDBLCLK:
 		// On a line of the paused video, the box that corrects it; anywhere
@@ -101,6 +108,11 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		// window: Windows itself would close only this child of it.
 		if message == win32.WM_SYSKEYDOWN && wparam == win32.VK_F4 && lparam&altContext != 0 && w.options.Stage != nil {
 			_ = win32.PostMessage(w.parent, win32.WM_SYSCOMMAND, win32.SC_CLOSE, 0)
+			return 0
+		}
+		// The menu key opens the menu over the video, at its center.
+		if wparam == win32.VK_APPS {
+			w.openContextMenu(keyboardPoint)
 			return 0
 		}
 		// Unknown keys and Alt combinations go on: Alt+F4 must still close.
@@ -161,6 +173,10 @@ func dispatchBar(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uint
 	case win32.WM_CAPTURECHANGED:
 		w.drag = controlbar.ActionNone
 		w.refreshBar()
+		return 0
+	case win32.WM_CONTEXTMENU:
+		// The same menu as over the video.
+		w.openContextMenu(win32.PointOf(lparam))
 		return 0
 	}
 	return win32.DefWindowProc(hwnd, message, wparam, lparam)
@@ -364,8 +380,16 @@ func (w *Window) keyDown(lparam uintptr) bool {
 		w.pointer(w.cursorInZone())
 		return true
 	}
-	command, found := w.shortcuts().Find(keyboard.ChordOf(key, keyboard.HeldModifiers()))
+	chord := keyboard.ChordOf(key, keyboard.HeldModifiers())
+	command, found := w.shortcuts().Find(chord)
 	if !found {
+		// Shift+F10 opens the menu, as in every Windows program, unless the
+		// profile gave it to a command. Its release, F10's, is always taken
+		// (keyUp), so Windows would never open the menu by itself.
+		if chord == (shortcut.Chord{Modifiers: shortcut.Shift, Key: shortcut.KeyF10}) {
+			w.openContextMenu(keyboardPoint)
+			return true
+		}
 		return false
 	}
 	repeat := keyboard.Repeated(lparam)
