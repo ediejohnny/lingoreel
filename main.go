@@ -45,6 +45,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/i18n"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
@@ -96,6 +97,12 @@ func run() error {
 		return err
 	}
 	files := settingsfile.Open(dir)
+	// The interface speaks its language from the first text on; a
+	// configuration that does not load is reported by the app later.
+	config, _ := files.LoadConfig()
+	if catalog := interfaceCatalog(config.Language, logger); catalog != nil {
+		ptbr.Use(catalog)
+	}
 	look := func() overlay.Look { return watch.LookOf(activeProfile(files)) }
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	// started is the window's context, for a second launch and the player
@@ -259,6 +266,23 @@ func openFolder(path string) error {
 }
 
 // activeProfile is the profile the user studies with, or the default one.
+// interfaceCatalog is the catalog of the interface's language: the one
+// configured, else the Windows display language, each when the app speaks
+// it, else Brazilian Portuguese.
+func interfaceCatalog(configured string, logger *slog.Logger) *i18n.Catalog {
+	var system string
+	if languages, err := sys.GetUserPreferredUILanguages(sys.MUI_LANGUAGE_NAME); err == nil && len(languages) > 0 {
+		system = languages[0]
+	}
+	catalog, err := i18n.Load(i18n.Choose(configured, system))
+	if err != nil {
+		logger.Warn("the interface's catalog did not load", "error", err)
+		return nil
+	}
+	logger.Info("interface language", "language", catalog.Tag(), "windows", system)
+	return catalog
+}
+
 func activeProfile(files *settingsfile.Files) settings.Profile {
 	config, configErr := files.LoadConfig()
 	profiles, profilesErr := files.LoadProfiles()

@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import type { ReactNode } from "react";
+import { t } from "../i18n";
 import { nextTheme, themeLabel, type Theme } from "../stores/theme";
 import { IconButton } from "./ui/Button";
 
@@ -22,7 +23,7 @@ export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHea
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
       {leading}
       <div className="flex min-w-0 flex-1 items-baseline gap-3">
-        <span className="font-semibold text-fg">LingoReel</span>
+        <span className="font-semibold text-fg">{t("ui.app.name")}</span>
         {subtitle && <span className="truncate text-sm text-fg-muted">{subtitle}</span>}
       </div>
       <div className="flex items-center gap-2">
@@ -34,7 +35,7 @@ export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHea
         )}
         <IconButton
           icon={themeIcons[theme]}
-          label={`${themeLabel(theme)}. Mudar para ${themeLabel(next).toLowerCase()}`}
+          label={t("ui.app.theme", { current: themeLabel(theme), next: themeLabel(next).toLowerCase() })}
           onClick={() => onTheme(next)}
         />
       </div>

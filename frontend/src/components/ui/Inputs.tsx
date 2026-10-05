@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
+import { t } from "../../i18n";
 import { clampNumber, joinColor, splitColor } from "../../settings";
 
 interface NumberFieldProps {
@@ -107,7 +108,7 @@ export function ColorField({ label, value, onChange, alpha = false, help, disabl
         <span className="font-mono text-xs text-fg-muted">{hex}</span>
         {alpha && (
           <label className="flex flex-1 items-center gap-2 text-xs text-fg-muted">
-            Opacidade
+            {t("ui.field.opacity")}
             <input
               type="range"
               min={0}

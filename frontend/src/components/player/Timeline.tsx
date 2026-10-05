@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { progress } from "../../format";
+import { t } from "../../i18n";
 
 interface TimelineProps {
   position: number;
@@ -29,7 +30,7 @@ export function Timeline({ position, duration, positionText, durationText, disab
       <span className="w-16 text-right text-sm text-fg-secondary tabular-nums">{positionText}</span>
       <input
         type="range"
-        aria-label="Posição do vídeo"
+        aria-label={t("ui.timeline.position")}
         aria-valuetext={positionText}
         min={0}
         max={Math.max(duration, 0)}

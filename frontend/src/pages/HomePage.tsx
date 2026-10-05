@@ -1,6 +1,7 @@
 import { Clapperboard, FolderOpen } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
+import { t } from "../i18n";
 
 interface HomePageProps {
   loading: boolean;
@@ -20,21 +21,19 @@ export function HomePage({ loading, error, onChoose, onDismissError }: HomePageP
           </span>
           {loading ? (
             <div role="status" className="flex flex-col gap-1">
-              <p className="text-lg font-semibold text-fg">Lendo o vídeo e as legendas…</p>
-              <p className="text-sm text-fg-muted">Em filmes longos isso leva alguns segundos.</p>
+              <p className="text-lg font-semibold text-fg">{t("ui.home.loading")}</p>
+              <p className="text-sm text-fg-muted">{t("ui.home.loadingNote")}</p>
             </div>
           ) : (
             <>
               <div className="flex flex-col gap-1">
-                <p className="text-lg font-semibold text-fg">Arraste um vídeo para cá</p>
-                <p className="text-sm text-fg-muted">ou escolha o arquivo no computador.</p>
+                <p className="text-lg font-semibold text-fg">{t("ui.home.drop")}</p>
+                <p className="text-sm text-fg-muted">{t("ui.home.orChoose")}</p>
               </div>
               <Button variant="primary" size="lg" icon={FolderOpen} onClick={onChoose}>
-                Abrir vídeo
+                {t("ui.home.open")}
               </Button>
-              <p className="text-xs text-fg-muted">
-                Funciona melhor com .mkv. Também abre .mp4, .avi, .mov e .wmv com legendas em arquivo.
-              </p>
+              <p className="text-xs text-fg-muted">{t("ui.home.formats")}</p>
             </>
           )}
         </div>

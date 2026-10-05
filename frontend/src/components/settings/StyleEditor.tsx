@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { SettingsOptions, StyleSettings } from "../../services/backend";
 import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
@@ -24,11 +25,8 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1">
-          <span className="text-sm font-medium text-fg">Estilo pronto</span>
-          <HelpTip topic="Estilo pronto">
-            Troca as cores, o contorno, a sombra e o fundo de uma vez. A fonte, o tamanho e a posição continuam como estão; depois você pode
-            ajustar cada detalhe.
-          </HelpTip>
+          <span className="text-sm font-medium text-fg">{t("ui.settings.style.preset.label")}</span>
+          <HelpTip topic={t("ui.settings.style.preset.topic")}>{t("ui.settings.style.preset.help")}</HelpTip>
         </div>
         <div className="flex flex-wrap gap-2">
           {options.presets.map((preset) => (
@@ -45,15 +43,15 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
       </div>
 
       <fieldset className="grid gap-4 @lg:grid-cols-2">
-        <legend className="mb-2 text-sm font-semibold text-fg-secondary">Texto</legend>
+        <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.text")}</legend>
         <Select
-          label="Fonte"
+          label={t("ui.settings.style.font")}
           value={style.fontFamily}
           options={fonts.map((font) => ({ value: font, label: font }))}
           onChange={set("fontFamily")}
         />
         <NumberField
-          label="Tamanho"
+          label={t("ui.settings.style.size")}
           value={style.fontSize}
           min={limits.fontSizeMin}
           max={limits.fontSizeMax}
@@ -62,35 +60,45 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           onChange={set("fontSize")}
         />
         <Segmented
-          label="Tamanho da fonte"
+          label={t("ui.settings.style.sizeMode.label")}
           value={style.responsive ? "responsive" : "fixed"}
           options={[
-            { value: "responsive", label: "Acompanha o vídeo" },
-            { value: "fixed", label: "Fixo" },
+            { value: "responsive", label: t("ui.settings.style.sizeMode.responsive") },
+            { value: "fixed", label: t("ui.settings.style.sizeMode.fixed") },
           ]}
           onChange={(value) => set("responsive")(value === "responsive")}
-          help={
-            <HelpTip topic="Tamanho da fonte">
-              “Acompanha o vídeo”: o tamanho vale para um vídeo de 1080 linhas e cresce ou diminui com a janela. “Fixo”: o texto fica do
-              mesmo tamanho, qualquer que seja a janela.
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.settings.style.sizeMode.topic")}>{t("ui.settings.style.sizeMode.help")}</HelpTip>}
         />
         <div className="flex items-end gap-6 pb-2">
-          <Toggle label="Negrito" checked={style.bold} onChange={set("bold")} />
-          <Toggle label="Itálico" checked={style.italic} onChange={set("italic")} />
+          <Toggle label={t("ui.settings.style.bold")} checked={style.bold} onChange={set("bold")} />
+          <Toggle label={t("ui.settings.style.italic")} checked={style.italic} onChange={set("italic")} />
         </div>
-        <ColorField label="Cor" value={style.color} onChange={set("color")} />
-        <NumberField label="Opacidade" value={style.opacity} min={0} max={1} step={0.05} scale={100} unit="%" onChange={set("opacity")} />
+        <ColorField label={t("ui.settings.style.color")} value={style.color} onChange={set("color")} />
+        <NumberField
+          label={t("ui.settings.style.opacity")}
+          value={style.opacity}
+          min={0}
+          max={1}
+          step={0.05}
+          scale={100}
+          unit="%"
+          onChange={set("opacity")}
+        />
       </fieldset>
 
       <fieldset className="grid gap-4 @lg:grid-cols-2">
-        <legend className="mb-2 text-sm font-semibold text-fg-secondary">Contorno e sombra</legend>
-        <Toggle label="Contorno" checked={style.outline} onChange={set("outline")} />
+        <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.outlineShadow")}</legend>
+        <Toggle label={t("ui.settings.style.outline")} checked={style.outline} onChange={set("outline")} />
         <span />
-        <ColorField label="Cor do contorno" value={style.outlineColor} alpha disabled={!style.outline} onChange={set("outlineColor")} />
+        <ColorField
+          label={t("ui.settings.style.outlineColor")}
+          value={style.outlineColor}
+          alpha
+          disabled={!style.outline}
+          onChange={set("outlineColor")}
+        />
         <NumberField
-          label="Espessura"
+          label={t("ui.settings.style.outlineWidth")}
           value={style.outlineWidth}
           min={0}
           max={limits.outlineMax}
@@ -99,11 +107,17 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           disabled={!style.outline}
           onChange={set("outlineWidth")}
         />
-        <Toggle label="Sombra" checked={style.shadow} onChange={set("shadow")} />
+        <Toggle label={t("ui.settings.style.shadow")} checked={style.shadow} onChange={set("shadow")} />
         <span />
-        <ColorField label="Cor da sombra" value={style.shadowColor} alpha disabled={!style.shadow} onChange={set("shadowColor")} />
+        <ColorField
+          label={t("ui.settings.style.shadowColor")}
+          value={style.shadowColor}
+          alpha
+          disabled={!style.shadow}
+          onChange={set("shadowColor")}
+        />
         <NumberField
-          label="Desfoque"
+          label={t("ui.settings.style.shadowBlur")}
           value={style.shadowBlur}
           min={0}
           max={limits.shadowBlurMax}
@@ -113,7 +127,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           onChange={set("shadowBlur")}
         />
         <NumberField
-          label="Deslocamento horizontal"
+          label={t("ui.settings.style.shadowX")}
           value={style.shadowX}
           min={-limits.shadowOffsetMax}
           max={limits.shadowOffsetMax}
@@ -123,7 +137,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           onChange={set("shadowX")}
         />
         <NumberField
-          label="Deslocamento vertical"
+          label={t("ui.settings.style.shadowY")}
           value={style.shadowY}
           min={-limits.shadowOffsetMax}
           max={limits.shadowOffsetMax}
@@ -135,23 +149,23 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
       </fieldset>
 
       <fieldset className="grid gap-4 @lg:grid-cols-2">
-        <legend className="mb-2 text-sm font-semibold text-fg-secondary">Fundo</legend>
+        <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.background.title")}</legend>
         <Toggle
-          label="Fundo atrás do texto"
+          label={t("ui.settings.style.background.label")}
           checked={style.background}
           onChange={set("background")}
-          help={<HelpTip topic="Fundo">Uma caixa semitransparente atrás da legenda, que ajuda a ler sobre cenas claras.</HelpTip>}
+          help={<HelpTip topic={t("ui.settings.style.background.topic")}>{t("ui.settings.style.background.help")}</HelpTip>}
         />
         <span />
         <ColorField
-          label="Cor do fundo"
+          label={t("ui.settings.style.background.color")}
           value={style.backgroundColor}
           alpha
           disabled={!style.background}
           onChange={set("backgroundColor")}
         />
         <NumberField
-          label="Margem do fundo"
+          label={t("ui.settings.style.background.margin")}
           value={style.backgroundMargin}
           min={0}
           max={limits.paddingMax}
@@ -163,9 +177,9 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
       </fieldset>
 
       <fieldset className="grid gap-4 @lg:grid-cols-2">
-        <legend className="mb-2 text-sm font-semibold text-fg-secondary">Posição</legend>
+        <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.position.title")}</legend>
         <NumberField
-          label="Altura da base"
+          label={t("ui.settings.style.position.base")}
           value={style.position}
           min={0.01}
           max={1}
@@ -173,14 +187,10 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           scale={100}
           unit="%"
           onChange={set("position")}
-          help={
-            <HelpTip topic="Altura da base">
-              Onde fica a parte de baixo da legenda, contada do alto do vídeo: 82% é perto do pé da imagem.
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.settings.style.position.topic")}>{t("ui.settings.style.position.help")}</HelpTip>}
         />
         <NumberField
-          label="Máximo de linhas"
+          label={t("ui.settings.style.position.lines")}
           value={style.maxLines}
           min={limits.linesMin}
           max={limits.linesMax}
@@ -188,12 +198,12 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           onChange={set("maxLines")}
         />
         <Segmented
-          label="Alinhamento"
+          label={t("ui.settings.style.position.align")}
           value={style.alignment}
           options={[
-            { value: "left", label: "Esquerda" },
-            { value: "center", label: "Centro" },
-            { value: "right", label: "Direita" },
+            { value: "left", label: t("ui.settings.style.position.left") },
+            { value: "center", label: t("ui.settings.style.position.center") },
+            { value: "right", label: t("ui.settings.style.position.right") },
           ]}
           onChange={set("alignment")}
         />

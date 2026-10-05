@@ -12,6 +12,7 @@ import { backend, messageOf, type PanelState, type Playback, type Players, type 
 import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
+import { t, setLanguage } from "./i18n";
 
 type Screen = "home" | "session" | "playing" | "settings";
 
@@ -67,6 +68,7 @@ export function App() {
     backend
       .preferences()
       .then((preferences) => {
+        setLanguage(preferences.language);
         setTheme(asTheme(preferences.theme));
         setSpeeds(preferences.speeds);
         setPanel(preferences.panel);
@@ -209,19 +211,23 @@ export function App() {
   // meanwhile goes back to its screen.
   const closeSettings = () => setScreen(returnTo === "playing" && !state ? "session" : returnTo);
   const back = embedded ? (
-    <IconButton icon={ArrowLeft} label="Encerrar o vídeo" onClick={() => command(backend.stop)} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.stopVideo")} onClick={() => command(backend.stop)} />
   ) : screen === "settings" ? (
-    <IconButton icon={ArrowLeft} label="Voltar" onClick={closeSettings} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.back")} onClick={closeSettings} />
   ) : screen === "session" ? (
-    <IconButton icon={ArrowLeft} label="Abrir outro vídeo" onClick={() => setScreen("home")} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.openAnother")} onClick={() => setScreen("home")} />
   ) : undefined;
   const subtitle =
-    screen === "settings" ? "Configurações" : video && screen !== "home" ? `${video.name} · ${durationLabel(video.duration)}` : undefined;
+    screen === "settings"
+      ? t("ui.app.settings")
+      : video && screen !== "home"
+        ? `${video.name} · ${durationLabel(video.duration)}`
+        : undefined;
   const openSettings = embedded ? (
     <>
       <IconButton
         icon={Settings}
-        label="Configurações"
+        label={t("ui.app.settings")}
         onClick={() => {
           setPanelTab("settings");
           keepPanel({ ...panel, open: true });
@@ -229,7 +235,7 @@ export function App() {
       />
       <IconButton
         icon={PanelRight}
-        label={panel.open ? "Fechar o painel" : "Abrir o painel"}
+        label={panel.open ? t("ui.app.panel.close") : t("ui.app.panel.open")}
         active={panel.open}
         onClick={() => keepPanel({ ...panel, open: !panel.open })}
       />
@@ -237,7 +243,7 @@ export function App() {
   ) : screen === "settings" ? undefined : (
     <IconButton
       icon={Settings}
-      label="Configurações"
+      label={t("ui.app.settings")}
       onClick={() => {
         setReturnTo(screen);
         setScreen("settings");

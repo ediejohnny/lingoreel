@@ -94,6 +94,8 @@ export function SetKaraoke(arg1:boolean):Promise<void>;
 
 export function SetKaraokeIndicator(arg1:string):Promise<void>;
 
+export function SetLanguage(arg1:string):Promise<void>;
+
 export function SetLineRepeats(arg1:number):Promise<void>;
 
 export function SetPanel(arg1:app.PanelState):Promise<void>;

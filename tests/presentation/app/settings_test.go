@@ -541,3 +541,29 @@ func TestOpenSettingsFolder(t *testing.T) {
 		t.Fatalf("opened %v", r.ui.urls)
 	}
 }
+
+// The interface's language: the app lists the ones it speaks, keeps the
+// one chosen for the next start, or none for Windows', and refuses one it
+// does not speak.
+func TestTheInterfaceLanguage(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	view := settingsOf(t, r)
+	if view.General.Language != "" || len(view.General.Languages) == 0 || view.General.Languages[0].Value != "pt-BR" ||
+		view.General.Languages[0].Label != "Português (Brasil)" {
+		t.Fatalf("languages = %q / %+v", view.General.Language, view.General.Languages)
+	}
+	if got := r.api.Preferences().Language; got != "pt-BR" {
+		t.Fatalf("the interface speaks %q", got)
+	}
+	if err := r.api.SetLanguage("pt-BR"); err != nil || r.settings.config.Language != "pt-BR" {
+		t.Fatalf("SetLanguage(pt-BR) = %v, kept %q", err, r.settings.config.Language)
+	}
+	if err := r.api.SetLanguage("xx"); err == nil || r.settings.config.Language != "pt-BR" {
+		t.Fatalf("SetLanguage(xx) = %v, kept %q", err, r.settings.config.Language)
+	}
+	if err := r.api.SetLanguage(""); err != nil || r.settings.config.Language != "" {
+		t.Fatalf("SetLanguage(\"\") = %v, kept %q", err, r.settings.config.Language)
+	}
+}

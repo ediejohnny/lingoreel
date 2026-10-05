@@ -1,5 +1,6 @@
 import { ClipboardCopy, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { t } from "../../i18n";
 import { backend, messageOf, type Diagnostics } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
@@ -27,18 +28,13 @@ export function DiagnosticsCard() {
       return;
     }
     const copied = await backend.copyText(diagnostics.text).catch(() => false);
-    setStatus(copied ? "Diagnóstico copiado. Cole-o na sua mensagem de suporte." : "Não foi possível copiar. Selecione o texto e copie.");
+    setStatus(copied ? t("ui.settings.diagnostics.copied") : t("ui.settings.diagnostics.copyFailed"));
   };
 
   return (
     <Card
-      title="Diagnóstico"
-      aside={
-        <HelpTip topic="diagnóstico">
-          O estado do app, do computador e do vídeo aberto, para relatar um problema. Não tem o texto das legendas, e nada é enviado: você
-          copia e cola onde quiser.
-        </HelpTip>
-      }
+      title={t("ui.settings.diagnostics.title")}
+      aside={<HelpTip topic={t("ui.settings.diagnostics.topic")}>{t("ui.settings.diagnostics.help")}</HelpTip>}
     >
       {diagnostics && (
         <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-control border border-line bg-surface-sunken p-3 text-xs select-text">
@@ -52,10 +48,10 @@ export function DiagnosticsCard() {
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button icon={ClipboardCopy} disabled={!diagnostics} onClick={() => void copy()}>
-          Copiar diagnóstico
+          {t("ui.settings.diagnostics.copy")}
         </Button>
         <Button icon={RefreshCw} variant="ghost" onClick={refresh}>
-          Atualizar
+          {t("ui.settings.diagnostics.refresh")}
         </Button>
         {status && (
           <span role="status" className="text-sm text-fg-secondary">

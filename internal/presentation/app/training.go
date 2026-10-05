@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	errBadTime     = errors.New("Use horas, minutos e segundos, como 1:10:23 ou 10:23.")
-	errBadPassage  = errors.New("O trecho precisa ter pelo menos 1 segundo e terminar depois de começar, dentro do vídeo.")
-	errBadPlan     = errors.New("Confira o intervalo (0 a 5 s) e a meta de repetições (0 a 99).")
-	errNoLineYet   = errors.New("Nenhuma fala apareceu ainda.")
-	errNoPassage   = errors.New("Nenhum trecho está sendo estudado.")
-	errBadRepeat   = errors.New("Escolha de 0 a 10 repetições.")
-	errBadSettings = errors.New("Não foi possível guardar a escolha.")
+	errBadTime     = worded(func() string { return ptbr.T("error.passage.time") })
+	errBadPassage  = worded(func() string { return ptbr.T("error.passage.invalid") })
+	errBadPlan     = worded(func() string { return ptbr.T("error.passage.plan") })
+	errNoLineYet   = worded(func() string { return ptbr.T("error.passage.noLineYet") })
+	errNoPassage   = worded(func() string { return ptbr.T("error.passage.notStudying") })
+	errBadRepeat   = worded(func() string { return ptbr.T("error.karaoke.lineRepeats") })
+	errBadSettings = worded(func() string { return ptbr.T("error.choiceNotSaved") })
 )
 
 // SetKaraoke turns the Modo Karaokê on or off; the choice is kept in the
@@ -95,7 +95,7 @@ func (a *API) StudyPassage(request PassageRequest) error {
 			return errBadPassage
 		}
 		a.logger.Warn("the passage did not start", "error", err)
-		return errors.New("O player não respondeu ao comando.")
+		return errors.New(ptbr.T("error.noResponse"))
 	}
 	a.emit(EventPlayback, a.describe(current))
 	return nil
@@ -130,7 +130,7 @@ func (a *API) StudySavedPassage(name string) error {
 			return errBadPassage
 		}
 		a.logger.Warn("the saved passage did not start", "error", err)
-		return errors.New("O player não respondeu ao comando.")
+		return errors.New(ptbr.T("error.noResponse"))
 	}
 	a.emit(EventPlayback, a.describe(current))
 	return nil

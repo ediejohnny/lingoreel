@@ -1,4 +1,5 @@
 import { Minus, Plus, RotateCcw } from "lucide-react";
+import { t } from "../../i18n";
 import { IconButton } from "../ui/Button";
 
 interface SyncRowProps {
@@ -20,12 +21,12 @@ export function SyncRow({ name, offset, shortcut, onEarlier, onLater, onReset }:
         <p className="text-xs text-fg-muted">{shortcut}</p>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <IconButton icon={Minus} label={`${name}: mais cedo`} onClick={onEarlier} />
+        <IconButton icon={Minus} label={t("ui.sync.earlier", { name })} onClick={onEarlier} />
         <span className="w-20 text-center text-sm text-fg tabular-nums" aria-live="polite">
           {offset}
         </span>
-        <IconButton icon={Plus} label={`${name}: mais tarde`} onClick={onLater} />
-        <IconButton icon={RotateCcw} label={`${name}: voltar ao tempo do arquivo`} onClick={onReset} />
+        <IconButton icon={Plus} label={t("ui.sync.later", { name })} onClick={onLater} />
+        <IconButton icon={RotateCcw} label={t("ui.sync.reset", { name })} onClick={onReset} />
       </div>
     </div>
   );

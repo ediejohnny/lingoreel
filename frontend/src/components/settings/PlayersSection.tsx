@@ -1,4 +1,5 @@
 import { FolderOpen, RefreshCw, RotateCcw } from "lucide-react";
+import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
@@ -13,30 +14,21 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
 
   return (
     <>
-      <Card title="Player preferido">
+      <Card title={t("ui.settings.players.preferred.title")}>
         <Select
-          label="Abrir os vídeos com"
+          label={t("ui.settings.players.preferred.label")}
           value={draft.preferredPlayer}
           options={[
-            { value: "", label: "Automático (o melhor instalado)" },
+            { value: "", label: t("ui.settings.players.preferred.auto") },
             ...supported.map((item) => ({ value: item.id, label: item.name })),
           ]}
           onChange={(id) => change(setDraft, "preferredPlayer")(id)}
-          help={
-            <HelpTip topic="Player preferido">
-              O player que este perfil usa sempre que estiver instalado. Em “Automático”, o app escolhe o melhor que encontrar no
-              computador.
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.settings.players.preferred.topic")}>{t("ui.settings.players.preferred.help")}</HelpTip>}
         />
       </Card>
       <Card
-        title="Onde estão os players"
-        aside={
-          <HelpTip topic="Onde estão os players">
-            O app procura os players nos lugares de costume. Se o seu estiver em outra pasta, escolha o programa dele (o arquivo .exe).
-          </HelpTip>
-        }
+        title={t("ui.settings.players.where.title")}
+        aside={<HelpTip topic={t("ui.settings.players.where.topic")}>{t("ui.settings.players.where.help")}</HelpTip>}
       >
         <ul className="flex flex-col divide-y divide-line">
           {supported.map((item) => (
@@ -44,19 +36,23 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg">{item.name}</p>
                 <p className="truncate text-xs text-fg-muted" title={item.path}>
-                  {item.path ? `${item.custom ? "Escolhido por você" : "Encontrado"}: ${item.path}` : "Não encontrado neste computador"}
+                  {item.path
+                    ? item.custom
+                      ? t("ui.settings.players.custom", { path: item.path })
+                      : t("ui.settings.players.found", { path: item.path })
+                    : t("ui.settings.players.notFound")}
                 </p>
               </div>
               <Button icon={FolderOpen} onClick={() => void run(() => backend.choosePlayerProgram(item.id))}>
-                Escolher programa…
+                {t("ui.settings.players.choose")}
               </Button>
               {item.custom && (
                 <Button
                   icon={RotateCcw}
                   variant="ghost"
-                  onClick={() => void run(() => backend.clearPlayerPath(item.id), "O app volta a procurar o player sozinho.")}
+                  onClick={() => void run(() => backend.clearPlayerPath(item.id), t("ui.settings.players.searchAgain"))}
                 >
-                  Procurar sozinho
+                  {t("ui.settings.players.search")}
                 </Button>
               )}
             </li>
@@ -65,21 +61,21 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
             <li key={item.id} className="flex items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg">{item.name}</p>
-                <p className="text-xs text-fg-muted">Encontrado · suporte em breve</p>
+                <p className="text-xs text-fg-muted">{t("ui.settings.players.soon")}</p>
               </div>
             </li>
           ))}
         </ul>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={RefreshCw} onClick={() => void run(() => backend.players(), "Players detectados de novo.")}>
-            Detectar novamente
+          <Button icon={RefreshCw} onClick={() => void run(() => backend.players(), t("ui.settings.players.detected"))}>
+            {t("ui.settings.players.detect")}
           </Button>
           {view.general.recommendationsHidden && (
             <Button
               variant="ghost"
-              onClick={() => void run(() => backend.showRecommendations(), "As recomendações de instalação voltam a aparecer.")}
+              onClick={() => void run(() => backend.showRecommendations(), t("ui.settings.players.recommendationsBack"))}
             >
-              Mostrar recomendações de instalação novamente
+              {t("ui.settings.players.showRecommendations")}
             </Button>
           )}
         </div>

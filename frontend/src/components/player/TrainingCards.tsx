@@ -1,6 +1,7 @@
 import { BookOpenCheck, Bookmark, Flag, LogOut, RotateCcw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { passageClock } from "../../format";
+import { t } from "../../i18n";
 import { withKey } from "../../keys";
 import { backend } from "../../services/backend";
 import type { Playback } from "../../services/backend";
@@ -8,6 +9,7 @@ import { Button } from "../ui/Button";
 import { Toggle, TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
+import { Rich } from "../ui/Rich";
 import { Select } from "../ui/Select";
 import { SavedPassages } from "./SavedPassages";
 
@@ -18,14 +20,23 @@ interface TrainingCardsProps {
   onCommand: (command: () => Promise<void>) => void;
 }
 
-const repeatOptions = Array.from({ length: 11 }, (_, times) => ({
-  value: String(times),
-  label: times === 0 ? "Desligado" : times === 1 ? "1 vez" : `${times} vezes`,
-}));
+const repeatOptions = () =>
+  Array.from({ length: 11 }, (_, times) => ({
+    value: String(times),
+    label: times === 0 ? t("ui.karaoke.repeat.off") : t("ui.karaoke.repeat.times", { count: times }),
+  }));
 
-const gapOptions = [0, 1, 2, 3, 5].map((seconds) => ({ value: String(seconds), label: seconds === 0 ? "Sem intervalo" : `${seconds} s` }));
+const gapOptions = () =>
+  [0, 1, 2, 3, 5].map((seconds) => ({
+    value: String(seconds),
+    label: seconds === 0 ? t("ui.passage.gap.none") : t("ui.passage.gap.seconds", { seconds }),
+  }));
 
-const goalOptions = [0, 3, 5, 10, 20].map((laps) => ({ value: String(laps), label: laps === 0 ? "Sem meta" : `${laps} repetições` }));
+const goalOptions = () =>
+  [0, 3, 5, 10, 20].map((laps) => ({
+    value: String(laps),
+    label: laps === 0 ? t("ui.passage.goal.none") : t("ui.passage.goal.laps", { laps }),
+  }));
 
 /** TrainingCards are the Modo Karaokê and "Estudar trecho" controls. */
 export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
@@ -42,52 +53,31 @@ export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
 function KaraokeCard({ state, onCommand }: TrainingCardsProps) {
   const { karaoke } = state;
   return (
-    <Card
-      title="Modo Karaokê"
-      aside={
-        <HelpTip topic="Modo Karaokê">
-          Mostra a próxima fala antes da hora, para você se preparar e falar junto com o ator. A prévia aparece 5 s antes, só nas pausas
-          maiores que 10 s. Durante a fala, o texto é pintado como num karaokê; esse preenchimento é uma estimativa, porque a legenda não
-          traz o tempo de cada palavra.
-        </HelpTip>
-      }
-    >
+    <Card title={t("ui.karaoke.title")} aside={<HelpTip topic={t("ui.karaoke.topic")}>{t("ui.karaoke.help")}</HelpTip>}>
       <div className="flex flex-col gap-4">
-        <Toggle label="Ligar o Modo Karaokê" checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
+        <Toggle label={t("ui.karaoke.enable")} checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
         <Select
-          label="Tempo até a fala"
+          label={t("ui.karaoke.indicator.label")}
           value={karaoke.indicator}
           options={[
-            { value: "bar", label: "Barra" },
-            { value: "countdown", label: "Contagem regressiva" },
+            { value: "bar", label: t("ui.karaoke.indicator.bar") },
+            { value: "countdown", label: t("ui.karaoke.indicator.countdown") },
           ]}
           onChange={(value) => onCommand(() => backend.setKaraokeIndicator(value))}
-          help={
-            <HelpTip topic="tempo até a fala">
-              A barra, na largura do texto, diminui até a fala começar. A contagem mostra os segundos que faltam, em tempo real (a 0,75× ela
-              dura mais).
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.karaoke.indicator.topic")}>{t("ui.karaoke.indicator.help")}</HelpTip>}
         />
         <Select
-          label="Repetir cada fala"
+          label={t("ui.karaoke.repeat.label")}
           value={String(karaoke.repeat)}
-          options={repeatOptions}
+          options={repeatOptions()}
           onChange={(value) => onCommand(() => backend.setLineRepeats(Number(value)))}
-          help={
-            <HelpTip topic="repetir cada fala">
-              Quando uma fala termina, o vídeo volta para a prévia dela e repete, quantas vezes você escolher. Buscar outro ponto do vídeo
-              começa a contagem de novo.
-            </HelpTip>
-          }
+          help={<HelpTip topic={t("ui.karaoke.repeat.topic")}>{t("ui.karaoke.repeat.help")}</HelpTip>}
         />
         <div className="flex items-center gap-1">
-          <Button icon={RotateCcw} onClick={() => onCommand(backend.replayLine)} title="Treinar de novo (Backspace na janela do filme)">
-            Treinar de novo
+          <Button icon={RotateCcw} onClick={() => onCommand(backend.replayLine)} title={t("ui.karaoke.replay.tip")}>
+            {t("ui.karaoke.replay.label")}
           </Button>
-          <HelpTip topic="treinar de novo">
-            Volta para o início da prévia da fala atual (ou da última), para treinar mais uma vez. Na janela do filme, a tecla é Backspace.
-          </HelpTip>
+          <HelpTip topic={t("ui.karaoke.replay.topic")}>{t("ui.karaoke.replay.help")}</HelpTip>
         </div>
       </div>
     </Card>
@@ -122,8 +112,8 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
     onCommand(() => backend.setPassageOptions({ snap, plan }));
   };
   const mark = (set: (value: string) => void) => (
-    <Button icon={Flag} onClick={() => set(passageClock(state.position))} title="Marcar a posição atual do vídeo">
-      Marcar
+    <Button icon={Flag} onClick={() => set(passageClock(state.position))} title={t("ui.passage.mark.tip")}>
+      {t("ui.passage.mark.label")}
     </Button>
   );
   const study = () => onCommand(() => backend.studyPassage({ start, end, ...options }));
@@ -140,35 +130,32 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
     });
 
   return (
-    <Card
-      title="Estudar trecho"
-      aside={
-        <HelpTip topic="estudar trecho">
-          Marque o início e o fim de um trecho do filme: ele é salvo e começa a repetir. No fim do trecho o vídeo pausa; Reproduzir ou
-          Espaço volta ao início e toca de novo. Buscar para fora do trecho o deixa em pausa até você voltar.
-        </HelpTip>
-      }
-    >
+    <Card title={t("ui.passage.title")} aside={<HelpTip topic={t("ui.passage.topic")}>{t("ui.passage.help")}</HelpTip>}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
-          {startKey ? <kbd>{startKey}</kbd> : "O atalho de início"} marca o começo e {endKey ? <kbd>{endKey}</kbd> : "o de fim"} marca o
-          fim: o trecho é salvo e começa a repetir. Os atalhos valem na janela do filme, aqui e com o player em primeiro plano.
+          <Rich
+            text={t("ui.passage.hint.text")}
+            nodes={{
+              start: startKey ? <kbd>{startKey}</kbd> : t("ui.passage.hint.startNone"),
+              end: endKey ? <kbd>{endKey}</kbd> : t("ui.passage.hint.endNone"),
+            }}
+          />
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button icon={Flag} onClick={() => onCommand(() => backend.runShortcut("passage-mark-start", false))}>
-            {withKey("Marcar início", startKey)}
+            {withKey(t("ui.passage.markStart"), startKey)}
           </Button>
           <Button
             icon={Bookmark}
             disabled={state.markedStart === ""}
-            title={state.markedStart === "" ? "Marque o início primeiro" : undefined}
+            title={state.markedStart === "" ? t("ui.passage.markStartFirst") : undefined}
             onClick={() => onCommand(() => backend.runShortcut("passage-mark-end", false))}
           >
-            {withKey("Marcar fim e salvar", endKey)}
+            {withKey(t("ui.passage.markEnd"), endKey)}
           </Button>
           {state.markedStart && (
             <span role="status" className="text-sm text-fg">
-              Início marcado: {state.markedStart}
+              {t("ui.passage.marked", { time: state.markedStart })}
             </span>
           )}
         </div>
@@ -176,39 +163,35 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
         {passage.active && (
           <div className="rounded-control border border-line bg-surface-sunken p-3 text-sm text-fg" role="status">
             <p>
-              Trecho {passage.start}–{passage.end} · repetição {passage.lap}
-              {passage.goal > 0 ? ` de ${passage.goal}` : ""}
+              {passage.goal > 0
+                ? t("ui.passage.progressGoal", { start: passage.start, end: passage.end, lap: passage.lap, goal: passage.goal })
+                : t("ui.passage.progress", { start: passage.start, end: passage.end, lap: passage.lap })}
             </p>
-            {passage.suspended && <p className="mt-1 text-warning">Trecho pausado: o vídeo saiu do intervalo.</p>}
-            {passage.atEnd && <p className="mt-1 text-fg-muted">Fim do trecho: Espaço ou Reproduzir repete.</p>}
+            {passage.suspended && <p className="mt-1 text-warning">{t("ui.passage.suspended")}</p>}
+            {passage.atEnd && <p className="mt-1 text-fg-muted">{t("ui.passage.atEnd")}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               {passage.suspended && (
                 <Button icon={Undo2} onClick={() => onCommand(backend.resumePassage)}>
-                  Voltar ao trecho
+                  {t("ui.passage.resume")}
                 </Button>
               )}
               <Button icon={LogOut} onClick={() => onCommand(backend.stopPassage)}>
-                Sair do trecho
+                {t("ui.passage.leave")}
               </Button>
             </div>
             <div className="mt-3 border-t border-line pt-3">
               <TextField
-                label="Salvar com outro nome"
+                label={t("ui.passage.saveAs.label")}
                 value={name}
                 onChange={setName}
-                placeholder={`Trecho ${passage.start}–${passage.end}`}
+                placeholder={t("ui.passage.saveAs.placeholder", { start: passage.start, end: passage.end })}
                 inputMode="text"
                 action={
                   <Button icon={Bookmark} onClick={save}>
-                    Salvar este trecho
+                    {t("ui.passage.saveAs.button")}
                   </Button>
                 }
-                help={
-                  <HelpTip topic="salvar este trecho">
-                    Guarda o trecho no arquivo ao lado do vídeo, com as opções em uso, para estudar de novo outro dia. Sem nome, ele leva os
-                    tempos no nome; um nome que já existe é substituído. Um trecho marcado pelo atalho de fim já foi salvo.
-                  </HelpTip>
-                }
+                help={<HelpTip topic={t("ui.passage.saveAs.topic")}>{t("ui.passage.saveAs.help")}</HelpTip>}
               />
             </div>
           </div>
@@ -216,10 +199,10 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
 
         {state.savedPassages.length > 0 && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-fg">Trechos salvos</p>
+            <p className="text-sm font-medium text-fg">{t("ui.passage.saved")}</p>
             <SavedPassages
               passages={state.savedPassages}
-              studyLabel="Estudar"
+              studyLabel={t("ui.passage.study")}
               onStudy={(saved) => onCommand(() => backend.studySavedPassage(saved))}
               onRename={(from, to) => backend.renamePassage(from, to)}
               onDelete={async (saved) => onCommand(() => backend.deletePassage(saved))}
@@ -228,80 +211,61 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
         )}
 
         <details className="group rounded-control border border-line px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium text-fg">Escolher pelos tempos e mais opções</summary>
+          <summary className="cursor-pointer text-sm font-medium text-fg">{t("ui.passage.more")}</summary>
           <div className="mt-3 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
-              <TextField label="Início" value={start} onChange={setStart} placeholder="1:10:23" action={mark(setStart)} />
-              <TextField label="Fim" value={end} onChange={setEnd} placeholder="1:11:04" action={mark(setEnd)} />
+              <TextField label={t("ui.passage.start")} value={start} onChange={setStart} placeholder="1:10:23" action={mark(setStart)} />
+              <TextField label={t("ui.passage.end")} value={end} onChange={setEnd} placeholder="1:11:04" action={mark(setEnd)} />
             </div>
             <div className="flex items-center gap-1">
-              <Button onClick={thisLine}>Esta fala</Button>
-              <HelpTip topic="esta fala">Preenche o início e o fim com a fala de cima que está na tela (ou a última que apareceu).</HelpTip>
+              <Button onClick={thisLine}>{t("ui.passage.thisLine.label")}</Button>
+              <HelpTip topic={t("ui.passage.thisLine.topic")}>{t("ui.passage.thisLine.help")}</HelpTip>
             </div>
             <Toggle
-              label="Ajustar às falas"
+              label={t("ui.passage.snap.label")}
               checked={options.snap}
               onChange={(snap) => change({ snap })}
-              help={
-                <HelpTip topic="ajustar às falas">
-                  Estica o trecho para nenhuma frase ficar cortada no meio, com meio segundo de folga antes da primeira fala. Vale também
-                  para os trechos marcados pelos atalhos.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.passage.snap.topic")}>{t("ui.passage.snap.help")}</HelpTip>}
             />
             <Select
-              label="No fim do trecho"
+              label={t("ui.passage.onEnd.label")}
               value={options.loop ? "loop" : "pause"}
               options={[
-                { value: "pause", label: "Pausar no fim" },
-                { value: "loop", label: "Repetir sem parar" },
+                { value: "pause", label: t("ui.passage.onEnd.pause") },
+                { value: "loop", label: t("ui.passage.onEnd.loop") },
               ]}
               onChange={(value) => change({ loop: value === "loop" })}
-              help={
-                <HelpTip topic="no fim do trecho">
-                  Pausar no fim espera você apertar Reproduzir. Repetir sem parar volta sozinho, depois do intervalo escolhido.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.passage.onEnd.topic")}>{t("ui.passage.onEnd.help")}</HelpTip>}
             />
             {options.loop && (
               <Select
-                label="Intervalo entre as repetições"
+                label={t("ui.passage.gap.label")}
                 value={String(options.gap)}
-                options={gapOptions}
+                options={gapOptions()}
                 onChange={(value) => change({ gap: Number(value) })}
               />
             )}
             <Toggle
-              label="Velocidade progressiva"
+              label={t("ui.passage.progressive.label")}
               checked={options.progressive}
               onChange={(progressive) => change({ progressive })}
-              help={
-                <HelpTip topic="velocidade progressiva">
-                  As primeiras repetições tocam mais devagar: 0,75×, depois 0,90× e então 1,00×. Primeiro você entende, depois treina no
-                  ritmo real.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.passage.progressive.topic")}>{t("ui.passage.progressive.help")}</HelpTip>}
             />
             <Toggle
-              label="Escada de legendas"
+              label={t("ui.passage.ladder.label")}
               checked={options.ladder}
               onChange={(ladder) => change({ ladder })}
-              help={
-                <HelpTip topic="escada de legendas">
-                  A cada repetição, uma ajuda a menos: primeiro inglês e português, depois só inglês, depois sem legenda, para treinar o
-                  ouvido.
-                </HelpTip>
-              }
+              help={<HelpTip topic={t("ui.passage.ladder.topic")}>{t("ui.passage.ladder.help")}</HelpTip>}
             />
             <Select
-              label="Meta"
+              label={t("ui.passage.goal.label")}
               value={String(options.goal)}
-              options={goalOptions}
+              options={goalOptions()}
               onChange={(value) => change({ goal: Number(value) })}
-              help={<HelpTip topic="meta">Ao completar esse número de repetições, o trecho termina sozinho.</HelpTip>}
+              help={<HelpTip topic={t("ui.passage.goal.topic")}>{t("ui.passage.goal.help")}</HelpTip>}
             />
             <Button variant="primary" icon={BookOpenCheck} onClick={study}>
-              Estudar trecho
+              {t("ui.passage.studyNow")}
             </Button>
           </div>
         </details>

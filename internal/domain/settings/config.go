@@ -47,6 +47,9 @@ type Config struct {
 	Window WindowBounds `json:"window"`
 	// Panel is how the panel beside the video was left.
 	Panel PanelBounds `json:"panel"`
+	// Language is the interface's language, a BCP 47 tag such as "pt-BR";
+	// empty means the Windows display language when the app speaks it.
+	Language string `json:"language"`
 }
 
 // PanelBounds is the panel beside the video: open or closed, and its width
@@ -125,6 +128,9 @@ func (c Config) Validate() error {
 	}
 	if !c.Panel.Valid() {
 		return fmt.Errorf("%w: panel width %v", ErrInvalidSettings, c.Panel.Width)
+	}
+	if c.Language != "" && !languageTagPattern.MatchString(c.Language) {
+		return fmt.Errorf("%w: language %q", ErrInvalidSettings, c.Language)
 	}
 	return nil
 }

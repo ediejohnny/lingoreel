@@ -1,5 +1,6 @@
 import { BookOpenCheck, Check, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { t } from "../../i18n";
 import { messageOf, type SavedPassage } from "../../services/backend";
 import { Button, IconButton } from "../ui/Button";
 
@@ -63,14 +64,14 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
     setEditing(false);
     setError("");
   };
-  const blocked = studyDisabled || (passage.outside ? "Este trecho começa depois do fim deste vídeo" : "");
+  const blocked = studyDisabled || (passage.outside ? t("ui.passages.outside.tip") : "");
 
   return (
     <li className="flex flex-col gap-1 rounded-control border border-line px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         {editing ? (
           <input
-            aria-label="Novo nome do trecho"
+            aria-label={t("ui.passages.rename.field")}
             className="h-8 min-w-0 flex-1 rounded-control border border-line-strong bg-surface px-2 text-sm text-fg"
             value={name}
             maxLength={80}
@@ -94,17 +95,17 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
         </span>
         {editing ? (
           <>
-            <IconButton icon={Check} label="Salvar o nome" onClick={() => void rename()} />
-            <IconButton icon={X} label="Cancelar" onClick={cancel} />
+            <IconButton icon={Check} label={t("ui.passages.rename.save")} onClick={() => void rename()} />
+            <IconButton icon={X} label={t("ui.common.cancel")} onClick={cancel} />
           </>
         ) : confirming ? (
           <>
-            <span className="text-fg">Excluir?</span>
+            <span className="text-fg">{t("ui.passages.delete.confirm")}</span>
             <Button variant="secondary" onClick={() => void onDelete(passage.name).finally(() => setConfirming(false))}>
-              Sim, excluir
+              {t("ui.passages.delete.yes")}
             </Button>
             <Button variant="ghost" onClick={() => setConfirming(false)}>
-              Não
+              {t("ui.common.no")}
             </Button>
           </>
         ) : (
@@ -118,13 +119,13 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
             >
               {studyLabel}
             </Button>
-            <IconButton icon={Pencil} label={`Renomear o trecho "${passage.name}"`} onClick={() => setEditing(true)} />
-            <IconButton icon={Trash2} label={`Excluir o trecho "${passage.name}"`} onClick={() => setConfirming(true)} />
+            <IconButton icon={Pencil} label={t("ui.passages.rename.label", { name: passage.name })} onClick={() => setEditing(true)} />
+            <IconButton icon={Trash2} label={t("ui.passages.delete.label", { name: passage.name })} onClick={() => setConfirming(true)} />
           </>
         )}
       </div>
       <p className={`text-xs ${passage.outside ? "text-warning" : "text-fg-muted"}`}>
-        {passage.outside ? "Começa depois do fim deste vídeo: pode ser de outra versão do filme." : passage.summary}
+        {passage.outside ? t("ui.passages.outside.note") : passage.summary}
       </p>
       {error && (
         <p role="alert" className="text-xs text-warning">

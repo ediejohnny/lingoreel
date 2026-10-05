@@ -1,4 +1,5 @@
 // Small pure helpers for what the screens show.
+import { t } from "./i18n";
 
 /** speedLabel shows a playback speed as "1,00×". */
 export function speedLabel(speed: number): string {
@@ -24,9 +25,9 @@ export function durationLabel(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
   if (hours === 0) {
-    return `${minutes}min`;
+    return t("ui.format.minutes", { minutes });
   }
-  return `${hours}h${String(minutes % 60).padStart(2, "0")}min`;
+  return t("ui.format.hoursMinutes", { hours, minutes: String(minutes % 60).padStart(2, "0") });
 }
 
 /** isTyping tells whether a key event comes from a field where keys type text. */

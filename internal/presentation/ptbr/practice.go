@@ -2,7 +2,6 @@ package ptbr
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,11 +14,11 @@ import (
 func ModeName(mode study.Mode) string {
 	switch mode {
 	case study.ModeDual:
-		return "Dupla"
+		return T("mode.dual")
 	case study.ModeOnDemand:
-		return "Tradução sob demanda"
+		return T("mode.onDemand")
 	case study.ModeAlwaysTranslated:
-		return "Tradução sempre visível"
+		return T("mode.alwaysTranslated")
 	}
 	return string(mode)
 }
@@ -30,7 +29,7 @@ func PassageClock(d time.Duration) string {
 	d = max(d, 0).Round(100 * time.Millisecond)
 	whole := Clock(d)
 	if tenths := (d % time.Second) / (100 * time.Millisecond); tenths > 0 {
-		return fmt.Sprintf("%s,%d", whole, tenths)
+		return fmt.Sprintf("%s%s%d", whole, T("number.decimal"), tenths)
 	}
 	return whole
 }
@@ -40,49 +39,45 @@ func PassageClock(d time.Duration) string {
 // and renames it at will. It is in whole seconds: fitting a passage to the
 // lines moves its start half a second back, which a name needs not show.
 func PassageName(start, end time.Duration) string {
-	return "Trecho " + Clock(start.Round(time.Second)) + "–" + Clock(end.Round(time.Second))
+	return T("passage.name", "start", Clock(start.Round(time.Second)), "end", Clock(end.Round(time.Second)))
 }
 
 // PassageMarkNotice words the notices of the passage shortcuts.
 func PassageMarkNotice(start time.Duration) string {
-	return "Início do trecho: " + PassageClock(start)
+	return T("notice.passage.marked", "time", PassageClock(start))
 }
 
 // PassageSavedNotice tells a passage was saved under a name.
 func PassageSavedNotice(name string) string {
-	return "Salvo: " + name
+	return T("notice.passage.saved", "name", name)
 }
 
 // PlanSummary says how a passage is studied: "Pausa no fim", or "Repete sem
 // parar · intervalo de 2 s · velocidade progressiva · escada de legendas ·
 // meta de 5 voltas".
 func PlanSummary(plan study.PracticePlan) string {
-	parts := []string{"Pausa no fim"}
+	parts := []string{T("plan.pause")}
 	if plan.Mode == study.EndLoop {
-		parts = []string{"Repete sem parar"}
+		parts = []string{T("plan.loop")}
 		if plan.Gap > 0 {
-			parts = append(parts, "intervalo de "+Seconds(plan.Gap))
+			parts = append(parts, T("plan.gap", "gap", Seconds(plan.Gap)))
 		}
 	}
 	if plan.Progressive {
-		parts = append(parts, "velocidade progressiva")
+		parts = append(parts, T("plan.progressive"))
 	}
 	if plan.Ladder {
-		parts = append(parts, "escada de legendas")
+		parts = append(parts, T("plan.ladder"))
 	}
-	switch {
-	case plan.Goal == 1:
-		parts = append(parts, "meta de 1 volta")
-	case plan.Goal > 1:
-		parts = append(parts, fmt.Sprintf("meta de %d voltas", plan.Goal))
+	if plan.Goal > 0 {
+		parts = append(parts, T("plan.goal", "count", plan.Goal))
 	}
 	return strings.Join(parts, " · ")
 }
 
 // Seconds says a short time in seconds the Brazilian way: "2 s", "1,5 s".
 func Seconds(d time.Duration) string {
-	text := strconv.FormatFloat(d.Seconds(), 'f', -1, 64)
-	return strings.Replace(text, ".", ",", 1) + " s"
+	return T("unit.seconds", "value", Number(d.Seconds(), -1))
 }
 
 // MarkNotice words what a passage mark did for the notice on the video.
@@ -91,9 +86,9 @@ func MarkNotice(event watch.MarkEvent, segment study.Segment) string {
 	case watch.MarkStarted:
 		return PassageMarkNotice(segment.Start)
 	case watch.MarkNoStart:
-		return "Marque o início do trecho primeiro"
+		return T("notice.mark.noStart")
 	case watch.MarkTooShort:
-		return "O fim precisa vir pelo menos 1 s depois do início"
+		return T("notice.mark.tooShort")
 	}
 	return ""
 }
@@ -102,7 +97,7 @@ func MarkNotice(event watch.MarkEvent, segment study.Segment) string {
 // "1:02:03,456" or "2:03,456", which ParseClock reads back.
 func EditClock(d time.Duration) string {
 	d = max(d, 0).Round(time.Millisecond)
-	return fmt.Sprintf("%s,%03d", Clock(d.Truncate(time.Second)), d%time.Second/time.Millisecond)
+	return fmt.Sprintf("%s%s%03d", Clock(d.Truncate(time.Second)), T("number.decimal"), d%time.Second/time.Millisecond)
 }
 
 // PracticeNotice words what happens to a passage for the notice on the
@@ -111,17 +106,16 @@ func PracticeNotice(event session.PracticeEvent, status session.PracticeStatus) 
 	span := PassageClock(status.Segment.Start) + "–" + PassageClock(status.Segment.End)
 	switch event {
 	case session.PracticeLap:
-		text := fmt.Sprintf("Trecho %s · repetição %d", span, status.Lap)
 		if status.Plan.Goal > 0 {
-			text = fmt.Sprintf("Trecho %s · repetição %d de %d", span, status.Lap, status.Plan.Goal)
+			return T("notice.practice.lapOfGoal", "span", span, "lap", status.Lap, "goal", status.Plan.Goal)
 		}
-		return text
+		return T("notice.practice.lap", "span", span, "lap", status.Lap)
 	case session.PracticeAtEnd:
-		return "Fim do trecho · Reproduzir para repetir"
+		return T("notice.practice.atEnd")
 	case session.PracticeSuspended:
-		return "Trecho pausado — fora do intervalo"
+		return T("notice.practice.suspended")
 	case session.PracticeFinished:
-		return fmt.Sprintf("Meta de %d repetições concluída", status.Plan.Goal)
+		return T("notice.practice.finished", "count", status.Plan.Goal)
 	}
 	return ""
 }

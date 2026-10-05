@@ -1,8 +1,6 @@
 package ptbr
 
 import (
-	"fmt"
-
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 )
 
@@ -11,14 +9,14 @@ import (
 // that goes further, how to pass it (a held key stops there).
 func VolumeNotice(volume, ceiling playback.Volume, muted bool) string {
 	if muted {
-		return "Sem som"
+		return T("notice.muted")
 	}
-	text := fmt.Sprintf("Volume %d%%", volume.Percent())
+	percent := volume.Percent()
 	switch {
-	case volume.Percent() >= ceiling.Percent():
-		return text + " · máximo deste player"
-	case volume.Percent() == playback.FullVolume.Percent():
-		return text + " · toque de novo para passar de 100%"
+	case percent >= ceiling.Percent():
+		return T("notice.volumeCeiling", "percent", percent)
+	case percent == playback.FullVolume.Percent():
+		return T("notice.volumeFull", "percent", percent)
 	}
-	return text
+	return T("notice.volume", "percent", percent)
 }

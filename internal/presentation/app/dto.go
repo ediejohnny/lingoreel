@@ -266,6 +266,8 @@ type Preferences struct {
 	Speeds []float64 `json:"speeds"`
 	// Panel is how the panel beside the video was left.
 	Panel PanelState `json:"panel"`
+	// Language is the interface's language, the tag of its catalog.
+	Language string `json:"language"`
 }
 
 // InstallProgress reports an installation; Done with an empty Error is a

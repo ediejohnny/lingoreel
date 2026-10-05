@@ -13,13 +13,16 @@ type KeyChar func(key shortcut.Key) string
 
 // keyNames are the keys written by name instead of their character.
 var keyNames = map[shortcut.Key]string{
-	"Space": "Espaço", "Escape": "Esc", "Backspace": "Backspace", "Tab": "Tab", "Enter": "Enter",
+	"Escape": "Esc", "Backspace": "Backspace", "Tab": "Tab", "Enter": "Enter",
 	"Insert": "Insert", "Delete": "Delete", "Home": "Home", "End": "End", "PageUp": "Page Up", "PageDown": "Page Down",
 	"ArrowLeft": "←", "ArrowRight": "→", "ArrowUp": "↑", "ArrowDown": "↓",
-	"NumpadAdd": "+ (teclado numérico)", "NumpadSubtract": "- (teclado numérico)",
-	"NumpadMultiply": "* (teclado numérico)", "NumpadDivide": "/ (teclado numérico)",
-	"NumpadDecimal": ", (teclado numérico)", "NumpadEnter": "Enter (teclado numérico)",
-	"AltRight": "Alt direito",
+}
+
+// numpadKeys are what the numeric keypad's keys are written as, before the
+// words that tell them from the main keys.
+var numpadKeys = map[shortcut.Key]string{
+	"NumpadAdd": "+", "NumpadSubtract": "-", "NumpadMultiply": "*", "NumpadDivide": "/",
+	"NumpadDecimal": ",", "NumpadEnter": "Enter",
 }
 
 // usChars are the characters of the punctuation keys on a US keyboard, used
@@ -32,8 +35,17 @@ var usChars = map[shortcut.Key]string{
 
 // KeyLabel names a key as the user sees it on the keyboard.
 func KeyLabel(key shortcut.Key, char KeyChar) string {
+	switch key {
+	case shortcut.KeySpace:
+		return T("key.space")
+	case shortcut.KeyAltRight:
+		return T("key.altRight")
+	}
 	if name, named := keyNames[key]; named {
 		return name
+	}
+	if name, named := numpadKeys[key]; named {
+		return T("key.numpad", "key", name)
 	}
 	if letter, found := strings.CutPrefix(string(key), "Key"); found && len(letter) == 1 {
 		return letter
@@ -42,7 +54,7 @@ func KeyLabel(key shortcut.Key, char KeyChar) string {
 		return digit
 	}
 	if digit, found := strings.CutPrefix(string(key), "Numpad"); found && len(digit) == 1 {
-		return digit + " (teclado numérico)"
+		return T("key.numpad", "key", digit)
 	}
 	if char != nil {
 		if typed := strings.TrimSpace(char(key)); typed != "" {
@@ -78,79 +90,79 @@ func ShortcutLabel(chord shortcut.Chord, char KeyChar) string {
 func CommandName(command shortcut.Command) string {
 	switch command {
 	case shortcut.PlayPause:
-		return "Reproduzir / pausar"
+		return T("shortcut.command.playPause")
 	case shortcut.SeekBack:
-		return "Voltar 5 s"
+		return T("shortcut.command.seekBack")
 	case shortcut.SeekForward:
-		return "Avançar 5 s"
+		return T("shortcut.command.seekForward")
 	case shortcut.SeekBack10:
-		return "Voltar 10 s"
+		return T("shortcut.command.seekBack10")
 	case shortcut.SeekForward10:
-		return "Avançar 10 s"
+		return T("shortcut.command.seekForward10")
 	case shortcut.SeekBack30:
-		return "Voltar 30 s"
+		return T("shortcut.command.seekBack30")
 	case shortcut.SeekForward30:
-		return "Avançar 30 s"
+		return T("shortcut.command.seekForward30")
 	case shortcut.PrecisionBack:
-		return "Voltar um pouco (precisão)"
+		return T("shortcut.command.precisionBack")
 	case shortcut.PrecisionForward:
-		return "Avançar um pouco (precisão)"
+		return T("shortcut.command.precisionForward")
 	case shortcut.FrameBack:
-		return "Quadro anterior"
+		return T("shortcut.command.frameBack")
 	case shortcut.FrameForward:
-		return "Próximo quadro"
+		return T("shortcut.command.frameForward")
 	case shortcut.SpeedDown:
-		return "Mais devagar"
+		return T("shortcut.command.speedDown")
 	case shortcut.SpeedUp:
-		return "Mais rápido"
+		return T("shortcut.command.speedUp")
 	case shortcut.SpeedNormal:
-		return "Velocidade normal (1,00×)"
+		return T("shortcut.command.speedNormal")
 	case shortcut.ShowBoth:
-		return "Mostrar as duas legendas"
+		return T("shortcut.command.showBoth")
 	case shortcut.PrimaryOnly:
-		return "Só a legenda de cima"
+		return T("shortcut.command.primaryOnly")
 	case shortcut.RepeatPhrase:
-		return "Repetir a frase"
+		return T("shortcut.command.repeatPhrase")
 	case shortcut.RepeatLast3:
-		return "Repetir os últimos 3 s"
+		return T("shortcut.command.repeatLast3")
 	case shortcut.RepeatLast5:
-		return "Repetir os últimos 5 s"
+		return T("shortcut.command.repeatLast5")
 	case shortcut.RepeatLast10:
-		return "Repetir os últimos 10 s"
+		return T("shortcut.command.repeatLast10")
 	case shortcut.PassageMarkStart:
-		return "Marcar o início do trecho"
+		return T("shortcut.command.passageMarkStart")
 	case shortcut.PassageMarkEnd:
-		return "Marcar o fim e salvar o trecho"
+		return T("shortcut.command.passageMarkEnd")
 	case shortcut.PassageStop:
-		return "Sair do trecho"
+		return T("shortcut.command.passageStop")
 	case shortcut.PassageResume:
-		return "Voltar ao trecho"
+		return T("shortcut.command.passageResume")
 	case shortcut.Undo:
-		return "Desfazer a correção"
+		return T("shortcut.command.undo")
 	case shortcut.Redo:
-		return "Refazer a correção"
+		return T("shortcut.command.redo")
 	case shortcut.VolumeUp:
-		return "Aumentar o volume"
+		return T("shortcut.command.volumeUp")
 	case shortcut.VolumeDown:
-		return "Diminuir o volume"
+		return T("shortcut.command.volumeDown")
 	case shortcut.Mute:
-		return "Sem som / com som"
+		return T("shortcut.command.mute")
 	case shortcut.Fullscreen:
-		return "Tela cheia"
+		return T("shortcut.command.fullscreen")
 	case shortcut.ExitFullscreen:
-		return "Sair da tela cheia"
+		return T("shortcut.command.exitFullscreen")
 	case shortcut.Translation:
-		return "Tecla da tradução"
+		return T("shortcut.command.translation")
 	case shortcut.ReplayLine:
-		return "Treinar de novo (Modo Karaokê)"
+		return T("shortcut.command.replayLine")
 	case shortcut.SyncPrimaryEarlier:
-		return "Legenda de cima mais cedo"
+		return T("shortcut.command.syncPrimaryEarlier")
 	case shortcut.SyncPrimaryLater:
-		return "Legenda de cima mais tarde"
+		return T("shortcut.command.syncPrimaryLater")
 	case shortcut.SyncTranslationEarlier:
-		return "Legenda de baixo mais cedo"
+		return T("shortcut.command.syncTranslationEarlier")
 	case shortcut.SyncTranslationLater:
-		return "Legenda de baixo mais tarde"
+		return T("shortcut.command.syncTranslationLater")
 	}
 	return string(command)
 }
@@ -159,21 +171,21 @@ func CommandName(command shortcut.Command) string {
 func CategoryName(category shortcut.Category) string {
 	switch category {
 	case shortcut.CategoryPlayback:
-		return "Reprodução"
+		return T("shortcut.category.playback")
 	case shortcut.CategorySeek:
-		return "Avançar e voltar"
+		return T("shortcut.category.seek")
 	case shortcut.CategoryFrame:
-		return "Quadro a quadro"
+		return T("shortcut.category.frame")
 	case shortcut.CategorySpeed:
-		return "Velocidade"
+		return T("shortcut.category.speed")
 	case shortcut.CategorySubtitle:
-		return "Sincronização das legendas"
+		return T("shortcut.category.subtitle")
 	case shortcut.CategoryTranslation:
-		return "Tradução"
+		return T("shortcut.category.translation")
 	case shortcut.CategoryStudy:
-		return "Estudo"
+		return T("shortcut.category.study")
 	case shortcut.CategoryEditor:
-		return "Correção das legendas"
+		return T("shortcut.category.editor")
 	}
 	return string(category)
 }
@@ -183,18 +195,18 @@ func ShortcutProblem(err error, char KeyChar) string {
 	var conflict *shortcut.ConflictError
 	switch {
 	case errors.As(err, &conflict):
-		return "“" + ShortcutLabel(conflict.Chord, char) + "” já é o atalho de “" + CommandName(conflict.First) +
-			"”. Escolha outra combinação para “" + CommandName(conflict.Second) + "”."
+		return T("shortcut.problem.conflict", "chord", ShortcutLabel(conflict.Chord, char),
+			"first", CommandName(conflict.First), "second", CommandName(conflict.Second))
 	case errors.Is(err, shortcut.ErrAltShift):
-		return "Alt+Shift troca o idioma do teclado no Windows. Escolha outra combinação."
+		return T("shortcut.problem.altShift")
 	case errors.Is(err, shortcut.ErrReserved):
-		return "Essa combinação é do próprio Windows. Escolha outra."
+		return T("shortcut.problem.reserved")
 	case errors.Is(err, shortcut.ErrTooManyKeys):
-		return "Use no máximo três teclas: até dois modificadores (Ctrl, Alt, Shift) e uma tecla."
+		return T("shortcut.problem.tooManyKeys")
 	case errors.Is(err, shortcut.ErrAloneKey):
-		return "O Alt direito funciona sozinho, sem Ctrl, Alt ou Shift."
+		return T("shortcut.problem.aloneKey")
 	case errors.Is(err, shortcut.ErrNoKey):
-		return "Falta a tecla principal: segure os modificadores e aperte uma tecla."
+		return T("shortcut.problem.noKey")
 	}
-	return "Essa tecla não pode ser usada como atalho."
+	return T("shortcut.problem.other")
 }

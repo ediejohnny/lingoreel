@@ -33,11 +33,11 @@ const (
 )
 
 var (
-	errNoVideo      = errors.New("Abra um vídeo antes de assistir.")
-	errNotWatching  = errors.New("Nenhum vídeo está tocando.")
-	errNotSupported = errors.New("O player em uso não permite essa ação.")
-	errUnknownLine  = errors.New("Legenda desconhecida.")
-	errUnknownMode  = errors.New("Escolha um modo de estudo.")
+	errNoVideo      = worded(func() string { return ptbr.T("error.noVideo") })
+	errNotWatching  = worded(func() string { return ptbr.T("error.notWatching") })
+	errNotSupported = worded(func() string { return ptbr.T("error.notSupported") })
+	errUnknownLine  = worded(func() string { return ptbr.T("error.unknownLine") })
+	errUnknownMode  = worded(func() string { return ptbr.T("error.unknownMode") })
 )
 
 // watching is the running session and what the window needs to describe it.
@@ -199,24 +199,24 @@ func (a *API) startFailure(err error, installation player.Installation) error {
 	}
 	switch {
 	case errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound):
-		return fmt.Errorf("O %s não foi encontrado em %s. Confira o caminho em Configurações › Player, ou instale-o de novo.", name, installation.Path)
+		return errors.New(ptbr.T("error.start.notFound", "player", name, "path", installation.Path))
 	case errors.Is(err, watch.ErrSubtitles):
-		return errors.New("Não foi possível ler as legendas escolhidas. Escolha outra legenda ou confira o arquivo dela.")
+		return errors.New(ptbr.T("error.start.subtitles"))
 	case errors.Is(err, watch.ErrDisplay):
-		return errors.New("Não foi possível abrir a janela do vídeo com as legendas. Tente de novo; se continuar, reinicie o LingoReel.")
+		return errors.New(ptbr.T("error.start.display"))
 	case errors.Is(err, watch.ErrLaunch):
-		return fmt.Errorf("O %s não abriu a tempo. Clique em Assistir para tentar de novo; se continuar, feche outras janelas do %s.", name, name)
+		return errors.New(ptbr.T("error.start.launch", "player", name))
 	}
-	return errors.New("Não foi possível começar a sessão. Tente de novo.")
+	return errors.New(ptbr.T("error.start.failed"))
 }
 
 // healthText words the player's health for the panel and the video.
 func healthText(health watch.Health) string {
 	switch health {
 	case watch.HealthReconnecting:
-		return "O player não está respondendo. Reconectando…"
+		return ptbr.T("health.reconnecting")
 	case watch.HealthStalled:
-		return "O player parece travado: as legendas esperam por ele."
+		return ptbr.T("health.stalled")
 	}
 	return ""
 }
@@ -289,7 +289,7 @@ func (a *API) report(current *watching) {
 				a.mu.Lock()
 				a.resume = &resumePoint{video: current.video, at: current.session.State().Position}
 				a.mu.Unlock()
-				ended.Error = "O player fechou ou parou de responder, e a sessão foi encerrada."
+				ended.Error = ptbr.T("error.playerLost")
 				ended.Resume = true
 			case err != nil:
 				a.logger.Warn("session ended with an error", "error", err)
@@ -387,7 +387,7 @@ func (a *API) control(command func(*watching) error) error {
 	}
 	if err != nil {
 		a.logger.Warn("playback command failed", "error", err)
-		return errors.New("O player não respondeu ao comando.")
+		return errors.New(ptbr.T("error.noResponse"))
 	}
 	a.emit(EventPlayback, a.describe(current))
 	return nil
