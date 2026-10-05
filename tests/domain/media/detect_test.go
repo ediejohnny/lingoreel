@@ -29,6 +29,10 @@ func TestDetectLanguageRecognizesDialogue(t *testing.T) {
 		portugueseDialogue:                  "pt",
 		spanishDialogue:                     "es",
 		strings.ToUpper(portugueseDialogue): "pt", // capital-letter subtitles, like the real release
+		// Each language with a word file is recognized.
+		strings.Repeat("Je ne sais pas, mais vous êtes très bien avec nous. Merci, oui. ", 3): "fr",
+		strings.Repeat("Ich weiß nicht, warum das hier jetzt nicht gut ist. Danke, ja. ", 3):  "de",
+		strings.Repeat("Non lo so, perché questo è molto bene. Grazie, ciao, adesso sì. ", 3): "it",
 	}
 	for text, want := range cases {
 		if got := media.DetectLanguage(text); got != want {
@@ -46,7 +50,7 @@ func TestDetectLanguageRefusesToGuess(t *testing.T) {
 		"só números":      "1 2 3 00:01:02,000 --> 00:01:03,000",
 		"poucas palavras": "What? Não. Okay.",
 		"metade e metade": englishDialogue + " " + portugueseDialogue,
-		"outra língua":    strings.Repeat("Ich weiß nicht, was du meinst. ", 40),
+		"outra língua":    strings.Repeat("Nie wiem, o co ci chodzi, przepraszam. ", 40),
 		// Words that exist in two languages prove neither: "está", "vamos"
 		// and "para" are Portuguese and Spanish, "bien" Spanish and French.
 		"palavras comuns":   strings.Repeat("está vamos para bien ", 40),
