@@ -9,9 +9,15 @@ All notable changes to this project are listed here. The format follows
 ## [0.23.0] - 2026-10-06
 
 The karaoke mode can follow the actors' voice, as an experiment, and its estimate now weighs each line by its syllables.
+Of several subtitle files, the one that fits the video best comes first, judged by what the files hold, and only real
+videos and subtitles are opened.
 
 ### Added
 
+- Of several subtitle files in one language, the one that fits the video best comes first: a subtitle inside the video,
+  then the files lined up with it by the share of their lines that meet it, a file timed for another frame rate a
+  little behind. The lists show each line's best choice first, and any track can still be picked by hand.
+- A subtitle renamed without an extension, or to .txt, is found by its text.
 - The karaoke mode can follow the actors' voice: the fill moves while they speak and holds in their pauses. Following
   the voice comes on with the karaoke mode and can be turned off; it is still an experiment, since music and sound
   effects can pass for a voice and paint a line worse than the estimate. With an FFmpeg on the computer (found, chosen,
@@ -28,6 +34,8 @@ The karaoke mode can follow the actors' voice, as an experiment, and its estimat
 
 ### Changed
 
+- A subtitle file's language, and whether it is for the hearing impaired or forced, come from its text rather than its
+  name, which only helps when the text cannot tell.
 - The frame around a line picked for a correction is a thin, sharp blue line with a dark edge outside it.
 - VLC sends its sound through the Windows mixer, never straight to a receiver, so the voice can be heard.
 - The app no longer carries Microsoft's WebView2 installer: a computer without WebView2 is offered the download from
@@ -41,6 +49,14 @@ The karaoke mode can follow the actors' voice, as an experiment, and its estimat
   while the player closes behind it.
 - The fill started up to a second late at the start of a line.
 - The frame around a line picked for a correction never went away: a click beside the lines or playing lets it go.
+- A subtitle file whose title began with a word that is also a language code (such as "Ice", Icelandic's) was taken
+  for that language.
+
+### Security
+
+- Only real videos and subtitles are opened: a script, a page or a program renamed as a video or a subtitle is refused,
+  judged by the start of the file, which is never read whole to find out. FFmpeg only ever reads the film as a local
+  file.
 
 ## [0.22.0] - 2026-10-05
 
