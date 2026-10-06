@@ -421,6 +421,10 @@ func (w *Window) setFullscreen(on bool) {
 		}
 		_ = win32.SetWindowPos(frame, 0, win32.Rect{},
 			win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOZORDER|win32.SWP_FRAMECHANGED|win32.SWP_NOACTIVATE)
+		// A maximized window gets its frame back with no WM_SIZE, so whatever
+		// follows that message (the app's own screen, on a stage) would keep the
+		// fullscreen's size and hang below the window: tell it the size now.
+		resized(frame)
 		w.fullscreen = false
 		win32.KillTimer(w.host, timerCursor)
 		w.showCursor()
@@ -430,6 +434,22 @@ func (w *Window) setFullscreen(on bool) {
 		stage.fullscreenChanged(on)
 	}
 	w.refreshBar()
+}
+
+// resized posts a window its WM_SIZE with the client size it has now. Posted,
+// never sent: on a stage the window is the app's, on a thread this one never
+// waits for.
+func resized(hwnd windows.HWND) {
+	client, err := win32.ClientRectOnScreen(hwnd)
+	if err != nil {
+		return
+	}
+	kind := uintptr(win32.SIZE_RESTORED)
+	if win32.Style(hwnd)&win32.WS_MAXIMIZE != 0 {
+		kind = win32.SIZE_MAXIMIZED
+	}
+	width, height := uint16(client.Right-client.Left), uint16(client.Bottom-client.Top)
+	_ = win32.PostMessage(hwnd, win32.WM_SIZE, kind, uintptr(height)<<16|uintptr(width))
 }
 
 // state is what the bar shows now, from the session it drives.

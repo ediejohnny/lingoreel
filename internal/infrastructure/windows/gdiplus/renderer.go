@@ -31,6 +31,8 @@ type Look struct {
 	Translation        appearance.SubtitleStyle
 	TranslationVisible bool
 	Notice             appearance.SubtitleStyle
+	// Meter colors the notice's level, when the frame has one.
+	Meter MeterLook
 	// PrimaryHidden leaves the line on top out.
 	PrimaryHidden bool
 	// Cue draws the primary as a preview, in Preview, with its indicator.
@@ -282,7 +284,12 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 		}
 	}
 	if frame.Notice != nil {
-		return r.drawBlock(canvas, target, frame.Notice, look.Notice)
+		if err := r.drawBlock(canvas, target, frame.Notice, look.Notice); err != nil {
+			return err
+		}
+		if frame.Meter != nil {
+			return drawMeter(canvas, frame.Meter, look.Notice, look.Meter)
+		}
 	}
 	return nil
 }

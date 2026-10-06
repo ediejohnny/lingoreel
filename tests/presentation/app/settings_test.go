@@ -82,6 +82,12 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.Shortcuts[shortcutAt(t, view, shortcut.Mute)].Chord = "" // no shortcut
 	view.PrecisionStep = 250
 	view.Primary.LineSpacing, view.Layout.LineGap = 1.4, 1
+	view.Layout.TranslationOnTop = true
+	view.TranslationOwnTiming = true
+	if view.VolumeStep != 5 {
+		t.Fatalf("volume step = %d%%, want the default 5%%", view.VolumeStep)
+	}
+	view.VolumeStep = 2
 	view.Marks.Notice.Side, view.Marks.NoticeDuration, view.Marks.Selection.Width = "right", 3, 3
 	view.Karaoke.BarThickness, view.Karaoke.CountdownSize = 9, 1.2
 	if view.Mode != "on-demand" {
@@ -96,7 +102,8 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 		saved.Translation.Background.Color.A != 0xC8 || saved.Layout.MarginBottom != 0.1 || saved.Study.Karaoke.Lead.Std().Seconds() != 3 ||
 		saved.Sync.OffsetStep.Std().Milliseconds() != 100 || saved.Study.Reveal != "hold" || saved.Speed != 0.75 ||
 		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" || !saved.Shortcuts.Of(shortcut.Mute).IsZero() ||
-		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 {
+		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 || !saved.Layout.TranslationOnTop ||
+		!saved.Sync.TranslationOwnTiming || saved.VolumeTouch != 0.02 {
 		t.Fatalf("saved = %+v", saved)
 	}
 	// The video took the changed mode.
@@ -106,7 +113,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	// The video being watched took the new look at once.
 	look, looks := r.display.lastLook()
 	if looks != 1 || look.Primary.FontSize != 40 || look.FillColor.String() != "#00FF00" || look.Layout.MarginBottom != 0.1 ||
-		look.Primary.LineSpacing != 1.4 || look.Layout.LineGap != 1 || look.Notice.Side != appearance.AlignRight ||
+		look.Primary.LineSpacing != 1.4 || look.Layout.LineGap != 1 || !look.Layout.TranslationOnTop || look.Notice.Side != appearance.AlignRight ||
 		look.NoticeDuration != 3*time.Second || look.Selection.Width != 3 || look.Cue.BarThickness != 9 || look.Cue.CountdownSize != 1.2 {
 		t.Fatalf("display looks %d, last %+v", looks, look)
 	}
@@ -114,6 +121,51 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	mute := again.Shortcuts[shortcutAt(t, again, shortcut.Mute)]
 	if again.Shortcuts[0].Label != "P" || again.Primary.Color != "#FFE600" || mute.Chord != "" || mute.Label != "" {
 		t.Fatalf("settings after saving = %+v, mute %+v", again.Shortcuts[0], mute)
+	}
+}
+
+// While the settings are edited the video is the preview: the screen's
+// choices reach it at once, nothing is written, and leaving them unsaved puts
+// the saved look back (user report: a style picked in the panel never showed
+// on the video).
+func TestThePreviewShowsTheChoicesOnTheVideoWithoutKeepingThem(t *testing.T) {
+	t.Parallel()
+	r := startWatching(t)
+	view := settingsOf(t, r).Profile
+	savedSize := view.Primary.FontSize
+	r.settings.mu.Lock()
+	saves := r.settings.saves
+	r.settings.mu.Unlock()
+
+	view.Primary.FontSize = 40
+	view.Translation.Color = "#FFE600"
+	if err := r.api.PreviewLook(view); err != nil {
+		t.Fatal(err)
+	}
+	look, looks := r.display.lastLook()
+	if looks != 1 || look.Primary.FontSize != 40 || look.Translation.Color.String() != "#FFE600" {
+		t.Fatalf("display looks %d, last %+v", looks, look)
+	}
+	r.settings.mu.Lock()
+	written, kept := r.settings.saves, r.settings.profiles.Items[0].Primary.FontSize
+	r.settings.mu.Unlock()
+	if written != saves || kept != savedSize || settingsOf(t, r).Profile.Primary.FontSize != savedSize {
+		t.Fatalf("the preview was kept: %d saves (was %d), saved size %v", written, saves, kept)
+	}
+
+	// A choice the profile refuses leaves the video as it is.
+	view.Primary.FontSize = -1
+	if err := r.api.PreviewLook(view); err == nil {
+		t.Fatal("a refused choice was previewed")
+	}
+	if _, after := r.display.lastLook(); after != 1 {
+		t.Fatalf("the refused choice reached the video (%d looks)", after)
+	}
+
+	r.api.EndPreview()
+	look, looks = r.display.lastLook()
+	if looks != 2 || look.Primary.FontSize != savedSize {
+		t.Fatalf("after the preview: %d looks, size %v (saved %v)", looks, look.Primary.FontSize, savedSize)
 	}
 }
 
@@ -187,8 +239,8 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		change func(*app.ProfileSettings)
 		want   string
 	}{
-		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte"},
-		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Legenda de baixo: o tamanho da fonte"},
+		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de estudo: o tamanho da fonte"},
+		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Tradução: o tamanho da fonte"},
 		{"bad color", func(p *app.ProfileSettings) { p.Primary.OutlineColor = "red" }, `a cor "red" não é válida`},
 		{"no font", func(p *app.ProfileSettings) { p.Primary.FontFamily = " " }, "escolha uma fonte"},
 		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade"},
@@ -197,6 +249,8 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"indicator", func(p *app.ProfileSettings) { p.Karaoke.Indicator = "dots" }, "escolha a barra ou a contagem"},
 		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "Modo Karaokê: repetir cada fala"},
 		{"speed", func(p *app.ProfileSettings) { p.Speed = 3 }, "Escolha uma das velocidades"},
+		{"volume step", func(p *app.ProfileSettings) { p.VolumeStep = 30 }, "Passo do volume: de 1% a 25%"},
+		{"no volume step", func(p *app.ProfileSettings) { p.VolumeStep = 0 }, "Passo do volume: de 1% a 25%"},
 		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "Passos da sincronização"},
 		{"reveal", func(p *app.ProfileSettings) { p.Reveal = "wink" }, "tecla da tradução"},
 		{"language", func(p *app.ProfileSettings) { p.Languages.Primary = "english!" }, "Confira os idiomas"},
@@ -210,7 +264,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
 		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
-		{"line spacing", func(p *app.ProfileSettings) { p.Primary.LineSpacing = 3 }, "Legenda de cima: a entrelinha"},
+		{"line spacing", func(p *app.ProfileSettings) { p.Primary.LineSpacing = 3 }, "Legenda de estudo: a entrelinha"},
 		{"gap", func(p *app.ProfileSettings) { p.Layout.LineGap = math.NaN() }, "Margens: a distância entre as legendas"},
 		{"notice", func(p *app.ProfileSettings) { p.Marks.Notice.FontSize = 0 }, "Avisos no vídeo: o tamanho da fonte"},
 		{"notice time", func(p *app.ProfileSettings) { p.Marks.NoticeDuration = 0.1 }, "Avisos no vídeo: a duração"},

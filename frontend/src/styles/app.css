@@ -116,6 +116,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A fieldset shrinks like any box: by default it refuses to be narrower than its content. */
+fieldset {
+  min-inline-size: 0;
+}
+
 /* Focus is always visible. */
 :focus-visible {
   outline: 2px solid var(--sp-focus);

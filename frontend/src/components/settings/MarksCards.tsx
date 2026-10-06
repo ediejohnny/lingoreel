@@ -51,7 +51,7 @@ export function MarksCards({
           </div>
         }
       >
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <Select
             label={t("ui.settings.style.font")}
             value={notice.fontFamily}
@@ -124,7 +124,7 @@ export function MarksCards({
           </div>
         }
       >
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <ColorField label={t("ui.settings.subtitles.selection.color")} value={selection.color} alpha onChange={setSelection("color")} />
           <ColorField label={t("ui.settings.subtitles.selection.edge")} value={selection.edge} alpha onChange={setSelection("edge")} />
           <NumberField

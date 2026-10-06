@@ -94,6 +94,21 @@ func (t *Timeline) ActiveAt(at time.Duration) []Event {
 	return t.collectActive(1, 0, t.leaves, started, at, nil)
 }
 
+// Overlapping returns the events showing at some instant of [from, to),
+// ordered by Start; nothing for an empty span.
+func (t *Timeline) Overlapping(from, to time.Duration) []Event {
+	if to <= from {
+		return nil
+	}
+	started := sort.Search(len(t.events), func(i int) bool {
+		return t.events[i].Start >= to
+	})
+	if started == 0 {
+		return nil
+	}
+	return t.collectActive(1, 0, t.leaves, started, from, nil)
+}
+
 // NextChangeAfter returns the earliest instant after at when the set of active
 // events changes, or false when nothing changes anymore.
 func (t *Timeline) NextChangeAfter(at time.Duration) (time.Duration, bool) {

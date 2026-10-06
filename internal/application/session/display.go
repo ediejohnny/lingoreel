@@ -72,3 +72,17 @@ type Display interface {
 	Done() <-chan struct{}
 	Close() error
 }
+
+// Meter is a level shown under a notice, such as the volume's. Level and
+// Mark are shares of the bar: how far it is filled, and where the usual range
+// ends (100% of the sound); a mark at the end marks nothing.
+type Meter struct {
+	Level, Mark float64
+}
+
+// MeterDisplay is a display that can show a notice with a level under it,
+// larger than the other notices; one that cannot gets the text alone.
+type MeterDisplay interface {
+	// NotifyLevel shows the notice and its level the way Notify does.
+	NotifyLevel(text string, meter Meter) error
+}

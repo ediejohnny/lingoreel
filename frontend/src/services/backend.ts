@@ -147,6 +147,8 @@ export const backend = {
   settings: (): Promise<SettingsView> => api.Settings(),
   // The Go side reads plain data: the generated classes only add helpers.
   saveProfile: (profile: ProfileSettings) => api.SaveProfile(profile as app.ProfileSettings),
+  previewLook: (profile: ProfileSettings) => api.PreviewLook(profile as app.ProfileSettings),
+  endPreview: () => api.EndPreview(),
   setSyncNotice: (show: boolean) => api.SetSyncNotice(show),
   setAlwaysOnTop: (on: boolean) => api.SetAlwaysOnTop(on),
   setVoice: (voice: VoiceSettings) => api.SetVoice(voice as app.VoiceSettings),

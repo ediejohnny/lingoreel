@@ -16,6 +16,15 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
+// volumeStepView is a touch of the volume keys in whole percent; the default
+// shows as its own value.
+func volumeStepView(touch playback.Volume) int {
+	if touch == 0 {
+		return playback.DefaultVolumeTouch.Percent()
+	}
+	return touch.Percent()
+}
+
 // profileView turns a profile into what the settings screen shows.
 func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 	karaoke := profile.Study.Karaoke
@@ -28,14 +37,16 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 		Layout: LayoutSettings{
 			MarginLeft: profile.Layout.MarginLeft, MarginRight: profile.Layout.MarginRight,
 			MarginTop: profile.Layout.MarginTop, MarginBottom: profile.Layout.MarginBottom, MaxWidth: profile.Layout.MaxWidth,
-			LineGap: profile.Layout.LineGap,
+			LineGap: profile.Layout.LineGap, TranslationOnTop: profile.Layout.TranslationOnTop,
 		},
-		Marks:         marksView(profile.Marks),
-		Speed:         float64(profile.Speed),
-		SyncStep:      int(profile.Sync.OffsetStep.Std() / time.Millisecond),
-		SyncFastStep:  int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
-		PrecisionStep: int(profile.Sync.PrecisionSeekStep.Std() / time.Millisecond),
-		Mode:          string(profile.Study.Mode),
+		Marks:                marksView(profile.Marks),
+		Speed:                float64(profile.Speed),
+		SyncStep:             int(profile.Sync.OffsetStep.Std() / time.Millisecond),
+		SyncFastStep:         int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
+		PrecisionStep:        int(profile.Sync.PrecisionSeekStep.Std() / time.Millisecond),
+		TranslationOwnTiming: profile.Sync.TranslationOwnTiming,
+		VolumeStep:           volumeStepView(profile.VolumeTouch),
+		Mode:                 string(profile.Study.Mode),
 		Karaoke: KaraokeSettings{
 			Enabled: karaoke.Enabled, MinGap: karaoke.MinGap.Std().Seconds(), Lead: karaoke.Lead.Std().Seconds(),
 			Indicator: string(karaoke.Indicator), PreviewColor: karaoke.PreviewColor.String(),
@@ -127,12 +138,17 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 	profile.Sync.OffsetStep = settings.Duration(time.Duration(view.SyncStep) * time.Millisecond)
 	profile.Sync.OffsetLargeStep = settings.Duration(time.Duration(view.SyncFastStep) * time.Millisecond)
 	profile.Sync.PrecisionSeekStep = settings.Duration(time.Duration(view.PrecisionStep) * time.Millisecond)
+	profile.Sync.TranslationOwnTiming = view.TranslationOwnTiming
+	profile.VolumeTouch = playback.Volume(view.VolumeStep) / 100
 	profile.Shortcuts = keys
 	switch {
 	case !profile.Study.Mode.Valid():
 		return settings.Profile{}, refuse(ptbr.T("error.unknownMode"))
 	case !profile.Speed.Valid():
 		return settings.Profile{}, refuse(ptbr.T("error.settings.speed"))
+	case view.VolumeStep < playback.MinVolumeTouch.Percent() || view.VolumeStep > playback.MaxVolumeTouch.Percent():
+		return settings.Profile{}, refuse(ptbr.T("error.settings.volumeStep",
+			"min", playback.MinVolumeTouch.Percent(), "max", playback.MaxVolumeTouch.Percent()))
 	case view.PrecisionStep < int(settings.MinPrecisionSeekStep.Milliseconds()) || view.PrecisionStep > int(settings.MaxPrecisionSeekStep.Milliseconds()):
 		return settings.Profile{}, refuse(ptbr.T("error.settings.precisionStep",
 			"min", settings.MinPrecisionSeekStep.Milliseconds(), "max", settings.MaxPrecisionSeekStep.Milliseconds()))
@@ -177,6 +193,7 @@ func layoutFrom(view LayoutSettings) (appearance.Layout, error) {
 	layout := appearance.Layout{
 		MarginLeft: view.MarginLeft, MarginRight: view.MarginRight,
 		MarginTop: view.MarginTop, MarginBottom: view.MarginBottom, MaxWidth: view.MaxWidth, LineGap: view.LineGap,
+		TranslationOnTop: view.TranslationOnTop,
 	}
 	if err := layout.Validate(); err != nil {
 		return layout, refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))

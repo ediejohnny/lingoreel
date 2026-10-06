@@ -94,7 +94,7 @@ func TestTheMenuShowsTheSystemKeyAndTheOffsets(t *testing.T) {
 	if closing != 1 {
 		t.Errorf("%d items close the window, want 1", closing)
 	}
-	if got := ptbr.MenuText(contextmenu.Item{Kind: contextmenu.KindItem, Line: contextmenu.LineTranslation, Duration: -150 * time.Millisecond}, keys, nil); got.Text != "Legenda de baixo: −0,150 s" {
+	if got := ptbr.MenuText(contextmenu.Item{Kind: contextmenu.KindItem, Line: contextmenu.LineTranslation, Duration: -150 * time.Millisecond}, keys, nil); got.Text != "Tradução: −0,150 s" {
 		t.Errorf("the offset reads %q", got.Text)
 	}
 }

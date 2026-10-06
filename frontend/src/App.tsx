@@ -7,7 +7,7 @@ import { IconButton } from "./components/ui/Button";
 import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { SettingsPage, type SettingsHandle } from "./pages/SettingsPage";
 import {
   backend,
   messageOf,
@@ -23,6 +23,7 @@ import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
 import { t, setLanguage } from "./i18n";
+import { useVideoKeys } from "./videoKeys";
 
 type Screen = "home" | "session" | "playing" | "settings";
 
@@ -56,7 +57,7 @@ export function App() {
   // video's fullscreen, which leaves only the video.
   const [panel, setPanel] = useState<PanelState>({ open: true, width: 0 });
   const [panelTab, setPanelTab] = useState<PanelTab>("playback");
-  const [settingsPage, setSettingsPage] = useState<SectionId>("general");
+  const [settingsSection, setSettingsSection] = useState<SectionId>("general");
   const [fullscreen, setFullscreen] = useState(false);
 
   const open = useCallback(async (path: string) => {
@@ -111,7 +112,7 @@ export function App() {
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
       if (request.section === "settings") {
-        setSettingsPage(sectionOfPage(request.page));
+        setSettingsSection(sectionOfPage(request.page));
         setPanelTab("settings");
         return;
       }
@@ -241,19 +242,44 @@ export function App() {
   // A video drawn inside the window plays under the header, with the panel
   // beside it; fullscreen leaves only the video.
   const embedded = screen === "playing" && video !== null && state !== null && state.embedded;
+  // The keys work while a video plays wherever the screen has them, with or
+  // without the panel; saved settings may change them.
+  const [keysVersion, setKeysVersion] = useState(0);
+  useVideoKeys({ active: screen === "playing" && state !== null, embedded, version: keysVersion, commands, onCommand: command });
   const keepPanel = (next: PanelState) => {
     setPanel(next);
     // The panel still changes when saving fails; it is only not remembered.
     backend.setPanel(next).catch(() => undefined);
   };
 
+  // Closing the settings with choices not saved asks first, on the settings
+  // themselves (in the panel, its own tab shows).
+  const settingsPage = useRef<SettingsHandle>(null);
+  const leaveSettings = async () => {
+    const page = settingsPage.current;
+    if (!page?.dirty()) {
+      return true;
+    }
+    setPanelTab("settings");
+    return page.confirmLeave();
+  };
+
   // The settings go back to where they were opened; a session that ended
   // meanwhile goes back to its screen.
-  const closeSettings = () => setScreen(returnTo === "playing" && !state ? "session" : returnTo);
+  const closeSettings = async () => {
+    if (await leaveSettings()) {
+      setScreen(returnTo === "playing" && !state ? "session" : returnTo);
+    }
+  };
+  const stopVideo = async () => {
+    if (await leaveSettings()) {
+      command(backend.stop);
+    }
+  };
   const back = embedded ? (
-    <IconButton icon={ArrowLeft} label={t("ui.app.stopVideo")} onClick={() => command(backend.stop)} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.stopVideo")} onClick={() => void stopVideo()} />
   ) : screen === "settings" ? (
-    <IconButton icon={ArrowLeft} label={t("ui.app.back")} onClick={closeSettings} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.back")} onClick={() => void closeSettings()} />
   ) : screen === "session" ? (
     <IconButton icon={ArrowLeft} label={t("ui.app.openAnother")} onClick={() => setScreen("home")} />
   ) : undefined;
@@ -277,7 +303,12 @@ export function App() {
         icon={PanelRight}
         label={panel.open ? t("ui.app.panel.close") : t("ui.app.panel.open")}
         active={panel.open}
-        onClick={() => keepPanel({ ...panel, open: !panel.open })}
+        onClick={async () => {
+          if (panel.open && !(await leaveSettings())) {
+            return;
+          }
+          keepPanel({ ...panel, open: !panel.open });
+        }}
       />
     </>
   ) : screen === "settings" ? undefined : (
@@ -299,9 +330,10 @@ export function App() {
       {embedded && video && state ? (
         <div className="flex min-h-0 flex-1">
           <VideoStage />
-          {panel.open && !fullscreen && (
+          {panel.open && (
             <SidePanel
               width={panel.width}
+              hidden={fullscreen}
               tab={panelTab}
               onTab={setPanelTab}
               onWidth={(width) => keepPanel({ open: true, width })}
@@ -315,15 +347,35 @@ export function App() {
                   error={error}
                   onDismissError={() => setError("")}
                   onCommand={command}
+                  keysVersion={keysVersion}
                   commands={commands}
                 />
               }
-              settings={<SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} section={settingsPage} narrow />}
+              settings={
+                <SettingsPage
+                  ref={settingsPage}
+                  theme={theme}
+                  onTheme={chooseTheme}
+                  look={look}
+                  onLook={chooseLook}
+                  section={settingsSection}
+                  narrow
+                  shown={panelTab === "settings" && !fullscreen}
+                  onSaved={() => setKeysVersion((version) => version + 1)}
+                />
+              }
             />
           )}
         </div>
       ) : screen === "settings" ? (
-        <SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} />
+        <SettingsPage
+          ref={settingsPage}
+          theme={theme}
+          onTheme={chooseTheme}
+          look={look}
+          onLook={chooseLook}
+          onSaved={() => setKeysVersion((version) => version + 1)}
+        />
       ) : screen === "playing" && video && state ? (
         <PlayingPage
           name={video.name}
@@ -333,6 +385,7 @@ export function App() {
           error={error}
           onDismissError={() => setError("")}
           onCommand={command}
+          keysVersion={keysVersion}
           commands={commands}
         />
       ) : screen === "session" && video && players ? (

@@ -140,6 +140,9 @@ type SyncPreferences struct {
 	PrecisionSeekStep Duration `json:"precisionSeekStep"`
 	OffsetStep        Duration `json:"offsetStep"`
 	OffsetLargeStep   Duration `json:"offsetLargeStep"`
+	// TranslationOwnTiming shows the translation on its own file's time; by
+	// default it comes and goes with the study line it translates.
+	TranslationOwnTiming bool `json:"translationOwnTiming"`
 }
 
 // Nudge returns the sync shortcuts' steps.
@@ -159,7 +162,10 @@ type Profile struct {
 	Marks           MarkPreferences          `json:"marks"`
 	Study           StudyPreferences         `json:"study"`
 	Speed           playback.Speed           `json:"speed"`
-	Sync            SyncPreferences          `json:"sync"`
+	// VolumeTouch is how far one touch of a volume key moves the level;
+	// zero is the default (5%).
+	VolumeTouch playback.Volume `json:"volumeTouch"`
+	Sync        SyncPreferences `json:"sync"`
 	// Shortcuts are the profile's own chords; commands left out keep the
 	// default one.
 	Shortcuts shortcut.Map `json:"shortcuts"`
@@ -219,6 +225,9 @@ func (p Profile) Validate() error {
 	}
 	if !p.Speed.Valid() {
 		return fmt.Errorf("%w: speed %v", ErrInvalidSettings, p.Speed)
+	}
+	if !playback.ValidTouch(p.VolumeTouch) {
+		return fmt.Errorf("%w: volume touch %v", ErrInvalidSettings, p.VolumeTouch)
 	}
 	if err := p.Shortcuts.Validate(); err != nil {
 		return fmt.Errorf("%w: shortcuts: %w", ErrInvalidSettings, err)

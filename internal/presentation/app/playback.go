@@ -122,6 +122,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
+		TranslationOwnTiming: profile.Sync.TranslationOwnTiming, VolumeTouch: profile.VolumeTouch,
 		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
 		Voice: voiceSetup(voicePreferences),
 	}

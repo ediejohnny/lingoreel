@@ -123,7 +123,7 @@ function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionP
           onChange={(value) => onTheme(value as Theme)}
           help={<HelpTip topic={t("ui.settings.appearance.topic")}>{t("ui.settings.appearance.help")}</HelpTip>}
         />
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <div className="flex flex-col gap-3">
             <Toggle label={t("ui.settings.appearance.app.ownAccent")} checked={look.accent !== ""} onChange={ownAccent} />
             {look.accent !== "" && (
@@ -184,7 +184,7 @@ function BarCard({ view, bar, onChange }: BarCardProps) {
     >
       <div className="@container flex flex-col gap-4">
         <BarPreview bar={bar} />
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <ColorField label={t("ui.settings.appearance.bar.panel")} value={bar.panel} alpha onChange={set("panel")} />
           <ColorField label={t("ui.settings.appearance.bar.menu")} value={bar.menu} alpha onChange={set("menu")} />
           <ColorField label={t("ui.settings.appearance.bar.accent")} value={bar.accent} onChange={set("accent")} />
@@ -316,7 +316,7 @@ function EditCard({ view, edit, font, onChange }: EditCardProps) {
           </div>
           <figcaption className="text-xs text-fg-muted">{t("ui.settings.appearance.edit.caption")}</figcaption>
         </figure>
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <ColorField label={t("ui.settings.appearance.edit.background")} value={edit.background} onChange={set("background")} />
           <ColorField label={t("ui.settings.appearance.edit.text")} value={edit.text} onChange={set("text")} />
           <ColorField label={t("ui.settings.appearance.edit.hint")} value={edit.hint} onChange={set("hint")} />

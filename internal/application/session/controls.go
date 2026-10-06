@@ -243,9 +243,9 @@ func (c *Controls) SetVolume(volume playback.Volume) error {
 	return c.applyVolume(volume.Within(c.capabilities.VolumeCeiling()), false)
 }
 
-// StepVolume is a volume key going down (repeat false) or held: a touch is
-// one step, a held key moves on at the ramp's pace up to the player's
-// ceiling (playback.VolumeRamp). It unmutes.
+// StepVolume is a volume key going down (repeat false) or held: a touch moves
+// the level by the touch chosen, a held key moves on at the ramp's pace up to
+// the player's ceiling (playback.VolumeRamp). It unmutes.
 func (c *Controls) StepVolume(now time.Time, up, repeat bool) error {
 	c.volumeMu.Lock()
 	defer c.volumeMu.Unlock()
@@ -257,6 +257,14 @@ func (c *Controls) StepVolume(now time.Time, up, repeat bool) error {
 		return nil
 	}
 	return c.applyVolume(next, false)
+}
+
+// SetVolumeTouch changes how far one touch of a volume key moves the level;
+// zero is the default (playback.DefaultVolumeTouch).
+func (c *Controls) SetVolumeTouch(touch playback.Volume) {
+	c.volumeMu.Lock()
+	defer c.volumeMu.Unlock()
+	c.ramp.Touch = touch
 }
 
 // ToggleMute silences the sound or brings back the level it had.

@@ -125,7 +125,7 @@ func TestTheVolumeGoesUpToThePlayersCeiling(t *testing.T) {
 		t.Fatalf("SetVolume(3) = %v, sent %v", err, player.levels)
 	}
 	// A key touch moves 1%.
-	if err := controls.StepVolume(time.Now(), false, false); err != nil || player.levels[len(player.levels)-1] != 1.99 {
+	if err := controls.StepVolume(time.Now(), false, false); err != nil || player.levels[len(player.levels)-1] != 1.95 {
 		t.Fatalf("a touch down = %v, sent %v", err, player.levels)
 	}
 }
@@ -153,7 +153,7 @@ func TestTheStartingVolumeIsThePlayers(t *testing.T) {
 	if volume, _ := controls.Volume(); volume != 0.5 || len(reader.levels) != 0 {
 		t.Fatalf("a player at 50%%: level %v, sent %v", volume, reader.levels)
 	}
-	if err := controls.StepVolume(time.Now(), false, false); err != nil || reader.levels[0] != 0.49 {
+	if err := controls.StepVolume(time.Now(), false, false); err != nil || reader.levels[0] != 0.45 {
 		t.Fatalf("the first touch down from 50%% sent %v (%v)", reader.levels, err)
 	}
 	controls, plain := newVolumeControls(t)

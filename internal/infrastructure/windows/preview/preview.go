@@ -20,6 +20,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/controlbar"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
@@ -91,8 +92,12 @@ func (r *Renderer) draw(look session.Look, width, height, dpi int, screen sessio
 	defer dib.Close()
 	area := layout.Rect{W: float64(width), H: float64(height)}
 	notice := look.Notice.Style()
+	var cueRoom *layout.CueRoom
+	if cue := screen.Cue; cue != nil {
+		cueRoom = &layout.CueRoom{Countdown: cue.Indicator == study.IndicatorCountdown, CountdownSize: look.Cue.CountdownSize, BarThickness: look.Cue.BarThickness}
+	}
 	frame := layout.Compute(layout.Input{
-		Video: area, DPI: dpi, Layout: look.Layout,
+		Video: area, DPI: dpi, Layout: look.Layout, Cue: cueRoom,
 		Primary:     layout.Text{Style: look.Primary, Content: screen.Primary},
 		Translation: layout.Text{Style: look.Translation, Content: screen.Translation},
 		Notice: layout.Notice{

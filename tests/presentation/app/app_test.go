@@ -91,7 +91,7 @@ func TestWatchAndControlTheSession(t *testing.T) {
 		return state.Active && state.Status == "paused" && state.PositionText == "0:30" && state.DurationText == "1:30:00"
 	})
 	state := r.api.PlaybackState()
-	if state.Lines.Primary != "Legenda de cima (inglês)" || !state.Capabilities.Seek || state.PrimaryOffset != "+0,000 s" {
+	if state.Lines.Primary != "Legenda de estudo (inglês)" || !state.Capabilities.Seek || state.PrimaryOffset != "+0,000 s" {
 		t.Fatalf("state = %+v", state)
 	}
 	if err := r.api.Nudge("primary", true); err != nil {

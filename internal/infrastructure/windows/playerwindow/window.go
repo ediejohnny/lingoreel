@@ -143,8 +143,9 @@ func DefaultChrome() Chrome {
 
 // The window is a watch session's player window, and changes its look.
 var (
-	_ watch.Window     = (*Window)(nil)
-	_ session.Restyler = (*Window)(nil)
+	_ watch.Window         = (*Window)(nil)
+	_ session.Restyler     = (*Window)(nil)
+	_ session.MeterDisplay = (*Window)(nil)
 )
 
 // Window is an open player window.
@@ -478,6 +479,15 @@ func (w *Window) Restyle(look overlay.Look) error {
 // Notify shows a short notice over the video.
 func (w *Window) Notify(text string) error {
 	return w.overlay.Notify(text)
+}
+
+// NotifyLevel shows a notice with its level, in the colors of the control
+// bar's volume, which belong to the window's thread.
+func (w *Window) NotifyLevel(text string, meter session.Meter) error {
+	return w.thread.Post(func() {
+		bar := w.chrome.Bar
+		_ = w.overlay.NotifyLevel(text, overlay.Level{Meter: meter, Fill: bar.Accent, Loud: bar.Loud})
+	})
 }
 
 // Done is closed when the window is gone.

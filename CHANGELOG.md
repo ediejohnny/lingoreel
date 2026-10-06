@@ -6,6 +6,38 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-06
+
+Settings can always be saved, and every change shows on the video at once. The two subtitle lines keep the order the
+user picks, the translation comes and goes with the line it translates, and the volume keys move faster and show a
+level.
+
+### Added
+
+- Changes in Settings show on the video at once, before they are saved. Leaving Settings with unsaved changes asks
+  whether to save them, throw them away or keep editing; beside the video, the save bar sits at the top of the panel.
+- Settings › Subtitles › Subtitle order: the study line on top and the translation below it, or the other way round.
+- The translation comes and goes with the study line it translates, so both show and leave together; a translation
+  that matches no study line, such as a sign's, keeps its own time. Settings › Subtitles can turn this off.
+- Settings › Playback › Volume step: how far one touch of ↑ or ↓ moves the volume, from 1% to 25%.
+
+### Changed
+
+- The two lines are named by their role, the study line and the translation, instead of by their place.
+- ↑ and ↓ move the volume 5% a touch (it was 1%) and about 20% a second when held (it was 9%).
+- The volume notice is larger, with a bar of the player's whole range under it, marked at 100%.
+- Notices sit in the top right corner, where the eye goes first; profiles still in the top left corner move there.
+- When the two lines do not fit, the upper one rises; if it would leave the picture, the lower one shrinks and goes
+  down to the picture's edge. The order never changes.
+
+### Fixed
+
+- After leaving fullscreen in a maximized window, the bottom of the app's screen sat behind the taskbar, hiding the
+  Save button in Settings and the Play button of a video.
+- The panel beside the video ran past its edges at narrow widths: colors with an opacity and the style editor's grids.
+- The translation sometimes showed above the study line and sometimes below it.
+- After Alt+Tab back to the app, Space and the other video keys did nothing until the video was clicked.
+
 ## [0.23.1] - 2026-10-06
 
 The app's icon in a neon red and a pink, its play sign larger and centered.
@@ -512,7 +544,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/ediejohnny/lingoreel/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/ediejohnny/lingoreel/compare/v0.21.0...v0.22.0

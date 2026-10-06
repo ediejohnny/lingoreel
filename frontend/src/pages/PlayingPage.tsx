@@ -9,9 +9,9 @@ import { Button, IconButton } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
-import { isTyping, speedLabel } from "../format";
+import { speedLabel } from "../format";
 import { t } from "../i18n";
-import { both, fullscreenOf, keyLabel, panelCommand, translationCommand, withKey } from "../keys";
+import { both, keyLabel, translationCommand, withKey } from "../keys";
 import { backend, type Choice, type Line, type Playback, type ShortcutSetting } from "../services/backend";
 
 /** seekStep is the jump of the back and forward buttons, in seconds. */
@@ -30,6 +30,8 @@ interface PlayingPageProps {
   error: string;
   onDismissError: () => void;
   onCommand: (command: () => Promise<void>) => void;
+  /** keysVersion changes when the profile's keys may have changed, so their labels are read again. */
+  keysVersion?: number;
   commands: {
     togglePause: () => Promise<void>;
     seekBy: (seconds: number) => Promise<void>;
@@ -71,6 +73,7 @@ export function PlayingPage({
   error,
   onDismissError,
   onCommand,
+  keysVersion = 0,
   commands,
 }: PlayingPageProps) {
   const playing = state.status === "playing";
@@ -78,6 +81,8 @@ export function PlayingPage({
   const [keys, setKeys] = useState<ShortcutSetting[]>([]);
   const label = (command: string) => keyLabel(keys, command);
 
+  // The keys' labels for the buttons and the help; the keys themselves work
+  // from the app (useVideoKeys), with or without this panel.
   useEffect(() => {
     let current = true;
     backend
@@ -87,58 +92,7 @@ export function PlayingPage({
     return () => {
       current = false;
     };
-  }, []);
-
-  // The profile's shortcuts work here too, as in the player window, unless
-  // a field has the focus. The translation key also hears its release.
-  useEffect(() => {
-    let revealCode = "";
-    const release = () => {
-      if (revealCode !== "") {
-        revealCode = "";
-        onCommand(() => commands.reveal(false));
-      }
-    };
-    const down = (event: KeyboardEvent) => {
-      if (isTyping(event.target)) {
-        return;
-      }
-      const command = panelCommand(event, keys, embedded);
-      if (command === "") {
-        return;
-      }
-      event.preventDefault();
-      const fullscreen = fullscreenOf(command);
-      if (fullscreen !== undefined) {
-        onCommand(() => commands.setFullscreen(fullscreen));
-        return;
-      }
-      if (command === translationCommand) {
-        if (!event.repeat) {
-          revealCode = event.code;
-          onCommand(() => commands.reveal(true));
-        }
-        return;
-      }
-      onCommand(() => commands.runShortcut(command, event.repeat));
-    };
-    const up = (event: KeyboardEvent) => {
-      if (revealCode !== "" && event.code === revealCode) {
-        // Also keeps the right Alt from opening the window menu.
-        event.preventDefault();
-        release();
-      }
-    };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", release);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", release);
-      release();
-    };
-  }, [keys, commands, onCommand, embedded]);
+  }, [keysVersion]);
 
   const speedOptions = speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }));
   const currentSpeed = speeds.find((speed) => Math.abs(speed - state.speed) < 1e-6) ?? 1;

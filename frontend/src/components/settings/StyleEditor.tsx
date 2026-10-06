@@ -42,7 +42,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         </div>
       </div>
 
-      <fieldset className="grid gap-4 @lg:grid-cols-2">
+      <fieldset className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.text")}</legend>
         <Select
           label={t("ui.settings.style.font")}
@@ -86,7 +86,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 @lg:grid-cols-2">
+      <fieldset className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.outlineShadow")}</legend>
         <Toggle label={t("ui.settings.style.outline")} checked={style.outline} onChange={set("outline")} />
         <span />
@@ -148,7 +148,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 @lg:grid-cols-2">
+      <fieldset className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.background.title")}</legend>
         <Toggle
           label={t("ui.settings.style.background.label")}
@@ -176,7 +176,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
         />
       </fieldset>
 
-      <fieldset className="grid gap-4 @lg:grid-cols-2">
+      <fieldset className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
         <legend className="mb-2 text-sm font-semibold text-fg-secondary">{t("ui.settings.style.position.title")}</legend>
         <NumberField
           label={t("ui.settings.style.position.base")}

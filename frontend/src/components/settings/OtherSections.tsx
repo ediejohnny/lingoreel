@@ -20,7 +20,7 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
   return (
     <>
       <Card title={t("ui.settings.playback.open.title")}>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
           <Select
             label={t("ui.settings.playback.speed.label")}
             value={String(draft.speed)}
@@ -34,6 +34,16 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
             options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
             onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
             help={<HelpTip topic={t("ui.settings.playback.audio.topic")}>{t("ui.settings.playback.audio.help")}</HelpTip>}
+          />
+          <NumberField
+            label={t("ui.settings.playback.volumeStep")}
+            value={draft.volumeStep}
+            min={options.limits.volumeStepMin}
+            max={options.limits.volumeStepMax}
+            step={1}
+            unit="%"
+            onChange={(step) => change(setDraft, "volumeStep")(Math.round(step))}
+            help={<HelpTip topic={t("ui.settings.playback.volumeStep")}>{t("ui.settings.playback.volumeStepHelp")}</HelpTip>}
           />
         </div>
       </Card>

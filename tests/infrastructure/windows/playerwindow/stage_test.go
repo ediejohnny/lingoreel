@@ -80,6 +80,12 @@ func dispatchFakeApp(hwnd windows.HWND, message uint32, wparam, lparam uintptr) 
 				win32.SetFocus(app.screen)
 			}
 			return 0
+		case win32.WM_SIZE:
+			// As Wails does: the screen takes the client size read now.
+			if client, err := win32.ClientRectOnScreen(hwnd); err == nil && app.screen != 0 {
+				_ = win32.SetWindowPos(app.screen, 0, win32.Rect{Right: client.Right - client.Left, Bottom: client.Bottom - client.Top},
+					win32.SWP_NOZORDER|win32.SWP_NOACTIVATE)
+			}
 		}
 	}
 	return win32.DefWindowProc(hwnd, message, wparam, lparam)
@@ -385,6 +391,44 @@ func TestTheVideoStaysAboveTheAppsOwnChildren(t *testing.T) {
 		t.Fatal(err)
 	}
 	testkit.Eventually(t, "the video back on top of the app's screen", func() bool { return win32.TopChild(app.hwnd) == host })
+}
+
+// Leaving the fullscreen of a maximized app window gives the app's screen
+// (the WebView, which follows WM_SIZE) the window's size again: Windows sends
+// no WM_SIZE when a maximized window gets its frame back, and the screen hung
+// 53 px below the window, hiding the settings' Save button (user report). It
+// shows a maximized window for about two seconds, so it runs with -Full only.
+func TestLeavingFullscreenGivesTheAppsScreenTheWindowsSize(t *testing.T) {
+	if testing.Short() {
+		t.Skip("shows a maximized window on screen: runs with -Full")
+	}
+	const swShowMaximized = 3
+	app := newFakeApp(t, onScreenHidden, false)
+	if err := app.thread.Do(func() { win32.ShowWindow(app.hwnd, swShowMaximized) }); err != nil {
+		t.Fatal(err)
+	}
+	stage := stageFor(app, nil)
+	openOn(t, stage)
+	screenFits := func() bool {
+		client, err := win32.ClientRectOnScreen(app.hwnd)
+		screen, err2 := win32.WindowRect(app.screen)
+		return err == nil && err2 == nil && screen == client
+	}
+	testkit.Eventually(t, "the app's screen filling the maximized window", screenFits)
+	maximized, err := win32.WindowRect(app.hwnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	monitor, err := win32.MonitorBounds(app.hwnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stage.SetFullscreen(true)
+	testkit.Eventually(t, "the fullscreen", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == monitor })
+	stage.SetFullscreen(false)
+	testkit.Eventually(t, "the maximized window back", func() bool { r, err := win32.WindowRect(app.hwnd); return err == nil && r == maximized })
+	testkit.Eventually(t, "the app's screen back to the window's size", screenFits)
 }
 
 func TestFullscreenCoversTheMonitorWithTheAppWindow(t *testing.T) {

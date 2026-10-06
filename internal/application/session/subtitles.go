@@ -109,7 +109,10 @@ type Subtitles struct {
 	lines   [2]*Track
 	karaoke Karaoke
 	voice   VoiceFill
-	changes chan struct{}
+	// ownTiming shows the translation on its own file's time instead of
+	// with the study line it translates.
+	ownTiming bool
+	changes   chan struct{}
 }
 
 // NewSubtitles creates the subtitles of a session; either track may be nil.
@@ -144,6 +147,16 @@ func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
 	s.notify()
 }
 
+// SetOwnTiming shows the translation on its own file's time (true) or
+// coming and going with the study line it translates (false, the default),
+// and signals the change.
+func (s *Subtitles) SetOwnTiming(own bool) {
+	s.mu.Lock()
+	s.ownTiming = own
+	s.mu.Unlock()
+	s.notify()
+}
+
 // SetVoice paints the primary line along the actor's voice, or by the
 // estimate (nil), and signals the change.
 func (s *Subtitles) SetVoice(voice VoiceFill) {
@@ -160,9 +173,11 @@ func (s *Subtitles) Karaoke() Karaoke {
 	return s.karaoke
 }
 
-// At returns the events visible at a playback position. With the karaoke
-// mode on, a silence before a line shows that line ahead of time, with
-// its translation, and a line being spoken carries its fill.
+// At returns the events visible at a playback position. The translation
+// comes and goes with the study line it translates, unless it keeps its own
+// time. With the karaoke mode on, a silence before a line shows that line
+// ahead of time, with its translation, and a line being spoken carries its
+// fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -172,18 +187,21 @@ func (s *Subtitles) At(position time.Duration) Visible {
 	}
 	primary := s.lines[LinePrimary]
 	if !s.karaoke.Enabled || primary == nil || primary.Timeline == nil {
+		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 		return visible
 	}
 	if len(visible.Primary) == 0 {
 		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Offset, position, s.karaoke.Rules); upcoming {
 			visible.Cue = &cue
 			visible.Primary = []subtitle.Event{cue.Event}
-			if len(visible.Translation) == 0 {
+			if s.ownTiming && len(visible.Translation) == 0 {
 				visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
 			}
 		}
+		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 		return visible
 	}
+	visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 	if s.karaoke.Fill && len(visible.Primary) == 1 {
 		line := visible.Primary[0]
 		if !study.SpeechUnits(line.Text()).Spoken() {
@@ -215,6 +233,21 @@ func (s *Subtitles) Track(line Line) *Track {
 		return &copied
 	}
 	return nil
+}
+
+// translationWith is the translation shown with the study events shown:
+// those on its own time when it keeps them (or with no study line loaded),
+// else the ones that say what the study events say, for as long as those
+// show. Called with s.mu held.
+func (s *Subtitles) translationWith(shown, own []subtitle.Event, position time.Duration) []subtitle.Event {
+	primary, translation := s.lines[LinePrimary], s.lines[LineTranslation]
+	if s.ownTiming || primary == nil || primary.Timeline == nil || translation == nil || translation.Timeline == nil {
+		return own
+	}
+	return subtitle.Paired(shown,
+		subtitle.Placed{Timeline: primary.Timeline, Offset: primary.Offset},
+		subtitle.Placed{Timeline: translation.Timeline, Offset: translation.Offset},
+		position, maxVisiblePerLine)
 }
 
 func activeAt(track *Track, position time.Duration) []subtitle.Event {

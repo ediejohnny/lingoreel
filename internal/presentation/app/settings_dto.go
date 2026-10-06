@@ -68,8 +68,13 @@ type ProfileSettings struct {
 	SyncStep        int              `json:"syncStep"`
 	SyncFastStep    int              `json:"syncFastStep"`
 	// PrecisionStep is the precision shortcuts' jump, in ms.
-	PrecisionStep int             `json:"precisionStep"`
-	Karaoke       KaraokeSettings `json:"karaoke"`
+	PrecisionStep int `json:"precisionStep"`
+	// TranslationOwnTiming shows the translation on its own file's time
+	// instead of with the study line it translates.
+	TranslationOwnTiming bool `json:"translationOwnTiming"`
+	// VolumeStep is how far one touch of a volume key moves the level, in %.
+	VolumeStep int             `json:"volumeStep"`
+	Karaoke    KaraokeSettings `json:"karaoke"`
 	// Mode is the study mode a video opens with.
 	Mode      string            `json:"mode"`
 	Reveal    string            `json:"reveal"`
@@ -111,7 +116,7 @@ type StyleSettings struct {
 }
 
 // LayoutSettings are the margins and the text width, shares of the video,
-// and the least gap between the two lines, in lines.
+// the least gap between the two lines, in lines, and their order.
 type LayoutSettings struct {
 	MarginLeft   float64 `json:"marginLeft"`
 	MarginRight  float64 `json:"marginRight"`
@@ -119,6 +124,8 @@ type LayoutSettings struct {
 	MarginBottom float64 `json:"marginBottom"`
 	MaxWidth     float64 `json:"maxWidth"`
 	LineGap      float64 `json:"lineGap"`
+	// TranslationOnTop puts the translation above the study line.
+	TranslationOnTop bool `json:"translationOnTop"`
 }
 
 // MarkSettings are the marks over the video besides the subtitles.
@@ -322,6 +329,9 @@ type SettingsLimits struct {
 	HintSizeMax  float64 `json:"hintSizeMax"`
 	TextSizeMin  float64 `json:"textSizeMin"`
 	TextSizeMax  float64 `json:"textSizeMax"`
+	// VolumeStepMin and VolumeStepMax bound a touch of a volume key, in %.
+	VolumeStepMin int `json:"volumeStepMin"`
+	VolumeStepMax int `json:"volumeStepMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.

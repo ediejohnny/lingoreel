@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/gdiplus"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/uithread"
@@ -95,6 +96,8 @@ type Overlay struct {
 	shown   bool
 	content session.Screen
 	notice  string
+	// level is the notice's level, nil for a notice of text alone.
+	level *Level
 	// reserve is the height at the bottom kept free for the control bar.
 	reserve int
 
@@ -317,11 +320,28 @@ func (o *Overlay) drawPending() {
 // duration; a new notice replaces the current one and starts the time again.
 // Like Show, it never waits for the drawing.
 func (o *Overlay) Notify(text string) error {
+	return o.notify(text, nil)
+}
+
+// Level is a notice's level and the colors of its bar.
+type Level struct {
+	session.Meter
+	// Fill colors the bar up to the mark and Loud past it.
+	Fill, Loud appearance.Color
+}
+
+// NotifyLevel shows a notice with its level under the text, larger than the
+// other notices, the way Notify does.
+func (o *Overlay) NotifyLevel(text string, level Level) error {
+	return o.notify(text, &level)
+}
+
+func (o *Overlay) notify(text string, level *Level) error {
 	return o.thread.Post(func() {
 		if o.window == 0 {
 			return
 		}
-		o.notice = text
+		o.notice, o.level = text, level
 		err := o.redraw()
 		if err == nil {
 			err = win32.SetTimer(o.window, noticeTimer, uint32(o.options.Look.NoticeDuration/time.Millisecond))
@@ -365,7 +385,7 @@ func (o *Overlay) Restyle(look Look) error {
 // clearNotice runs on the UI thread when the notice's time is up.
 func (o *Overlay) clearNotice() {
 	win32.KillTimer(o.window, noticeTimer)
-	o.notice = ""
+	o.notice, o.level = "", nil
 	if err := o.redraw(); err != nil {
 		o.logger.Warn("overlay could not remove a notice", "error", err)
 	}
@@ -516,9 +536,16 @@ func (o *Overlay) redraw() error {
 		floor = float64(height - o.reserve)
 	}
 	style := o.options.Look
-	notice := style.Notice.Style()
+	noticeLook, meter, meterLook := style.Notice, (*layout.Meter)(nil), gdiplus.MeterLook{}
+	if o.level != nil {
+		noticeLook = noticeLook.WithLevel()
+		meter = &layout.Meter{Level: o.level.Level, Mark: o.level.Mark}
+		meterLook = gdiplus.MeterLook{Fill: o.level.Fill, Loud: o.level.Loud}
+	}
+	notice := noticeLook.Style()
 	frame := layout.Compute(layout.Input{
 		Floor:       floor,
+		Cue:         cueRoom(o.content.Cue, style.Cue),
 		Video:       layout.VideoRect(area, o.options.VideoWidth, o.options.VideoHeight),
 		DPI:         o.dpi,
 		Layout:      style.Layout,
@@ -526,12 +553,12 @@ func (o *Overlay) redraw() error {
 		Translation: layout.Text{Style: style.Translation, Content: o.content.Translation},
 		Notice: layout.Notice{
 			Text:   layout.Text{Style: notice, Content: o.notice},
-			Margin: style.Notice.Margin, MaxWidth: style.Notice.MaxWidth,
+			Margin: noticeLook.Margin, MaxWidth: noticeLook.MaxWidth, Meter: meter,
 		},
 	}, o.renderer)
 	look := gdiplus.Look{
 		Primary: style.Primary, Translation: style.Translation,
-		TranslationVisible: o.content.TranslationVisible, Notice: notice,
+		TranslationVisible: o.content.TranslationVisible, Notice: notice, Meter: meterLook,
 		PrimaryHidden: o.content.PrimaryHidden, Preview: style.PreviewColor, FillColor: style.FillColor,
 	}
 	if cue := o.content.Cue; cue != nil {

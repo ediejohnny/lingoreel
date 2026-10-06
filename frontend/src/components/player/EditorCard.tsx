@@ -46,7 +46,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
             onCommand={onCommand}
           />
         ) : (
-          <div className="grid gap-2 @md:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 @md:grid-cols-2">
             <Button icon={PencilLine} disabled={playing} title={playing ? pausedOnly : undefined} onClick={() => pick("primary")}>
               {t("ui.editor.fix.top")}
             </Button>
@@ -137,7 +137,7 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
           className="w-full resize-y rounded-control border border-line-strong bg-surface px-3 py-2 text-sm text-fg"
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2">
         <TextField label={t("ui.editor.start")} value={start} onChange={setStart} placeholder="1:02:03,456" action={now(setStart)} />
         <TextField label={t("ui.editor.end")} value={end} onChange={setEnd} placeholder="1:02:05,000" action={now(setEnd)} />
       </div>

@@ -4,7 +4,9 @@ package overlay
 
 import (
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
 // Spot is where a line was drawn and in which font: the place of a box that
@@ -40,6 +42,15 @@ func (o *Overlay) SpotOf(line session.Line) (Spot, bool) {
 		return Spot{}, false
 	}
 	return Spot{Box: box, Font: o.fonts[line]}, true
+}
+
+// cueRoom is the room the karaoke indicator takes above a previewed line,
+// kept for the whole preview so the lines do not move when it ends.
+func cueRoom(cue *session.CueScreen, style appearance.CueStyle) *layout.CueRoom {
+	if cue == nil {
+		return nil
+	}
+	return &layout.CueRoom{Countdown: cue.Indicator == study.IndicatorCountdown, CountdownSize: style.CountdownSize, BarThickness: style.BarThickness}
 }
 
 // drawnBoxes are the boxes of the lines a frame draws: a hidden line or one

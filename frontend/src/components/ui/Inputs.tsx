@@ -48,7 +48,7 @@ export function NumberField({ label, value, min, max, step, onChange, scale = 1,
           value={shown}
           disabled={disabled}
           onChange={(event) => onChange(Number(event.target.value) / scale)}
-          className="h-2 min-w-0 flex-1 accent-[var(--sp-accent)] disabled:opacity-55"
+          className="h-2 w-0 min-w-0 flex-1 accent-[var(--sp-accent)] disabled:opacity-55"
         />
         <div className="flex items-center gap-1">
           <input
@@ -96,7 +96,7 @@ export function ColorField({ label, value, onChange, alpha = false, help, disabl
         </label>
         {help}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <input
           id={id}
           type="color"
@@ -107,7 +107,8 @@ export function ColorField({ label, value, onChange, alpha = false, help, disabl
         />
         <span className="font-mono text-xs text-fg-muted">{hex}</span>
         {alpha && (
-          <label className="flex flex-1 items-center gap-2 text-xs text-fg-muted">
+          // In a narrow column the opacity goes down a line instead of out of the box.
+          <label className="flex min-w-40 flex-1 items-center gap-2 text-xs text-fg-muted">
             {t("ui.field.opacity")}
             <input
               type="range"
@@ -117,7 +118,7 @@ export function ColorField({ label, value, onChange, alpha = false, help, disabl
               value={Math.round(opacity * 100)}
               disabled={disabled}
               onChange={(event) => onChange(joinColor(hex, Number(event.target.value) / 100))}
-              className="h-2 min-w-0 flex-1 accent-[var(--sp-accent)]"
+              className="h-2 w-0 min-w-0 flex-1 accent-[var(--sp-accent)]"
             />
             <span className="w-9 text-right tabular-nums">{Math.round(opacity * 100)}%</span>
           </label>
@@ -143,7 +144,11 @@ export function Segmented({ label, value, options, onChange, help }: SegmentedPr
         <span className="text-sm font-medium text-fg">{label}</span>
         {help}
       </div>
-      <div role="radiogroup" aria-label={label} className="inline-flex w-fit rounded-control border border-line-strong p-0.5">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="inline-flex w-fit max-w-full flex-wrap rounded-control border border-line-strong p-0.5"
+      >
         {options.map((option) => (
           <button
             key={option.value}

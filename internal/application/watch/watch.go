@@ -190,11 +190,13 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	}
 	s.subtitles = session.NewSubtitles(tracks[session.LinePrimary], tracks[session.LineTranslation])
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
+	s.controls.SetVolumeTouch(request.VolumeTouch)
 	// A level that could not be synced leaves the bar at 100%, as before;
 	// the next volume key sets the player's level anyway.
 	_ = s.controls.SyncVolume()
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
+	s.subtitles.SetOwnTiming(request.TranslationOwnTiming)
 	s.voice = &voicing{tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(), setup: request.Voice}
 	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))

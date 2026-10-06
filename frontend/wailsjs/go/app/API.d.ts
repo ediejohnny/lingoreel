@@ -34,6 +34,8 @@ export function DismissRecommendation(arg1:string):Promise<void>;
 
 export function EditLine(arg1:app.EditRequest):Promise<void>;
 
+export function EndPreview():Promise<void>;
+
 export function ExportSubtitle(arg1:string):Promise<void>;
 
 export function FileAssociation():Promise<boolean>;
@@ -61,6 +63,8 @@ export function Players():Promise<app.Players>;
 export function Preferences():Promise<app.Preferences>;
 
 export function PreviewBar(arg1:app.BarPreviewRequest):Promise<string>;
+
+export function PreviewLook(arg1:app.ProfileSettings):Promise<void>;
 
 export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 

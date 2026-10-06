@@ -168,6 +168,18 @@ func (s *Session) ApplyKaraoke(karaoke session.Karaoke) error {
 	return nil
 }
 
+// SetVolumeTouch changes how far one touch of a volume key moves the level;
+// zero is the default.
+func (s *Session) SetVolumeTouch(touch playback.Volume) {
+	s.controls.SetVolumeTouch(touch)
+}
+
+// SetTranslationTiming shows the translation on its own file's time (true)
+// or with the study line it translates (false).
+func (s *Session) SetTranslationTiming(own bool) {
+	s.subtitles.SetOwnTiming(own)
+}
+
 // SetSyncNotice shows or leaves out the notice of a sync change.
 func (s *Session) SetSyncNotice(show bool) {
 	s.quiet.Store(!show)

@@ -388,6 +388,7 @@ export namespace app {
 	    marginBottom: number;
 	    maxWidth: number;
 	    lineGap: number;
+	    translationOnTop: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LayoutSettings(source);
@@ -401,6 +402,7 @@ export namespace app {
 	        this.marginBottom = source["marginBottom"];
 	        this.maxWidth = source["maxWidth"];
 	        this.lineGap = source["lineGap"];
+	        this.translationOnTop = source["translationOnTop"];
 	    }
 	}
 	export class LineNames {
@@ -1087,6 +1089,8 @@ export namespace app {
 	    syncStep: number;
 	    syncFastStep: number;
 	    precisionStep: number;
+	    translationOwnTiming: boolean;
+	    volumeStep: number;
 	    karaoke: KaraokeSettings;
 	    mode: string;
 	    reveal: string;
@@ -1109,6 +1113,8 @@ export namespace app {
 	        this.syncStep = source["syncStep"];
 	        this.syncFastStep = source["syncFastStep"];
 	        this.precisionStep = source["precisionStep"];
+	        this.translationOwnTiming = source["translationOwnTiming"];
+	        this.volumeStep = source["volumeStep"];
 	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
 	        this.mode = source["mode"];
 	        this.reveal = source["reveal"];
@@ -1197,6 +1203,8 @@ export namespace app {
 	    hintSizeMax: number;
 	    textSizeMin: number;
 	    textSizeMax: number;
+	    volumeStepMin: number;
+	    volumeStepMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -1248,6 +1256,8 @@ export namespace app {
 	        this.hintSizeMax = source["hintSizeMax"];
 	        this.textSizeMin = source["textSizeMin"];
 	        this.textSizeMax = source["textSizeMax"];
+	        this.volumeStepMin = source["volumeStepMin"];
+	        this.volumeStepMax = source["volumeStepMax"];
 	    }
 	}
 	export class SettingsOptions {
