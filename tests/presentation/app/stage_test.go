@@ -195,14 +195,17 @@ func TestClosingHidesTheWindowAtOnce(t *testing.T) {
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Primary: 4}); err != nil {
 		t.Fatal(err)
 	}
-	r.plugin.current().closeDelay.Store(int64(300 * time.Millisecond))
+	player := r.plugin.current()
+	player.closeDelay.Store(int64(300 * time.Millisecond))
 	start := time.Now()
 	r.lifecycle.EndBeforeClosing(func() {})
 	if hidden, after := r.ui.hidden(), time.Since(start); hidden != 1 || after > 100*time.Millisecond {
 		t.Fatalf("the window was hidden %d times, %v after the close", hidden, after)
 	}
-	if !r.api.PlaybackState().Active {
-		t.Fatal("the video ended before the window was hidden")
+	// The session may already be ending behind the window; the player, slow
+	// to quit, is not gone yet.
+	if player.quit.Load() {
+		t.Fatal("the player had quit before the window was hidden")
 	}
 	testkit.Eventually(t, "the video to end behind the hidden window", func() bool { return !r.api.PlaybackState().Active })
 }

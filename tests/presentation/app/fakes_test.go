@@ -121,8 +121,10 @@ type fakeRunning struct {
 	// reconnecting is what Reconnecting answers; lost makes Err report a lost player.
 	reconnecting atomic.Bool
 	lost         atomic.Bool
-	// closeDelay (nanoseconds) is how long Close takes, like a player slow to quit.
+	// closeDelay (nanoseconds) is how long Close takes, like a player slow to
+	// quit; quit tells Close is over.
 	closeDelay atomic.Int64
+	quit       atomic.Bool
 }
 
 func (r *fakeRunning) Reconnecting() bool { return r.reconnecting.Load() }
@@ -177,6 +179,7 @@ func (r *fakeRunning) Err() error {
 func (r *fakeRunning) Close() error {
 	time.Sleep(time.Duration(r.closeDelay.Load()))
 	r.once.Do(func() { close(r.samples) })
+	r.quit.Store(true)
 	return nil
 }
 
