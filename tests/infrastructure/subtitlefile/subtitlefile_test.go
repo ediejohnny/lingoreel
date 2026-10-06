@@ -10,6 +10,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
 const srt = "1\n00:00:01,000 --> 00:00:02,500\nHello there.\n\n2\n00:00:03,000 --> 00:00:04,000\nGeneral Kenobi.\n"
@@ -62,12 +63,40 @@ func assertFound(t *testing.T, got []string, want ...string) {
 }
 
 // A YTS-style release: the only video in its folder, subtitles in Subs/.
+// layout writes a subtitle into every file: notes.txt is one renamed, while
+// a picture or an .nfo is never read to find out.
 func TestFindTakesEverySubtitleOfTheFoldersOnlyVideo(t *testing.T) {
 	t.Parallel()
 	root := layout(t, "Movie (2020).mkv", "Movie.en.srt", "extra.ass", "notes.txt", "cover.jpg",
 		"Subs/2_English.srt", "Subs/3_Portuguese.srt", "Subs/readme.nfo")
 	assertFound(t, find(t, root, "Movie (2020).mkv"),
-		"Movie.en.srt", "extra.ass", "Subs/2_English.srt", "Subs/3_Portuguese.srt")
+		"Movie.en.srt", "extra.ass", "notes.txt", "Subs/2_English.srt", "Subs/3_Portuguese.srt")
+}
+
+// A child renamed the video and the subtitle: "a.mkv" and "legenda", with no
+// extension. The subtitle is told by its text; a text file that is not one,
+// and a file too large to be one, are left out, the large one by its size,
+// never read.
+func TestFindTellsARenamedSubtitleByItsText(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	files := map[string]string{"a.mkv": "", "legenda": srt, "notas.txt": "Comprar pipoca.\nVer o filme às 8.", "LEIAME": "Nada aqui."}
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	huge := filepath.Join(root, "enorme")
+	if err := os.WriteFile(huge, []byte(srt), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(huge, subtitleformat.MaxInputBytes+1); err != nil {
+		t.Fatal(err)
+	}
+	assertFound(t, find(t, root, "a.mkv"), "legenda")
+	if _, content, err := (subtitlefile.Files{}).Load(filepath.Join(root, "legenda")); err != nil || len(content.Events) != 2 {
+		t.Fatalf("Load(legenda) = %d lines, %v", len(content.Events), err)
+	}
 }
 
 // With several videos, only files named after this one belong to it.
@@ -137,7 +166,7 @@ func TestFindCandidatesLooksOneLevelIntoAnySubfolder(t *testing.T) {
 		"exemplo.de.filme.(1000001)/Example Movie.eng.srt", "exemplo.de.filme.(1000001)/info.nfo",
 		"exemplo.de.filme.(1000002)/Example Movie DC.en.srt", "Subs/English.srt", "deep/er/x.srt", "empty/")
 	assertFound(t, candidates(t, root, "Exemplo.mkv"),
-		"End.en.srt", "Subs/English.srt",
+		"End.en.srt", "notes.txt", "Subs/English.srt",
 		"exemplo.de.filme.(1000001)/Example Movie.eng.srt", "exemplo.de.filme.(1000002)/Example Movie DC.en.srt")
 }
 
@@ -238,10 +267,13 @@ func TestLoadRejectsWhatIsNotASubtitle(t *testing.T) {
 		path string
 		want error
 	}{
-		"pasta":         {folder, subtitlefile.ErrUnsupported},
-		"grande demais": {big, subtitlefile.ErrTooLarge},
-		"inexistente":   {filepath.Join(folder, "gone.srt"), os.ErrNotExist},
-		"extensão":      {write(t, "notes.txt", []byte("hello")), subtitlefile.ErrUnsupported},
+		"a folder":             {folder, subtitlefile.ErrUnsupported},
+		"too large":            {big, subtitlefile.ErrTooLarge},
+		"missing":              {filepath.Join(folder, "gone.srt"), os.ErrNotExist},
+		"not a subtitle":       {write(t, "notes.txt", []byte("hello")), subtitlefile.ErrUnsupported},
+		"a page named .srt":    {write(t, "page.srt", []byte("<html><script>alert(1)</script></html>")), subtitlefile.ErrUnsupported},
+		"a program named .ass": {write(t, "program.ass", []byte("MZ\x90\x00\x03\x00\x00\x00[Script Info]")), subtitlefile.ErrUnsupported},
+		"no line in it":        {write(t, "backwards.srt", []byte("1\n00:00:05,000 --> 00:00:01,000\nBackwards.\n")), subtitlefile.ErrUnsupported},
 	}
 	for name, c := range cases {
 		if _, _, err := (subtitlefile.Files{}).Load(c.path); !errors.Is(err, c.want) {

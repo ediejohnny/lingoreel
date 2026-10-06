@@ -33,6 +33,38 @@ func watchSwitchVideo(t *testing.T, change func(*rig)) *rig {
 	return r
 }
 
+// The session screen and the panel list each line's best subtitle first: the
+// full English track before the one for the hearing impaired, then the
+// Portuguese ones, the unreadable one last. Every track stays in the lists.
+func TestTheListsShowTheBestSubtitleFirst(t *testing.T) {
+	t.Parallel()
+	numbers := func(tracks []app.Track) []uint64 {
+		var list []uint64
+		for _, track := range tracks {
+			list = append(list, track.Number)
+		}
+		return list
+	}
+	want := []uint64{4, 7, 5, 6}
+	r := newRig(t)
+	r.attach(t)
+	video, err := r.api.OpenVideo(switchVideo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := numbers(video.Subtitles); !slices.Equal(got, want) || video.Suggested.Primary != 4 {
+		t.Fatalf("session screen: %v (primary %d), want %v", got, video.Suggested.Primary, want)
+	}
+	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { r.api.StopWatching() })
+	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	if got := numbers(r.api.PlaybackState().Tracks.Subtitles); !slices.Equal(got, want) {
+		t.Fatalf("panel: %v, want %v", got, want)
+	}
+}
+
 // A line switched while the video plays is remembered as the choice, and
 // what the user adjusts afterwards is kept on the new track, not the old one.
 func TestASwitchedSubtitleKeepsItsOwnSync(t *testing.T) {

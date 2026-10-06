@@ -76,29 +76,38 @@ func (a *API) OpenVideo(path string) (Video, error) {
 // describeVideo is a video as the session screen shows it. The project is
 // read under a.mu: a session playing it saves passages and where it is.
 func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, suggested media.Selection, mode study.Mode) Video {
+	preferences := a.preferences()
 	video := Video{
 		Path: result.Path, Name: filepath.Base(result.Path), Duration: result.Info.Duration.Seconds(),
 		Suggested: Selection{Audio: suggested.Audio, Primary: suggested.Primary, Translation: suggested.Translation},
 		Players:   a.players(),
-		Audio:     audioTracks(result.Info), Subtitles: subtitleTracks(result.Info),
+		Audio:     audioTracks(result.Info), Subtitles: subtitleTracks(result.Info, preferences),
 		Mode: string(mode), Modes: modeOptions(),
 	}
 	a.mu.Lock()
-	languages := a.profile().Languages
 	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
 	if opened != nil {
 		video.ProjectNote = opened.note
 	}
 	a.mu.Unlock()
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
 	video.LanguageNote = languageNote(result.Info, suggested, preferences)
 	return video
 }
 
-// audioTracks and subtitleTracks describe a video's tracks for the lists.
+// preferences are the active profile's languages, as the track choice takes
+// them.
+func (a *API) preferences() media.Preferences {
+	a.mu.Lock()
+	languages := a.profile().Languages
+	a.mu.Unlock()
+	return media.Preferences{
+		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
+		Translation: media.LanguageTag(languages.Translation),
+	}
+}
+
+// audioTracks and subtitleTracks describe a video's tracks for the lists;
+// the subtitles come in the app's order, each line's best choice first.
 func audioTracks(info media.Info) []Track {
 	list := []Track{}
 	for _, track := range info.TracksOf(media.TrackAudio) {
@@ -107,9 +116,9 @@ func audioTracks(info media.Info) []Track {
 	return list
 }
 
-func subtitleTracks(info media.Info) []Track {
+func subtitleTracks(info media.Info, preferences media.Preferences) []Track {
 	list := []Track{}
-	for _, track := range info.TracksOf(media.TrackSubtitle) {
+	for _, track := range media.RankSubtitles(info.TracksOf(media.TrackSubtitle), preferences) {
 		list = append(list, subtitleTrack(track))
 	}
 	return list

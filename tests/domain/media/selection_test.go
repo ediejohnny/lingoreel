@@ -1,9 +1,12 @@
 package media_test
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 var studyPreferences = media.Preferences{Audio: "en", Primary: "en", Translation: "pt-BR"}
@@ -192,6 +195,70 @@ func TestRegularTrackBeatsHearingImpairedAndDefaultBreaksTies(t *testing.T) {
 
 	regional := info(subtitleTrack(1, "en-US"), subtitleTrack(2, "en-GB"))
 	assertSelection(t, media.SelectTracks(regional, studyPreferences), media.Selection{Primary: 1})
+}
+
+// file is a subtitle file next to the video, measured against its own
+// subtitle with that verdict, share of lines lined up and speed.
+func file(number uint64, language media.LanguageTag, verdict subtitle.Verdict, score, rate float64) media.Track {
+	track := subtitleTrack(media.ExternalTrackBase+number, language)
+	track.Path = fmt.Sprintf(`D:\Filmes\%d.srt`, number)
+	track.Alignment = subtitle.Alignment{Verdict: verdict, Score: score, Rate: rate}
+	return track
+}
+
+// Of several files in one language, the one that lines up best with the
+// video's own subtitle comes first, not the first one found. A file timed
+// for another frame rate (25 against 23.976 fps) can be corrected, but loses
+// ten points; a file nothing could measure comes after the measured ones.
+func TestTheFileThatFitsTheVideoBestComesFirst(t *testing.T) {
+	t.Parallel()
+	inside := subtitleTrack(4, "pt-BR")
+	otherRate := file(1, "en", subtitle.VerdictMatch, 0.71, 25/(24000.0/1001))
+	amazon := file(2, "en", subtitle.VerdictMatch, 0.79, 0.99999)
+	bluray := file(3, "en", subtitle.VerdictMatch, 0.86, 1)
+	assertSelection(t, media.SelectTracks(info(inside, otherRate, amazon, bluray), studyPreferences),
+		media.Selection{Primary: bluray.Number, Translation: 4})
+
+	closeBehind := file(5, "en", subtitle.VerdictMatch, 0.85, 25/(24000.0/1001)) // 75 points against 79
+	assertSelection(t, media.SelectTracks(info(inside, closeBehind, amazon), studyPreferences),
+		media.Selection{Primary: amazon.Number, Translation: 4})
+	farAhead := file(7, "en", subtitle.VerdictMatch, 0.95, 25/(24000.0/1001)) // 85 points against 79
+	assertSelection(t, media.SelectTracks(info(inside, amazon, farAhead), studyPreferences),
+		media.Selection{Primary: farAhead.Number, Translation: 4})
+
+	unmeasured := file(6, "en", subtitle.VerdictUnknown, 0, 1)
+	assertSelection(t, media.SelectTracks(info(inside, unmeasured, amazon), studyPreferences),
+		media.Selection{Primary: amazon.Number, Translation: 4})
+}
+
+// A subtitle inside the video was made for it: it comes before any file.
+func TestASubtitleInsideTheVideoComesBeforeAnyFile(t *testing.T) {
+	t.Parallel()
+	perfect := file(1, "en", subtitle.VerdictMatch, 1, 1)
+	assertSelection(t, media.SelectTracks(info(perfect, subtitleTrack(3, "en")), studyPreferences), media.Selection{Primary: 3})
+}
+
+// The lists show each line's best choice first, the one SelectTracks picks:
+// the primary language's tracks from the best, then the translation's, then
+// the rest as found; a track the app would never pick closes its language.
+func TestTheListsShowEachLinesBestChoiceFirst(t *testing.T) {
+	t.Parallel()
+	spanish := file(1, "es", subtitle.VerdictMatch, 0.9, 1)
+	otherRate := file(2, "en", subtitle.VerdictMatch, 0.71, 25/(24000.0/1001))
+	portuguese := file(3, "pt", subtitle.VerdictMatch, 0.8, 1)
+	broken := unreadable(file(4, "en", subtitle.VerdictMatch, 0.99, 1))
+	bluray := file(5, "en", subtitle.VerdictMatch, 0.86, 1)
+	inside := subtitleTrack(6, "pt-BR")
+	tracks := []media.Track{spanish, otherRate, portuguese, broken, bluray, inside}
+
+	var order []uint64
+	for _, track := range media.RankSubtitles(tracks, studyPreferences) {
+		order = append(order, track.Number)
+	}
+	if want := []uint64{bluray.Number, otherRate.Number, broken.Number, inside.Number, portuguese.Number, spanish.Number}; !slices.Equal(order, want) {
+		t.Fatalf("order = %v, want %v", order, want)
+	}
+	assertSelection(t, media.SelectTracks(info(tracks...), studyPreferences), media.Selection{Primary: bluray.Number, Translation: inside.Number})
 }
 
 func TestTranslationNeverReusesThePrimaryTrack(t *testing.T) {

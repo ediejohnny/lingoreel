@@ -19,13 +19,19 @@ var fileNameSeparators = regexp.MustCompile(`[.\s_()\[\]{},;+-]+`)
 var (
 	forcedWords          = map[string]bool{"forced": true, "forçada": true, "forcada": true, "forçadas": true, "forcadas": true, "foreign": true}
 	hearingImpairedWords = map[string]bool{"sdh": true, "hi": true, "cc": true, "hearing": true, "impaired": true}
+	// yearToken ends the title of a release name ("Ice.Age.2016.720p…"):
+	// the words before it are the film's, never a language or a flag.
+	yearToken = regexp.MustCompile(`^(19|20)\d\d$`)
 )
 
 // HintsFromFileName reads the language and flags from a subtitle file name,
 // ignoring the part it shares with the video name (so "Quillon.2020.srt" does
-// not read "quillon" or "2020"). Codes ("en", "por", "pt-BR", "pt_br") and
+// not read "quillon" or "2020") and a title that ends with a year (so neither
+// "Ice", Icelandic's code, nor "Foreign" counts in "Ice.Age.2016" or
+// "Foreign.Correspondent.1940"). Codes ("en", "por", "pt-BR", "pt_br") and
 // language names in English or Portuguese are recognized; "hi" means hearing
-// impaired, as in release names, not Hindi.
+// impaired, as in release names, not Hindi. Names are often wrong or missing,
+// so what the file says inside decides first (SubtitleLanguage).
 //
 // Both are file names without their folders.
 func HintsFromFileName(fileName, videoName string) FileHints {
@@ -35,6 +41,12 @@ func HintsFromFileName(fileName, videoName string) FileHints {
 		name = name[len(video):]
 	}
 	tokens := fileNameSeparators.Split(strings.ToLower(name), -1)
+	for i, token := range tokens {
+		if yearToken.MatchString(token) {
+			tokens = tokens[i+1:]
+			break
+		}
+	}
 
 	var hints FileHints
 	for i, token := range tokens {
