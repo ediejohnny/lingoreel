@@ -128,13 +128,14 @@ func DetectLine(track Track, start, end time.Duration, syllables float64, sensit
 		active[i] = on
 	}
 
-	runs := voiceRuns(active)
+	// Voice only in the margin is another line's, or a sound around this one.
+	runs := slices.DeleteFunc(voiceRuns(active), func(run [2]int) bool {
+		return run[1] <= first-from || run[0] >= last-from
+	})
 	voiced, inLine := 0, 0
-	spans := make([]Span, len(runs))
-	for i, run := range runs {
+	for _, run := range runs {
 		voiced += run[1] - run[0]
 		inLine += max(min(run[1], last-from)-max(run[0], first-from), 0)
-		spans[i] = Span{Start: track.timeOf(from + run[0]), End: track.timeOf(from + run[1])}
 	}
 	switch pace := syllables / (float64(voiced) * FrameLength.Seconds()); {
 	case float64(inLine) < leastLineShare*float64(last-first):
@@ -144,7 +145,60 @@ func DetectLine(track Track, start, end time.Duration, syllables float64, sensit
 	case !(pace >= slowestPace && pace <= fastestPace):
 		return Detection{Verdict: WrongPace}
 	}
+	runs = lineOnset(frames, runs, first-from, threshold)
+	spans := make([]Span, len(runs))
+	for i, run := range runs {
+		spans[i] = Span{Start: track.timeOf(from + run[0]), End: track.timeOf(from + run[1])}
+	}
 	return Detection{Spans: spans, Verdict: Trusted}
+}
+
+// Where a line's own voice begins, measured against the voice's start marked
+// by ear in five films: the line before often runs up to this one, and the
+// model's speech rises a little after the voice does.
+const (
+	// lineTail: a stretch of voice already going when the line shows that
+	// ends this soon after is the end of the line before.
+	lineTail = 150 * time.Millisecond
+	// alreadySpeaking: voice going this long before the line shows runs into
+	// it; the line's voice begins after the deepest dip within onsetReach of
+	// the line's start, or with the line when there is none.
+	alreadySpeaking = 150 * time.Millisecond
+	onsetReach      = 300 * time.Millisecond
+	// risingSpeech: the speech a voice starting near the line rises from;
+	// its start goes back to there.
+	risingSpeech = 0.2
+)
+
+// lineOnset moves the start of the first run to where the line's own voice
+// begins; first is the frame where the line shows.
+func lineOnset(frames []Frame, runs [][2]int, first int, threshold float32) [][2]int {
+	if len(runs) > 1 && runs[0][0] < first && runs[0][1] < first+int(lineTail/FrameLength) {
+		runs = runs[1:]
+	}
+	run := &runs[0]
+	reach := int(onsetReach / FrameLength)
+	if run[0] < first-int(alreadySpeaking/FrameLength) {
+		lo, hi := max(first-reach, run[0]), min(first+reach, run[1]-1)
+		dip := lo
+		for i := lo; i <= hi; i++ {
+			if frames[i].Speech < frames[dip].Speech {
+				dip = i
+			}
+		}
+		if frames[dip].Speech < threshold {
+			run[0] = dip + 1
+		} else {
+			run[0] = first
+		}
+		return runs
+	}
+	if run[0] > first-reach {
+		for run[0] > 0 && frames[run[0]-1].Speech >= risingSpeech && frames[run[0]-1].Speech < threshold {
+			run[0]--
+		}
+	}
+	return runs
 }
 
 // voiceRuns turns the frames heard as voice into runs [from, to), joining

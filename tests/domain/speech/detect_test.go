@@ -63,6 +63,37 @@ func TestAPauseInTheLineSplitsTheVoice(t *testing.T) {
 	expectSpans(t, got, speech.Span{Start: time.Second, End: 1250 * ms}, speech.Span{Start: 3250 * ms, End: 3750 * ms})
 }
 
+// startsNear fails when the voice found does not begin near a time.
+func startsNear(t *testing.T, got speech.Detection, want time.Duration) {
+	t.Helper()
+	if got.Verdict != speech.Trusted {
+		t.Fatalf("verdict = %v, want trusted", got.Verdict)
+	}
+	if start := got.Spans[0].Start; (start - want).Abs() > 20*ms {
+		t.Fatalf("the voice begins at %v, want about %v (spans %v)", start, want, got.Spans)
+	}
+}
+
+// Where a line's own voice begins, as marked by ear: the line before often
+// runs up to this one, and the model's speech rises a little after the
+// voice does.
+func TestTheLinesOwnVoiceBeginsWhereItIsSaid(t *testing.T) {
+	t.Parallel()
+	line := func(parts ...part) speech.Detection {
+		return speech.DetectLine(heard(parts...), time.Second, 2500*ms, 6, speech.SensitivityNormal)
+	}
+	// The line before is said up to this one, with only a dip between them.
+	startsNear(t, line(part{500 * ms, quiet}, part{600 * ms, voice}, part{30 * ms, 0.3}, part{20 * ms, 0.1},
+		part{30 * ms, 0.3}, part{1400 * ms, voice}, part{time.Second, quiet}), 1150*ms)
+	// It ends just after this one shows, before a pause.
+	startsNear(t, line(part{500 * ms, quiet}, part{600 * ms, voice}, part{250 * ms, quiet},
+		part{1200 * ms, voice}, part{time.Second, quiet}), 1350*ms)
+	// Someone is speaking all along: the voice begins with the line.
+	startsNear(t, line(part{400 * ms, quiet}, part{2200 * ms, voice}, part{time.Second, quiet}), time.Second)
+	// The speech rises over 60 ms before the model is sure.
+	startsNear(t, line(part{1100 * ms, quiet}, part{60 * ms, 0.3}, part{1300 * ms, voice}, part{time.Second, quiet}), 1100*ms)
+}
+
 // A word the model doubts halfway through stays whole: once the voice
 // began, it ends only well under where it begins.
 func TestAWordTheModelDoubtsStaysWhole(t *testing.T) {
