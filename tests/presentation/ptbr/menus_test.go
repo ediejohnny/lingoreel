@@ -41,7 +41,7 @@ func TestBarEntryWordsEveryKind(t *testing.T) {
 		{controlbar.Entry{Kind: controlbar.EntryLabel, Field: controlbar.FieldSaved}, controlbar.EntryText{Text: "TRECHOS SALVOS"}},
 		{controlbar.Entry{Kind: controlbar.EntryChoice, Field: controlbar.FieldMode, Value: string(study.ModeDual)}, controlbar.EntryText{Text: "Modo: Dupla"}},
 		{controlbar.Entry{Kind: controlbar.EntryChoice, Field: controlbar.FieldIndicator, Value: "countdown"}, controlbar.EntryText{Text: "Contagem regressiva"}},
-		{controlbar.Entry{Kind: controlbar.EntryAction, Field: controlbar.FieldEdit, Value: "translation"}, controlbar.EntryText{Text: "Corrigir a legenda de baixo…"}},
+		{controlbar.Entry{Kind: controlbar.EntryAction, Field: controlbar.FieldEdit, Value: "translation"}, controlbar.EntryText{Text: "Corrigir a tradução…"}},
 	}
 	for _, c := range cases {
 		if got := ptbr.BarEntry(c.entry, state, keys, nil); got != c.want {

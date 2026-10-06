@@ -21,8 +21,8 @@ describe("settingsSections", () => {
     const subtitles = sections.find((item) => item.id === "subtitles");
     expect(subtitles?.label).toBe("Legendas");
     expect(subtitles?.children).toEqual([
-      { id: "subtitles-primary", label: "De cima", detail: "Inglês" },
-      { id: "subtitles-translation", label: "De baixo", detail: "Português do Brasil" },
+      { id: "subtitles-primary", label: "Legenda de estudo", detail: "Inglês" },
+      { id: "subtitles-translation", label: "Tradução", detail: "Português do Brasil" },
     ]);
   });
 

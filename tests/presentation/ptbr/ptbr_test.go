@@ -104,14 +104,14 @@ func TestLineNamesAndNotice(t *testing.T) {
 		{Number: 6, Type: media.TrackSubtitle},
 	}}
 	names := ptbr.NewLineNames(info, 3, 5)
-	if names[0] != "Legenda de cima (inglês)" || names[1] != "Legenda de baixo (português do Brasil)" {
+	if names[0] != "Legenda de estudo (inglês)" || names[1] != "Tradução (português do Brasil)" {
 		t.Fatalf("names = %q", names)
 	}
-	if got := names.Notice(session.LinePrimary, subtitle.Offset(-50*time.Millisecond)); got != "Legenda de cima (inglês): −0,050 s" {
+	if got := names.Notice(session.LinePrimary, subtitle.Offset(-50*time.Millisecond)); got != "Legenda de estudo (inglês): −0,050 s" {
 		t.Fatalf("notice = %q", got)
 	}
 	unknown := ptbr.NewLineNames(info, 6, 99)
-	if unknown[0] != "Legenda de cima" || unknown[1] != "Legenda de baixo" {
+	if unknown[0] != "Legenda de estudo" || unknown[1] != "Tradução" {
 		t.Fatalf("names without a language = %q", unknown)
 	}
 	if got := names.Notice(session.Line(9), subtitle.Offset(time.Second)); got != "+1,000 s" {

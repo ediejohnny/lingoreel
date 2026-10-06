@@ -132,8 +132,8 @@ func Clock(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
-// LineNames name each line by its place on screen and its language, as in
-// "Legenda de cima (inglês)".
+// LineNames name each line by its role and its language, as in
+// "Legenda de estudo (inglês)".
 type LineNames [2]string
 
 // NewLineNames names the lines of the chosen tracks.
@@ -148,7 +148,7 @@ func NewLineNames(info media.Info, primary, translation uint64) LineNames {
 	return LineNames{name(T("line.primary"), primary), name(T("line.translation"), translation)}
 }
 
-// Notice words a sync change: "Legenda de cima (inglês): −0,150 s".
+// Notice words a sync change: "Legenda de estudo (inglês): −0,150 s".
 func (n LineNames) Notice(line session.Line, offset subtitle.Offset) string {
 	if !line.Valid() {
 		return Offset(offset)

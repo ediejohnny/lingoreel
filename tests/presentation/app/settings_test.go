@@ -232,8 +232,8 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		change func(*app.ProfileSettings)
 		want   string
 	}{
-		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de cima: o tamanho da fonte"},
-		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Legenda de baixo: o tamanho da fonte"},
+		{"font too big", func(p *app.ProfileSettings) { p.Primary.FontSize = 500 }, "Legenda de estudo: o tamanho da fonte"},
+		{"NaN font", func(p *app.ProfileSettings) { p.Translation.FontSize = math.NaN() }, "Tradução: o tamanho da fonte"},
 		{"bad color", func(p *app.ProfileSettings) { p.Primary.OutlineColor = "red" }, `a cor "red" não é válida`},
 		{"no font", func(p *app.ProfileSettings) { p.Primary.FontFamily = " " }, "escolha uma fonte"},
 		{"opacity", func(p *app.ProfileSettings) { p.Primary.Opacity = 1.5 }, "a opacidade"},
@@ -255,7 +255,7 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"mode", func(p *app.ProfileSettings) { p.Mode = "passive" }, "Escolha um modo de estudo."},
 		{"precision", func(p *app.ProfileSettings) { p.PrecisionStep = 5 }, "Passo de precisão"},
 		{"unknown command", func(p *app.ProfileSettings) { p.Shortcuts[0].Command = "launch-rockets" }, "comando desconhecido"},
-		{"line spacing", func(p *app.ProfileSettings) { p.Primary.LineSpacing = 3 }, "Legenda de cima: a entrelinha"},
+		{"line spacing", func(p *app.ProfileSettings) { p.Primary.LineSpacing = 3 }, "Legenda de estudo: a entrelinha"},
 		{"gap", func(p *app.ProfileSettings) { p.Layout.LineGap = math.NaN() }, "Margens: a distância entre as legendas"},
 		{"notice", func(p *app.ProfileSettings) { p.Marks.Notice.FontSize = 0 }, "Avisos no vídeo: o tamanho da fonte"},
 		{"notice time", func(p *app.ProfileSettings) { p.Marks.NoticeDuration = 0.1 }, "Avisos no vídeo: a duração"},
