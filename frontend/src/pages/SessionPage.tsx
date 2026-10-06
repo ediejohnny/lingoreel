@@ -121,7 +121,8 @@ export function SessionPage(props: SessionPageProps) {
   const watch = (resume = false, passage = "") => props.onWatch(requestOf({ primary, translation, audio }, resume, passage));
 
   // The video described again (the file that fits found by hearing it, or a file added): the choices the user did not
-  // make take the new suggestion, and when the user waited for the hearing, the film starts with them.
+  // make take the new suggestion. When the user waited for the hearing, or it ends while the question is open (Watch
+  // was pressed, so the wait is over), the film starts with them.
   if (video !== seen) {
     setSeen(video);
     setListening(video.listening);
@@ -129,7 +130,7 @@ export function SessionPage(props: SessionPageProps) {
     setPrimary(lines.primary);
     setTranslation(lines.translation);
     setAudio(lines.audio);
-    if (waiting && !video.listening.active) {
+    if ((waiting || asking) && !video.listening.active) {
       setWaiting(false);
       setAsking(false);
       setStart(requestOf(lines));

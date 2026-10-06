@@ -87,7 +87,8 @@ func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analys
 	decoder := a.deps.Ports.FindDecoder(found, ffmpegPath)
 	cancelFind()
 	if decoder == nil {
-		a.endListening(l, nil) // no FFmpeg: the files stay unheard
+		a.logger.Info("the video was not heard: no FFmpeg found")
+		a.endListening(l, nil) // the files stay unheard
 		return
 	}
 	base := voiceOf(result, preferences.Primary)
