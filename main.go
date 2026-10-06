@@ -48,6 +48,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/power"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
@@ -157,6 +158,7 @@ func run() error {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
 			Model:       silero.Embedded{},
+			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
 			FindDecoder: findFFmpeg,
 		},

@@ -1309,6 +1309,9 @@ export namespace app {
 		}
 	}
 	export class VoiceSettings {
+	    model: boolean;
+	    modelOnBattery: boolean;
+	    battery: boolean;
 	    follow: boolean;
 	    sensitivity: string;
 	    delayMs: number;
@@ -1323,6 +1326,9 @@ export namespace app {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.modelOnBattery = source["modelOnBattery"];
+	        this.battery = source["battery"];
 	        this.follow = source["follow"];
 	        this.sensitivity = source["sensitivity"];
 	        this.delayMs = source["delayMs"];

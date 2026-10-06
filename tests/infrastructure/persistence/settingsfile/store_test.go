@@ -138,6 +138,16 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 	if err != nil || again.SyncNotice || again.Window != config.Window {
 		t.Fatalf("config after a round trip = %+v, %v", again, err)
 	}
+
+	// A voice set before the voice model came keeps it working.
+	before := `{"version":1,"theme":"dark","activeProfile":"Inglês","playerPaths":{},"voice":{"follow":false,"sensitivity":"high"}}`
+	if err := os.WriteFile(path, []byte(before), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	voice, err := settingsfile.Open(dir).LoadConfig()
+	if err != nil || !voice.Voice.Model || voice.Voice.ModelOnBattery || voice.Voice.Follow || voice.Voice.Sensitivity != "high" {
+		t.Fatalf("voice set before the model = %+v, %v", voice.Voice, err)
+	}
 }
 
 func TestChangedShortcutsSurviveARoundTrip(t *testing.T) {

@@ -13,8 +13,9 @@ import type { SectionProps } from "./section";
 const delaySaveAfter = 400;
 
 /**
- * VoiceCard is how the karaoke mode follows the actors' voice on this computer, for every profile: each choice is
- * saved at once, the FFmpeg is found, chosen or installed here.
+ * VoiceCard is how the app hears the actors' voice on this computer, for every profile: whether the voice AI works here
+ * (and on the battery), whether the karaoke mode follows the voice; each choice is saved at once, the FFmpeg is found,
+ * chosen or installed here.
  */
 export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
   const voice = view.voice;
@@ -39,6 +40,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
   );
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  const following = voice.model && voice.follow;
   const save = (next: Partial<VoiceSettings>) => void run(() => backend.setVoice({ ...voice, ...next }));
   const changeDelay = (ms: number) => {
     setDelay(ms);
@@ -63,7 +65,27 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
       aside={<HelpTip topic={t("ui.settings.voice.topic")}>{t("ui.settings.voice.help")}</HelpTip>}
     >
       <div className="flex flex-col gap-5">
-        <Toggle label={t("ui.settings.voice.follow.label")} checked={voice.follow} onChange={(follow) => save({ follow })} />
+        <Toggle
+          label={t("ui.settings.voice.model.label")}
+          checked={voice.model}
+          onChange={(model) => save({ model })}
+          help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
+        />
+        {voice.battery && (
+          <Toggle
+            label={t("ui.settings.voice.battery.label")}
+            checked={voice.modelOnBattery}
+            disabled={!voice.model}
+            onChange={(modelOnBattery) => save({ modelOnBattery })}
+            help={<HelpTip topic={t("ui.settings.voice.battery.topic")}>{t("ui.settings.voice.battery.help")}</HelpTip>}
+          />
+        )}
+        <Toggle
+          label={t("ui.settings.voice.follow.label")}
+          checked={voice.follow}
+          disabled={!voice.model}
+          onChange={(follow) => save({ follow })}
+        />
         <Segmented
           label={t("ui.settings.voice.sensitivity.label")}
           value={voice.sensitivity}
@@ -86,7 +108,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           <div className="flex flex-wrap gap-2">
             <Button
               icon={FolderOpen}
-              disabled={!voice.follow}
+              disabled={!following}
               onClick={() => void run(() => backend.chooseFFmpeg(), t("ui.settings.voice.ffmpeg.chosen"))}
             >
               {t("ui.settings.voice.ffmpeg.choose")}
@@ -97,7 +119,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
               </Button>
             )}
             {voice.canInstall && (
-              <Button icon={Download} loading={installing} disabled={!voice.follow} onClick={install}>
+              <Button icon={Download} loading={installing} disabled={!following} onClick={install}>
                 {t("ui.settings.voice.ffmpeg.install")}
               </Button>
             )}
@@ -111,14 +133,14 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           max={1000}
           step={10}
           unit="ms"
-          disabled={!voice.follow}
+          disabled={!following}
           onChange={changeDelay}
           help={<HelpTip topic={t("ui.settings.voice.delay.topic")}>{t("ui.settings.voice.delay.help")}</HelpTip>}
         />
         <Toggle
           label={t("ui.settings.voice.busy.label")}
           checked={voice.evenWhenBusy}
-          disabled={!voice.follow}
+          disabled={!following}
           onChange={(evenWhenBusy) => save({ evenWhenBusy })}
           help={<HelpTip topic={t("ui.settings.voice.busy.topic")}>{t("ui.settings.voice.busy.help")}</HelpTip>}
         />

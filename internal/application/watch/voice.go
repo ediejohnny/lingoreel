@@ -21,11 +21,38 @@ const findTimeout = 10 * time.Second
 
 // VoiceSetup is how the user wants the voice followed on this computer.
 type VoiceSetup struct {
+	// Model lets the voice model work on this computer; ModelOnBattery, on
+	// its battery too. Resting, it leaves every line to the estimate.
+	Model, ModelOnBattery bool
 	// Follow off leaves every line to the estimate from its letters.
 	Follow bool
 	// FFmpegPath is the FFmpeg the user chose; empty looks for one.
 	FFmpegPath string
 	Settings   voice.Settings
+}
+
+// ModelRest tells why the voice model rests on purpose, if it does.
+type ModelRest string
+
+const (
+	ModelAtWork ModelRest = ""
+	// ModelOff: the user switched the model off on this computer.
+	ModelOff ModelRest = "off"
+	// ModelOnBattery: the computer runs on its battery, and the user keeps
+	// the model for when it is plugged in.
+	ModelOnBattery ModelRest = "battery"
+)
+
+// Rest tells whether the model rests with this setup, and why: the one
+// place the rule is written.
+func (s VoiceSetup) Rest(onBattery bool) ModelRest {
+	switch {
+	case !s.Model:
+		return ModelOff
+	case onBattery && !s.ModelOnBattery:
+		return ModelOnBattery
+	}
+	return ModelAtWork
 }
 
 type voicing struct {
@@ -35,9 +62,10 @@ type voicing struct {
 	file  string
 	pid   int
 
-	mu       sync.Mutex
-	setup    VoiceSetup
-	follower *voice.Follower
+	mu        sync.Mutex
+	setup     VoiceSetup
+	onBattery bool
+	follower  *voice.Follower
 	// starting numbers the starts; a start that finds a newer one asked for,
 	// or the fill off, closes what it started. inFlight counts those running.
 	starting int
@@ -80,9 +108,12 @@ func (s *Session) reviewVoice(restart bool) {
 func (s *Session) startVoice(attempt int) {
 	v := s.voice
 	v.mu.Lock()
-	setup := v.setup
+	setup, rest := v.setup, v.setup.Rest(v.onBattery)
 	v.mu.Unlock()
-	sources := s.voiceSources()
+	sources := voice.Sources{} // a model at rest hears nothing: the estimate
+	if rest == ModelAtWork {
+		sources = s.voiceSources()
+	}
 	if v.find != nil && sources.Voice.File != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), findTimeout)
 		sources.Decoder = v.find(ctx, setup.FFmpegPath)
@@ -164,6 +195,32 @@ func (s *Session) SetVoiceSetup(setup VoiceSetup) {
 	if changed {
 		s.reviewVoice(true)
 	}
+}
+
+// ModelRest tells why the voice model rests now, if it does.
+func (s *Session) ModelRest() ModelRest {
+	v := s.voice
+	if v == nil {
+		return ModelAtWork
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.setup.Rest(v.onBattery)
+}
+
+// watchPower follows the computer going on and off its battery: the voice
+// starts again when that wakes the model or puts it to rest.
+func (s *Session) watchPower(ctx context.Context, power voice.Power) {
+	power.Watch(ctx, func(onBattery bool) {
+		v := s.voice
+		v.mu.Lock()
+		changed := v.setup.Rest(v.onBattery) != v.setup.Rest(onBattery)
+		v.onBattery = onBattery
+		v.mu.Unlock()
+		if changed {
+			s.reviewVoice(true)
+		}
+	})
 }
 
 // VoiceMode tells how the voice is followed now; false when it is not (the

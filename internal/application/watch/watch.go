@@ -197,7 +197,8 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
 	s.subtitles.SetOwnTiming(request.TranslationOwnTiming)
-	s.voice = &voicing{model: ports.Model, tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(), setup: request.Voice}
+	s.voice = &voicing{model: ports.Model, tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(),
+		setup: request.Voice, onBattery: ports.Power != nil && ports.Power.OnBattery()}
 	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
 	s.practice = session.NewPractice(s.controls, s.subtitles, session.PracticeHooks{
@@ -237,6 +238,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
+	if ports.Power != nil {
+		go s.watchPower(runCtx, ports.Power)
+	}
 	runner := session.NewRunner(s.clock, s.subtitles, s.changed, session.NewRealTimer)
 	runner.Follow(s.practice)
 	go s.run(runCtx, runner)

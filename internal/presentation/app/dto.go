@@ -221,8 +221,9 @@ type Karaoke struct {
 	// Repeat is how many times each line plays again; 0 is off.
 	Repeat int `json:"repeat"`
 	// Voice is how the line's voice is followed now: "ahead" (decoded with
-	// FFmpeg), "live" (the player heard), "estimate", or empty when it is
-	// not followed.
+	// FFmpeg), "live" (the player heard), "estimate", "battery" or "off" (the
+	// voice model rests on the battery, or is switched off), or empty when
+	// it is not followed.
 	Voice string `json:"voice"`
 }
 

@@ -135,6 +135,9 @@ type Ports struct {
 	// Model tells the actor's voice in the film's sound, so the karaoke mode
 	// paints each line along it; nil leaves the estimate from its letters.
 	Model speech.Model
+	// Power tells when the computer runs on its battery, where the Model
+	// rests unless the user wants it there too; nil: always plugged in.
+	Power voice.Power
 	// Tap hears the player's sound for the Model as it plays.
 	Tap voice.Tap
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
