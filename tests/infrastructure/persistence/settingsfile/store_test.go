@@ -170,10 +170,10 @@ func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	data := `{"version": 3, "profiles": [` +
-		profileJSON(t, "Meu", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
-		profileJSON(t, "Só um", `{"mute": "Ctrl+F10"}`) + `,` +
-		profileJSON(t, "Sem atalhos", `{}`) + `,` +
-		profileJSON(t, "Já tinha", `{"undo": "Ctrl+F9", "passage-mark-start": "Ctrl+KeyB"}`) + `]}`
+		profileJSON(t, "Mine", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "Only one", `{"mute": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "No keys", `{}`) + `,` +
+		profileJSON(t, "Had it already", `{"undo": "Ctrl+F9", "passage-mark-start": "Ctrl+KeyB"}`) + `]}`
 	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -185,10 +185,10 @@ func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
 		name                                 string
 		undo, redo, mute, markStart, markEnd string
 	}{
-		{"Meu", "Ctrl+F9", "Ctrl+F10", "KeyM", "", ""},
-		{"Só um", "Ctrl+KeyZ", "Ctrl+KeyY", "Ctrl+F10", "Ctrl+F9", ""},
-		{"Sem atalhos", "Ctrl+KeyZ", "Ctrl+KeyY", "KeyM", "Ctrl+F9", "Ctrl+F10"},
-		{"Já tinha", "Ctrl+F9", "Ctrl+KeyY", "KeyM", "Ctrl+KeyB", "Ctrl+F10"},
+		{"Mine", "Ctrl+F9", "Ctrl+F10", "KeyM", "", ""},
+		{"Only one", "Ctrl+KeyZ", "Ctrl+KeyY", "Ctrl+F10", "Ctrl+F9", ""},
+		{"No keys", "Ctrl+KeyZ", "Ctrl+KeyY", "KeyM", "Ctrl+F9", "Ctrl+F10"},
+		{"Had it already", "Ctrl+F9", "Ctrl+KeyY", "KeyM", "Ctrl+KeyB", "Ctrl+F10"},
 	}
 	if len(profiles.Items) != len(want) {
 		t.Fatalf("%d profiles after the migration", len(profiles.Items))
@@ -358,7 +358,7 @@ func TestOldProfilesGetTheCleanerSelection(t *testing.T) {
 	mine := appearance.PreviousSelectionLook()
 	mine.Width = 3
 	old, err := json.Marshal(map[string]any{"version": 5, "profiles": []any{
-		version5("Padrão", appearance.PreviousSelectionLook()), version5("Meu", mine),
+		version5("Padrão", appearance.PreviousSelectionLook()), version5("Mine", mine),
 	}})
 	if err != nil {
 		t.Fatal(err)

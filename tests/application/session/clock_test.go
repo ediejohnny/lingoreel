@@ -177,9 +177,9 @@ func TestEstimatedClockAppliesLargeOrForwardCorrectionsAtOnce(t *testing.T) {
 		speed    playback.Speed
 		reported time.Duration
 	}{
-		{"atrás além do limite", 1, ms(7_250 - 301)},
-		{"atrás, limite menor em 0,25x", 0.25, ms(7_250 - 76)},
-		{"à frente", 1, ms(7_300)},
+		{"behind, past the limit", 1, ms(7_250 - 301)},
+		{"behind, a smaller limit at 0.25x", 0.25, ms(7_250 - 76)},
+		{"ahead", 1, ms(7_300)},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

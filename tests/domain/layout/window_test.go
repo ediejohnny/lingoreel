@@ -26,9 +26,9 @@ func TestFitWindowShrinksBigVideosIntoTheScreen(t *testing.T) {
 		// 3840x2160 (4K) → 1152x648.
 		{"4K", 3840, 2160, layout.Rect{X: 144, Y: 106, W: 1152, H: 648}},
 		// A small video keeps its size, centered.
-		{"pequeno", 320, 180, layout.Rect{X: 560, Y: 340, W: 320, H: 180}},
+		{"small", 320, 180, layout.Rect{X: 560, Y: 340, W: 320, H: 180}},
 		// Exactly at the limit is not scaled.
-		{"no limite", 1152, 688, layout.Rect{X: 144, Y: 86, W: 1152, H: 688}},
+		{"at the limit", 1152, 688, layout.Rect{X: 144, Y: 86, W: 1152, H: 688}},
 	}
 	for _, c := range cases {
 		got := layout.FitWindow(c.width, c.height, workArea, layout.InitialWindowFraction)

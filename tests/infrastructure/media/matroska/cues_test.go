@@ -227,13 +227,13 @@ func TestUnusableIndexFallsBackToTheFullScan(t *testing.T) {
 	t.Parallel()
 	onlyEnglish := []cueEntry{{track: 2, cluster: 0, block: 1}, {track: 2, cluster: 1, block: 1}}
 	cases := map[string][]cueEntry{
-		"faixa pedida sem índice": onlyEnglish,
-		"cluster deslocado":       {{track: 2, cluster: 0, block: 1, clusterDelta: 1}, {track: 3, cluster: 0, block: 2}},
-		"bloco deslocado":         {{track: 2, cluster: 0, block: 1, relativeDelta: 2}, {track: 3, cluster: 0, block: 2}},
-		"aponta para vídeo":       {{track: 2, cluster: 0, block: 0}, {track: 3, cluster: 0, block: 2}},
-		"aponta para a outra":     {{track: 2, cluster: 0, block: 2}, {track: 3, cluster: 0, block: 1}},
-		"posição absurda":         {{track: 2, cluster: 0, block: 1, clusterDelta: 1 << 40}, {track: 3, cluster: 0, block: 2}},
-		"índice vazio":            nil,
+		"no entry for the track asked": onlyEnglish,
+		"cluster shifted":              {{track: 2, cluster: 0, block: 1, clusterDelta: 1}, {track: 3, cluster: 0, block: 2}},
+		"block shifted":                {{track: 2, cluster: 0, block: 1, relativeDelta: 2}, {track: 3, cluster: 0, block: 2}},
+		"points to the video":          {{track: 2, cluster: 0, block: 0}, {track: 3, cluster: 0, block: 2}},
+		"points to the other track":    {{track: 2, cluster: 0, block: 2}, {track: 3, cluster: 0, block: 1}},
+		"absurd position":              {{track: 2, cluster: 0, block: 1, clusterDelta: 1 << 40}, {track: 3, cluster: 0, block: 2}},
+		"empty index":                  nil,
 	}
 	for name, entries := range cases {
 		t.Run(name, func(t *testing.T) {

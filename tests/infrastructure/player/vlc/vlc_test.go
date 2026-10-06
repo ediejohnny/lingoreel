@@ -249,11 +249,11 @@ func TestVLCFirstSampleIsAtTheRequestedStart(t *testing.T) {
 		start time.Duration
 		want  time.Duration
 	}{
-		{"do começo", 0, 0},
-		{"no meio", 6 * time.Second, 6 * time.Second},
+		{"from the start", 0, 0},
+		{"in the middle", 6 * time.Second, 6 * time.Second},
 		// VLC ignores a start beyond the end; callers should not ask for one,
 		// but Launch must still return an open video instead of timing out.
-		{"além do fim", time.Hour, 0},
+		{"past the end", time.Hour, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
