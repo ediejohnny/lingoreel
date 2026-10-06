@@ -33,6 +33,9 @@ type Visible struct {
 	// Fill is the share of the primary line already spoken, for the Modo
 	// Karaokê's fill; zero when nothing is filled.
 	Fill float64
+	// Filling tells the primary line is being painted: its fill may move
+	// even while it is still zero, before the voice begins.
+	Filling bool
 }
 
 // Drawing steps: a preview's time left and a fill below them look the same
@@ -60,7 +63,7 @@ func (v Visible) Equal(other Visible) bool {
 // Animating tells the screen changes by itself while the video plays: a
 // preview counting down or a line filling in.
 func (v Visible) Animating() bool {
-	return v.Cue != nil || (v.Fill > 0 && v.Fill < 1)
+	return v.Cue != nil || (v.Filling && v.Fill < 1)
 }
 
 // KaraokeFrame is how often a preview or a fill is redrawn while the video
@@ -74,6 +77,11 @@ type Karaoke struct {
 	// Fill paints the primary line as it is spoken.
 	Fill bool
 }
+
+// VoiceFill paints a line, given by its text and its time on the playback
+// clock, along its actor's voice at a position; false leaves the line to the
+// estimate from its letters.
+type VoiceFill func(text string, start, end, position time.Duration) (float64, bool)
 
 func sameEvents(a, b []subtitle.Event) bool {
 	if len(a) != len(b) {
@@ -97,6 +105,7 @@ type Subtitles struct {
 	mu      sync.RWMutex
 	lines   [2]*Track
 	karaoke Karaoke
+	voice   VoiceFill
 	changes chan struct{}
 }
 
@@ -128,6 +137,15 @@ func (l Line) Valid() bool {
 func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
 	s.mu.Lock()
 	s.karaoke = karaoke
+	s.mu.Unlock()
+	s.notify()
+}
+
+// SetVoice paints the primary line along the actor's voice, or by the
+// estimate (nil), and signals the change.
+func (s *Subtitles) SetVoice(voice VoiceFill) {
+	s.mu.Lock()
+	s.voice = voice
 	s.mu.Unlock()
 	s.notify()
 }
@@ -164,7 +182,19 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if s.karaoke.Fill && len(visible.Primary) == 1 {
-		visible.Fill = study.SpokenFraction(visible.Primary[0], primary.Offset.TrackTime(position))
+		line := visible.Primary[0]
+		if !study.SpeechUnits(line.Text()).Spoken() {
+			return visible // only a sound's description, or music: never painted
+		}
+		visible.Filling = true
+		if s.voice != nil {
+			start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
+			if fill, found := s.voice(line.Text(), start, end, position); found {
+				visible.Fill = fill
+				return visible
+			}
+		}
+		visible.Fill = study.SpokenFraction(line, primary.Offset.TrackTime(position))
 	}
 	return visible
 }

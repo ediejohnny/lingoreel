@@ -69,6 +69,7 @@ func (s *Session) SetKaraoke(enabled bool) {
 	karaoke := s.subtitles.Karaoke()
 	karaoke.Enabled = enabled
 	s.subtitles.SetKaraoke(karaoke)
+	s.followVoice()
 }
 
 // SetKaraokeSettings changes the Modo Karaokê as a whole: on or off, its
@@ -78,6 +79,7 @@ func (s *Session) SetKaraokeSettings(karaoke session.Karaoke) error {
 		return err
 	}
 	s.subtitles.SetKaraoke(karaoke)
+	s.followVoice()
 	return nil
 }
 

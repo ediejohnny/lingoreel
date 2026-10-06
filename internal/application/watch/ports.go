@@ -10,6 +10,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -128,7 +129,13 @@ type Ports struct {
 	// ShowPanel brings the app's panel to the front, where the line editor
 	// is; nil leaves it where it is.
 	ShowPanel func()
-	Now       func() time.Time
+	// Tap hears the player's sound, so the Modo Karaokê paints each line
+	// along the actor's voice; nil leaves the estimate from its letters.
+	Tap voice.Tap
+	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
+	// the video; nil, or a nil answer, hears the player instead.
+	FindDecoder func(ctx context.Context) voice.Decoder
+	Now         func() time.Time
 }
 
 // Request is what to watch and how.

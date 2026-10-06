@@ -86,7 +86,9 @@ type Session struct {
 	now          func() time.Time
 	// saved are the video's saved passages, told by the app; showPanel
 	// brings the app's panel up for the line editor.
-	saved     atomic.Pointer[[]SavedPassage]
+	saved atomic.Pointer[[]SavedPassage]
+	// voice follows the actor's voice for the Modo Karaokê's fill.
+	voice     *voicing
 	showPanel func()
 
 	cancel   context.CancelFunc
@@ -193,6 +195,8 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	_ = s.controls.SyncVolume()
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
+	s.voice = &voicing{tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID()}
+	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
 	s.practice = session.NewPractice(s.controls, s.subtitles, session.PracticeHooks{
 		Event: s.practiced(ports.PracticeNotice), Look: s.setLap,
@@ -284,6 +288,7 @@ func (s *Session) endWhenClosed(closed <-chan struct{}) {
 
 func (s *Session) run(ctx context.Context, runner *session.Runner) {
 	err := runner.Run(ctx, s.running.Samples())
+	s.endVoice()
 	if errors.Is(err, context.Canceled) {
 		err = nil
 	}

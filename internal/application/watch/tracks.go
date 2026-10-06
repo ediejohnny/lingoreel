@@ -124,6 +124,7 @@ func (s *Session) SelectAudio(number uint64) error {
 		return err
 	}
 	s.changeTracks(func(tracks *Tracks) { tracks.Current.Audio = number })
+	s.reviewVoice(true) // the voice heard may be another language now
 	return nil
 }
 
@@ -193,5 +194,8 @@ func (s *Session) SetLine(line session.Line, number uint64, loaded analysis.Load
 	}
 	s.subtitles.SetTrack(line, track)
 	s.practice.LinesChanged()
+	if line == session.LinePrimary {
+		s.reviewVoice(true) // the voice followed speaks the line's language
+	}
 	return nil
 }

@@ -87,9 +87,12 @@ const (
 // followed; packets later than busyLate for busyFor mean a busy computer.
 const (
 	silentPlayer = 3 * time.Second
-	staleSound   = 300 * time.Millisecond
-	busyLate     = 500 * time.Millisecond
-	busyFor      = 2 * time.Second
+	// jumpTolerance is how far the clock may move between two packets beyond
+	// the time between them before it counts as a seek.
+	jumpTolerance = time.Second
+	staleSound    = 300 * time.Millisecond
+	busyLate      = 500 * time.Millisecond
+	busyFor       = 2 * time.Second
 )
 
 // A film where under leastTrusted of the lines (once triedEnough were
@@ -124,6 +127,9 @@ type Follower struct {
 	lastSound   time.Time
 	silentSince time.Time
 	lateSince   time.Time
+	// Where the last packet heard while playing went, to notice a seek.
+	heardAt       time.Time
+	heardPosition time.Duration
 }
 
 // painting is how one line is painted: by a plan, live, or by the estimate.
@@ -192,9 +198,16 @@ func (f *Follower) setMode(mode Mode) {
 }
 
 // Seeked tells the video jumped: the sound heard before says nothing about
-// what comes, and lines painted live are painted anew.
+// what comes, and lines painted live are painted anew. A jump while the
+// player is heard is noticed without it.
 func (f *Follower) Seeked() {
 	f.mu.Lock()
+	f.forget()
+	f.mu.Unlock()
+}
+
+// forget drops what a seek makes stale; callers hold the lock.
+func (f *Follower) forget() {
 	for line, p := range f.lines {
 		if p.plan == nil {
 			delete(f.lines, line)
@@ -202,7 +215,6 @@ func (f *Follower) Seeked() {
 	}
 	f.live = nil
 	f.listener.Reset()
-	f.mu.Unlock()
 	select {
 	case f.seeks <- struct{}{}:
 	default:
@@ -380,6 +392,7 @@ func (f *Follower) hear(packet Packet) {
 	}
 	// Paused, the sound is silence that says nothing of the film's.
 	if state.Status != playback.StatusPlaying {
+		f.heardAt = time.Time{}
 		return
 	}
 	if silent(packet.Samples) {
@@ -394,6 +407,13 @@ func (f *Follower) hear(packet Packet) {
 	}
 	f.frames = f.analyzer.Write(packet.Samples, f.frames[:0])
 	position := f.clock.PositionAt(packet.At.Add(f.settings.Delay))
+	if !f.heardAt.IsZero() {
+		expected := f.heardPosition + time.Duration(float64(packet.At.Sub(f.heardAt))*float64(state.Speed))
+		if (position - expected).Abs() > jumpTolerance {
+			f.forget()
+		}
+	}
+	f.heardAt, f.heardPosition = packet.At, position
 	// At another speed a frame is not 10 ms of the film: kept only at 1×.
 	if state.Speed == playback.NormalSpeed {
 		f.memory.Add(position, f.frames)

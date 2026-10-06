@@ -164,6 +164,7 @@ func (s *Session) ApplyKaraoke(karaoke session.Karaoke) error {
 		return err
 	}
 	s.subtitles.SetKaraoke(karaoke)
+	s.followVoice()
 	return nil
 }
 

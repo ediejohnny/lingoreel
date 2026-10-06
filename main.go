@@ -21,6 +21,7 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
@@ -28,6 +29,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
@@ -39,6 +41,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/association"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/audiotap"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
@@ -152,6 +155,8 @@ func run() error {
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
+			Tap:         audiotap.Tap{},
+			FindDecoder: findFFmpeg,
 		},
 		Stage:         stagePort{stage},
 		Settings:      files,
@@ -340,4 +345,14 @@ func monitors() ([]app.Monitor, error) {
 func windowsVersion() string {
 	v := sys.RtlGetVersion()
 	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
+}
+
+// findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
+// ahead of the video; the app ships none.
+func findFFmpeg(ctx context.Context) voice.Decoder {
+	path, err := ffmpeg.Find(ctx, "")
+	if err != nil {
+		return nil
+	}
+	return ffmpeg.Decoder{Path: path}
 }
