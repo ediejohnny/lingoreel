@@ -20,7 +20,7 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
   return (
     <>
       <Card title={t("ui.settings.playback.open.title")}>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
           <Select
             label={t("ui.settings.playback.speed.label")}
             value={String(draft.speed)}

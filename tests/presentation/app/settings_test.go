@@ -117,6 +117,51 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	}
 }
 
+// While the settings are edited the video is the preview: the screen's
+// choices reach it at once, nothing is written, and leaving them unsaved puts
+// the saved look back (user report: a style picked in the panel never showed
+// on the video).
+func TestThePreviewShowsTheChoicesOnTheVideoWithoutKeepingThem(t *testing.T) {
+	t.Parallel()
+	r := startWatching(t)
+	view := settingsOf(t, r).Profile
+	savedSize := view.Primary.FontSize
+	r.settings.mu.Lock()
+	saves := r.settings.saves
+	r.settings.mu.Unlock()
+
+	view.Primary.FontSize = 40
+	view.Translation.Color = "#FFE600"
+	if err := r.api.PreviewLook(view); err != nil {
+		t.Fatal(err)
+	}
+	look, looks := r.display.lastLook()
+	if looks != 1 || look.Primary.FontSize != 40 || look.Translation.Color.String() != "#FFE600" {
+		t.Fatalf("display looks %d, last %+v", looks, look)
+	}
+	r.settings.mu.Lock()
+	written, kept := r.settings.saves, r.settings.profiles.Items[0].Primary.FontSize
+	r.settings.mu.Unlock()
+	if written != saves || kept != savedSize || settingsOf(t, r).Profile.Primary.FontSize != savedSize {
+		t.Fatalf("the preview was kept: %d saves (was %d), saved size %v", written, saves, kept)
+	}
+
+	// A choice the profile refuses leaves the video as it is.
+	view.Primary.FontSize = -1
+	if err := r.api.PreviewLook(view); err == nil {
+		t.Fatal("a refused choice was previewed")
+	}
+	if _, after := r.display.lastLook(); after != 1 {
+		t.Fatalf("the refused choice reached the video (%d looks)", after)
+	}
+
+	r.api.EndPreview()
+	look, looks = r.display.lastLook()
+	if looks != 2 || look.Primary.FontSize != savedSize {
+		t.Fatalf("after the preview: %d looks, size %v (saved %v)", looks, look.Primary.FontSize, savedSize)
+	}
+}
+
 // The karaoke mode of the video being watched (from its project or the bar)
 // is the video's: saving the settings changes only what changed in the
 // profile.

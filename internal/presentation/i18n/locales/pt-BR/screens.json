@@ -278,6 +278,8 @@
   "ui.settings.language.title": "Idioma",
   "ui.settings.language.topic": "Idioma da interface",
   "ui.settings.language.windows": "O mesmo do Windows",
+  "ui.settings.leave.keepEditing": "Continuar editando",
+  "ui.settings.leave.question": "Salvar as alterações antes de fechar?",
   "ui.settings.line.primary": "principal",
   "ui.settings.line.translation": "tradução",
   "ui.settings.loading": "Carregando as configurações…",

@@ -54,7 +54,7 @@ interface CardProps {
 /** Card groups related controls on a surface. */
 export function Card({ title, aside, children, className = "" }: CardProps) {
   return (
-    <section className={`rounded-card border border-line bg-surface p-5 shadow-card ${className}`}>
+    <section className={`min-w-0 rounded-card border border-line bg-surface p-5 shadow-card ${className}`}>
       {title && (
         <header className="mb-4 flex items-center gap-1">
           <h2 className="text-sm font-semibold tracking-wide text-fg-secondary uppercase">{title}</h2>

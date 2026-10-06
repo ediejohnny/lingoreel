@@ -7,7 +7,7 @@ import { IconButton } from "./components/ui/Button";
 import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { SettingsPage, type SettingsHandle } from "./pages/SettingsPage";
 import {
   backend,
   messageOf,
@@ -56,7 +56,7 @@ export function App() {
   // video's fullscreen, which leaves only the video.
   const [panel, setPanel] = useState<PanelState>({ open: true, width: 0 });
   const [panelTab, setPanelTab] = useState<PanelTab>("playback");
-  const [settingsPage, setSettingsPage] = useState<SectionId>("general");
+  const [settingsSection, setSettingsSection] = useState<SectionId>("general");
   const [fullscreen, setFullscreen] = useState(false);
 
   const open = useCallback(async (path: string) => {
@@ -111,7 +111,7 @@ export function App() {
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
       if (request.section === "settings") {
-        setSettingsPage(sectionOfPage(request.page));
+        setSettingsSection(sectionOfPage(request.page));
         setPanelTab("settings");
         return;
       }
@@ -247,13 +247,34 @@ export function App() {
     backend.setPanel(next).catch(() => undefined);
   };
 
+  // Closing the settings with choices not saved asks first, on the settings
+  // themselves (in the panel, its own tab shows).
+  const settingsPage = useRef<SettingsHandle>(null);
+  const leaveSettings = async () => {
+    const page = settingsPage.current;
+    if (!page?.dirty()) {
+      return true;
+    }
+    setPanelTab("settings");
+    return page.confirmLeave();
+  };
+
   // The settings go back to where they were opened; a session that ended
   // meanwhile goes back to its screen.
-  const closeSettings = () => setScreen(returnTo === "playing" && !state ? "session" : returnTo);
+  const closeSettings = async () => {
+    if (await leaveSettings()) {
+      setScreen(returnTo === "playing" && !state ? "session" : returnTo);
+    }
+  };
+  const stopVideo = async () => {
+    if (await leaveSettings()) {
+      command(backend.stop);
+    }
+  };
   const back = embedded ? (
-    <IconButton icon={ArrowLeft} label={t("ui.app.stopVideo")} onClick={() => command(backend.stop)} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.stopVideo")} onClick={() => void stopVideo()} />
   ) : screen === "settings" ? (
-    <IconButton icon={ArrowLeft} label={t("ui.app.back")} onClick={closeSettings} />
+    <IconButton icon={ArrowLeft} label={t("ui.app.back")} onClick={() => void closeSettings()} />
   ) : screen === "session" ? (
     <IconButton icon={ArrowLeft} label={t("ui.app.openAnother")} onClick={() => setScreen("home")} />
   ) : undefined;
@@ -277,7 +298,12 @@ export function App() {
         icon={PanelRight}
         label={panel.open ? t("ui.app.panel.close") : t("ui.app.panel.open")}
         active={panel.open}
-        onClick={() => keepPanel({ ...panel, open: !panel.open })}
+        onClick={async () => {
+          if (panel.open && !(await leaveSettings())) {
+            return;
+          }
+          keepPanel({ ...panel, open: !panel.open });
+        }}
       />
     </>
   ) : screen === "settings" ? undefined : (
@@ -299,9 +325,10 @@ export function App() {
       {embedded && video && state ? (
         <div className="flex min-h-0 flex-1">
           <VideoStage />
-          {panel.open && !fullscreen && (
+          {panel.open && (
             <SidePanel
               width={panel.width}
+              hidden={fullscreen}
               tab={panelTab}
               onTab={setPanelTab}
               onWidth={(width) => keepPanel({ open: true, width })}
@@ -318,12 +345,23 @@ export function App() {
                   commands={commands}
                 />
               }
-              settings={<SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} section={settingsPage} narrow />}
+              settings={
+                <SettingsPage
+                  ref={settingsPage}
+                  theme={theme}
+                  onTheme={chooseTheme}
+                  look={look}
+                  onLook={chooseLook}
+                  section={settingsSection}
+                  narrow
+                  shown={panelTab === "settings" && !fullscreen}
+                />
+              }
             />
           )}
         </div>
       ) : screen === "settings" ? (
-        <SettingsPage theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} />
+        <SettingsPage ref={settingsPage} theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} />
       ) : screen === "playing" && video && state ? (
         <PlayingPage
           name={video.name}

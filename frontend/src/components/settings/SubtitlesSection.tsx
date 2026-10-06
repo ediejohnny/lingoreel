@@ -44,7 +44,7 @@ function SubtitlesLayout({
 }) {
   return (
     <div className="@container">
-      <div className="grid gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(18rem,40%)] @2xl:items-start">
         <aside aria-label={t("ui.settings.subtitles.preview")} className="flex flex-col gap-3 @2xl:sticky @2xl:top-4 @2xl:order-2">
           {chooser && (
             <Segmented
@@ -172,7 +172,7 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
             </div>
           }
         >
-          <div className="grid gap-4 @lg:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
             <div className="flex flex-col gap-2 @lg:col-span-2">
               <Toggle
                 label={t("ui.settings.subtitles.karaoke.fill")}
@@ -291,7 +291,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
           </div>
         }
       >
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <NumberField
             label={t("ui.settings.subtitles.margins.left")}
             value={layout.marginLeft}
@@ -367,7 +367,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
           </HelpTip>
         }
       >
-        <div className="grid gap-4 @lg:grid-cols-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <NumberField
             label={t("ui.settings.subtitles.sync.step")}
             value={draft.syncStep}

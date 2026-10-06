@@ -42,7 +42,7 @@ const goalOptions = () =>
 export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
   return (
     <div className="@container">
-      <div className="grid gap-5 [&>*]:min-w-0 @2xl:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 [&>*]:min-w-0 @2xl:grid-cols-2">
         <KaraokeCard state={state} label={label} onCommand={onCommand} />
         <PassageCard state={state} label={label} onCommand={onCommand} />
       </div>

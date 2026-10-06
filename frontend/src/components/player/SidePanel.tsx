@@ -6,6 +6,8 @@ export type PanelTab = "playback" | "settings";
 
 interface SidePanelProps {
   width: number;
+  /** hidden keeps the panel and what it holds (a draft of the settings) while the video is fullscreen. */
+  hidden?: boolean;
   tab: PanelTab;
   onTab: (tab: PanelTab) => void;
   /** onWidth gets the width chosen by dragging the panel's edge, once the drag ends. */
@@ -19,7 +21,7 @@ interface SidePanelProps {
  * over the video has no room for, and the settings. Its left edge drags to
  * make it wider, up to half the window.
  */
-export function SidePanel({ width, tab, onTab, onWidth, playback, settings }: SidePanelProps) {
+export function SidePanel({ width, hidden = false, tab, onTab, onWidth, playback, settings }: SidePanelProps) {
   const [dragged, setDragged] = useState<number | null>(null);
   const dragging = useRef(false);
   const shown = dragged ?? panelWidth(width, window.innerWidth);
@@ -33,7 +35,7 @@ export function SidePanel({ width, tab, onTab, onWidth, playback, settings }: Si
     <aside
       aria-label={t("ui.panel.label")}
       style={{ width: shown }}
-      className="relative flex min-h-0 shrink-0 flex-col border-l border-line bg-bg"
+      className={`relative ${hidden ? "hidden" : "flex"} min-h-0 shrink-0 flex-col border-l border-line bg-bg`}
     >
       <div
         role="separator"
@@ -72,8 +74,12 @@ export function SidePanel({ width, tab, onTab, onWidth, playback, settings }: Si
           </button>
         ))}
       </div>
-      <div role="tabpanel" className="flex min-h-0 flex-1 flex-col">
-        {tab === "settings" ? settings : playback}
+      {/* Both tabs stay in place, so a draft of the settings survives a look at the playback. */}
+      <div role="tabpanel" className={`${tab === "playback" ? "flex" : "hidden"} min-h-0 flex-1 flex-col`}>
+        {playback}
+      </div>
+      <div role="tabpanel" className={`${tab === "settings" ? "flex" : "hidden"} min-h-0 flex-1 flex-col`}>
+        {settings}
       </div>
     </aside>
   );

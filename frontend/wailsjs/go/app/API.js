@@ -66,6 +66,10 @@ export function EditLine(arg1) {
   return window['go']['app']['API']['EditLine'](arg1);
 }
 
+export function EndPreview() {
+  return window['go']['app']['API']['EndPreview']();
+}
+
 export function ExportSubtitle(arg1) {
   return window['go']['app']['API']['ExportSubtitle'](arg1);
 }
@@ -120,6 +124,10 @@ export function Preferences() {
 
 export function PreviewBar(arg1) {
   return window['go']['app']['API']['PreviewBar'](arg1);
+}
+
+export function PreviewLook(arg1) {
+  return window['go']['app']['API']['PreviewLook'](arg1);
 }
 
 export function PreviewSubtitles(arg1) {

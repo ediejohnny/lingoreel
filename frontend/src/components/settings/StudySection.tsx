@@ -40,7 +40,7 @@ export function StudySection(props: SectionProps) {
       >
         <div className="flex flex-col gap-5">
           <Toggle label={t("ui.settings.study.karaoke.enable")} checked={karaoke.enabled} onChange={set("enabled")} />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
             <NumberField
               label={t("ui.settings.study.minGap.label")}
               value={karaoke.minGap}

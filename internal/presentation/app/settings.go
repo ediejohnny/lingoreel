@@ -207,6 +207,46 @@ func (a *API) SaveProfile(view ProfileSettings) error {
 	return nil
 }
 
+// PreviewLook shows the screen's choices on the video being watched without
+// keeping them: while the settings are edited, the video is the preview.
+// Choices the profile would refuse are refused here too, and the video keeps
+// its look. Without a video it does nothing.
+func (a *API) PreviewLook(view ProfileSettings) error {
+	a.mu.Lock()
+	current := a.profile()
+	a.mu.Unlock()
+	profile, err := profileFrom(current, view, a.deps.KeyChar)
+	if err != nil {
+		return err
+	}
+	profile.Name = current.Name
+	if err := profile.Validate(); err != nil {
+		a.logger.Warn("refused preview", "error", err)
+		return errors.New(ptbr.T("error.profile.notSaved"))
+	}
+	a.restyle(profile)
+	return nil
+}
+
+// EndPreview puts the saved profile's look back on the video, once the
+// screen's choices were left unsaved.
+func (a *API) EndPreview() {
+	a.mu.Lock()
+	profile := a.profile()
+	a.mu.Unlock()
+	a.restyle(profile)
+}
+
+// restyle gives the video being watched a profile's look; a refusal is only
+// logged.
+func (a *API) restyle(profile settings.Profile) {
+	if current := a.current(); current != nil && current.session != nil {
+		if err := current.session.Restyle(watch.LookOf(profile)); err != nil {
+			a.logger.Warn("the video did not take the look", "error", err)
+		}
+	}
+}
+
 // commitProfiles saves the profiles and, once saved, keeps them. Called with
 // a.mu held.
 func (a *API) commitProfiles(next settings.Profiles) error {
