@@ -52,8 +52,8 @@ func DefaultNoticeLook() NoticeLook {
 }
 
 // levelNoticeScale is how much larger a notice with a level is than the
-// others.
-const levelNoticeScale = 1.5
+// others: at 1.5 it still went unnoticed over a wide picture.
+const levelNoticeScale = 2
 
 // WithLevel is the look of a notice with a level under its text, such as the
 // volume's: larger than the others, as it is read at a glance while the

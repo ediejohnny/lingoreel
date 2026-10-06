@@ -83,7 +83,7 @@ type PlacedMeter struct {
 // notice's font, so the box keeps its width while the level changes.
 const (
 	MeterGap         = 6.0
-	MeterThickness   = 6.0
+	MeterThickness   = 9.0
 	MeterMinPixels   = 3.0
 	meterMinLengthEm = 7.0
 )

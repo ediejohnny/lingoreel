@@ -102,17 +102,17 @@ func TestALevelNoticeKeepsItsBoxWhileTheLevelChanges(t *testing.T) {
 	if low.Notice == nil || low.Meter == nil || high.Notice == nil || high.Meter == nil {
 		t.Fatalf("notices %+v / %+v, want both with a meter", low, high)
 	}
-	if !near(low.Notice.Font.Size, 33) {
-		t.Fatalf("font %v, want 1.5 × 22 at 1080p", low.Notice.Font.Size)
+	if !near(low.Notice.Font.Size, 44) {
+		t.Fatalf("font %v, want 2 × 22 at 1080p", low.Notice.Font.Size)
 	}
 	if !sameRect(low.Notice.Bounds, high.Notice.Bounds) || !sameRect(low.Meter.Bar, high.Meter.Bar) {
 		t.Fatalf("box %+v / bar %+v at 5%%, %+v / %+v at 135%%: want the same", low.Notice.Bounds, low.Meter.Bar,
 			high.Notice.Bounds, high.Meter.Bar)
 	}
 	box, bar, line := high.Notice.Bounds, high.Meter.Bar, high.Notice.Lines[0]
-	// Padding 8 and gap 6 × 1.0 scale; the bar is 6 thick.
-	if !near(bar.X, box.X+8) || !near(bar.Right(), box.Right()-8) || !near(bar.Bottom(), box.Bottom()-8) || !near(bar.H, 6) {
-		t.Fatalf("bar %+v, want it 8 inside the box %+v and 6 thick", bar, box)
+	// Padding 8 and gap 6 × 1.0 scale; the bar is 9 thick.
+	if !near(bar.X, box.X+8) || !near(bar.Right(), box.Right()-8) || !near(bar.Bottom(), box.Bottom()-8) || !near(bar.H, 9) {
+		t.Fatalf("bar %+v, want it 8 inside the box %+v and 9 thick", bar, box)
 	}
 	if bar.Y < line.Y+line.Height+6-eps {
 		t.Fatalf("bar at %v, want it 6 below the text ending at %v", bar.Y, line.Y+line.Height)
