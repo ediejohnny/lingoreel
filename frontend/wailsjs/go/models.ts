@@ -1089,6 +1089,7 @@ export namespace app {
 	    syncStep: number;
 	    syncFastStep: number;
 	    precisionStep: number;
+	    translationOwnTiming: boolean;
 	    karaoke: KaraokeSettings;
 	    mode: string;
 	    reveal: string;
@@ -1111,6 +1112,7 @@ export namespace app {
 	        this.syncStep = source["syncStep"];
 	        this.syncFastStep = source["syncFastStep"];
 	        this.precisionStep = source["precisionStep"];
+	        this.translationOwnTiming = source["translationOwnTiming"];
 	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
 	        this.mode = source["mode"];
 	        this.reveal = source["reveal"];

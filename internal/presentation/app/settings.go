@@ -314,6 +314,7 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 	if profile.Study.Mode != previous.Study.Mode {
 		err = errors.Join(err, s.SetMode(profile.Study.Mode))
 	}
+	s.SetTranslationTiming(profile.Sync.TranslationOwnTiming)
 	if err != nil {
 		a.logger.Warn("the video did not take every new choice", "error", err)
 	}

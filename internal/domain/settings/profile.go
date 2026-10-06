@@ -140,6 +140,9 @@ type SyncPreferences struct {
 	PrecisionSeekStep Duration `json:"precisionSeekStep"`
 	OffsetStep        Duration `json:"offsetStep"`
 	OffsetLargeStep   Duration `json:"offsetLargeStep"`
+	// TranslationOwnTiming shows the translation on its own file's time; by
+	// default it comes and goes with the study line it translates.
+	TranslationOwnTiming bool `json:"translationOwnTiming"`
 }
 
 // Nudge returns the sync shortcuts' steps.

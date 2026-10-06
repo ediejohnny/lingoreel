@@ -288,6 +288,14 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             help={<HelpTip topic={t("ui.settings.subtitles.order.label")}>{t("ui.settings.subtitles.order.help")}</HelpTip>}
           />
         </div>
+        <div className="mt-4">
+          <Toggle
+            label={t("ui.settings.subtitles.together.label")}
+            checked={!draft.translationOwnTiming}
+            onChange={(together) => setDraft({ ...draft, translationOwnTiming: !together })}
+            help={<HelpTip topic={t("ui.settings.subtitles.together.label")}>{t("ui.settings.subtitles.together.help")}</HelpTip>}
+          />
+        </div>
       </Card>
       <Card
         title={t("ui.settings.subtitles.margins.title")}

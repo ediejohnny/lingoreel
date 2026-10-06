@@ -92,11 +92,15 @@ func (h *runnerHarness) advance(d time.Duration) {
 	h.time.Advance(d)
 }
 
+// twoLines are lines on their own times, so every boundary of each one
+// shows: the runner's tests follow each line, not their pairing.
 func twoLines(t *testing.T) *session.Subtitles {
-	return session.NewSubtitles(
+	subtitles := session.NewSubtitles(
 		&session.Track{Timeline: timeline(t, cue("a", 1_000, 3_000), cue("b", 2_000, 5_000))},
 		&session.Track{Timeline: timeline(t, cue("x", 1_500, 4_000))},
 	)
+	subtitles.SetOwnTiming(true)
+	return subtitles
 }
 
 func TestRunnerReportsEachBoundaryWhilePlaying(t *testing.T) {

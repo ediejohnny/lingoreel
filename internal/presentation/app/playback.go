@@ -122,7 +122,8 @@ func (a *API) Watch(request WatchRequest) error {
 		Karaoke:   session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill},
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
-		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
+		TranslationOwnTiming: profile.Sync.TranslationOwnTiming,
+		Mode:                 mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
 		Voice: voiceSetup(voicePreferences),
 	}
 	// What the user changed on this video comes back over the profile.

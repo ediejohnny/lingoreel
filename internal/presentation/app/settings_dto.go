@@ -68,8 +68,11 @@ type ProfileSettings struct {
 	SyncStep        int              `json:"syncStep"`
 	SyncFastStep    int              `json:"syncFastStep"`
 	// PrecisionStep is the precision shortcuts' jump, in ms.
-	PrecisionStep int             `json:"precisionStep"`
-	Karaoke       KaraokeSettings `json:"karaoke"`
+	PrecisionStep int `json:"precisionStep"`
+	// TranslationOwnTiming shows the translation on its own file's time
+	// instead of with the study line it translates.
+	TranslationOwnTiming bool            `json:"translationOwnTiming"`
+	Karaoke              KaraokeSettings `json:"karaoke"`
 	// Mode is the study mode a video opens with.
 	Mode      string            `json:"mode"`
 	Reveal    string            `json:"reveal"`

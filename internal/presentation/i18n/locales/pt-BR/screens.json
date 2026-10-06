@@ -498,6 +498,8 @@
   "ui.settings.subtitles.sync.step": "Passo de cada toque",
   "ui.settings.subtitles.sync.title": "Sincronização",
   "ui.settings.subtitles.sync.topic": "Passos da sincronização",
+  "ui.settings.subtitles.together.help": "A tradução aparece e some junto com a fala que ela traduz, mesmo quando o arquivo dela começa ou termina um pouco antes ou depois. Uma tradução que não corresponde a nenhuma fala, como a de uma placa, aparece no tempo dela. Desmarcada, cada legenda segue o tempo do próprio arquivo.",
+  "ui.settings.subtitles.together.label": "Tradução junto com a legenda de estudo",
   "ui.settings.subtitles.top.languageHelp": "O idioma que o app escolhe sozinho para a legenda de estudo ao abrir um vídeo: o que você estuda.",
   "ui.settings.subtitles.top.languageTopic": "Idioma preferido",
   "ui.settings.subtitles.top.title": "Legenda de estudo · {language}",

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -67,6 +68,7 @@ func TestSetOffsetMovesOnlyThatLine(t *testing.T) {
 	primary := &session.Track{Timeline: timeline(t, cue("en", 1_000, 2_000))}
 	translation := &session.Track{Timeline: timeline(t, cue("pt", 1_000, 2_000))}
 	subtitles := session.NewSubtitles(primary, translation)
+	subtitles.SetOwnTiming(true) // each line on its own time, to see the offset
 
 	subtitles.SetOffset(session.LineTranslation, subtitle.NewOffset(ms(500)))
 
@@ -79,6 +81,48 @@ func TestSetOffsetMovesOnlyThatLine(t *testing.T) {
 	}
 	if primary.Offset != 0 || translation.Offset != 0 {
 		t.Fatal("SetOffset mutated the caller's track")
+	}
+}
+
+// The translation comes and goes with the study line it translates, also
+// ahead of the line in the karaoke mode's preview; on its own time it shows
+// as its file says (user report: the two lines appeared and disappeared a few
+// milliseconds apart).
+func TestTheTranslationShowsWithItsStudyLine(t *testing.T) {
+	t.Parallel()
+	primary := &session.Track{Timeline: timeline(t, cue("en", 10_000, 12_000), cue("en2", 25_000, 27_000))}
+	translation := &session.Track{Timeline: timeline(t, cue("pt", 9_850, 12_120), cue("pt2", 24_900, 27_000), cue("sign", 30_000, 31_000))}
+	subtitles := session.NewSubtitles(primary, translation)
+	for _, c := range []struct {
+		at          int
+		primary     []string
+		translation []string
+	}{
+		{9_900, []string{}, []string{}},
+		{10_000, []string{"en"}, []string{"pt"}},
+		{12_050, []string{}, []string{}},
+		{30_500, []string{}, []string{"sign"}},
+	} {
+		visible := subtitles.At(ms(c.at))
+		if !slices.Equal(ids(visible.Primary), c.primary) || !slices.Equal(ids(visible.Translation), c.translation) {
+			t.Errorf("At(%d ms) = %v / %v, want %v / %v", c.at, ids(visible.Primary), ids(visible.Translation), c.primary, c.translation)
+		}
+	}
+
+	// The karaoke mode shows the next line ahead of time with its translation
+	// (13 s of silence, previewed from 5 s before).
+	subtitles.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules()})
+	if visible := subtitles.At(ms(22_000)); visible.Cue == nil || !slices.Equal(ids(visible.Translation), []string{"pt2"}) {
+		t.Fatalf("preview at 22 s: cue %v, translation %v, want pt2", visible.Cue, ids(visible.Translation))
+	}
+	subtitles.SetKaraoke(session.Karaoke{})
+
+	subtitles.SetOwnTiming(true)
+	if visible := subtitles.At(ms(9_900)); !slices.Equal(ids(visible.Translation), []string{"pt"}) {
+		t.Fatalf("on its own time at 9.9 s: %v, want pt", ids(visible.Translation))
+	}
+	if visible := subtitles.At(ms(12_050)); !slices.Equal(ids(visible.Translation), []string{"pt"}) {
+		t.Fatalf("on its own time at 12.05 s: %v, want pt", ids(visible.Translation))
 	}
 }
 

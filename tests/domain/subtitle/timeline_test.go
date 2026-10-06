@@ -187,6 +187,49 @@ func TestActiveAtMatchesLinearScan(t *testing.T) {
 	}
 }
 
+// Overlapping finds every event showing at some instant of a span, checked
+// against a brute-force scan; an event ending at the span's start or starting
+// at its end does not show in it.
+func TestOverlappingMatchesLinearScan(t *testing.T) {
+	t.Parallel()
+	timeline := mustTimeline(t, event("a", 1_000, 2_000), event("b", 3_000, 4_000))
+	for _, c := range []struct {
+		from, to int
+		want     []string
+	}{
+		{2_000, 3_000, []string{}},
+		{1_999, 3_001, []string{"a", "b"}},
+		{1_500, 1_500, []string{}},
+		{4_000, 1_000, []string{}},
+	} {
+		if got := activeIDs(timeline.Overlapping(ms(c.from), ms(c.to))); !slices.Equal(got, c.want) {
+			t.Errorf("Overlapping(%d, %d) = %v, want %v", c.from, c.to, got, c.want)
+		}
+	}
+
+	random := rand.New(rand.NewSource(7))
+	events := make([]subtitle.Event, 0, 2_000)
+	for i := range 2_000 {
+		start := random.Intn(600_000)
+		events = append(events, event(fmt.Sprint(i), start, start+1+random.Intn(8_000)))
+	}
+	big := mustTimeline(t, events...)
+	sorted := big.Events()
+	for range 3_000 {
+		from := ms(random.Intn(610_000) - 5_000)
+		to := from + ms(1+random.Intn(20_000))
+		want := []string{}
+		for _, e := range sorted {
+			if e.Start < to && e.End > from {
+				want = append(want, e.ID)
+			}
+		}
+		if got := activeIDs(big.Overlapping(from, to)); !slices.Equal(got, want) {
+			t.Fatalf("Overlapping(%v, %v) = %v, linear scan = %v", from, to, got, want)
+		}
+	}
+}
+
 // Checks NextChangeAfter against a brute-force oracle: the earliest start or
 // end strictly after the instant.
 func TestNextChangeAfterMatchesLinearScan(t *testing.T) {

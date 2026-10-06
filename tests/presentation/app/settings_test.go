@@ -83,6 +83,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.PrecisionStep = 250
 	view.Primary.LineSpacing, view.Layout.LineGap = 1.4, 1
 	view.Layout.TranslationOnTop = true
+	view.TranslationOwnTiming = true
 	view.Marks.Notice.Side, view.Marks.NoticeDuration, view.Marks.Selection.Width = "right", 3, 3
 	view.Karaoke.BarThickness, view.Karaoke.CountdownSize = 9, 1.2
 	if view.Mode != "on-demand" {
@@ -97,7 +98,8 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 		saved.Translation.Background.Color.A != 0xC8 || saved.Layout.MarginBottom != 0.1 || saved.Study.Karaoke.Lead.Std().Seconds() != 3 ||
 		saved.Sync.OffsetStep.Std().Milliseconds() != 100 || saved.Study.Reveal != "hold" || saved.Speed != 0.75 ||
 		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" || !saved.Shortcuts.Of(shortcut.Mute).IsZero() ||
-		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 || !saved.Layout.TranslationOnTop {
+		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 || !saved.Layout.TranslationOnTop ||
+		!saved.Sync.TranslationOwnTiming {
 		t.Fatalf("saved = %+v", saved)
 	}
 	// The video took the changed mode.

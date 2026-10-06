@@ -30,12 +30,13 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 			MarginTop: profile.Layout.MarginTop, MarginBottom: profile.Layout.MarginBottom, MaxWidth: profile.Layout.MaxWidth,
 			LineGap: profile.Layout.LineGap, TranslationOnTop: profile.Layout.TranslationOnTop,
 		},
-		Marks:         marksView(profile.Marks),
-		Speed:         float64(profile.Speed),
-		SyncStep:      int(profile.Sync.OffsetStep.Std() / time.Millisecond),
-		SyncFastStep:  int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
-		PrecisionStep: int(profile.Sync.PrecisionSeekStep.Std() / time.Millisecond),
-		Mode:          string(profile.Study.Mode),
+		Marks:                marksView(profile.Marks),
+		Speed:                float64(profile.Speed),
+		SyncStep:             int(profile.Sync.OffsetStep.Std() / time.Millisecond),
+		SyncFastStep:         int(profile.Sync.OffsetLargeStep.Std() / time.Millisecond),
+		PrecisionStep:        int(profile.Sync.PrecisionSeekStep.Std() / time.Millisecond),
+		TranslationOwnTiming: profile.Sync.TranslationOwnTiming,
+		Mode:                 string(profile.Study.Mode),
 		Karaoke: KaraokeSettings{
 			Enabled: karaoke.Enabled, MinGap: karaoke.MinGap.Std().Seconds(), Lead: karaoke.Lead.Std().Seconds(),
 			Indicator: string(karaoke.Indicator), PreviewColor: karaoke.PreviewColor.String(),
@@ -127,6 +128,7 @@ func profileFrom(base settings.Profile, view ProfileSettings, char ptbr.KeyChar)
 	profile.Sync.OffsetStep = settings.Duration(time.Duration(view.SyncStep) * time.Millisecond)
 	profile.Sync.OffsetLargeStep = settings.Duration(time.Duration(view.SyncFastStep) * time.Millisecond)
 	profile.Sync.PrecisionSeekStep = settings.Duration(time.Duration(view.PrecisionStep) * time.Millisecond)
+	profile.Sync.TranslationOwnTiming = view.TranslationOwnTiming
 	profile.Shortcuts = keys
 	switch {
 	case !profile.Study.Mode.Valid():
