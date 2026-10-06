@@ -2,16 +2,19 @@
 # development tool (spdev.exe) and the app with its window (LingoReel.exe).
 #
 # Usage:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 [-Version 1.2.3]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 [-Version 1.2.3] [-OutDir folder]
 #
 # Without -Version, the version comes from the nearest git tag (git describe).
+# With -OutDir, both executables go to that folder instead, and build\bin is
+# left as it is (an app open from there keeps running).
 # The app carries the version in its file properties. Microsoft's WebView2
 # installer does not go inside it (it has Microsoft's own terms): a Windows 10
 # machine that lacks WebView2 is offered the download from Microsoft. The app
 # is pure Go (no cgo), so no C runtime goes inside it either.
 
 param(
-    [string]$Version = ""
+    [string]$Version = "",
+    [string]$OutDir = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,8 +22,12 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "lib\version.ps1")
 
 $root = Split-Path -Parent $PSScriptRoot
-$binDir = Join-Path $root "build\bin"
+$wailsBin = Join-Path $root "build\bin"
+$binDir = if ($OutDir) { [IO.Path]::GetFullPath((Join-Path $root $OutDir)) } else { $wailsBin }
 $wailsConfig = Join-Path $root "wails.json"
+# Wails always writes into build\bin: elsewhere, it writes a name of its own
+# there and the file moves to the folder asked.
+$wailsName = if ($OutDir) { "LingoReel (build).exe" } else { "LingoReel.exe" }
 
 $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
@@ -54,11 +61,15 @@ try {
             throw "wails.json has no productVersion field."
         }
         [IO.File]::WriteAllText($wailsConfig, $patched, (New-Object Text.UTF8Encoding($false)))
-        Invoke-Native -FilePath "wails" -Arguments @("build", "-trimpath", "-webview2", "download", "-ldflags", $ldflags) `
+        Invoke-Native -FilePath "wails" -Arguments @("build", "-trimpath", "-webview2", "download", "-ldflags", $ldflags, "-o", $wailsName) `
             -FailureMessage "Building the app failed"
     }
     finally {
         [IO.File]::WriteAllBytes($wailsConfig, $originalConfig)
+    }
+    $built = Join-Path $wailsBin $wailsName
+    if ($built -ne $app) {
+        Move-Item -LiteralPath $built -Destination $app -Force
     }
     if (-not (Test-Path -LiteralPath $app)) {
         throw "The app was not built at $app."
