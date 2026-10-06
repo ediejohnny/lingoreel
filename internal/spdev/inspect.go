@@ -13,10 +13,14 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/silero"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 )
 
@@ -25,6 +29,8 @@ var ErrMissingArgument = errors.New("missing argument")
 
 const (
 	subtitlesFlag     = "--subtitles"
+	hearFlag          = "--hear"
+	ffmpegFlag        = "--ffmpeg"
 	previewEventCount = 3
 	// rateShownFrom is the least speed change worth printing (0.001%).
 	rateShownFrom = 1e-5
@@ -41,18 +47,41 @@ var trackTypeNames = map[media.TrackType]string{
 var bitmapSubtitleCodecs = []string{"S_HDMV/PGS", "S_VOBSUB", "S_DVBSUB", "S_IMAGE/BMP"}
 
 // inspect prints the tracks of a video, the suggested study tracks and, with
-// --subtitles, the first lines of the suggested subtitles.
+// --subtitles, the first lines of the suggested subtitles. With --hear, the
+// files nothing in the video could measure are lined up with its voice
+// first, as the app does when the video opens (--ffmpeg picks the FFmpeg).
 func inspect(ctx context.Context, args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%w: the video's path", ErrMissingArgument)
 	}
 	path := args[0]
-	withSubtitles := len(args) > 1 && args[1] == subtitlesFlag
+	withSubtitles, hearing, tool := false, false, ""
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case subtitlesFlag:
+			withSubtitles = true
+		case hearFlag:
+			hearing = true
+		case ffmpegFlag:
+			if i+1 == len(args) {
+				return fmt.Errorf("%w: the FFmpeg's path after %s", ErrMissingArgument, ffmpegFlag)
+			}
+			i++
+			tool = args[i]
+		default:
+			return fmt.Errorf("inspect: unknown option %q", args[i])
+		}
+	}
 
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	result, err := service.Analyze(ctx, path, defaultPreferences())
 	if err != nil {
 		return err
+	}
+	if hearing {
+		if result, err = heardAnalysis(ctx, result, tool, stdout); err != nil {
+			return err
+		}
 	}
 
 	out := &printer{w: stdout}
@@ -151,8 +180,14 @@ func describeAlignment(track media.Track) string {
 	if !track.AutoSelectable() {
 		notChosen = "; never picked on its own"
 	}
+	if alignment.Heard {
+		share = fmt.Sprintf("%.0f%% of the lines heard fall in speech", alignment.Score*100)
+	}
 	switch alignment.Verdict {
 	case subtitle.VerdictMatch:
+		if _, moved := analysis.Correction(track); !moved {
+			return fmt.Sprintf("fits the video (%s); kept as timed (found %s)", share, describeCorrection(alignment))
+		}
 		return fmt.Sprintf("fits the video (%s); correction %s", share, describeCorrection(alignment))
 	case subtitle.VerdictOtherCut:
 		return fmt.Sprintf("made for another cut of the film (an extended or director's cut?), drifting at every scene (%s)%s", share, notChosen)
@@ -227,4 +262,36 @@ func (p *printer) line(format string, args ...any) {
 	if p.err == nil {
 		_, p.err = fmt.Fprintf(p.w, format+"\n", args...)
 	}
+}
+
+// heardAnalysis lines the unheard files of a video up with its voice, heard
+// in the stretches the app hears, at its pace.
+func heardAnalysis(ctx context.Context, result analysis.Analysis, tool string, stdout io.Writer) (analysis.Analysis, error) {
+	if len(result.Unheard()) == 0 {
+		return result, nil
+	}
+	path, err := ffmpeg.Find(ctx, tool)
+	if err != nil {
+		return result, err
+	}
+	preferences := defaultPreferences()
+	stretch := voice.Stretch{File: result.Path}
+	if track, position, found := media.VoiceTrack(result.Info, preferences.Primary); found {
+		stretch.Track, stretch.Channels, stretch.Codec = position, track.Channels, track.Codec
+	}
+	stretches := subtitle.HearingStretches(result.HearingLength())
+	heard := make([]speech.Track, 0, len(stretches))
+	started := time.Now()
+	for i, s := range stretches {
+		fmt.Fprintf(stdout, "Hearing stretch %d of %d (%s)...\n", i+1, len(stretches), formatClock(s.From))
+		stretch.From, stretch.Length = s.From, s.Length
+		track, err := voice.Hear(ctx, ffmpeg.Decoder{Path: path}, silero.Embedded{}, stretch, nil)
+		if err != nil {
+			return result, err
+		}
+		heard = append(heard, track)
+	}
+	fmt.Fprintf(stdout, "Heard in %s.\n\n", time.Since(started).Round(time.Second))
+	fitted, _ := analysis.FitByVoice(result, heard, preferences)
+	return fitted, nil
 }
