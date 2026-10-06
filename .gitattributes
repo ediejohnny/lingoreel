@@ -12,3 +12,4 @@
 *.jpg binary
 *.mkv binary
 *.woff2 binary
+*.onnx binary
