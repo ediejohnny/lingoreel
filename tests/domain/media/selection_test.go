@@ -256,3 +256,23 @@ func TestInfoLookups(t *testing.T) {
 		t.Fatal("Track(99) found a track that does not exist")
 	}
 }
+
+// The voice followed is the film's track in the studied line's language:
+// a dubbed track first in the file and a later commentary do not count.
+func TestTheVoiceTrackSpeaksTheLinesLanguage(t *testing.T) {
+	t.Parallel()
+	file := info(
+		media.Track{Number: 1, Type: media.TrackVideo},
+		audioTrack(2, "pt-BR", true),
+		audioTrack(3, "en", false),
+		named(audioTrack(4, "en", false), "Commentary"),
+		subtitleTrack(5, "en"),
+	)
+	file.Tracks[3].LanguageGuessed = true
+	if track, position, found := media.VoiceTrack(file, "en"); !found || track.Number != 3 || position != 1 {
+		t.Fatalf("English voice: track %d at %d (found %v), want track 3 at 1", track.Number, position, found)
+	}
+	if _, _, found := media.VoiceTrack(file, "fr"); found {
+		t.Fatal("found a French voice in a film without one")
+	}
+}

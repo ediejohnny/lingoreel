@@ -26,8 +26,8 @@ func movieFile() []byte {
 		segmentInfo(1_000_000, 5_400_000), // 90 minutes in milliseconds
 		tracksEl(
 			trackEntry(1, typeVideo, "V_MPEG4/ISO/AVC", uintEl(idDefaultDuration, 41_708_333), el(idVideo, uintEl(idPixelWidth, 1920), uintEl(idPixelHeight, 1080))),
-			trackEntry(2, typeAudio, "A_AAC", stringEl(idLanguage, "eng"), uintEl(idFlagDefault, 1)),
-			trackEntry(3, typeAudio, "A_AC3", stringEl(idLanguage, "por"), stringEl(idName, "Português"), uintEl(idFlagDefault, 0)),
+			trackEntry(2, typeAudio, "A_AAC", stringEl(idLanguage, "eng"), uintEl(idFlagDefault, 1), el(idAudio, uintEl(idChannels, 6))),
+			trackEntry(3, typeAudio, "A_AC3", stringEl(idLanguage, "por"), stringEl(idName, "Português"), uintEl(idFlagDefault, 0), el(idAudio)),
 			trackEntry(4, typeSubtitle, "S_TEXT/UTF8", stringEl(idLanguage, "eng"), stringEl(idName, "English")),
 			trackEntry(5, typeSubtitle, "S_TEXT/ASS", stringEl(idLanguage, "por"), stringEl(idName, "Brazilian Portuguese"), uintEl(idFlagDefault, 0)),
 			trackEntry(6, typeSubtitle, "S_HDMV/PGS", stringEl(idLanguage, "eng"), uintEl(idFlagForced, 1)),
@@ -50,6 +50,13 @@ func TestAnalyzeDescribesAMovie(t *testing.T) {
 	video, _ := info.Track(1)
 	if video.Type != media.TrackVideo || video.Width != 1920 || video.Height != 1080 || math.Abs(video.FrameRate-23.976) > 0.001 {
 		t.Fatalf("video track = %+v", video)
+	}
+	// The channels say where the dialogue is; 1 when the track gives none.
+	if surround, _ := info.Track(2); surround.Channels != 6 {
+		t.Fatalf("5.1 track has %d channels", surround.Channels)
+	}
+	if plain, _ := info.Track(3); plain.Channels != 1 {
+		t.Fatalf("track without a count has %d channels, want 1", plain.Channels)
 	}
 	expectations := []struct {
 		number                    uint64

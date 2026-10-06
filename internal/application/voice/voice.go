@@ -28,3 +28,24 @@ type Tap interface {
 	// must return quickly, until ctx ends or the sound cannot be heard.
 	Listen(ctx context.Context, pid int, hear func(Packet)) error
 }
+
+// Stretch is part of a film's voice to decode ahead of the video.
+type Stretch struct {
+	File string
+	// Track is the voice's position among the film's audio tracks
+	// (media.VoiceTrack); Channels and Codec are the track's, so a decoder
+	// can take the centre of a surround mix, where the dialogue is.
+	Track    int
+	Channels int
+	Codec    string
+	From     time.Duration
+	Length   time.Duration
+}
+
+// Decoder decodes a film's sound ahead of the video: the user's FFmpeg.
+type Decoder interface {
+	// Decode hands the stretch's sound to hear in pieces, at
+	// speech.SampleRate from the stretch's start, until it ends, ctx ends or
+	// the decoding fails. The pieces are only good during the call.
+	Decode(ctx context.Context, stretch Stretch, hear func(samples []float32, channels int)) error
+}

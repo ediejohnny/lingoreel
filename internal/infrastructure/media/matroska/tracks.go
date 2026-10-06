@@ -22,7 +22,9 @@ type TrackEntry struct {
 	DefaultDuration uint64
 	PixelWidth      uint64
 	PixelHeight     uint64
-	Encodings       []ContentEncoding
+	// Channels is the audio's channel count, 0 when the track says nothing.
+	Channels  uint64
+	Encodings []ContentEncoding
 }
 
 // ContentEncoding is one compression or encryption layer applied to frames.
@@ -75,6 +77,8 @@ func readTrackEntry(c *cursor, entry element) (TrackEntry, error) {
 			track.DefaultDuration, err = c.readUint(field)
 		case idVideo:
 			err = readVideo(c, field, &track)
+		case idAudio:
+			err = readAudio(c, field, &track)
 		case idContentEncodings:
 			track.Encodings, err = readEncodings(c, field)
 		}
@@ -96,6 +100,18 @@ func readVideo(c *cursor, video element, track *TrackEntry) error {
 			track.PixelWidth, err = c.readUint(field)
 		case idPixelHeight:
 			track.PixelHeight, err = c.readUint(field)
+		}
+		return err
+	})
+}
+
+// readAudio reads the channels, 1 by the specification when not given.
+func readAudio(c *cursor, audio element, track *TrackEntry) error {
+	track.Channels = 1
+	return c.forEachChild(audio, func(field element) error {
+		var err error
+		if field.id == idChannels {
+			track.Channels, err = c.readUint(field)
 		}
 		return err
 	})

@@ -141,6 +141,21 @@ func subtitleQuality(track Track) int {
 	return score
 }
 
+// VoiceTrack is the audio track that speaks a language, the one whose voice
+// the Modo Karaokê follows, and its position among the audio tracks.
+// Declared and default tracks come first, so the film wins over a
+// commentary. False when no track speaks the language.
+func VoiceTrack(info Info, language LanguageTag) (track Track, position int, found bool) {
+	audio := info.TracksOf(TrackAudio)
+	number := selectAudio(audio, language)
+	for i, candidate := range audio {
+		if candidate.Number == number && languageMatch(candidate.Language, language) != noLanguageMatch {
+			return candidate, i, true
+		}
+	}
+	return Track{}, 0, false
+}
+
 func selectAudio(tracks []Track, want LanguageTag) uint64 {
 	best, bestScore := uint64(0), 0
 	for _, track := range tracks {

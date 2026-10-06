@@ -37,6 +37,8 @@ const (
 	idVideo               = 0xE0
 	idPixelWidth          = 0xB0
 	idPixelHeight         = 0xBA
+	idAudio               = 0xE1
+	idChannels            = 0x9F
 
 	idContentEncodings     = 0x6D80
 	idContentEncoding      = 0x6240
