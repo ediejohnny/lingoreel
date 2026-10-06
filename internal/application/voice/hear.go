@@ -11,8 +11,9 @@ import (
 // the pace of decoding ahead, for choosing the subtitle that fits the film
 // (subtitle.AlignToVoice). Like a window ahead, it starts aheadWarmUp before
 // the stretch, so the model has heard what leads into it, and runs
-// aheadTail past it; only the stretch's own frames come back.
-func Hear(ctx context.Context, decoder Decoder, model speech.Model, stretch Stretch) (speech.Track, error) {
+// aheadTail past it; only the stretch's own frames come back. progress, when
+// not nil, hears the share of the stretch done, from 0 to 1, as it goes.
+func Hear(ctx context.Context, decoder Decoder, model speech.Model, stretch Stretch, progress func(done float64)) (speech.Track, error) {
 	stream, err := model.NewStream()
 	if err != nil {
 		return speech.Track{}, err
@@ -33,6 +34,9 @@ func Hear(ctx context.Context, decoder Decoder, model speech.Model, stretch Stre
 			frames = analyzer.Write(samples, frames)
 		}
 		paced.worked(ctx, time.Since(began))
+		if progress != nil {
+			progress(min(float64(time.Duration(len(frames))*speech.FrameLength)/float64(decode.Length), 1))
+		}
 	})
 	if err == nil {
 		err = analyzerErr

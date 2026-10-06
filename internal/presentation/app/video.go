@@ -66,9 +66,12 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
 	opened := a.loadProject(path, result.Info)
 	result = a.addRemembered(result, opened)
+	result = withKeptFits(result, opened, preferences)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()
+	a.stopListening() // a video opened before
 	a.video, a.project = &result, opened
+	a.startListening(ctx, result, preferences)
 	a.mu.Unlock()
 	return a.describeVideo(result, opened, suggested, mode), nil
 }
@@ -86,6 +89,7 @@ func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, sugg
 	}
 	a.mu.Lock()
 	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
+	video.Listening = a.listeningTo(result.Path)
 	if opened != nil {
 		video.ProjectNote = opened.note
 	}

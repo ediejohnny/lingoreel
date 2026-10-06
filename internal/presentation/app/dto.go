@@ -26,6 +26,20 @@ type Video struct {
 	SavedPassages []SavedPassage `json:"savedPassages"`
 	// Resume offers to go on where the video was left.
 	Resume Resume `json:"resume"`
+	// Listening is how far hearing the video, to tell which subtitle file
+	// fits it, has gone; the video:listening event tells it as it goes.
+	Listening Listening `json:"listening"`
+}
+
+// Listening is how far hearing a video's voice has gone.
+type Listening struct {
+	Path   string `json:"path"`
+	Active bool   `json:"active"`
+	// Percent is how much was heard, from 0 to 100.
+	Percent int `json:"percent"`
+	// Stretch is the stretch being heard, from 1, of Stretches.
+	Stretch   int `json:"stretch"`
+	Stretches int `json:"stretches"`
 }
 
 // Resume is where the video was left, when it is worth going back to.

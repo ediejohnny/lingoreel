@@ -2,6 +2,7 @@ package voice_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,10 +16,14 @@ import (
 func TestAStretchIsHeardWithTheSecondBeforeIt(t *testing.T) {
 	t.Parallel()
 	sound := testkit.Then(testkit.Silence(9800*ms), testkit.Voiced(2*time.Second, -20, 41), testkit.Silence(5*time.Second))
+	var done []float64
 	heard, err := voice.Hear(context.Background(), decoder{sound: sound}, warmingModel{},
-		voice.Stretch{File: "film.mkv", From: 10 * time.Second, Length: 5 * time.Second})
+		voice.Stretch{File: "film.mkv", From: 10 * time.Second, Length: 5 * time.Second}, func(share float64) { done = append(done, share) })
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(done) < 10 || !slices.IsSorted(done) || done[len(done)-1] < 0.95 {
+		t.Fatalf("progress told %v, want it rising to the end", done)
 	}
 	if heard.Start != 10*time.Second || len(heard.Frames) != 500 {
 		t.Fatalf("heard %d frames from %v, want 500 from 10s", len(heard.Frames), heard.Start)
