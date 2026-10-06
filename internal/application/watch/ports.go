@@ -10,6 +10,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -37,12 +38,14 @@ type Remote interface {
 	Reveal(pressed bool)
 	// Select picks a line on screen for editing; the video must be paused.
 	Select(line session.Line) (Selection, error)
+	// ClearSelection lets the picked line go: the user gave up correcting it.
+	ClearSelection()
 	// Edit changes the selected line, as the box over the video corrects
 	// its text; the video must be paused.
 	Edit(change EditChange) error
 
 	// What the bar's menus show and change: the passage being marked or
-	// studied and its options, the saved passages, the Modo Karaokê, the
+	// studied and its options, the saved passages, the karaoke mode, the
 	// study mode and the sync.
 	MarkedStart() (time.Duration, bool)
 	Passage() session.PracticeStatus
@@ -128,7 +131,13 @@ type Ports struct {
 	// ShowPanel brings the app's panel to the front, where the line editor
 	// is; nil leaves it where it is.
 	ShowPanel func()
-	Now       func() time.Time
+	// Tap hears the player's sound, so the karaoke mode paints each line
+	// along the actor's voice; nil leaves the estimate from its letters.
+	Tap voice.Tap
+	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
+	// the video; nil, or a nil answer, hears the player instead.
+	FindDecoder func(ctx context.Context, chosen string) voice.Decoder
+	Now         func() time.Time
 }
 
 // Request is what to watch and how.
@@ -152,7 +161,9 @@ type Request struct {
 	// Saved is what the project keeps for each line: its offset and the
 	// user's edits, applied when they still fit the file.
 	Saved map[session.Line]project.Track
-	// Karaoke is the Modo Karaokê to start with, its indicator and how many
+	// Voice is how the actors' voice is followed for the karaoke mode's fill.
+	Voice VoiceSetup
+	// Karaoke is the karaoke mode to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke
 	Indicator   study.Indicator

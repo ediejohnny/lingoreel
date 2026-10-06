@@ -131,7 +131,7 @@ func TestWatchingFromASavedPassage(t *testing.T) {
 	t.Cleanup(func() { r.api.StopWatching() })
 	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 10*time.Second {
-		t.Fatalf("opened at %v, want the passage's start (the passage wins over Continuar de)", start)
+		t.Fatalf("opened at %v, want the passage's start (the passage wins over resuming)", start)
 	}
 	passage := r.api.PlaybackState().Passage
 	if !passage.Active || passage.Start != "0:10" || passage.End != "0:20" || passage.Goal != 2 {
@@ -149,8 +149,8 @@ func TestWatchingFromASavedPassage(t *testing.T) {
 	wantMessage(t, "StudySavedPassage of an unknown name", r.api.StudySavedPassage("Feira"), "não encontrado")
 }
 
-// The video comes back as it was left: the position (asked with Continuar
-// de), the speed and the Modo Karaokê used on it.
+// The video comes back as it was left: the position (asked when resuming),
+// the speed and the karaoke mode used on it.
 func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 	t.Parallel()
 	r := startWatching(t)
@@ -178,7 +178,7 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 	}
 	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 600*time.Second {
-		t.Fatalf("Continuar de opened at %v, want 10:00", start)
+		t.Fatalf("resuming opened at %v, want 10:00", start)
 	}
 	running := r.plugin.current()
 	testkit.Eventually(t, "the video's speed", func() bool {
@@ -196,19 +196,19 @@ func TestTheVideoComesBackAsItWasLeft(t *testing.T) {
 	r.api.StopWatching()
 	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
-	// Without Continuar de, it starts from the beginning.
+	// Without resuming, it starts from the beginning.
 	openMovie(t, r)
 	if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Primary: 4, Translation: 5}); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
 	if start := r.plugin.launched[len(r.plugin.launched)-1].Start; start != 0 {
-		t.Fatalf("without Continuar de it opened at %v", start)
+		t.Fatalf("without resuming it opened at %v", start)
 	}
 }
 
 // A video watched without changing anything keeps where it was left, not a
-// speed or a Modo Karaokê it never had: those stay the profile's.
+// speed or a karaoke mode it never had: those stay the profile's.
 func TestAnUntouchedVideoKeepsOnlyItsPosition(t *testing.T) {
 	t.Parallel()
 	r := startWatching(t)
@@ -269,7 +269,7 @@ func TestChangesWhileWatchingAreSavedAMomentLater(t *testing.T) {
 	})
 }
 
-// "Esquecer tudo deste vídeo" removes what was kept and opens the video as
+// Forgetting everything about a video removes what was kept and opens the video as
 // new; never while it plays.
 func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
 	t.Parallel()

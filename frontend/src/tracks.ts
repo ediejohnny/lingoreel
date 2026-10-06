@@ -21,6 +21,21 @@ export function playingOptions(line: Line, tracks: Track[], current: number, non
   return trackOptions(tracks, noneLabel, line === "translation" || current === 0);
 }
 
+/**
+ * forLine brings the language of a line's track to the top of its list, keeping the app's order (best first) within
+ * each language: the app lists the top line's language first, so the line below would show it first too. Every track
+ * stays in the list.
+ */
+export function forLine(tracks: Track[], lineTrack: number): Track[] {
+  const base = (track: Track) => track.language.split("-")[0];
+  const chosen = tracks.find((track) => track.number === lineTrack);
+  if (!chosen || !base(chosen)) {
+    return tracks;
+  }
+  const same = (track: Track) => base(track) === base(chosen);
+  return [...tracks.filter(same), ...tracks.filter((track) => !same(track))];
+}
+
 /** noteOf is what the app found about the chosen track, for the note below the list. */
 export function noteOf(tracks: Track[], value: string): { note?: string; warning: boolean } {
   const track = tracks.find((candidate) => String(candidate.number) === value);

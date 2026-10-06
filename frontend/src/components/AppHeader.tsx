@@ -2,6 +2,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 import { t } from "../i18n";
 import { nextTheme, themeLabel, type Theme } from "../stores/theme";
+import { Logo } from "./Logo";
 import { IconButton } from "./ui/Button";
 
 const themeIcons = { system: Monitor, light: Sun, dark: Moon };
@@ -22,8 +23,11 @@ export function AppHeader({ theme, onTheme, leading, subtitle, actions }: AppHea
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
       {leading}
-      <div className="flex min-w-0 flex-1 items-baseline gap-3">
-        <span className="font-semibold text-fg">{t("ui.app.name")}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="flex shrink-0 items-center gap-2">
+          <Logo />
+          <span className="font-semibold text-fg">{t("ui.app.name")}</span>
+        </span>
         {subtitle && <span className="truncate text-sm text-fg-muted">{subtitle}</span>}
       </div>
       <div className="flex items-center gap-2">

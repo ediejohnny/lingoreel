@@ -42,4 +42,14 @@ func TestCheckPlayerPaths(t *testing.T) {
 	if err := settingsfile.CheckPlayerPaths(settings.DefaultConfig()); err != nil {
 		t.Fatalf("no configured players = %v, want valid", err)
 	}
+	// The FFmpeg the user chose is held to the same rule.
+	config := settings.DefaultConfig()
+	config.Voice.FFmpegPath = `ffmpeg.exe`
+	if err := settingsfile.CheckPlayerPaths(config); !errors.Is(err, settingsfile.ErrInvalidPlayerPath) {
+		t.Fatalf("a relative FFmpeg = %v, want ErrInvalidPlayerPath", err)
+	}
+	config.Voice.FFmpegPath = `C:\ffmpeg\bin\ffmpeg.exe`
+	if err := settingsfile.CheckPlayerPaths(config); err != nil {
+		t.Fatalf("an absolute FFmpeg = %v, want valid", err)
+	}
 }

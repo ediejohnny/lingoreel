@@ -34,6 +34,7 @@ export type ProfileSettings = Plain<app.ProfileSettings>;
 export type StyleSettings = Plain<app.StyleSettings>;
 export type LayoutSettings = Plain<app.LayoutSettings>;
 export type KaraokeSettings = Plain<app.KaraokeSettings>;
+export type VoiceSettings = Plain<app.VoiceSettings>;
 export type MarkSettings = Plain<app.MarkSettings>;
 export type NoticeSettings = Plain<app.NoticeSettings>;
 export type SelectionSettings = Plain<app.SelectionSettings>;
@@ -48,6 +49,7 @@ export type BarPreviewRequest = Plain<app.BarPreviewRequest>;
 export type InterfaceSettings = Plain<app.InterfaceSettings>;
 export type VideoLayout = Plain<app.VideoLayout>;
 export type PanelState = Plain<app.PanelState>;
+export type FillCheck = Plain<app.FillCheck>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -147,6 +149,10 @@ export const backend = {
   saveProfile: (profile: ProfileSettings) => api.SaveProfile(profile as app.ProfileSettings),
   setSyncNotice: (show: boolean) => api.SetSyncNotice(show),
   setAlwaysOnTop: (on: boolean) => api.SetAlwaysOnTop(on),
+  setVoice: (voice: VoiceSettings) => api.SetVoice(voice as app.VoiceSettings),
+  chooseFFmpeg: () => api.ChooseFFmpeg(),
+  clearFFmpeg: () => api.ClearFFmpeg(),
+  installFFmpeg: () => api.InstallFFmpeg(),
   switchProfile: (name: string) => api.SwitchProfile(name),
   createProfile: (name: string) => api.CreateProfile(name),
   renameProfile: (from: string, to: string) => api.RenameProfile(from, to),
@@ -154,6 +160,7 @@ export const backend = {
   resetProfile: () => api.ResetProfile(),
   applyPreset: (style: StyleSettings, preset: string): Promise<StyleSettings> => api.ApplyPreset(style as app.StyleSettings, preset),
   checkShortcut: (chord: string) => api.CheckShortcut(chord),
+  checkFill: (text: string, fill: string): Promise<FillCheck> => api.CheckFill(text, fill),
   previewSubtitles: (request: PreviewRequest) => api.PreviewSubtitles(request as app.PreviewRequest),
   setAppearance: (look: AppearanceSettings) => api.SetAppearance(look as app.AppearanceSettings),
   setInterface: (look: InterfaceSettings) => api.SetInterface(look as app.InterfaceSettings),

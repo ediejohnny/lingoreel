@@ -28,11 +28,17 @@ type Visible struct {
 	Primary     []subtitle.Event
 	Translation []subtitle.Event
 	// Cue is set when the primary line is the next one, shown before its
-	// time by the Modo Karaokê; Primary and Translation then hold that line.
+	// time by the karaoke mode; Primary and Translation then hold that line.
 	Cue *study.Cue
-	// Fill is the share of the primary line already spoken, for the Modo
-	// Karaokê's fill; zero when nothing is filled.
+	// Fill is the share of the primary line already spoken, for the karaoke
+	// mode's fill; zero when nothing is filled.
 	Fill float64
+	// Filling tells the primary line is being painted: its fill may move
+	// even while it is still zero, before the voice begins.
+	Filling bool
+	// Playing tells the video plays, which the screen shows too: a line
+	// picked for a correction is let go when the video plays again.
+	Playing bool
 }
 
 // Drawing steps: a preview's time left and a fill below them look the same
@@ -43,7 +49,7 @@ const (
 )
 
 // Equal reports whether both snapshots show the same thing: the same text,
-// the same preview step and the same fill step.
+// the same preview step, the same fill step, and the video playing or not.
 func (v Visible) Equal(other Visible) bool {
 	if !sameEvents(v.Primary, other.Primary) || !sameEvents(v.Translation, other.Translation) {
 		return false
@@ -54,26 +60,31 @@ func (v Visible) Equal(other Visible) bool {
 	if v.Cue != nil && (v.Cue.Event.ID != other.Cue.Event.ID || v.Cue.Remaining/cueStep != other.Cue.Remaining/cueStep) {
 		return false
 	}
-	return math.Round(v.Fill/fillStep) == math.Round(other.Fill/fillStep)
+	return v.Playing == other.Playing && math.Round(v.Fill/fillStep) == math.Round(other.Fill/fillStep)
 }
 
 // Animating tells the screen changes by itself while the video plays: a
 // preview counting down or a line filling in.
 func (v Visible) Animating() bool {
-	return v.Cue != nil || (v.Fill > 0 && v.Fill < 1)
+	return v.Cue != nil || (v.Filling && v.Fill < 1)
 }
 
 // KaraokeFrame is how often a preview or a fill is redrawn while the video
 // plays: 25 frames per second, and no polling otherwise.
 const KaraokeFrame = 40 * time.Millisecond
 
-// Karaoke is the session's Modo Karaokê.
+// Karaoke is the session's karaoke mode.
 type Karaoke struct {
 	Enabled bool
 	Rules   study.CueRules
 	// Fill paints the primary line as it is spoken.
 	Fill bool
 }
+
+// VoiceFill paints a line, given by its text and its time on the playback
+// clock, along its actor's voice at a position; false leaves the line to the
+// estimate from its letters.
+type VoiceFill func(text string, start, end, position time.Duration) (float64, bool)
 
 func sameEvents(a, b []subtitle.Event) bool {
 	if len(a) != len(b) {
@@ -97,6 +108,7 @@ type Subtitles struct {
 	mu      sync.RWMutex
 	lines   [2]*Track
 	karaoke Karaoke
+	voice   VoiceFill
 	changes chan struct{}
 }
 
@@ -123,7 +135,7 @@ func (l Line) Valid() bool {
 	return l == LinePrimary || l == LineTranslation
 }
 
-// SetKaraoke turns the Modo Karaokê on or off and changes its rules, and
+// SetKaraoke turns the karaoke mode on or off and changes its rules, and
 // signals the change.
 func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
 	s.mu.Lock()
@@ -132,15 +144,24 @@ func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
 	s.notify()
 }
 
-// Karaoke returns the Modo Karaokê's state.
+// SetVoice paints the primary line along the actor's voice, or by the
+// estimate (nil), and signals the change.
+func (s *Subtitles) SetVoice(voice VoiceFill) {
+	s.mu.Lock()
+	s.voice = voice
+	s.mu.Unlock()
+	s.notify()
+}
+
+// Karaoke returns the karaoke mode's state.
 func (s *Subtitles) Karaoke() Karaoke {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.karaoke
 }
 
-// At returns the events visible at a playback position. With the Modo
-// Karaokê on, a silence before a line shows that line ahead of time, with
+// At returns the events visible at a playback position. With the karaoke
+// mode on, a silence before a line shows that line ahead of time, with
 // its translation, and a line being spoken carries its fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()
@@ -164,7 +185,19 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if s.karaoke.Fill && len(visible.Primary) == 1 {
-		visible.Fill = study.SpokenFraction(visible.Primary[0], primary.Offset.TrackTime(position))
+		line := visible.Primary[0]
+		if !study.SpeechUnits(line.Text()).Spoken() {
+			return visible // only a sound's description, or music: never painted
+		}
+		visible.Filling = true
+		if s.voice != nil {
+			start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
+			if fill, found := s.voice(line.Text(), start, end, position); found {
+				visible.Fill = fill
+				return visible
+			}
+		}
+		visible.Fill = study.SpokenFraction(line, primary.Offset.TrackTime(position))
 	}
 	return visible
 }

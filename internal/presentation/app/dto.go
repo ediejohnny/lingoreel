@@ -39,7 +39,7 @@ type Resume struct {
 // Track is one audio or subtitle choice.
 type Track struct {
 	Number uint64 `json:"number"`
-	// Label is what the list shows: "Inglês · Complet SRT (arquivo)".
+	// Label is what the list shows: "English · Complete SRT (file)".
 	Label    string `json:"label"`
 	Language string `json:"language"`
 	Readable bool   `json:"readable"`
@@ -213,16 +213,20 @@ type SavedPassage struct {
 	Outside bool `json:"outside"`
 }
 
-// Karaoke is the Modo Karaokê of the session.
+// Karaoke is the karaoke mode of the session.
 type Karaoke struct {
 	Enabled bool `json:"enabled"`
 	// Indicator is "bar" or "countdown".
 	Indicator string `json:"indicator"`
 	// Repeat is how many times each line plays again; 0 is off.
 	Repeat int `json:"repeat"`
+	// Voice is how the line's voice is followed now: "ahead" (decoded with
+	// FFmpeg), "live" (the player heard), "estimate", or empty when it is
+	// not followed.
+	Voice string `json:"voice"`
 }
 
-// Passage is the passage being studied ("Estudar trecho").
+// Passage is the passage being studied.
 type Passage struct {
 	Active    bool   `json:"active"`
 	Start     string `json:"start"`
@@ -237,7 +241,7 @@ type Passage struct {
 type PassageRequest struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
-	// Snap widens the passage so no line is cut ("Ajustar às falas").
+	// Snap widens the passage so no line is cut.
 	Snap bool `json:"snap"`
 	// Loop goes back by itself after Gap seconds; otherwise it pauses.
 	Loop        bool    `json:"loop"`

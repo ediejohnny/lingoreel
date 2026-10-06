@@ -24,9 +24,17 @@ var ErrInvalidPlayerPath = errors.New("player path must be an absolute .exe path
 // runs it next to the domain's own Validate.
 func CheckPlayerPaths(config settings.Config) error {
 	for playerID, path := range config.PlayerPaths {
-		if !filepath.IsAbs(path) || !strings.EqualFold(filepath.Ext(path), executableExtension) {
+		if !program(path) {
 			return fmt.Errorf("%w: %q for %q", ErrInvalidPlayerPath, path, playerID)
 		}
 	}
+	// The FFmpeg the user chose is held to the same rule.
+	if path := config.Voice.FFmpegPath; path != "" && !program(path) {
+		return fmt.Errorf("%w: %q for FFmpeg", ErrInvalidPlayerPath, path)
+	}
 	return nil
+}
+
+func program(path string) bool {
+	return filepath.IsAbs(path) && strings.EqualFold(filepath.Ext(path), executableExtension)
 }

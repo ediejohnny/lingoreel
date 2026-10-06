@@ -175,7 +175,7 @@ func TestThePlayerClosingClosesTheApp(t *testing.T) {
 	}
 	r.plugin.current().Close() // the user closed the player
 	testkit.Eventually(t, "the app to close", func() bool { return r.ui.quitCount() == 1 && !r.api.PlaybackState().Active })
-	// Saved before closing: the place reached is kept for "Continuar de".
+	// Saved before closing: the place reached is kept to resume from.
 	if saved, _ := r.projects.stored(t, `D:\Filmes\Movie.mkv`); saved.Last.Position.Duration() == 0 {
 		t.Fatal("the app closed without keeping where the video was")
 	}

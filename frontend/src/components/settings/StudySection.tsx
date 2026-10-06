@@ -4,11 +4,13 @@ import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
+import { FillColorNote } from "./FillColorNote";
 import { change, type SectionProps } from "./section";
 import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
+import { VoiceCard } from "./VoiceCard";
 
-/** StudySection holds the Modo Karaokê and the translation key. */
+/** StudySection holds the karaoke mode and the translation key. */
 export function StudySection(props: SectionProps) {
   const { view, draft, setDraft } = props;
   const karaoke = draft.karaoke;
@@ -82,6 +84,9 @@ export function StudySection(props: SectionProps) {
               disabled={!karaoke.fill}
               onChange={set("fillColor")}
             />
+            <div className="sm:col-span-2">
+              <FillColorNote text={draft.primary.color} fill={karaoke.fillColor} enabled={karaoke.fill} onAdopt={set("fillColor")} />
+            </div>
             <NumberField
               label={t("ui.settings.study.repeat.label")}
               value={karaoke.repeat}
@@ -95,6 +100,7 @@ export function StudySection(props: SectionProps) {
           </div>
         </div>
       </Card>
+      <VoiceCard view={view} run={props.run} />
       <Card
         title={t("ui.settings.study.key.title")}
         aside={<HelpTip topic={t("ui.settings.study.key.topic")}>{t("ui.settings.study.key.help")}</HelpTip>}

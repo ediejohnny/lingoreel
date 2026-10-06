@@ -22,7 +22,7 @@ import (
 )
 
 // menuRig is a player window whose bar shows, driving a fake session with
-// the Modo Karaokê's defaults and two saved passages.
+// the karaoke mode's defaults and two saved passages.
 type menuRig struct {
 	t      *testing.T
 	w      *playerwindow.Window
@@ -210,7 +210,7 @@ func TestTheKaraokeMenuDrivesTheSession(t *testing.T) {
 	r := newMenuRig(t)
 	bar := r.open(controlbar.MenuKaraoke)
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool { return e.Field == controlbar.FieldKaraoke }))
-	testkit.Eventually(t, "the Modo Karaokê on", func() bool { return r.remote.Karaoke().Enabled })
+	testkit.Eventually(t, "the karaoke mode on", func() bool { return r.remote.Karaoke().Enabled })
 	r.click(bar, r.entry(bar, func(e controlbar.Entry) bool {
 		return e.Field == controlbar.FieldIndicator && e.Value == string(study.IndicatorCountdown)
 	}))

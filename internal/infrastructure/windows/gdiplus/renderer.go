@@ -44,14 +44,42 @@ type Look struct {
 	Highlight *Outline
 }
 
-// Outline is a discreet rounded frame around a line: a light stroke over a
-// dark one twice as wide, so it shows on bright and dark pictures alike.
+// Outline is a discreet frame around a line: a line in Color with a dark
+// hairline (Edge) just outside it, so it shows on bright and dark pictures
+// alike.
 type Outline struct {
 	Box layout.Rect
-	// Width is the light stroke's width in pixels; Radius rounds the corners.
+	// Width is the line's width in pixels; Radius rounds the corners.
 	Width, Radius float64
-	// Color is the light stroke's, Edge the dark one's.
-	Color, Edge appearance.Color
+	Color, Edge   appearance.Color
+}
+
+// ring is one stroke of the frame: the path its pen follows.
+type ring struct {
+	path          layout.Rect
+	width, radius float64
+}
+
+// rings lays the frame on whole device pixels, so antialiasing has nothing
+// to smear into a blurred band. With GDI+'s default pixel offset, pixel
+// centers are whole numbers and pixel edges halves. The line starts on the
+// first pixel edge outside the box and grows outward; the edge, half as wide
+// but at least a pixel, lies right outside it, never between the text and
+// the line.
+func (o *Outline) rings() (line, edge ring) {
+	w := math.Max(1, math.Round(o.Width))
+	e := math.Max(1, math.Round(w/2))
+	left, top := math.Floor(o.Box.X-0.5)+0.5, math.Floor(o.Box.Y-0.5)+0.5
+	right, bottom := math.Ceil(o.Box.X+o.Box.W-0.5)+0.5, math.Ceil(o.Box.Y+o.Box.H-0.5)+0.5
+	around := func(by float64) layout.Rect {
+		return layout.Rect{X: left - by, Y: top - by, W: right - left + 2*by, H: bottom - top + 2*by}
+	}
+	line = ring{path: around(w / 2), width: w, radius: o.Radius}
+	edge = ring{path: around(w + e/2), width: e}
+	if o.Radius > 0 {
+		edge.radius = o.Radius + (w+e)/2 // round with the line
+	}
+	return line, edge
 }
 
 // OutlineAround frames a line's box a little outside it, as the selection
@@ -243,10 +271,13 @@ func (r *Renderer) Draw(target *win32.DIB, frame layout.Frame, look Look) error 
 		}
 	}
 	if outline := look.Highlight; outline != nil && outline.Box.W > 0 && outline.Box.H > 0 && outline.Width > 0 {
-		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outline.Edge, outline.Width*2); err != nil {
-			return err
+		line, edge := outline.rings()
+		if outline.Edge.A > 0 {
+			if err := newShape().rounded(edge.path, edge.radius).stroke(canvas.graphics, outline.Edge, edge.width); err != nil {
+				return err
+			}
 		}
-		if err := newShape().rounded(outline.Box, outline.Radius).stroke(canvas.graphics, outline.Color, outline.Width); err != nil {
+		if err := newShape().rounded(line.path, line.radius).stroke(canvas.graphics, outline.Color, line.width); err != nil {
 			return err
 		}
 	}

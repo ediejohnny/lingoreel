@@ -171,9 +171,9 @@ func TestPotPlayerFirstSampleIsAtTheRequestedStartAndPaused(t *testing.T) {
 		start time.Duration
 		want  time.Duration
 	}{
-		{"do começo", 0, 0},
-		{"no meio", 6 * time.Second, 6 * time.Second},
-		{"depois do fim", time.Hour, 0},
+		{"from the start", 0, 0},
+		{"in the middle", 6 * time.Second, 6 * time.Second},
+		{"past the end", time.Hour, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

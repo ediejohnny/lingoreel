@@ -21,6 +21,7 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
@@ -28,6 +29,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
@@ -39,6 +41,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/association"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/audiotap"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
@@ -152,10 +155,13 @@ func run() error {
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
+			Tap:         audiotap.Tap{},
+			FindDecoder: findFFmpeg,
 		},
 		Stage:         stagePort{stage},
 		Settings:      files,
 		Installer:     install.Winget{},
+		FFmpeg:        userFFmpeg{},
 		Window:        placement.ForVideo,
 		Logger:        logger,
 		KeyChar:       keyboard.Char,
@@ -340,4 +346,23 @@ func monitors() ([]app.Monitor, error) {
 func windowsVersion() string {
 	v := sys.RtlGetVersion()
 	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
+}
+
+// userFFmpeg is the user's own FFmpeg for the settings screen.
+type userFFmpeg struct{}
+
+func (userFFmpeg) Find(ctx context.Context, chosen string) (string, error) {
+	return ffmpeg.Find(ctx, chosen)
+}
+func (userFFmpeg) Check(ctx context.Context, path string) error { return ffmpeg.Check(ctx, path) }
+func (userFFmpeg) WingetID() string                             { return ffmpeg.WingetID }
+
+// findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
+// ahead of the video; the app ships none.
+func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
+	path, err := ffmpeg.Find(ctx, chosen)
+	if err != nil {
+		return nil
+	}
+	return ffmpeg.Decoder{Path: path}
 }

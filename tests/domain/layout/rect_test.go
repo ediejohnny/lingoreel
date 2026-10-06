@@ -15,14 +15,14 @@ func TestVideoRectKeepsTheAspectRatio(t *testing.T) {
 		width, height int
 		want          layout.Rect
 	}{
-		{"mesma proporção", 1280, 720, area},
+		{"same aspect ratio", 1280, 720, area},
 		// 2.4:1 in 16:9: 1920 wide, 800 high, 140 above and below.
 		{"cinemascope", 2400, 1000, layout.Rect{X: 10, Y: 160, W: 1920, H: 800}},
 		// 4:3 in 16:9: 1440 wide, 240 on each side.
 		{"4:3", 640, 480, layout.Rect{X: 250, Y: 20, W: 1440, H: 1080}},
-		{"largura zero", 0, 720, area},
-		{"altura zero", 1280, 0, area},
-		{"negativo", -1280, 720, area},
+		{"zero width", 0, 720, area},
+		{"zero height", 1280, 0, area},
+		{"negative", -1280, 720, area},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

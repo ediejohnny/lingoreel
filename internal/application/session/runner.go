@@ -71,6 +71,7 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 			state = r.clock.State() // the practice may have paused or sought
 		}
 		visible := r.subtitles.At(state.Position)
+		visible.Playing = state.Status == playback.StatusPlaying
 		// Until the player reports, the position is a guess (zero), and showing
 		// its subtitles would flash the wrong line on a session that starts later.
 		known := state.Status != playback.StatusUnknown

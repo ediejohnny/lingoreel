@@ -65,7 +65,7 @@ const (
 
 // Labels word what the bar shows; the presentation layer gives them.
 type Labels struct {
-	// Tip is an item's tip with its key in keys, such as "Pausar (Espaço)".
+	// Tip is an item's tip with its key in keys, such as "Pause (Space)".
 	Tip func(item controlbar.Item, state controlbar.State, keys shortcut.Map) string
 	// Item is the text on an item: the speeds.
 	Item func(item controlbar.Item) string
@@ -74,7 +74,7 @@ type Labels struct {
 	// Entry words a menu entry: its text, the value it shows (a stepper's
 	// "10 s") and the key of its command.
 	Entry func(entry controlbar.Entry, state controlbar.State, keys shortcut.Map) controlbar.EntryText
-	// Status is the study text on the bar: "Início: 10:38".
+	// Status is the study text on the bar: "Start: 10:38".
 	Status func(state controlbar.StudyState) string
 	// EditHint shows under the box that corrects a line; EditEmpty is told
 	// when Enter would save an empty line.

@@ -66,6 +66,13 @@ $previousGogc = $env:GOGC
 # The collector runs a quarter as often in the compiler, the linker and the
 # test binaries: more memory for less time (measured: about 7% off a cold run).
 $env:GOGC = "400"
+$previousTestFFmpeg = $env:LINGOREEL_TEST_FFMPEG
+# The FFmpeg tests use one kept for them outside git (the app ships none);
+# without it, they are skipped.
+$localFFmpeg = Join-Path $root ".docs\ffmpeg_project\lgpl-shared\bin\ffmpeg.exe"
+if (-not $env:LINGOREEL_TEST_FFMPEG -and (Test-Path -LiteralPath $localFFmpeg)) {
+    $env:LINGOREEL_TEST_FFMPEG = $localFFmpeg
+}
 try {
     Write-Host "[1/6] Validating the PowerShell scripts (encoding and syntax)..."
     $scriptProblems = @(Test-PowerShellScripts)
@@ -169,5 +176,6 @@ try {
 finally {
     $env:CGO_ENABLED = $previousCgo
     $env:GOGC = $previousGogc
+    $env:LINGOREEL_TEST_FFMPEG = $previousTestFFmpeg
     Pop-Location
 }

@@ -60,6 +60,9 @@ type Config struct {
 	Bar       BarPreferences            `json:"bar"`
 	Edit      appearance.EditStyle      `json:"edit"`
 	Interface appearance.InterfaceStyle `json:"interface"`
+	// Voice is how the karaoke mode follows the actors' voice on this
+	// computer.
+	Voice VoicePreferences `json:"voice"`
 }
 
 // Ranges of how long the bar stays after the mouse leaves it.
@@ -137,6 +140,7 @@ func DefaultConfig() Config {
 		Bar:           DefaultBar(),
 		Edit:          appearance.DefaultEditStyle(),
 		Interface:     appearance.DefaultInterfaceStyle(),
+		Voice:         DefaultVoice(),
 	}
 }
 
@@ -183,5 +187,5 @@ func (c Config) Validate() error {
 	if err := c.Interface.Validate(); err != nil {
 		return fmt.Errorf("%w: interface: %w", ErrInvalidSettings, err)
 	}
-	return nil
+	return c.Voice.validate()
 }

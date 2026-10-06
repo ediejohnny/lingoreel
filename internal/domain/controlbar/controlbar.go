@@ -131,7 +131,7 @@ type Bar struct {
 	// Menu is the speed list's background, zero when closed.
 	Menu  layout.Rect
 	Items []Item
-	// Status is where the study text goes ("Início: 10:38"), zero when
+	// Status is where the study text goes ("Start: 10:38"), zero when
 	// dropped.
 	Status layout.Rect
 	// MenuPanel is the open menu's background and MenuItems its entries,

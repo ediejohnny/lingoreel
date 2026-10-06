@@ -182,18 +182,19 @@ func dispatchBar(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uint
 }
 
 // pick selects the line under a click for editing, with the video paused
-// (paused, then selected, then edited). A click elsewhere keeps the
-// selection, so an edit under way on the panel is not lost.
+// (paused, then selected, then edited). A click beside the lines lets the
+// selection go: the user gave up correcting it.
 func (w *Window) pick(point win32.Point) {
 	remote := w.currentRemote()
 	if remote == nil || remote.State().Status == playback.StatusPlaying {
 		return
 	}
 	line, hit := w.overlay.LineAt(float64(point.X), float64(point.Y))
-	if !hit {
-		return
-	}
 	w.do(func(r watch.Remote) error {
+		if !hit {
+			r.ClearSelection()
+			return nil
+		}
 		_, err := r.Select(line)
 		return err
 	})

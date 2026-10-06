@@ -45,6 +45,10 @@ type Track struct {
 	Height    int
 	FrameRate float64
 
+	// Audio tracks only: the channel count, 0 when unknown. A film mixed
+	// for 5.1 keeps the dialogue in the centre channel.
+	Channels int
+
 	// Subtitle tracks only. Readable is false for bitmap formats (PGS,
 	// VobSub), which would need OCR, and for encodings that cannot be read.
 	SubtitleFormat subtitle.Format

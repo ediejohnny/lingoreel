@@ -21,7 +21,7 @@ var (
 	errBadSettings = worded(func() string { return ptbr.T("error.choiceNotSaved") })
 )
 
-// SetKaraoke turns the Modo Karaokê on or off; the choice is kept in the
+// SetKaraoke turns the karaoke mode on or off; the choice is kept in the
 // active profile.
 func (a *API) SetKaraoke(enabled bool) error {
 	if err := a.control(func(w *watching) error {
@@ -56,21 +56,21 @@ func (a *API) SetLineRepeats(times int) error {
 	return a.keep(func(k *settings.KaraokePreferences) { k.Repeat = times })
 }
 
-// keep saves a Modo Karaokê choice in the active profile.
+// keep saves a karaoke mode choice in the active profile.
 func (a *API) keep(change func(*settings.KaraokePreferences)) error {
 	if err := a.updateProfile(func(profile *settings.Profile) { change(&profile.Study.Karaoke) }); err != nil {
-		a.logger.Warn("the Modo Karaokê choice was not saved", "error", err)
+		a.logger.Warn("the karaoke mode choice was not saved", "error", err)
 		return errBadSettings
 	}
 	return nil
 }
 
-// ReplayLine is "Treinar de novo".
+// ReplayLine trains the line again.
 func (a *API) ReplayLine() error {
 	return a.control(func(w *watching) error { return w.session.ReplayLine() })
 }
 
-// StudyPassage starts "Estudar trecho".
+// StudyPassage starts studying a passage.
 func (a *API) StudyPassage(request PassageRequest) error {
 	start, err := study.ParseClock(request.Start)
 	if err != nil {
@@ -197,7 +197,7 @@ func (a *API) ResumePassage() error {
 }
 
 func describeKaraoke(s *watch.Session) Karaoke {
-	return Karaoke{Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats()}
+	return Karaoke{Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats(), Voice: voiceMode(s)}
 }
 
 func describePassage(status session.PracticeStatus) Passage {

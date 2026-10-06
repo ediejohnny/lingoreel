@@ -14,7 +14,10 @@ type SettingsView struct {
 	// profile.
 	Appearance AppearanceSettings `json:"appearance"`
 	Players    []PlayerSetting    `json:"players"`
-	Options    SettingsOptions    `json:"options"`
+	// Voice is how the karaoke mode follows the actors' voice on this
+	// computer.
+	Voice   VoiceSettings   `json:"voice"`
+	Options SettingsOptions `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
 }
@@ -33,6 +36,23 @@ type GeneralSettings struct {
 	// each named in itself.
 	Language  string   `json:"language"`
 	Languages []Option `json:"languages"`
+}
+
+// VoiceSettings are how the karaoke mode follows the actors' voice on this
+// computer.
+type VoiceSettings struct {
+	Follow bool `json:"follow"`
+	// Sensitivity is "low", "normal" or "high".
+	Sensitivity string `json:"sensitivity"`
+	// DelayMs is the output's delay, in milliseconds (0 to 1000).
+	DelayMs      int  `json:"delayMs"`
+	EvenWhenBusy bool `json:"evenWhenBusy"`
+	// FFmpegPath is the FFmpeg the user chose, empty when it is looked for;
+	// FFmpegFound is the one in use, empty when none was found; CanInstall
+	// tells winget can install one.
+	FFmpegPath  string `json:"ffmpegPath"`
+	FFmpegFound string `json:"ffmpegFound"`
+	CanInstall  bool   `json:"canInstall"`
 }
 
 // ProfileSettings are the active profile's choices.
@@ -131,7 +151,7 @@ type SelectionSettings struct {
 	Radius float64 `json:"radius"`
 }
 
-// KaraokeSettings are the Modo Karaokê's choices. The bar's thickness is in
+// KaraokeSettings are the karaoke mode's choices. The bar's thickness is in
 // pixels at 1080 lines; CountdownSize is a share of the line's size.
 type KaraokeSettings struct {
 	Enabled       bool    `json:"enabled"`
@@ -210,6 +230,14 @@ type ShortcutSetting struct {
 type ShortcutCheck struct {
 	Chord string `json:"chord"`
 	Label string `json:"label"`
+}
+
+// FillCheck is the color the karaoke mode's fill is painted in over the line
+// on top: the chosen one, or the one standing in for it when the line would
+// hide it (Changed).
+type FillCheck struct {
+	Used    string `json:"used"`
+	Changed bool   `json:"changed"`
 }
 
 // PlayerSetting is a player the app knows.
@@ -310,7 +338,7 @@ type PreviewRequest struct {
 	// "primary", "translation", or "" for none.
 	Highlight string `json:"highlight"`
 	// View is "" for the subtitles as they look between lines, "fill" for
-	// the Modo Karaokê's fill, "cue" for a line shown before its time with
+	// the karaoke mode's fill, "cue" for a line shown before its time with
 	// the time left, both as Karaoke says, or "notice" for a notice as
 	// Marks says. Each part is read only by the view that shows it.
 	View    string          `json:"view"`

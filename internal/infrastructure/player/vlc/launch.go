@@ -78,6 +78,9 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 		// The volume is the app's: VLC keeps none between sessions (its saved
 		// level is shared with the user's own VLC) and adds no gain of its own.
 		"--no-volume-save", "--gain=1",
+		// The sound always goes through Windows' mixer, never straight to a
+		// receiver as a bitstream, so the karaoke mode can hear the voice.
+		"--mmdevice-passthrough=0", "--no-spdif",
 	}
 	if request.StartPaused {
 		args = append(args, "--start-paused")

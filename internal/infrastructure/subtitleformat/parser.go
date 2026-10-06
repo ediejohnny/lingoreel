@@ -3,6 +3,7 @@
 package subtitleformat
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -53,25 +54,24 @@ func NewParser(format subtitle.Format) (Parser, error) {
 
 var srtTimingSniffPattern = regexp.MustCompile(`\d+:\d{1,2}:\d{1,2}[,.]\d+\s*-->`)
 
-// DetectFormat identifies the format from the file extension and falls back to
-// the content when the extension is unknown.
+// DetectFormat identifies a subtitle by the start of its content, never by
+// its name alone: a page, a script or a program renamed "movie.srt" is no
+// subtitle, and a file with NUL bytes is not text (UTF-16 with its BOM
+// aside). The name only picks between formats the content does not tell
+// apart: SSA, which reads as ASS.
 func DetectFormat(fileName string, data []byte) (subtitle.Format, bool) {
-	switch strings.ToLower(filepath.Ext(fileName)) {
-	case ".srt":
-		return subtitle.FormatSRT, true
-	case ".ass":
-		return subtitle.FormatASS, true
-	case ".ssa":
-		return subtitle.FormatSSA, true
-	case ".vtt":
-		return subtitle.FormatWebVTT, true
+	raw := data[:min(len(data), sniffBytes)]
+	if !bytes.HasPrefix(raw, utf16LEBOM) && !bytes.HasPrefix(raw, utf16BEBOM) && bytes.IndexByte(raw, 0) >= 0 {
+		return "", false
 	}
-
-	head := DecodeText(data[:min(len(data), sniffBytes)])
+	head := DecodeText(raw)
 	switch {
 	case isWebVTTSignature(strings.TrimSpace(firstLine(head))):
 		return subtitle.FormatWebVTT, true
 	case strings.Contains(head, "[Script Info]"), strings.Contains(head, "[Events]"):
+		if strings.EqualFold(filepath.Ext(fileName), ".ssa") {
+			return subtitle.FormatSSA, true
+		}
 		return subtitle.FormatASS, true
 	case srtTimingSniffPattern.MatchString(head):
 		return subtitle.FormatSRT, true

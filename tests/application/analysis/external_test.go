@@ -85,6 +85,41 @@ func TestExternalSubtitlesJoinTheAnalysisAndTheSelection(t *testing.T) {
 	}
 }
 
+// A renamed or misnamed file is judged by its text: a title word ("Ice",
+// Icelandic's code) or a wrong code never beats the language it speaks, a
+// file with no extension or name hint still gets one, and a file that
+// describes sounds counts as made for the hearing impaired.
+func TestAFilesTextDecidesWhatItIs(t *testing.T) {
+	t.Parallel()
+	const (
+		title  = `D:\Filmes\Ice.Exemplo.2016.720p.BluRay.x264-GRUPO.srt`
+		wrong  = `D:\Filmes\Exemplo.pt.srt`
+		hidden = `D:\Filmes\legenda`
+	)
+	speech := []string{englishLine, englishLine, englishLine}
+	files := &fakeFiles{
+		paths: []string{title, wrong, hidden},
+		content: map[string]media.SubtitleContent{
+			title:  lines(speech...),
+			wrong:  lines(speech...),
+			hidden: lines(append([]string{"(BIRDS CHIRPING)"}, speech...)...),
+		},
+	}
+	result, err := analysis.NewService(&fakeReader{info: portugueseOnlyMovie()}, files).Analyze(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, path := range files.paths {
+		track, _ := result.Info.Track(media.ExternalTrackBase + uint64(i))
+		if track.Language != "en" {
+			t.Errorf("%s: language %q, want en", path, track.Language)
+		}
+		if described := path == hidden; track.HearingImpaired != described {
+			t.Errorf("%s: hearing impaired %v, want %v", path, track.HearingImpaired, described)
+		}
+	}
+}
+
 func TestLoadSubtitlesReadsFilesAndContainerTracksTogether(t *testing.T) {
 	t.Parallel()
 	files := &fakeFiles{

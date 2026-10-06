@@ -89,7 +89,9 @@ func TestVisibleEqualCountsDrawingSteps(t *testing.T) {
 	if plain.Equal(at(ms(1000))) || at(ms(1000)).Equal(plain) {
 		t.Error("a preview equals a plain line")
 	}
-	filled := func(f float64) session.Visible { return session.Visible{Primary: []subtitle.Event{event}, Fill: f} }
+	filled := func(f float64) session.Visible {
+		return session.Visible{Primary: []subtitle.Event{event}, Fill: f, Filling: true}
+	}
 	if !filled(0.5).Equal(filled(0.5+0.001)) || filled(0.5).Equal(filled(0.51)) {
 		t.Error("fill steps are 1/200")
 	}
@@ -196,5 +198,35 @@ func TestCueProgressStaysInRange(t *testing.T) {
 		if p := v.Cue.Progress(); p <= 0 || p > 1 || math.IsNaN(p) {
 			t.Fatalf("progress %v at %d ms", p, at)
 		}
+	}
+}
+
+// A line is painted from the moment it is said, even while its fill is
+// still zero (before the voice begins, or exactly at its start), so the
+// screen keeps moving; the voice, when it is followed, decides the fill,
+// with the line on the playback clock, and leaves the estimate when it
+// cannot tell.
+func TestKaraokeFillFollowsTheVoice(t *testing.T) {
+	t.Parallel()
+	subtitles := karaokeSubtitles(t)
+	if start := subtitles.At(ms(20_000)); !start.Filling || start.Fill != 0 || !start.Animating() {
+		t.Fatalf("at the line's start: %+v, want filling from zero and animating", start)
+	}
+	subtitles.ShiftOffset(session.LinePrimary, 500*time.Millisecond)
+	var asked []time.Duration
+	subtitles.SetVoice(func(text string, start, end, position time.Duration) (float64, bool) {
+		asked = []time.Duration{start, end}
+		return 0.25, position < ms(22_000)
+	})
+	if got := subtitles.At(ms(21_000)); got.Fill != 0.25 || asked[0] != ms(20_500) || asked[1] != ms(23_500) {
+		t.Fatalf("voice fill %v for the line at %v, want 0.25 at 20.5-23.5 s", got.Fill, asked)
+	}
+	if got := subtitles.At(ms(22_500)); got.Fill == 0.25 || got.Fill == 0 {
+		t.Fatalf("the estimate did not take over: fill %v", got.Fill)
+	}
+	described := session.NewSubtitles(&session.Track{Timeline: timeline(t, subtitle.Event{ID: "D", Start: ms(1000), End: ms(3000), OriginalText: "[DOOR SLAMS]"})}, nil)
+	described.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true})
+	if got := described.At(ms(2_000)); got.Filling || got.Animating() {
+		t.Fatalf("a line with nothing said: %+v", got)
 	}
 }

@@ -13,7 +13,7 @@ import { t } from "../i18n";
 import { keyLabel } from "../keys";
 import { backend, messageOf } from "../services/backend";
 import type { Line, PlayerInstall, Players, SavedPassage, ShortcutSetting, Video, WatchRequest } from "../services/backend";
-import { none, noteOf, trackOptions } from "../tracks";
+import { forLine, none, noteOf, trackOptions } from "../tracks";
 
 interface SessionPageProps {
   video: Video;
@@ -170,7 +170,7 @@ export function SessionPage(props: SessionPageProps) {
             <SubtitlePicker
               label={t("ui.session.subtitles.translation")}
               value={translation}
-              options={trackOptions(video.subtitles, t("ui.session.subtitles.noTranslation"))}
+              options={trackOptions(forLine(video.subtitles, video.suggested.translation), t("ui.session.subtitles.noTranslation"))}
               onChange={setTranslation}
               onAdd={() => void addFile("translation")}
               adding={adding === "translation"}

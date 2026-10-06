@@ -45,6 +45,25 @@ func TestClockSessionCommandBeforeAnySampleMakesTheStateKnown(t *testing.T) {
 	}
 }
 
+// The sound heard at an instant belongs to the position the video had then,
+// even an instant before the player's last report: sound arrives late.
+func TestClockPositionAtAnInstant(t *testing.T) {
+	t.Parallel()
+	now := newFakeTime()
+	clock := session.NewClock(playback.PrecisionExact, now.Now)
+	reported := now.Now()
+	clock.Observe(sample(ms(10_000), playback.StatusPlaying, 2, reported))
+	if got := clock.PositionAt(reported.Add(ms(500))); got != ms(11_000) {
+		t.Fatalf("half a second after at 2x: %v, want 11s", got)
+	}
+	if got := clock.PositionAt(reported.Add(-ms(250))); got != ms(9_500) {
+		t.Fatalf("a quarter second before at 2x: %v, want 9.5s", got)
+	}
+	clock.Observe(sample(ms(10_000), playback.StatusPaused, 2, reported))
+	if got := clock.PositionAt(reported.Add(-ms(250))); got != ms(10_000) {
+		t.Fatalf("paused: %v, want 10s", got)
+	}
+}
 func TestClockExtrapolatesAtTheReportedSpeed(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -158,9 +177,9 @@ func TestEstimatedClockAppliesLargeOrForwardCorrectionsAtOnce(t *testing.T) {
 		speed    playback.Speed
 		reported time.Duration
 	}{
-		{"atrás além do limite", 1, ms(7_250 - 301)},
-		{"atrás, limite menor em 0,25x", 0.25, ms(7_250 - 76)},
-		{"à frente", 1, ms(7_300)},
+		{"behind, past the limit", 1, ms(7_250 - 301)},
+		{"behind, a smaller limit at 0.25x", 0.25, ms(7_250 - 76)},
+		{"ahead", 1, ms(7_300)},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

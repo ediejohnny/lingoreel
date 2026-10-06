@@ -28,7 +28,7 @@ type videoProject struct {
 	note     string
 	// dirty tells something changed that is saved a moment later rather
 	// than at once: the offsets of a held shortcut, the position, the speed,
-	// the Modo Karaokê, the mode. flush is that pending save.
+	// the karaoke mode, the mode. flush is that pending save.
 	dirty bool
 	flush func() bool
 	// positionAt is when the position was last kept.
@@ -258,7 +258,7 @@ func (a *API) keepChoice(current *watching, tracks media.Selection, mode study.M
 
 // keepSession takes into the project how the video is being watched, at
 // every state report: where it is (every positionEvery while playing),
-// the speed, the Modo Karaokê and the study mode, saved a moment after they
+// the speed, the karaoke mode and the study mode, saved a moment after they
 // change. Values the session started with are not written: a video only
 // remembers what the user changed on it. It reads the session before
 // taking a.mu, which the session's listener calls take too.
@@ -316,7 +316,7 @@ func (a *API) flushSession(current *watching) {
 	}
 }
 
-// karaokeOf is the session's Modo Karaokê in the project's form.
+// karaokeOf is the session's karaoke mode in the project's form.
 func karaokeOf(s *watch.Session) project.Karaoke {
 	karaoke := s.Karaoke()
 	return project.Karaoke{

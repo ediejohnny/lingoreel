@@ -78,8 +78,8 @@ type Project struct {
 	AddedFiles []string `json:"addedFiles"`
 }
 
-// Last is how the video was left: where, at what speed and with which Modo
-// Karaokê. Zero values keep the profile's, and a zero position starts from
+// Last is how the video was left: where, at what speed and with which karaoke
+// mode. Zero values keep the profile's, and a zero position starts from
 // the beginning.
 type Last struct {
 	Position Millis   `json:"position"`
@@ -105,7 +105,7 @@ func (l Last) ResumeAt(duration time.Duration) (time.Duration, bool) {
 	return position, true
 }
 
-// Karaoke is the Modo Karaokê as last used on the video: on or off, its
+// Karaoke is the karaoke mode as last used on the video: on or off, its
 // timing, the indicator, the fill and the repeats. The colors stay with the
 // profile, which owns the look.
 type Karaoke struct {
@@ -198,7 +198,7 @@ type Edit struct {
 	End      *Millis `json:"end,omitempty"`
 }
 
-// Passage is a passage saved for "Estudar trecho", on the playback clock.
+// Passage is a passage saved for studying, on the playback clock.
 // Its times are the ones studied, already fitted to the lines.
 type Passage struct {
 	Name  string `json:"name"`
@@ -387,7 +387,7 @@ func (l Last) validate() error {
 	return nil
 }
 
-// Validate checks the Modo Karaokê's values against the study rules.
+// Validate checks the karaoke mode's values against the study rules.
 func (k Karaoke) Validate() error {
 	switch {
 	case k.Rules().Validate() != nil:

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
@@ -134,12 +135,16 @@ func (s *Session) SetShortcuts(keys shortcut.Map) error {
 	return closeErr
 }
 
-// LookOf is how a profile draws the subtitles and the marks around them.
+// LookOf is how a profile draws the subtitles and the marks around them. The
+// karaoke mode's fill is painted over the line on top, so a fill too close to
+// that line's color gives way to one that shows (turning it off is a setting
+// of its own).
 func LookOf(profile settings.Profile) session.Look {
 	karaoke, marks := profile.Study.Karaoke, profile.Marks
+	fill, _ := appearance.ReadableFill(profile.Primary.Color, karaoke.FillColor)
 	return session.Look{
 		Layout: profile.Layout, Primary: profile.Primary, Translation: profile.Translation,
-		PreviewColor: karaoke.PreviewColor, FillColor: karaoke.FillColor, Cue: karaoke.Cue,
+		PreviewColor: karaoke.PreviewColor, FillColor: fill, Cue: karaoke.Cue,
 		Notice: marks.Notice, NoticeDuration: time.Duration(marks.NoticeDuration), Selection: marks.Selection,
 	}
 }
@@ -153,12 +158,13 @@ func (s *Session) Restyle(look session.Look) error {
 	return restyler.Restyle(look)
 }
 
-// ApplyKaraoke replaces the Modo Karaokê's state, its rules and its fill.
+// ApplyKaraoke replaces the karaoke mode's state, its rules and its fill.
 func (s *Session) ApplyKaraoke(karaoke session.Karaoke) error {
 	if err := karaoke.Rules.Validate(); err != nil {
 		return err
 	}
 	s.subtitles.SetKaraoke(karaoke)
+	s.followVoice()
 	return nil
 }
 

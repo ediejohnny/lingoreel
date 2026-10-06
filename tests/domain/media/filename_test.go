@@ -66,6 +66,21 @@ func TestVideoNameWordsAreIgnored(t *testing.T) {
 	}
 }
 
+// A release name's title ends at its year: words before it are the film's
+// even when they spell a code or a flag, as "Ice" (Icelandic) or "Foreign"
+// (forced), and the language after the year still counts.
+func TestTitleWordsBeforeTheYearAreIgnored(t *testing.T) {
+	t.Parallel()
+	for _, file := range []string{"Ice.Exemplo.2016.720p.BluRay.x264-GRUPO.srt", "Foreign.Exemplo.1940.srt", "It.Hi.2019.srt"} {
+		if got := media.HintsFromFileName(file, "Outro.Nome.mkv"); got != (media.FileHints{}) {
+			t.Errorf("HintsFromFileName(%q) = %+v, want nothing", file, got)
+		}
+	}
+	if got := media.HintsFromFileName("Ice.Exemplo.2016.720p.x264-GRUPO.pt-BR.forced.srt", "Outro.Nome.mkv"); got != (media.FileHints{Language: "pt-BR", Forced: true}) {
+		t.Errorf("after the year: %+v, want pt-BR forced", got)
+	}
+}
+
 func TestShortWordsAreNotLanguages(t *testing.T) {
 	t.Parallel()
 	for _, file := range []string{"to.srt", "of the day.srt", "a.b.c.srt", "xx.srt", "zzz.srt", "und.srt", "12345.srt"} {

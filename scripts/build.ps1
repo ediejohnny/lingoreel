@@ -5,8 +5,10 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 [-Version 1.2.3]
 #
 # Without -Version, the version comes from the nearest git tag (git describe).
-# The app carries the version in its file properties, and the WebView2
-# installer goes inside it, for Windows 10 machines that lack WebView2.
+# The app carries the version in its file properties. Microsoft's WebView2
+# installer does not go inside it (it has Microsoft's own terms): a Windows 10
+# machine that lacks WebView2 is offered the download from Microsoft. The app
+# is pure Go (no cgo), so no C runtime goes inside it either.
 
 param(
     [string]$Version = ""
@@ -24,6 +26,8 @@ $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
 $ldflags = "-s -w -X github.com/ediejohnny/lingoreel/internal/buildinfo.Version=$buildVersion"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+$previousCgo = $env:CGO_ENABLED
+$env:CGO_ENABLED = "0"
 
 Push-Location -LiteralPath $root
 try {
@@ -50,7 +54,7 @@ try {
             throw "wails.json has no productVersion field."
         }
         [IO.File]::WriteAllText($wailsConfig, $patched, (New-Object Text.UTF8Encoding($false)))
-        Invoke-Native -FilePath "wails" -Arguments @("build", "-trimpath", "-webview2", "embed", "-ldflags", $ldflags) `
+        Invoke-Native -FilePath "wails" -Arguments @("build", "-trimpath", "-webview2", "download", "-ldflags", $ldflags) `
             -FailureMessage "Building the app failed"
     }
     finally {
@@ -76,4 +80,5 @@ try {
 }
 finally {
     Pop-Location
+    $env:CGO_ENABLED = $previousCgo
 }

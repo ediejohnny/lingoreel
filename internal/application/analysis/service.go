@@ -120,7 +120,7 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 	} else if err := s.reader.Check(path); err != nil {
 		return Analysis{}, fmt.Errorf("opening %s: %w", filepath.Base(path), err)
 	}
-	tracks, contents, err := s.externalTracks(ctx, path)
+	tracks, contents, err := s.externalTracks(ctx, path, info.Duration)
 	if err != nil {
 		return Analysis{}, err
 	}
@@ -171,9 +171,8 @@ func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, 
 
 // externalTracks describes the subtitle files of the video, then the
 // candidates nearby. Each one is read now: to know whether it is readable
-// and, when its name does not say, to detect its language from the text.
-// What was read is kept for loading.
-func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media.Track, map[uint64]media.SubtitleContent, error) {
+// and what its text says (judgeContent). What was read is kept for loading.
+func (s *Service) externalTracks(ctx context.Context, videoPath string, videoLength time.Duration) ([]media.Track, map[uint64]media.SubtitleContent, error) {
 	if s.files == nil {
 		return nil, nil, nil
 	}
@@ -199,9 +198,7 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string) ([]media
 		if err == nil {
 			track.Readable, track.SubtitleFormat = true, format
 			track.Codec = strings.ToUpper(string(format))
-			if track.Language == "" {
-				track.Language = media.DetectLanguage(joinedText(content.Events))
-			}
+			judgeContent(&track, content, videoLength)
 			contents[track.Number] = content
 		}
 		tracks = append(tracks, track)
@@ -214,9 +211,9 @@ var ErrTooManyFiles = errors.New("too many subtitle files added to the video")
 
 // AddSubtitleFile adds a subtitle file the user picked, from anywhere, to an
 // analyzed video: the result is a new analysis with the file as one more
-// track, and that track; the analysis passed in is left as it was. The
-// language comes from the file's name or, when it says none, from its text;
-// the file is measured against the video like the files next to it, and
+// track, and that track; the analysis passed in is left as it was. Its
+// language and flags come from its text, as for the files next to the video
+// (judgeContent); the file is measured against the video like them, and
 // kept to be loaded without reading it again. A file the analysis already
 // has (in any case) gives its own track back.
 func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path string) (Analysis, media.Track, error) {
@@ -248,9 +245,7 @@ func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path s
 		Language: hints.Language, Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
 		Readable: true, SubtitleFormat: format, Codec: strings.ToUpper(string(format)), Added: true,
 	}
-	if track.Language == "" {
-		track.Language = media.DetectLanguage(joinedText(content.Events))
-	}
+	judgeContent(&track, content, analysis.Info.Duration)
 	measured := []media.Track{track}
 	internal, err := s.alignFiles(ctx, analysis.Path, analysis.Info, measured, map[uint64]media.SubtitleContent{next: content}, analysis.internal)
 	if err != nil {
@@ -268,9 +263,27 @@ func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path s
 	return result, track, nil
 }
 
+// judgeContent completes what a subtitle file's name said with what its text
+// says, which wins: users rename and move files, and a title's word can read
+// as a code. The language is the text's when it tells; the lines tell a
+// subtitle for the hearing impaired, and their count one that is forced.
+func judgeContent(track *media.Track, content media.SubtitleContent, videoLength time.Duration) {
+	track.Language = media.SubtitleLanguage(track.Language, joinedText(content.Events))
+	track.HearingImpaired = track.HearingImpaired || media.DescribesSounds(content.Events)
+	track.Forced = track.Forced || media.LooksForced(content.Events, videoLength)
+}
+
+// maxJoinedText bounds the text joined to tell a file's language: the first
+// lines are evidence enough, and a huge file is never copied whole.
+const maxJoinedText = 64 << 10
+
+// joinedText is the start of a subtitle's text, its lines one per row.
 func joinedText(events []subtitle.Event) string {
 	var text strings.Builder
 	for _, event := range events {
+		if text.Len() >= maxJoinedText {
+			break
+		}
 		text.WriteString(event.Text())
 		text.WriteByte('\n')
 	}

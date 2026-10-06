@@ -10,6 +10,10 @@ import (
 // maxPixelDimension rejects absurd frame sizes declared by broken files.
 const maxPixelDimension = 1 << 16
 
+// maxChannels bounds a track's channel count: Matroska allows any number,
+// no sound system has more.
+const maxChannels = 64
+
 // textSubtitleCodecs maps Matroska codec IDs to the text formats the player
 // can read. Bitmap codecs such as S_HDMV/PGS and S_VOBSUB are absent: they
 // would need OCR.
@@ -62,6 +66,10 @@ func (container Container) MediaInfo() media.Info {
 			}
 			if entry.DefaultDuration > 0 {
 				track.FrameRate = float64(time.Second) / float64(entry.DefaultDuration)
+			}
+		case media.TrackAudio:
+			if entry.Channels <= maxChannels {
+				track.Channels = int(entry.Channels)
 			}
 		case media.TrackSubtitle:
 			track.SubtitleFormat, track.Readable = subtitleFormatOf(entry)

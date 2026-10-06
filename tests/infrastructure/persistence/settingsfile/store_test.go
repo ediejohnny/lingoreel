@@ -66,7 +66,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 }
 
-// Profiles saved before the Modo Karaokê (version 1) get its defaults; the
+// Profiles saved before the karaoke mode (version 1) get its defaults; the
 // rest of each profile stays as the user left it. Two profiles: decoding
 // over the default list, the first one would inherit the defaults anyway.
 func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {
@@ -126,7 +126,7 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 	config, err := files.LoadConfig()
 	defaults := settings.DefaultConfig()
 	if err != nil || !config.SyncNotice || !config.AlwaysOnTop || config.Theme != settings.ThemeDark || config.Window.Saved() ||
-		config.Bar != defaults.Bar || config.Edit != defaults.Edit || config.Interface != defaults.Interface {
+		config.Bar != defaults.Bar || config.Edit != defaults.Edit || config.Interface != defaults.Interface || config.Voice != defaults.Voice {
 		t.Fatalf("old config = %+v, %v", config, err)
 	}
 	config.SyncNotice = false
@@ -170,10 +170,10 @@ func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	data := `{"version": 3, "profiles": [` +
-		profileJSON(t, "Meu", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
-		profileJSON(t, "Só um", `{"mute": "Ctrl+F10"}`) + `,` +
-		profileJSON(t, "Sem atalhos", `{}`) + `,` +
-		profileJSON(t, "Já tinha", `{"undo": "Ctrl+F9", "passage-mark-start": "Ctrl+KeyB"}`) + `]}`
+		profileJSON(t, "Mine", `{"undo": "Ctrl+F9", "redo": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "Only one", `{"mute": "Ctrl+F10"}`) + `,` +
+		profileJSON(t, "No keys", `{}`) + `,` +
+		profileJSON(t, "Had it already", `{"undo": "Ctrl+F9", "passage-mark-start": "Ctrl+KeyB"}`) + `]}`
 	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -185,10 +185,10 @@ func TestProfilesUsingThePassageKeysKeepThem(t *testing.T) {
 		name                                 string
 		undo, redo, mute, markStart, markEnd string
 	}{
-		{"Meu", "Ctrl+F9", "Ctrl+F10", "KeyM", "", ""},
-		{"Só um", "Ctrl+KeyZ", "Ctrl+KeyY", "Ctrl+F10", "Ctrl+F9", ""},
-		{"Sem atalhos", "Ctrl+KeyZ", "Ctrl+KeyY", "KeyM", "Ctrl+F9", "Ctrl+F10"},
-		{"Já tinha", "Ctrl+F9", "Ctrl+KeyY", "KeyM", "Ctrl+KeyB", "Ctrl+F10"},
+		{"Mine", "Ctrl+F9", "Ctrl+F10", "KeyM", "", ""},
+		{"Only one", "Ctrl+KeyZ", "Ctrl+KeyY", "Ctrl+F10", "Ctrl+F9", ""},
+		{"No keys", "Ctrl+KeyZ", "Ctrl+KeyY", "KeyM", "Ctrl+F9", "Ctrl+F10"},
+		{"Had it already", "Ctrl+F9", "Ctrl+KeyY", "KeyM", "Ctrl+KeyB", "Ctrl+F10"},
 	}
 	if len(profiles.Items) != len(want) {
 		t.Fatalf("%d profiles after the migration", len(profiles.Items))
@@ -337,6 +337,46 @@ func TestOldProfilesKeepTheLooksTheyHad(t *testing.T) {
 	}
 }
 
+// A profile saved with the old frame around the line picked for a
+// correction gets the new, cleaner one; a frame the user changed stays.
+func TestOldProfilesGetTheCleanerSelection(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	version5 := func(name string, selection appearance.SelectionLook) map[string]any {
+		profile := settings.DefaultProfile()
+		profile.Name, profile.Marks.Selection = name, selection
+		var object map[string]any
+		data, err := json.Marshal(profile)
+		if err == nil {
+			err = json.Unmarshal(data, &object)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return object
+	}
+	mine := appearance.PreviousSelectionLook()
+	mine.Width = 3
+	old, err := json.Marshal(map[string]any{"version": 5, "profiles": []any{
+		version5("Padrão", appearance.PreviousSelectionLook()), version5("Mine", mine),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 5 file: %v", err)
+	}
+	if got := profiles.Items[0].Marks.Selection; got != appearance.DefaultSelectionLook() {
+		t.Errorf("the old default frame became %+v, want the new default", got)
+	}
+	if got := profiles.Items[1].Marks.Selection; got != mine {
+		t.Errorf("the user's frame became %+v, want it kept", got)
+	}
+}
 func karaokeJSON(t *testing.T) string {
 	t.Helper()
 	data, err := json.Marshal(settings.DefaultKaraoke())

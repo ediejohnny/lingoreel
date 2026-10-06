@@ -2,8 +2,8 @@ package appearance
 
 import "strings"
 
-// Ranges accepted for the notices, the selection outline and the Modo
-// Karaokê's indicator.
+// Ranges accepted for the notices, the selection outline and the karaoke
+// mode's indicator.
 const (
 	MaxNoticeFontSize = 72.0
 	// MaxNoticeMargin and the widths are shares of the picture.
@@ -80,11 +80,11 @@ func (n NoticeLook) Validate() error {
 }
 
 // SelectionLook is the frame around the line picked for a correction: a
-// light stroke over a darker, twice as wide one, so it shows on bright and
-// dark pictures alike. Sizes are in pixels at 100% display scaling.
+// thin line in Color with a dark edge just outside it, so it shows on bright
+// and dark pictures alike. Sizes are in pixels at 100% display scaling.
 type SelectionLook struct {
 	Color Color `json:"color"`
-	// Edge is the darker stroke under Color.
+	// Edge is the dark hairline just outside Color.
 	Edge  Color   `json:"edge"`
 	Width float64 `json:"width"`
 	// Gap is the room between the text and the frame; Radius rounds its
@@ -93,8 +93,17 @@ type SelectionLook struct {
 	Radius float64 `json:"radius"`
 }
 
-// DefaultSelectionLook is a thin, see-through white frame on a dark edge.
+// DefaultSelectionLook is a sharp line in the app's blue with a half-dark
+// edge outside: blue reads as "selected", sits apart from white or yellow
+// text and from the karaoke mode's fill, and the edge carries it over bright
+// pictures.
 func DefaultSelectionLook() SelectionLook {
+	return SelectionLook{Color: RGB(0x5B, 0x9B, 0xFF), Edge: black.WithAlpha(0x80), Width: 1, Gap: 4, Radius: 1.5}
+}
+
+// PreviousSelectionLook is the default before 0.23: a see-through white line
+// over a dark one twice as wide. Profiles still on it get the new default.
+func PreviousSelectionLook() SelectionLook {
 	return SelectionLook{Color: white.WithAlpha(0xD9), Edge: black.WithAlpha(0x8C), Width: 1.5, Gap: 4, Radius: 1.6}
 }
 
@@ -107,7 +116,7 @@ func (s SelectionLook) Validate() error {
 	}, ErrInvalidStyle)
 }
 
-// CueStyle is how the Modo Karaokê shows the time left before a line: a bar
+// CueStyle is how the karaoke mode shows the time left before a line: a bar
 // above it, or the seconds in a smaller copy of its font.
 type CueStyle struct {
 	// BarThickness is in style units, like the outline.

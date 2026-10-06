@@ -22,11 +22,42 @@ var profilesMigrations = map[int]jsonstore.Migration{
 	2: useTheAppFont,
 	3: freeThePassageMarks,
 	4: addLooks,
+	5: freshenTheSelection,
+}
+
+// freshenTheSelection (version 5 to 6) gives every profile still on the old
+// frame around the line picked for a correction the new, cleaner one; a
+// frame the user changed stays.
+func freshenTheSelection(document map[string]any) error {
+	fresh, err := asObject(appearance.DefaultSelectionLook())
+	if err != nil {
+		return err
+	}
+	items, _ := document["profiles"].([]any)
+	for i, item := range items {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d is not an object", i)
+		}
+		marks, _ := profile["marks"].(map[string]any)
+		if marks == nil {
+			continue
+		}
+		raw, err := json.Marshal(marks["selection"])
+		if err != nil {
+			return err
+		}
+		var look appearance.SelectionLook
+		if json.Unmarshal(raw, &look) == nil && look == appearance.PreviousSelectionLook() {
+			marks["selection"] = fresh
+		}
+	}
+	return nil
 }
 
 // addLooks (version 4 to 5) gives every profile the looks that were fixed
 // before: the line spacing and the gap between the subtitles, the marks and
-// the Modo Karaokê's indicator, whose bar takes the profile's preview color
+// the karaoke mode's indicator, whose bar takes the profile's preview color
 // as it did. A value a profile somehow has stays.
 func addLooks(document map[string]any) error {
 	defaults := settings.DefaultProfile()
@@ -141,7 +172,7 @@ func useTheAppFont(document map[string]any) error {
 	return nil
 }
 
-// addKaraoke (version 1 to 2) gives every profile the Modo Karaokê's
+// addKaraoke (version 1 to 2) gives every profile the karaoke mode's
 // defaults; a profile that somehow has them keeps its own.
 func addKaraoke(document map[string]any) error {
 	defaults, err := asObject(settings.DefaultKaraoke())

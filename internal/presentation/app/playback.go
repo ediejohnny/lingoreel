@@ -98,6 +98,7 @@ func (a *API) Watch(request WatchRequest) error {
 	a.mu.Lock()
 	profile := a.profile()
 	syncNotice := a.config.SyncNotice
+	voicePreferences := a.config.Voice
 	var saved map[session.Line]project.Track
 	var last project.Last
 	var passages []project.Passage
@@ -122,6 +123,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
 		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
+		Voice: voiceSetup(voicePreferences),
 	}
 	// What the user changed on this video comes back over the profile.
 	if last.Speed != 0 {
@@ -343,16 +345,16 @@ func (a *API) describe(current *watching) Playback {
 		SavedPassages:      saved,
 		ProjectNote:        note,
 		Health:             healthText(current.session.Health()),
-		Tracks:             describeTracks(current, capabilities.AudioTrackSelection),
+		Tracks:             describeTracks(current, capabilities.AudioTrackSelection, a.preferences()),
 	}
 }
 
 // describeTracks lists the session's tracks for the panel.
-func describeTracks(current *watching, audioSwitch bool) PlaybackTracks {
+func describeTracks(current *watching, audioSwitch bool, preferences media.Preferences) PlaybackTracks {
 	tracks := current.session.Tracks()
 	info := media.Info{Tracks: tracks.List}
 	return PlaybackTracks{
-		Audio: audioTracks(info), Subtitles: subtitleTracks(info),
+		Audio: audioTracks(info), Subtitles: subtitleTracks(info, preferences),
 		Current:     Selection{Audio: tracks.Current.Audio, Primary: tracks.Current.Primary, Translation: tracks.Current.Translation},
 		AudioSwitch: audioSwitch, Loading: current.switching.Load(),
 	}

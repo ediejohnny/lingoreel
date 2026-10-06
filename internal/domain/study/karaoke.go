@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"math"
 	"time"
-	"unicode"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
-// ErrInvalidKaraoke reports Modo Karaokê settings outside their ranges.
-var ErrInvalidKaraoke = errors.New("invalid Modo Karaokê settings")
+// ErrInvalidKaraoke reports karaoke mode settings outside their ranges.
+var ErrInvalidKaraoke = errors.New("invalid karaoke mode settings")
 
-// Ranges of the Modo Karaokê. Below a 3 s gap the preview would last under
+// Ranges of the karaoke mode. Below a 3 s gap the preview would last under
 // 2 s and mix with quick, overlapping dialogue; a 2 s lead is about the time
 // to read a short line.
 const (
@@ -157,11 +156,11 @@ func NextCueStartAfter(timeline *subtitle.Timeline, offset subtitle.Offset, posi
 	return 0, false
 }
 
-// replayLeadIn is how far before a line "Treinar de novo" goes when the
+// replayLeadIn is how far before a line a replay goes when the
 // line has no preview: enough to hear it start.
 const replayLeadIn = time.Second
 
-// ReplayTarget is where "Treinar de novo" goes: the start of the preview of
+// ReplayTarget is where a replay goes: the start of the preview of
 // the line being previewed, spoken or last spoken; for a line without a
 // preview, a moment before it. False when no line has come yet.
 func ReplayTarget(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules) (time.Duration, bool) {
@@ -197,34 +196,33 @@ func ReplayTargetIn(timeline *subtitle.Timeline, offset subtitle.Offset, positio
 	return max(target, passage.Start)
 }
 
-// Speech timing estimate: a line's text is spoken over the first
-// speakingShare of its time, each letter taking one unit, a space half, and
-// punctuation a pause. Subtitles carry no word timing, so this is only an
-// estimate, and the help says so.
+// Speech timing estimate: a line's words are spoken over the first
+// speakingShare of its time, each taking its syllables, with a pause after
+// a comma, a sentence's end or a change of speaker. Subtitles carry no word
+// timing, so this is only an estimate, and the help says so.
 const (
 	speakingShare = 0.85
-	spaceWeight   = 0.5
-	commaPause    = 3.0
-	stopPause     = 5.0
+	commaPause    = 0.6 // in syllables
+	stopPause     = 1.0
 )
 
-func runeWeight(r rune) float64 {
-	switch {
-	case unicode.IsSpace(r):
-		return spaceWeight
-	case r == ',' || r == ';' || r == ':':
-		return 1 + commaPause
-	case r == '.' || r == '!' || r == '?' || r == '…':
-		return 1 + stopPause
+func pauseWeight(b Break) float64 {
+	switch b {
+	case BreakComma:
+		return commaPause
+	case BreakStop, BreakSpeaker:
+		return stopPause
 	}
-	return 1
+	return 0
 }
 
 // SpokenFraction is the share of the line's visible characters (spaces
 // left out) already spoken at a position of the track's clock: 0 before the
-// line, 1 once it is all said.
+// line, 1 once it is all said. A line where nothing is said aloud (only a
+// sound's description, or music) is never painted.
 func SpokenFraction(event subtitle.Event, trackTime time.Duration) float64 {
-	if event.End <= event.Start || trackTime <= event.Start {
+	units := SpeechUnits(event.Text())
+	if !units.Spoken() || event.End <= event.Start || trackTime <= event.Start {
 		return 0
 	}
 	// In floating point: a difference of two far-apart times would overflow.
@@ -233,32 +231,23 @@ func SpokenFraction(event subtitle.Event, trackTime time.Duration) float64 {
 	if elapsed >= 1 || math.IsNaN(elapsed) {
 		return 1
 	}
-	var total float64
-	visible := 0
-	text := []rune(event.Text())
-	for _, r := range text {
-		total += runeWeight(r)
-		if !unicode.IsSpace(r) {
-			visible++
-		}
-	}
-	if visible == 0 || total == 0 {
-		return 1
+	total, visible := 0.0, 0
+	for _, word := range units.Words {
+		total += word.Weight + pauseWeight(word.Break)
+		visible += word.Chars
 	}
 	target := elapsed * total
-	var spent float64
-	done := 0.0
-	for _, r := range text {
-		weight := runeWeight(r)
-		if spent+weight >= target {
-			if !unicode.IsSpace(r) {
-				done += (target - spent) / weight
-			}
+	spent, done := 0.0, 0.0
+	for _, word := range units.Words {
+		if spent+word.Weight >= target && word.Weight > 0 {
+			done += float64(word.Chars) * (target - spent) / word.Weight
 			break
 		}
-		spent += weight
-		if !unicode.IsSpace(r) {
-			done++
+		// What takes no time (a sound's description) is painted when reached.
+		spent += word.Weight
+		done += float64(word.Chars)
+		if spent += pauseWeight(word.Break); spent >= target {
+			break // held in the pause after this word
 		}
 	}
 	return math.Min(done/float64(visible), 1)

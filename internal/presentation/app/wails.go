@@ -76,6 +76,10 @@ func (w wailsUI) SetAlwaysOnTop(on bool) {
 	runtime.WindowSetAlwaysOnTop(w.ctx, on)
 }
 
+func (w wailsUI) HideWindow() {
+	runtime.WindowHide(w.ctx)
+}
+
 func (w wailsUI) Quit() {
 	runtime.Quit(w.ctx)
 }

@@ -2,8 +2,11 @@ package matroska
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
@@ -46,14 +49,25 @@ func (FileReader) ReadSubtitles(ctx context.Context, path string, trackNumbers [
 	return content, nil
 }
 
-// Check confirms that path is a regular file the player can open, for videos
-// whose tracks this reader does not read.
+// Check confirms that path is a video the player can open, for videos whose
+// tracks this reader does not read: a regular file that starts as the
+// container its extension names (media.MatchesContainer), so nothing else
+// renamed reaches a player. Only its first bytes are read.
 func (FileReader) Check(path string) error {
-	file, _, err := openReadOnly(path)
+	file, size, err := openReadOnly(path)
 	if err != nil {
 		return err
 	}
-	return file.Close()
+	defer file.Close()
+	head := make([]byte, media.SignatureBytes)
+	n, err := io.ReadFull(file, head)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+	if !media.MatchesContainer(filepath.Ext(path), head[:n], size) {
+		return fmt.Errorf("%w: %s", media.ErrNotTheContainer, filepath.Base(path))
+	}
+	return nil
 }
 
 func openReadOnly(path string) (*os.File, int64, error) {

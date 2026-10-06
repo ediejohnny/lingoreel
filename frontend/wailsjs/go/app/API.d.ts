@@ -6,11 +6,17 @@ export function AddSubtitleFile(arg1:string):Promise<app.Video>;
 
 export function ApplyPreset(arg1:app.StyleSettings,arg2:string):Promise<app.StyleSettings>;
 
+export function CheckFill(arg1:string,arg2:string):Promise<app.FillCheck>;
+
 export function CheckShortcut(arg1:string):Promise<app.ShortcutCheck>;
+
+export function ChooseFFmpeg():Promise<string>;
 
 export function ChoosePlayerProgram(arg1:string):Promise<string>;
 
 export function ChooseVideo():Promise<string>;
+
+export function ClearFFmpeg():Promise<void>;
 
 export function ClearPlayerPath(arg1:string):Promise<void>;
 
@@ -33,6 +39,8 @@ export function ExportSubtitle(arg1:string):Promise<void>;
 export function FileAssociation():Promise<boolean>;
 
 export function InitialVideo():Promise<string>;
+
+export function InstallFFmpeg():Promise<void>;
 
 export function InstallPlayer(arg1:string):Promise<void>;
 
@@ -125,6 +133,8 @@ export function SetTheme(arg1:string):Promise<void>;
 export function SetTranslationVisible(arg1:boolean):Promise<void>;
 
 export function SetVideoLayout(arg1:app.VideoLayout):Promise<void>;
+
+export function SetVoice(arg1:app.VoiceSettings):Promise<void>;
 
 export function Settings():Promise<app.SettingsView>;
 

@@ -46,15 +46,15 @@ func TestDetectLanguageRecognizesDialogue(t *testing.T) {
 func TestDetectLanguageRefusesToGuess(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
-		"vazio":           "",
-		"só números":      "1 2 3 00:01:02,000 --> 00:01:03,000",
-		"poucas palavras": "What? Não. Okay.",
-		"metade e metade": englishDialogue + " " + portugueseDialogue,
-		"outra língua":    strings.Repeat("Nie wiem, o co ci chodzi, przepraszam. ", 40),
+		"empty":            "",
+		"only numbers":     "1 2 3 00:01:02,000 --> 00:01:03,000",
+		"few words":        "What? Não. Okay.",
+		"half and half":    englishDialogue + " " + portugueseDialogue,
+		"another language": strings.Repeat("Nie wiem, o co ci chodzi, przepraszam. ", 40),
 		// Words that exist in two languages prove neither: "está", "vamos"
 		// and "para" are Portuguese and Spanish, "bien" Spanish and French.
-		"palavras comuns":   strings.Repeat("está vamos para bien ", 40),
-		"uma palavra comum": strings.Repeat("para ", 60),
+		"shared words":    strings.Repeat("está vamos para bien ", 40),
+		"one shared word": strings.Repeat("para ", 60),
 	}
 	for name, text := range cases {
 		if got := media.DetectLanguage(text); got != "" {

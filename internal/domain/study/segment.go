@@ -15,7 +15,7 @@ import (
 // ErrInvalidSegment reports a passage that cannot be studied.
 var ErrInvalidSegment = errors.New("invalid passage")
 
-// Limits of "Estudar trecho".
+// Limits of a studied passage.
 const (
 	// MinSegment is the shortest passage: shorter ones would loop faster
 	// than anyone can repeat them.

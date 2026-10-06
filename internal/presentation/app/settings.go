@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ const (
 	maxPreviewScale = 5
 )
 
-// The preview's views besides the plain one. The Modo Karaokê's fill paints
+// The preview's views besides the plain one. The karaoke mode's fill paints
 // the line on top as half spoken, so the fill color shows next to the
 // line's own; its cue shows that line before its time, halfway through the
 // bar or three seconds before it; the notice shows a notice as a sync
@@ -47,7 +48,7 @@ const (
 	previewNoticeOffset = subtitle.Offset(-150 * time.Millisecond)
 )
 
-// previewCue shows the line on top before its time, as the Modo Karaokê
+// previewCue shows the line on top before its time, as the karaoke mode
 // does, with the indicator and the look the screen sent.
 func previewCue(view KaraokeSettings, look *session.Look, screen *session.Screen) error {
 	color, err := appearance.ParseColor(view.PreviewColor)
@@ -80,7 +81,8 @@ var previewLanguages = []media.LanguageTag{
 // Settings is what the settings screen shows: the shared choices, the
 // active profile and the players, with the screen's options and limits.
 func (a *API) Settings() (SettingsView, error) {
-	if _, err := a.context(); err != nil {
+	ctx, err := a.context()
+	if err != nil {
 		return SettingsView{}, err
 	}
 	a.mu.Lock()
@@ -98,7 +100,8 @@ func (a *API) Settings() (SettingsView, error) {
 			Language:              config.Language, Languages: interfaceLanguages(),
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
-		Players: a.playerSettings(config), Options: a.settingsOptions(), Folder: a.deps.SettingsDir,
+		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
+		Folder: a.deps.SettingsDir,
 	}
 	return view, nil
 }
@@ -239,7 +242,7 @@ func (a *API) commitConfig(next settings.Config) error {
 }
 
 // applyToSession gives the video being watched a profile's new choices:
-// the look, the keys, the translation key, the steps and the Modo Karaokê;
+// the look, the keys, the translation key, the steps and the karaoke mode;
 // the study mode only when it changed from previous, so a mode picked on the
 // panel for this video stays. A choice the session refuses is logged; the
 // profile is saved anyway.
@@ -257,7 +260,7 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 		s.SetSyncSteps(profile.Sync.Nudge()),
 		s.SetPrecisionStep(profile.Sync.PrecisionSeekStep.Std()),
 	)
-	// The Modo Karaokê of the video may come from its project or the bar:
+	// The karaoke mode of the video may come from its project or the bar:
 	// only the parts that changed in the profile replace it.
 	if karaoke.Enabled != before.Enabled || karaoke.MinGap != before.MinGap || karaoke.Lead != before.Lead || karaoke.Fill != before.Fill {
 		err = errors.Join(err, s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}))
@@ -343,6 +346,21 @@ func (a *API) CheckShortcut(text string) (ShortcutCheck, error) {
 	return ShortcutCheck{Chord: chord.String(), Label: ptbr.ShortcutLabel(chord, a.deps.KeyChar)}, nil
 }
 
+// CheckFill tells which color the karaoke mode's fill is painted in over a
+// line of color text: a fill the line would hide gives way to one that shows.
+func (a *API) CheckFill(text, fill string) (FillCheck, error) {
+	textColor, err := appearance.ParseColor(text)
+	if err != nil {
+		return FillCheck{}, refuse(ptbr.T("error.settings.color", "line", ptbr.T("line.primary"), "color", fmt.Sprintf("%q", text)))
+	}
+	fillColor, err := appearance.ParseColor(fill)
+	if err != nil {
+		return FillCheck{}, refuse(ptbr.T("error.karaoke.fillColor"))
+	}
+	used, changed := appearance.ReadableFill(textColor, fillColor)
+	return FillCheck{Used: used.String(), Changed: changed}, nil
+}
+
 // PreviewSubtitles draws the two styles on a sample picture, as a PNG data
 // address for an image on the screen.
 func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
@@ -381,7 +399,9 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 		if err != nil {
 			return "", refuse(ptbr.T("error.karaoke.fillColor"))
 		}
-		look.FillColor, screen.Fill = fill, previewSpoken
+		// The fill as the video paints it over this line.
+		look.FillColor, _ = appearance.ReadableFill(primary.Color, fill)
+		screen.Fill = previewSpoken
 	case previewViewCue:
 		if err := previewCue(request.Karaoke, &look, &screen); err != nil {
 			return "", err

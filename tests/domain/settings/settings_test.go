@@ -10,6 +10,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -54,6 +55,12 @@ func TestConfigValidate(t *testing.T) {
 		{"bar too small", func(c *settings.Config) { c.Bar.Style.Size = 0 }, false},
 		{"box hint too small", func(c *settings.Config) { c.Edit.HintSize = 1 }, false},
 		{"app text too large", func(c *settings.Config) { c.Interface.TextSize = 3 }, false},
+		{"voice heard less readily", func(c *settings.Config) { c.Voice.Sensitivity = speech.SensitivityLow }, true},
+		{"unknown voice sensitivity", func(c *settings.Config) { c.Voice.Sensitivity = "loud" }, false},
+		{"wireless headphones' delay", func(c *settings.Config) { c.Voice.Delay = settings.Duration(200 * time.Millisecond) }, true},
+		{"voice delay past a second", func(c *settings.Config) { c.Voice.Delay = settings.Duration(1500 * time.Millisecond) }, false},
+		{"voice heard before it plays", func(c *settings.Config) { c.Voice.Delay = settings.Duration(-time.Millisecond) }, false},
+		{"blank FFmpeg path", func(c *settings.Config) { c.Voice.FFmpegPath = "  " }, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

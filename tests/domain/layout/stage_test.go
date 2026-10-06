@@ -18,18 +18,18 @@ func TestVideoAreaLeavesTheControlsTheirRoom(t *testing.T) {
 		fullscreen bool
 		want       layout.Rect
 	}{
-		{"painel aberto a 100%", panel, 96, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
+		{"panel open at 100%", panel, 96, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
 		// At 150% the controls take 1.5 times as many pixels: 84 and 570.
-		{"painel aberto a 150%", panel, 144, false, layout.Rect{X: 0, Y: 84, W: 438, H: 597}},
-		{"painel fechado", layout.Insets{Top: 56}, 96, false, layout.Rect{X: 0, Y: 56, W: 1008, H: 625}},
-		{"os quatro lados", layout.Insets{Top: 10, Right: 20, Bottom: 30, Left: 40}, 96, false, layout.Rect{X: 40, Y: 10, W: 948, H: 641}},
+		{"panel open at 150%", panel, 144, false, layout.Rect{X: 0, Y: 84, W: 438, H: 597}},
+		{"panel closed", layout.Insets{Top: 56}, 96, false, layout.Rect{X: 0, Y: 56, W: 1008, H: 625}},
+		{"all four sides", layout.Insets{Top: 10, Right: 20, Bottom: 30, Left: 40}, 96, false, layout.Rect{X: 40, Y: 10, W: 948, H: 641}},
 		// Fullscreen: the whole client area, whatever the insets say.
-		{"tela cheia", panel, 144, true, layout.Rect{W: 1008, H: 681}},
+		{"fullscreen", panel, 144, true, layout.Rect{W: 1008, H: 681}},
 		// Fractions of a pixel round to whole pixels, inside the client area.
-		{"frações", layout.Insets{Top: 56.4, Right: 379.6}, 120, false, layout.Rect{X: 0, Y: 71, W: 533, H: 610}},
+		{"fractions", layout.Insets{Top: 56.4, Right: 379.6}, 120, false, layout.Rect{X: 0, Y: 71, W: 533, H: 610}},
 		// A scaling that is no scaling reads as 100%.
-		{"sem escala", panel, 0, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
-		{"escala negativa", panel, -96, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
+		{"no scaling", panel, 0, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
+		{"negative scaling", panel, -96, false, layout.Rect{X: 0, Y: 56, W: 628, H: 625}},
 	}
 	for _, c := range cases {
 		if got := layout.VideoArea(client, c.insets, c.dpi, c.fullscreen); got != c.want {

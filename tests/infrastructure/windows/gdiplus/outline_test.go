@@ -4,6 +4,7 @@ package gdiplus_test
 
 import (
 	"image"
+	"strings"
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
@@ -30,7 +31,7 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 	selection := appearance.DefaultSelectionLook()
 	outline := &gdiplus.Outline{
 		Box:   layout.Rect{X: box.X - 4, Y: box.Y - 4, W: box.W + 8, H: box.H + 8},
-		Width: 1.5, Radius: 6, Color: selection.Color, Edge: selection.Edge,
+		Width: selection.Width, Radius: 6, Color: selection.Color, Edge: selection.Edge,
 	}
 	look := plain.look
 	look.Highlight = outline
@@ -51,21 +52,15 @@ func TestTheOutlineFramesTheLineAndNothingElse(t *testing.T) {
 		t.Fatal("the outline painted over the line")
 	}
 
-	// A light stroke over a dark one: seen on bright and dark pictures.
-	light, dark := false, false
+	// The line in its color and a dark edge: seen on bright and dark pictures.
+	around := layout.Rect{X: outline.Box.X - 3, Y: outline.Box.Y - 3, W: outline.Box.W + 6, H: outline.Box.H + 6}
+	dark := false
 	for i := 0; i < len(framed.Pixels); i += 4 {
-		if plain.dib.Pixels[i+3] != 0 {
-			continue
-		}
 		b, g, rr, a := int(framed.Pixels[i]), int(framed.Pixels[i+1]), int(framed.Pixels[i+2]), int(framed.Pixels[i+3])
-		if a < 100 {
-			continue
-		}
-		light = light || (b*10 >= a*8 && g*10 >= a*8 && rr*10 >= a*8)
-		dark = dark || (b*10 <= a*3 && g*10 <= a*3 && rr*10 <= a*3)
+		dark = dark || (plain.dib.Pixels[i+3] == 0 && a >= 100 && b*10 <= a*3 && g*10 <= a*3 && rr*10 <= a*3)
 	}
-	if !light || !dark {
-		t.Fatalf("light stroke %v, dark stroke %v: want both", light, dark)
+	if colored(framed, around, selection.Color) == 0 || !dark {
+		t.Fatalf("line in its color %v, dark edge %v: want both", colored(framed, around, selection.Color) > 0, dark)
 	}
 
 	// The strokes take the colors asked for.
@@ -134,4 +129,52 @@ func cut(pixels []byte, width int, region image.Rectangle) []byte {
 		out = append(out, pixels[(y*width+region.Min.X)*4:(y*width+region.Max.X)*4]...)
 	}
 	return out
+}
+
+// Wherever the box falls between pixels, the frame lands on whole pixels:
+// the line's rows in its color, the edge's row right outside them, and
+// nothing smeared inside, so it reads as one clean line.
+func TestTheOutlineIsSharp(t *testing.T) {
+	r := newRenderer(t)
+	plain := draw(t, r, appearance.DefaultPrimaryStyle(), appearance.DefaultTranslationStyle(), true)
+	blue, black := appearance.Color{R: 0x5B, G: 0x9B, B: 0xFF, A: 0xFF}, appearance.Color{A: 0xFF}
+	for _, c := range []struct {
+		name       string
+		width      float64
+		lineRows   int
+		box        layout.Rect
+		x, insideY int
+	}{
+		{"a pixel wide at 100%", 1, 1, layout.Rect{X: 100.3, Y: 50.7, W: 200.4, H: 40.2}, 200, 52},
+		{"1.5 px at 150%", 2.25, 2, layout.Rect{X: 100.6, Y: 50.2, W: 200.4, H: 40.2}, 200, 52},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			look := plain.look
+			look.Highlight = &gdiplus.Outline{Box: c.box, Width: c.width, Color: blue, Edge: black}
+			framed := newDIB(t, 640, 360)
+			if err := r.Draw(framed, plain.frame, look); err != nil {
+				t.Fatal(err)
+			}
+			// Up the column through the top side, from inside the box.
+			var rows []string
+			for y := c.insideY; y >= 40; y-- {
+				p := framed.Pixels[(y*framed.Width+c.x)*4:]
+				switch {
+				case p[3] == 0:
+					rows = append(rows, ".")
+				case p[3] == 0xFF && near(p[2], blue.R) && near(p[1], blue.G) && near(p[0], blue.B):
+					rows = append(rows, "L")
+				case p[3] == 0xFF && p[2] < 8 && p[1] < 8 && p[0] < 8:
+					rows = append(rows, "E")
+				default:
+					rows = append(rows, "~") // smeared
+				}
+			}
+			want := strings.Repeat("L", c.lineRows) + "E"
+			got := strings.Trim(strings.Join(rows, ""), ".")
+			if got != want {
+				t.Fatalf("rows from inside out %q, want %q (L line, E edge, ~ smeared)", strings.Join(rows, ""), want)
+			}
+		})
+	}
 }

@@ -35,7 +35,7 @@ func (s *watchedStage) SetFullscreen(on bool) {
 	s.asked, s.before = append(s.asked, on), append(s.before, heard)
 }
 
-// The menu's "Configurações…" leaves the fullscreen, where the panel does
+// The menu's settings item leaves the fullscreen, where the panel does
 // not show, and only then opens the panel on the page asked; a page it does
 // not know opens the first one.
 func TestTheMenuOpensTheSettingsOutOfTheFullscreen(t *testing.T) {
@@ -81,7 +81,7 @@ func TestTheMenuCopiesAndTellsOnTheVideo(t *testing.T) {
 	testkit.Eventually(t, "the refusal told on the video", func() bool { return r.display.noticeCount() == before+2 })
 }
 
-// "Abrir outro vídeo…" ends this video and opens the one picked, as a drop
+// Opening another video ends this video and opens the one picked, as a drop
 // would; cancelling keeps the video playing.
 func TestTheMenuOpensAnotherVideo(t *testing.T) {
 	t.Parallel()

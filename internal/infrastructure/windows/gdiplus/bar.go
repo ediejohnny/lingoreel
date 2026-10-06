@@ -79,7 +79,7 @@ type BarLook struct {
 	Thumb bool
 	// Entry words the open menu's entries; nil writes none.
 	Entry func(controlbar.Entry) controlbar.EntryText
-	// Status is the study text ("Início: 10:38"), empty for none.
+	// Status is the study text ("Start: 10:38"), empty for none.
 	Status string
 }
 
@@ -419,7 +419,7 @@ func (r *Renderer) drawItem(g uintptr, bar controlbar.Bar, item controlbar.Item,
 }
 
 // menuIcon is a menu button's icon: a flag for the passage, a note for the
-// Modo Karaokê, "CC" in a frame for the subtitles.
+// karaoke mode, "CC" in a frame for the subtitles.
 func menuIcon(menu controlbar.Menu) contextmenu.Icon {
 	switch menu {
 	case controlbar.MenuPassage:

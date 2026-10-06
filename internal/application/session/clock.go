@@ -133,6 +133,19 @@ func (c *Clock) Position() time.Duration {
 	return c.extrapolate(c.now())
 }
 
+// PositionAt returns the playback position at an instant: the sound heard
+// at that moment belongs there. An instant before the last sample is worked
+// back from it, as sound arrives a little after it was played.
+func (c *Clock) PositionAt(at time.Time) time.Duration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	before := c.anchor.ObservedAt.Sub(at)
+	if !c.anchored || before <= 0 || c.anchor.Status != playback.StatusPlaying || c.stalled {
+		return c.extrapolate(at)
+	}
+	return max(c.anchor.Position-time.Duration(float64(before)*float64(c.anchor.Speed)), 0)
+}
+
 // State returns the current sample: position, speed, status and duration.
 // The status stays unknown until a sample arrives or the session moves the
 // clock.

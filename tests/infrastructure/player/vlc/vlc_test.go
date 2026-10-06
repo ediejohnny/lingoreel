@@ -94,8 +94,10 @@ func TestArgumentsKeepControlLocalAndPlayerQuiet(t *testing.T) {
 		}
 	}
 	// The volume is the app's: none saved between sessions (shared with the
-	// user's own VLC) and no gain of VLC's own.
-	for _, flag := range []string{"--no-spu", "--no-one-instance", "--no-metadata-network-access", "--play-and-pause", "--dummy-quiet", "--no-volume-save", "--gain=1"} {
+	// user's own VLC) and no gain of VLC's own. The sound goes through the
+	// mixer, where the karaoke mode hears it.
+	for _, flag := range []string{"--no-spu", "--no-one-instance", "--no-metadata-network-access", "--play-and-pause", "--dummy-quiet", "--no-volume-save", "--gain=1",
+		"--mmdevice-passthrough=0", "--no-spdif"} {
 		if !slices.Contains(args, flag) {
 			t.Fatalf("flag %s missing in %q", flag, args)
 		}
@@ -247,11 +249,11 @@ func TestVLCFirstSampleIsAtTheRequestedStart(t *testing.T) {
 		start time.Duration
 		want  time.Duration
 	}{
-		{"do começo", 0, 0},
-		{"no meio", 6 * time.Second, 6 * time.Second},
+		{"from the start", 0, 0},
+		{"in the middle", 6 * time.Second, 6 * time.Second},
 		// VLC ignores a start beyond the end; callers should not ask for one,
 		// but Launch must still return an open video instead of timing out.
-		{"além do fim", time.Hour, 0},
+		{"past the end", time.Hour, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

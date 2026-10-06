@@ -42,10 +42,10 @@ func TestChooseTargetTiesKeepTheFirst(t *testing.T) {
 
 func TestChooseTargetFindsNothingUsable(t *testing.T) {
 	for name, candidates := range map[string][]overlay.Candidate{
-		"vazio":            nil,
-		"todas ocultas":    {{Handle: 1, Width: 100, Height: 100}},
-		"tamanho zero":     {{Handle: 1, Visible: true}, {Handle: 2, Visible: true, Width: 100}},
-		"tamanho negativo": {{Handle: 1, Visible: true, Width: -100, Height: -100}},
+		"empty":         nil,
+		"all hidden":    {{Handle: 1, Width: 100, Height: 100}},
+		"zero size":     {{Handle: 1, Visible: true}, {Handle: 2, Visible: true, Width: 100}},
+		"negative size": {{Handle: 1, Visible: true, Width: -100, Height: -100}},
 	} {
 		if got, found := overlay.ChooseTarget(candidates); found {
 			t.Errorf("%s: ChooseTarget = %+v, want nothing", name, got)

@@ -14,8 +14,8 @@ import (
 // ErrNoPassage reports a passage command with no passage being studied.
 var ErrNoPassage = errors.New("no passage is being studied")
 
-// lineRepeatDelay is how long after a line ends "Repetir cada fala" goes
-// back, never past the start of the next line.
+// lineRepeatDelay is how long after a line ends repeating it goes back,
+// never past the start of the next line.
 const lineRepeatDelay = 300 * time.Millisecond
 
 // PracticeEvent is what a practice tells the screen.
@@ -58,8 +58,8 @@ type PracticeHooks struct {
 	Look func(study.Lap)
 }
 
-// Practice runs "Estudar trecho" and the Modo Karaokê's "Repetir cada
-// fala" over the session's single clock: it pauses or loops at the end of
+// Practice runs passage study and the karaoke mode's line repeats over
+// the session's single clock: it pauses or loops at the end of
 // the passage, sends Play at the end back to the start, and notices a seek
 // out of the passage. It is safe for concurrent use; the runner calls Tick.
 type Practice struct {
@@ -97,8 +97,8 @@ func NewPractice(controls *Controls, subtitles *Subtitles, hooks PracticeHooks, 
 	return p
 }
 
-// SetLineRepeats sets how many times "Repetir cada fala" plays each line
-// again; 0 turns it off.
+// SetLineRepeats sets how many times each line is played again; 0 turns
+// it off.
 func (p *Practice) SetLineRepeats(times int) error {
 	if times < 0 || times > study.MaxRepeats {
 		return fmt.Errorf("%w: %d repeats", study.ErrInvalidKaraoke, times)
@@ -389,7 +389,7 @@ func (p *Practice) WakeIn(state playback.Sample) time.Duration {
 	return 0
 }
 
-// ReplayLine is "Treinar de novo": back to the start of the preview of the
+// ReplayLine trains the line again: back to the start of the preview of the
 // line being previewed, spoken or last spoken, and playing from there, to
 // speak along. While a passage is studied, the line is one of the passage:
 // at its end, the last one spoken in it.

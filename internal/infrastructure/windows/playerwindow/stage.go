@@ -166,7 +166,8 @@ func (s *Stage) fullscreenChanged(on bool) {
 
 // The app window's changes the stage follows: it moved or changed size (the
 // video follows), its children changed order (the video goes back on top of
-// the app's own), or it was minimized and restored.
+// the app's own), it was minimized and restored, or hidden and shown (the app
+// hides its window first when it closes, so nothing waits on screen).
 var (
 	stageProc  = syscall.NewCallback(dispatchStageEvent)
 	stageHooks = struct {
@@ -179,7 +180,7 @@ var (
 func (w *Window) followParent() error {
 	for _, span := range [][2]uint32{
 		{win32.EVENT_SYSTEM_MINIMIZESTART, win32.EVENT_SYSTEM_MINIMIZEEND},
-		{win32.EVENT_OBJECT_REORDER, win32.EVENT_OBJECT_REORDER},
+		{win32.EVENT_OBJECT_SHOW, win32.EVENT_OBJECT_REORDER},
 		{win32.EVENT_OBJECT_LOCATIONCHANGE, win32.EVENT_OBJECT_LOCATIONCHANGE},
 	} {
 		hook, err := win32.SetWinEventHookInProcess(span[0], span[1], stageProc)
@@ -228,6 +229,18 @@ func dispatchStageEvent(hook windows.Handle, event uint32, hwnd windows.HWND, ob
 		w.refreshBar()
 	case win32.EVENT_SYSTEM_MINIMIZEEND:
 		w.layoutHost()
+	case win32.EVENT_OBJECT_HIDE:
+		// The video hides with the app's window, but its subtitles and bar
+		// are windows of their own: hiding the video tells them at once.
+		if object == win32.OBJID_WINDOW && child == win32.CHILDID_SELF {
+			win32.ShowWindow(w.host, win32.SW_HIDE)
+			w.visibility.Hide()
+			w.refreshBar()
+		}
+	case win32.EVENT_OBJECT_SHOW:
+		if object == win32.OBJID_WINDOW && child == win32.CHILDID_SELF {
+			w.layoutHost()
+		}
 	}
 	return 0
 }

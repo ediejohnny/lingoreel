@@ -67,3 +67,22 @@ func TestTheWindowPlaceIsReadAndRestored(t *testing.T) {
 		t.Fatalf("a refused place moved the window: %+v", got)
 	}
 }
+
+// Closing hides the window before its place is kept: a maximized window
+// still comes back maximized, around the same normal place.
+func TestAHiddenMaximizedWindowKeepsItsPlace(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	hwnd := hiddenWindow(t, "LingoReel")
+	normal := settings.WindowBounds{X: 120, Y: 80, Width: 700, Height: 500}
+	if _, err := appwindow.Restore(hwnd, normal); err != nil {
+		t.Fatal(err)
+	}
+	const swShowMaximized = 3
+	win32.ShowWindow(hwnd, swShowMaximized)
+	win32.ShowWindow(hwnd, win32.SW_HIDE)
+	got, err := appwindow.Bounds(hwnd)
+	if want := (settings.WindowBounds{X: 120, Y: 80, Width: 700, Height: 500, Maximized: true}); err != nil || got != want {
+		t.Fatalf("Bounds of the hidden maximized window = %+v, %v; want %+v", got, err, want)
+	}
+}

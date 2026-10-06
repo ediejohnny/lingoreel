@@ -295,6 +295,37 @@ func TestTheVideoFollowsTheAppWindow(t *testing.T) {
 	testkit.Eventually(t, "the video to show again", func() bool { return windows.IsWindowVisible(host) })
 }
 
+// Closing the app hides its window first, while the video still plays:
+// the video, its subtitles and its bar go with it at once, instead of
+// staying on the desktop until the player has closed. Shown again, the
+// video comes back.
+func TestHidingTheAppWindowHidesTheVideoAtOnce(t *testing.T) {
+	app := newFakeApp(t, offScreenApp, true)
+	stage := stageFor(app, nil)
+	w := openOn(t, stage)
+	host := windows.HWND(w.Handle())
+	w.Attach(newRemote(&recordingPlayer{}))
+	placedAt(t, host, videoPlace(t, app, panelOpen, false), "the video in place")
+	bar := controlBar(app.hwnd)
+	client, _ := win32.ClientRectOnScreen(host)
+	post(t, host, win32.WM_MOUSEMOVE, 0, at(int(client.Right-client.Left)/2, int(client.Bottom-client.Top)-20))
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(bar) })
+	subtitles := ownedWindow(app.hwnd, "LingoReelOverlay")
+
+	start := time.Now()
+	win32.ShowWindow(app.hwnd, win32.SW_HIDE)
+	testkit.Eventually(t, "the video, the subtitles and the bar to hide with the app's window", func() bool {
+		return !windows.IsWindowVisible(subtitles) && !windows.IsWindowVisible(bar) && !windows.IsWindowVisible(host)
+	})
+	// The window's own event, not a timer (250 ms before): nothing lingers.
+	if hidden := time.Since(start); hidden > 150*time.Millisecond {
+		t.Errorf("hidden %v after the app's window", hidden)
+	}
+
+	win32.ShowWindow(app.hwnd, win32.SW_SHOWNOACTIVATE)
+	testkit.Eventually(t, "the video to show again with the app's window", func() bool { return windows.IsWindowVisible(host) })
+}
+
 // The controls' look set on the stage reaches the windows on it, the open
 // one at once: a bar twice the size is twice as tall.
 func TestTheStagesLookReachesItsWindows(t *testing.T) {
