@@ -24,6 +24,10 @@ a bar.
   once the hearing ends; Watch now starts at once with the choice made.
 - Both lines can be off, on the session screen and in the panel: a film can be watched with no subtitle at all.
 - Opening a video fills a bar from 0 to 100%.
+- Settings › Help › About: the app's version and license, and the licenses of the code from others it carries (Go
+  and its modules, the screens' packages, the voice model), as their authors ask. The app ships as a single file, so
+  they go inside it; `scripts/update-notices.ps1` writes them, the check refuses them out of date and the build makes
+  sure they name every module inside the app. The help page will also hold the guide to using the app.
 - `spdev voice-check` measures the voice found against a film's lines, printing only numbers, and `spdev inspect
   --hear` hears a video to tell which file fits it.
 
@@ -33,6 +37,7 @@ a bar.
 - Following the voice never makes the video wait: the model judges the sound outside the lock, and decoding ahead
   takes at most a quarter of a core, each window starting a second early so the model hears what leads into it.
 - With no line on top, the voice is not followed.
+- The log tells when a video could not be heard because no FFmpeg was found.
 
 ### Fixed
 

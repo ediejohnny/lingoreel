@@ -1,5 +1,17 @@
 export namespace app {
 	
+	export class AboutView {
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AboutView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	    }
+	}
 	export class EditSettings {
 	    background: string;
 	    text: string;

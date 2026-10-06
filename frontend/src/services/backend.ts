@@ -22,6 +22,7 @@ export type PassagePlan = Plain<app.PassagePlan>;
 export type PassageOptions = Plain<app.PassageOptions>;
 export type EditRequest = Plain<app.EditRequest>;
 export type Diagnostics = Plain<app.Diagnostics>;
+export type AboutView = Plain<app.AboutView>;
 
 /** Plain is a generated class's data without its methods, as the screens build it. */
 type Plain<T> = T extends (infer U)[]
@@ -180,6 +181,8 @@ export const backend = {
   clearPlayerPath: (id: string) => api.ClearPlayerPath(id),
   openSettingsFolder: () => api.OpenSettingsFolder(),
   diagnostics: (): Promise<Diagnostics> => api.Diagnostics(),
+  about: (): Promise<AboutView> => api.About(),
+  thirdPartyNotices: (): Promise<string> => api.ThirdPartyNotices(),
   fileAssociation: () => api.FileAssociation(),
   setFileAssociation: (on: boolean) => api.SetFileAssociation(on),
   copyText: (text: string) => ClipboardSetText(text),

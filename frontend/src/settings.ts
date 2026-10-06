@@ -25,7 +25,8 @@ export type SectionId =
   | "shortcuts"
   | "players"
   | "appearance"
-  | "advanced";
+  | "advanced"
+  | "help";
 
 /** SectionItem is an entry of the settings menu; detail is a second, smaller line. */
 export interface SectionItem {
@@ -57,6 +58,7 @@ export function settingsSections(languages: Record<SubtitleLine, string>): Secti
     { id: "players", label: t("ui.settings.sections.players") },
     { id: "appearance", label: t("ui.settings.sections.appearance") },
     { id: "advanced", label: t("ui.settings.sections.advanced") },
+    { id: "help", label: t("ui.settings.sections.help") },
   ];
 }
 

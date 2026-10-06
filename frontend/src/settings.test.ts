@@ -38,6 +38,7 @@ describe("settingsSections", () => {
       "Player",
       "Aparência",
       "Avançado",
+      "Ajuda",
     ]);
   });
 
