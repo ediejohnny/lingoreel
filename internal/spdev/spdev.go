@@ -38,6 +38,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return icon(args[1:], stdout)
 	case "tap-probe":
 		return tapProbe(ctx, args[1:], stdout)
+	case "voice-check":
+		return voiceCheck(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -64,6 +66,14 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  tap-probe --pid <id> [options]  hears a player's sound and prints what came, second by second")
 	fmt.Fprintln(w, "      --seconds <n>                   how long to listen (10 by default)")
 	fmt.Fprintln(w, "      --speakers                      hears everything the speakers play instead")
+	fmt.Fprintln(w, "  voice-check <video> [options]   measures how the voice found fits a subtitle's lines (numbers only)")
+	fmt.Fprintln(w, "      --subtitle <#3|#A1>             the subtitle measured (the suggested top line by default)")
+	fmt.Fprintln(w, "      --shift <duration>              moves every line (300ms, -1.2s)")
+	fmt.Fprintln(w, "      --ffmpeg <path>                 the FFmpeg to decode with")
+	fmt.Fprintln(w, "      --cache <folder>                keeps the speech heard, so a film is decoded only once")
+	fmt.Fprintln(w, "      --length <duration>             measures only the film's start (10m)")
+	fmt.Fprintln(w, "      --clips <n> --out <folder>      cuts n lines into clips to mark by hand where the voice begins")
+	fmt.Fprintln(w, "      --labels <file>                 measures the start against the lines marked by hand")
 	fmt.Fprintln(w, "  help                            shows this help")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Sync (play and overlay, with the player in front):")
