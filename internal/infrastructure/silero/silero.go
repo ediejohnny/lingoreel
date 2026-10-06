@@ -42,6 +42,21 @@ func New() (*Model, error) {
 	return loadEmbedded()
 }
 
+// Embedded is the model the app carries, read on its first stream, so the
+// app does not pay for it until the voice is followed.
+type Embedded struct{}
+
+var _ speech.Model = Embedded{}
+
+// NewStream reads the model, the first time, and starts a stream of it.
+func (Embedded) NewStream() (speech.Stream, error) {
+	model, err := loadEmbedded()
+	if err != nil {
+		return nil, err
+	}
+	return model.NewStream()
+}
+
 // Load reads a model, which must be the pinned one byte for byte.
 func Load(data []byte) (*Model, error) {
 	sum := sha256.Sum256(data)

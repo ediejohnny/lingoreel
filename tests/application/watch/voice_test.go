@@ -56,6 +56,7 @@ func paintingKaraoke() session.Karaoke {
 func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
+	r.ports.Model = testkit.LoudModel{}
 	tap := &listeningTap{}
 	r.ports.Tap = tap
 	r.request.Karaoke = paintingKaraoke()
@@ -91,6 +92,7 @@ func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
+	r.ports.Model = testkit.LoudModel{}
 	tap, decoder := &listeningTap{}, &stretchDecoder{}
 	found := make(chan struct{}, 4)
 	r.ports.Tap = tap

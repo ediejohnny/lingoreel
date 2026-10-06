@@ -31,8 +31,12 @@ type Settings struct {
 	EvenWhenBusy bool
 }
 
-// Sources are the ways to the film's sound; either may be missing.
+// Sources are the ways to the film's sound, and the model that tells the
+// voice in it; any may be missing.
 type Sources struct {
+	// Model tells speech from the rest of the sound; without it nothing is
+	// decoded or heard, and every line keeps the estimate.
+	Model speech.Model
 	// Decoder decodes the voice track ahead (the user's FFmpeg); Voice says
 	// which track, its From and Length set as needed.
 	Decoder Decoder
@@ -124,6 +128,7 @@ type Follower struct {
 	// seeks is the clock's count of jumps already taken into account.
 	seeks uint64
 	// Live hearing.
+	stream      speech.Stream
 	analyzer    *speech.Analyzer
 	listener    *speech.Listener
 	frames      []speech.Frame
@@ -162,6 +167,8 @@ func Follow(ctx context.Context, sources Sources, clock Clock, settings Settings
 		listener: speech.NewListener(settings.Sensitivity),
 	}
 	switch {
+	case sources.Model == nil:
+		f.memory = NewMemory(RecentSound)
 	case sources.Decoder != nil && sources.Voice.File != "":
 		f.mode, f.memory = ModeAhead, NewMemory(aheadMemory)
 		f.run(func() { f.decodeAhead(ctx) })
@@ -339,6 +346,10 @@ func wait(ctx context.Context, d time.Duration) bool {
 // whether it came too slowly, and whether the video went somewhere else
 // meanwhile (keep false), which ends it early.
 func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(time.Duration) bool) (time.Duration, bool, bool, error) {
+	stream, err := f.sources.Model.NewStream()
+	if err != nil {
+		return 0, false, false, err
+	}
 	window, cancel := context.WithCancel(ctx)
 	defer cancel()
 	seeked := make(chan struct{})
@@ -361,15 +372,24 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 	var analyzer *speech.Analyzer
 	var frames []speech.Frame
 	at := stretch.From
-	started := time.Now()
-	err := f.sources.Decoder.Decode(window, stretch, func(samples []float32, channels int) {
-		if analyzer == nil {
-			analyzer, _ = speech.NewAnalyzer(channels)
-		}
-		frames = analyzer.Write(samples, frames[:0])
+	store := func() {
 		f.memory.Add(at, frames)
 		at += time.Duration(len(frames)) * speech.FrameLength
+	}
+	started := time.Now()
+	err = f.sources.Decoder.Decode(window, stretch, func(samples []float32, channels int) {
+		if analyzer == nil {
+			analyzer, _ = speech.NewAnalyzer(channels, stream)
+		}
+		if analyzer != nil {
+			frames = analyzer.Write(samples, frames[:0])
+			store()
+		}
 	})
+	if err == nil && analyzer != nil {
+		frames = analyzer.Flush(frames[:0])
+		store()
+	}
 	slow := time.Since(started) > aheadSlowest
 	cancel()
 	select {
@@ -395,6 +415,14 @@ func (f *Follower) fallBack(ctx context.Context) {
 
 // hearLive hears the player until ctx ends; if it cannot, the estimate.
 func (f *Follower) hearLive(ctx context.Context) {
+	stream, err := f.sources.Model.NewStream()
+	if err != nil {
+		f.setMode(ModeEstimate)
+		return
+	}
+	f.mu.Lock()
+	f.stream = stream
+	f.mu.Unlock()
 	if err := f.sources.Tap.Listen(ctx, f.sources.PID, f.hear); err != nil && ctx.Err() == nil {
 		f.setMode(ModeEstimate)
 	}
@@ -428,7 +456,9 @@ func (f *Follower) hear(packet Packet) {
 		f.silentSince = time.Time{}
 	}
 	if f.analyzer == nil {
-		f.analyzer, _ = speech.NewAnalyzer(packet.Channels)
+		if f.analyzer, _ = speech.NewAnalyzer(packet.Channels, f.stream); f.analyzer == nil {
+			return // neither mono nor stereo
+		}
 	}
 	f.frames = f.analyzer.Write(packet.Samples, f.frames[:0])
 	position := f.clock.PositionAt(packet.At.Add(f.settings.Delay))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -173,7 +174,7 @@ func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 	t.Parallel()
 	sound, player, start := film(), newTap(), time.Now()
 	playing := newClock(start)
-	follower := voice.Follow(context.Background(), voice.Sources{Tap: player, PID: 1}, playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Tap: player, PID: 1}, playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 
 	player.play(start, sound, 0, 1900*ms)
@@ -200,7 +201,7 @@ func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 // a song is left to the estimate.
 func TestTheVoiceIsDecodedAhead(t *testing.T) {
 	t.Parallel()
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: decoder{sound: film()}, Voice: voice.Stretch{File: "film.mkv"}},
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{sound: film()}, Voice: voice.Stretch{File: "film.mkv"}},
 		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 	testkit.Eventually(t, "the line decoded", func() bool {
@@ -217,10 +218,37 @@ func TestTheVoiceIsDecodedAhead(t *testing.T) {
 	}
 }
 
+// askedDecoder tells whether it was asked to decode.
+type askedDecoder struct{ asked *atomic.Bool }
+
+func (d askedDecoder) Decode(context.Context, voice.Stretch, func([]float32, int)) error {
+	d.asked.Store(true)
+	return nil
+}
+
+// Without the model (switched off, or on battery) nothing is decoded or
+// heard: every line keeps the estimate.
+func TestWithoutTheModelEveryLineKeepsTheEstimate(t *testing.T) {
+	t.Parallel()
+	var asked atomic.Bool
+	sources := voice.Sources{Decoder: askedDecoder{&asked}, Voice: voice.Stretch{File: "film.mkv"}, Tap: newTap(), PID: 1}
+	follower := voice.Follow(context.Background(), sources, newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
+	if follower.Mode() != voice.ModeEstimate {
+		t.Fatalf("mode = %v, want the estimate", follower.Mode())
+	}
+	if _, ok := follower.Fill(howAreYou, 3*time.Second); ok {
+		t.Fatal("followed a voice with no model")
+	}
+	follower.Close()
+	if asked.Load() {
+		t.Fatal("decoded the film with no model")
+	}
+}
+
 // An FFmpeg that keeps failing, with no player to hear, leaves the estimate.
 func TestABrokenDecoderFallsBackToTheEstimate(t *testing.T) {
 	t.Parallel()
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: decoder{fail: true}, Voice: voice.Stretch{File: "film.mkv"}},
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{fail: true}, Voice: voice.Stretch{File: "film.mkv"}},
 		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 	testkit.Eventually(t, "the estimate", func() bool { return follower.Mode() == voice.ModeEstimate })
@@ -235,7 +263,7 @@ func TestASeekDuringAWindowDecodesTheNewPlaceAtOnce(t *testing.T) {
 	t.Parallel()
 	playing := newClock(time.Now())
 	slow := decoder{sound: film(), length: 20 * time.Minute, pace: 13 * ms}
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: slow, Voice: voice.Stretch{File: "film.mkv"}},
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: slow, Voice: voice.Stretch{File: "film.mkv"}},
 		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 
@@ -255,7 +283,7 @@ func TestASeekBackAfterTheEndDecodesAgain(t *testing.T) {
 	length := 40 * filmPeriod // 4 min, past the 3 min kept
 	playing := newClock(time.Now())
 	playing.seek(length-10*time.Second, time.Now(), false)
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: decoder{sound: film(), length: length}, Voice: voice.Stretch{File: "film.mkv"}},
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{sound: film(), length: length}, Voice: voice.Stretch{File: "film.mkv"}},
 		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 	end := length - filmPeriod

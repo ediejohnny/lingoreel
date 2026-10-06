@@ -197,7 +197,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
 	s.subtitles.SetOwnTiming(request.TranslationOwnTiming)
-	s.voice = &voicing{tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(), setup: request.Voice}
+	s.voice = &voicing{model: ports.Model, tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(), setup: request.Voice}
 	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
 	s.practice = session.NewPractice(s.controls, s.subtitles, session.PracticeHooks{

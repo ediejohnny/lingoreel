@@ -29,10 +29,11 @@ type VoiceSetup struct {
 }
 
 type voicing struct {
-	tap  voice.Tap
-	find func(ctx context.Context, chosen string) voice.Decoder
-	file string
-	pid  int
+	model speech.Model
+	tap   voice.Tap
+	find  func(ctx context.Context, chosen string) voice.Decoder
+	file  string
+	pid   int
 
 	mu       sync.Mutex
 	setup    VoiceSetup
@@ -53,7 +54,7 @@ func (s *Session) followVoice() {
 // what it follows changed, such as the audio track.
 func (s *Session) reviewVoice(restart bool) {
 	v := s.voice
-	if v == nil || (v.tap == nil && v.find == nil) {
+	if v == nil || v.model == nil || (v.tap == nil && v.find == nil) {
 		return
 	}
 	karaoke := s.subtitles.Karaoke()
@@ -120,7 +121,7 @@ func (s *Session) voiceSources() voice.Sources {
 		}
 	}
 	info := media.Info{Tracks: tracks.List}
-	var sources voice.Sources
+	sources := voice.Sources{Model: v.model}
 	track, position, found := media.VoiceTrack(info, language)
 	if found {
 		sources.Voice = voice.Stretch{File: v.file, Track: position, Channels: track.Channels, Codec: track.Codec}

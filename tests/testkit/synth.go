@@ -80,21 +80,9 @@ func Voiced(d time.Duration, level float64, seed uint64) []float32 {
 	return scaled(syllables(sines(d, harmonics, func(f float64) float64 { return 140 / f }, seed)), level)
 }
 
-// Whispered is someone whispering: breath noise from 500 Hz to 6 kHz, in
-// syllables, with no voice under it.
-func Whispered(d time.Duration, level float64, seed uint64) []float32 {
-	return scaled(syllables(noiseBetween(d, 500, 6000, seed)), level)
-}
-
 // Noise is a steady sound between two frequencies: room tone, rumble.
 func Noise(d time.Duration, from, to, level float64, seed uint64) []float32 {
 	return scaled(noiseBetween(d, from, to, seed), level)
-}
-
-// Chord is a held chord from a root note, like music under a scene.
-func Chord(d time.Duration, root, level float64, seed uint64) []float32 {
-	notes := []float64{root, root * 1.26, root * 1.5, root * 2, root * 2.52, root * 3}
-	return scaled(sines(d, notes, func(float64) float64 { return 1 }, seed), level)
 }
 
 // Silence is digital silence.
@@ -120,22 +108,6 @@ func Mix(sounds ...[]float32) []float32 {
 		for i, v := range s {
 			out[i] += v
 		}
-	}
-	return out
-}
-
-// Stereo interleaves a sound mixed to the middle with one on each side.
-func Stereo(center, left, right []float32) []float32 {
-	n := max(len(center), len(left), len(right))
-	at := func(s []float32, i int) float32 {
-		if i < len(s) {
-			return s[i]
-		}
-		return 0
-	}
-	out := make([]float32, 0, 2*n)
-	for i := range n {
-		out = append(out, at(center, i)+at(left, i), at(center, i)+at(right, i))
 	}
 	return out
 }
