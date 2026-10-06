@@ -81,7 +81,8 @@ var previewLanguages = []media.LanguageTag{
 // Settings is what the settings screen shows: the shared choices, the
 // active profile and the players, with the screen's options and limits.
 func (a *API) Settings() (SettingsView, error) {
-	if _, err := a.context(); err != nil {
+	ctx, err := a.context()
+	if err != nil {
 		return SettingsView{}, err
 	}
 	a.mu.Lock()
@@ -99,7 +100,8 @@ func (a *API) Settings() (SettingsView, error) {
 			Language:              config.Language, Languages: interfaceLanguages(),
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
-		Players: a.playerSettings(config), Options: a.settingsOptions(), Folder: a.deps.SettingsDir,
+		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
+		Folder: a.deps.SettingsDir,
 	}
 	return view, nil
 }

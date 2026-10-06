@@ -195,7 +195,7 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	_ = s.controls.SyncVolume()
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
-	s.voice = &voicing{tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID()}
+	s.voice = &voicing{tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(), setup: request.Voice}
 	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
 	s.practice = session.NewPractice(s.controls, s.subtitles, session.PracticeHooks{
@@ -311,6 +311,9 @@ func (s *Session) run(ctx context.Context, runner *session.Runner) {
 
 // changed runs on the runner's loop for every change on screen.
 func (s *Session) changed(position time.Duration, visible session.Visible) {
+	if visible.Playing {
+		s.leaveEditing() // whoever plays the video was not correcting the line
+	}
 	s.showMu.Lock()
 	s.lastVisible.Store(&visible)
 	s.show(visible)

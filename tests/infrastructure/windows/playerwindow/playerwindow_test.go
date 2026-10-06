@@ -91,6 +91,7 @@ type fakeRemote struct {
 	reveals  []bool
 	runs     []string
 	selected []session.Line
+	cleared  int
 	// lineText is the text of the line Select picks; edits are the texts
 	// Edit was given, and editErr its answer.
 	lineText string
@@ -160,6 +161,18 @@ func (r *fakeRemote) Select(line session.Line) (watch.Selection, error) {
 	defer r.mu.Unlock()
 	r.selected = append(r.selected, line)
 	return watch.Selection{Line: line, Event: subtitle.Event{ID: "e1", OriginalText: r.lineText}}, nil
+}
+
+func (r *fakeRemote) ClearSelection() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.cleared++
+}
+
+func (r *fakeRemote) clearings() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.cleared
 }
 
 func (r *fakeRemote) Edit(change watch.EditChange) error {

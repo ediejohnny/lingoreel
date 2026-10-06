@@ -119,6 +119,9 @@ export function App() {
       requestAnimationFrame(() => document.getElementById("panel-editor")?.scrollIntoView({ block: "start" }));
     });
     const offInstall = backend.onInstall(async (progress) => {
+      if (progress.id === "ffmpeg") {
+        return; // the settings' voice card follows its own installation
+      }
       setInstalling("");
       setInstallError(progress.error);
       if (!progress.error) {

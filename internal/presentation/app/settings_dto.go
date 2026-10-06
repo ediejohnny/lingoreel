@@ -14,7 +14,10 @@ type SettingsView struct {
 	// profile.
 	Appearance AppearanceSettings `json:"appearance"`
 	Players    []PlayerSetting    `json:"players"`
-	Options    SettingsOptions    `json:"options"`
+	// Voice is how the Modo Karaokê follows the actors' voice on this
+	// computer.
+	Voice   VoiceSettings   `json:"voice"`
+	Options SettingsOptions `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
 }
@@ -33,6 +36,23 @@ type GeneralSettings struct {
 	// each named in itself.
 	Language  string   `json:"language"`
 	Languages []Option `json:"languages"`
+}
+
+// VoiceSettings are how the Modo Karaokê follows the actors' voice on this
+// computer.
+type VoiceSettings struct {
+	Follow bool `json:"follow"`
+	// Sensitivity is "low", "normal" or "high".
+	Sensitivity string `json:"sensitivity"`
+	// DelayMs is the output's delay, in milliseconds (0 to 1000).
+	DelayMs      int  `json:"delayMs"`
+	EvenWhenBusy bool `json:"evenWhenBusy"`
+	// FFmpegPath is the FFmpeg the user chose, empty when it is looked for;
+	// FFmpegFound is the one in use, empty when none was found; CanInstall
+	// tells winget can install one.
+	FFmpegPath  string `json:"ffmpegPath"`
+	FFmpegFound string `json:"ffmpegFound"`
+	CanInstall  bool   `json:"canInstall"`
 }
 
 // ProfileSettings are the active profile's choices.

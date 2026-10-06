@@ -197,7 +197,7 @@ func (a *API) ResumePassage() error {
 }
 
 func describeKaraoke(s *watch.Session) Karaoke {
-	return Karaoke{Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats()}
+	return Karaoke{Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats(), Voice: voiceMode(s)}
 }
 
 func describePassage(status session.PracticeStatus) Passage {

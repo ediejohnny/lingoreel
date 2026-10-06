@@ -319,6 +319,7 @@ export namespace app {
 	    enabled: boolean;
 	    indicator: string;
 	    repeat: number;
+	    voice: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Karaoke(source);
@@ -329,6 +330,7 @@ export namespace app {
 	        this.enabled = source["enabled"];
 	        this.indicator = source["indicator"];
 	        this.repeat = source["repeat"];
+	        this.voice = source["voice"];
 	    }
 	}
 	export class KaraokeSettings {
@@ -1296,12 +1298,37 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class VoiceSettings {
+	    follow: boolean;
+	    sensitivity: string;
+	    delayMs: number;
+	    evenWhenBusy: boolean;
+	    ffmpegPath: string;
+	    ffmpegFound: string;
+	    canInstall: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new VoiceSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.follow = source["follow"];
+	        this.sensitivity = source["sensitivity"];
+	        this.delayMs = source["delayMs"];
+	        this.evenWhenBusy = source["evenWhenBusy"];
+	        this.ffmpegPath = source["ffmpegPath"];
+	        this.ffmpegFound = source["ffmpegFound"];
+	        this.canInstall = source["canInstall"];
+	    }
+	}
 	export class SettingsView {
 	    general: GeneralSettings;
 	    profiles: string[];
 	    profile: ProfileSettings;
 	    appearance: AppearanceSettings;
 	    players: PlayerSetting[];
+	    voice: VoiceSettings;
 	    options: SettingsOptions;
 	    folder: string;
 	
@@ -1316,6 +1343,7 @@ export namespace app {
 	        this.profile = this.convertValues(source["profile"], ProfileSettings);
 	        this.appearance = this.convertValues(source["appearance"], AppearanceSettings);
 	        this.players = this.convertValues(source["players"], PlayerSetting);
+	        this.voice = this.convertValues(source["voice"], VoiceSettings);
 	        this.options = this.convertValues(source["options"], SettingsOptions);
 	        this.folder = source["folder"];
 	    }
@@ -1429,6 +1457,7 @@ export namespace app {
 	        this.left = source["left"];
 	    }
 	}
+	
 	export class WatchRequest {
 	    audio: number;
 	    primary: number;

@@ -27,6 +27,8 @@ func clickDown(t *testing.T, host windows.HWND) {
 	}
 }
 
+// A click on a line of the paused video picks it; a click beside it lets
+// the selection go; while the video plays, clicks do neither.
 func TestAClickPicksTheLineOnlyWhilePaused(t *testing.T) {
 	testkit.Slow(t)
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
@@ -62,14 +64,19 @@ func TestAClickPicksTheLineOnlyWhilePaused(t *testing.T) {
 	time.Sleep(200 * time.Millisecond) // the worker running the picks
 	got := remote.selections()
 	pausedPicks := len(got)
+	// The clicks beside the line let the selection go.
+	clearings := remote.clearings()
+	if clearings == 0 {
+		t.Fatal("clicks beside the line kept it selected")
+	}
 
 	// Playing, the same clicks pick nothing.
 	observe(playback.StatusPlaying)
 	clickDown(t, host)
 	sendMessage.Call(uintptr(host), wmNull, 0, 0)
 	time.Sleep(200 * time.Millisecond)
-	if after := remote.selections(); len(after) != pausedPicks {
-		t.Fatalf("clicks while playing picked %v", after[pausedPicks:])
+	if after := remote.selections(); len(after) != pausedPicks || remote.clearings() != clearings {
+		t.Fatalf("clicks while playing picked %v or let go of a selection", after[pausedPicks:])
 	}
 	// The line is a few dozen pixels tall: some clicks, never all of them.
 	if len(got) >= rounds*offScreen.Height/4 {

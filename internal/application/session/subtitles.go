@@ -36,6 +36,9 @@ type Visible struct {
 	// Filling tells the primary line is being painted: its fill may move
 	// even while it is still zero, before the voice begins.
 	Filling bool
+	// Playing tells the video plays, which the screen shows too: a line
+	// picked for a correction is let go when the video plays again.
+	Playing bool
 }
 
 // Drawing steps: a preview's time left and a fill below them look the same
@@ -46,7 +49,7 @@ const (
 )
 
 // Equal reports whether both snapshots show the same thing: the same text,
-// the same preview step and the same fill step.
+// the same preview step, the same fill step, and the video playing or not.
 func (v Visible) Equal(other Visible) bool {
 	if !sameEvents(v.Primary, other.Primary) || !sameEvents(v.Translation, other.Translation) {
 		return false
@@ -57,7 +60,7 @@ func (v Visible) Equal(other Visible) bool {
 	if v.Cue != nil && (v.Cue.Event.ID != other.Cue.Event.ID || v.Cue.Remaining/cueStep != other.Cue.Remaining/cueStep) {
 		return false
 	}
-	return math.Round(v.Fill/fillStep) == math.Round(other.Fill/fillStep)
+	return v.Playing == other.Playing && math.Round(v.Fill/fillStep) == math.Round(other.Fill/fillStep)
 }
 
 // Animating tells the screen changes by itself while the video plays: a

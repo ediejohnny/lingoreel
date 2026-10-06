@@ -161,6 +161,7 @@ func run() error {
 		Stage:         stagePort{stage},
 		Settings:      files,
 		Installer:     install.Winget{},
+		FFmpeg:        userFFmpeg{},
 		Window:        placement.ForVideo,
 		Logger:        logger,
 		KeyChar:       keyboard.Char,
@@ -347,10 +348,19 @@ func windowsVersion() string {
 	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
 }
 
+// userFFmpeg is the user's own FFmpeg for the settings screen.
+type userFFmpeg struct{}
+
+func (userFFmpeg) Find(ctx context.Context, chosen string) (string, error) {
+	return ffmpeg.Find(ctx, chosen)
+}
+func (userFFmpeg) Check(ctx context.Context, path string) error { return ffmpeg.Check(ctx, path) }
+func (userFFmpeg) WingetID() string                             { return ffmpeg.WingetID }
+
 // findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
 // ahead of the video; the app ships none.
-func findFFmpeg(ctx context.Context) voice.Decoder {
-	path, err := ffmpeg.Find(ctx, "")
+func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
+	path, err := ffmpeg.Find(ctx, chosen)
 	if err != nil {
 		return nil
 	}

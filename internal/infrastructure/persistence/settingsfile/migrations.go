@@ -22,6 +22,37 @@ var profilesMigrations = map[int]jsonstore.Migration{
 	2: useTheAppFont,
 	3: freeThePassageMarks,
 	4: addLooks,
+	5: freshenTheSelection,
+}
+
+// freshenTheSelection (version 5 to 6) gives every profile still on the old
+// frame around the line picked for a correction the new, cleaner one; a
+// frame the user changed stays.
+func freshenTheSelection(document map[string]any) error {
+	fresh, err := asObject(appearance.DefaultSelectionLook())
+	if err != nil {
+		return err
+	}
+	items, _ := document["profiles"].([]any)
+	for i, item := range items {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d is not an object", i)
+		}
+		marks, _ := profile["marks"].(map[string]any)
+		if marks == nil {
+			continue
+		}
+		raw, err := json.Marshal(marks["selection"])
+		if err != nil {
+			return err
+		}
+		var look appearance.SelectionLook
+		if json.Unmarshal(raw, &look) == nil && look == appearance.PreviousSelectionLook() {
+			marks["selection"] = fresh
+		}
+	}
+	return nil
 }
 
 // addLooks (version 4 to 5) gives every profile the looks that were fixed

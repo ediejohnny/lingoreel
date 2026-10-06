@@ -98,6 +98,7 @@ func (a *API) Watch(request WatchRequest) error {
 	a.mu.Lock()
 	profile := a.profile()
 	syncNotice := a.config.SyncNotice
+	voicePreferences := a.config.Voice
 	var saved map[session.Line]project.Track
 	var last project.Last
 	var passages []project.Passage
@@ -122,6 +123,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Indicator: karaoke.Indicator, LineRepeats: karaoke.Repeat,
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
 		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
+		Voice: voiceSetup(voicePreferences),
 	}
 	// What the user changed on this video comes back over the profile.
 	if last.Speed != 0 {

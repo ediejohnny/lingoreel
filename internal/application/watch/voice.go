@@ -19,13 +19,23 @@ import (
 // findTimeout bounds the search for the user's FFmpeg.
 const findTimeout = 10 * time.Second
 
+// VoiceSetup is how the user wants the voice followed on this computer.
+type VoiceSetup struct {
+	// Follow off leaves every line to the estimate from its letters.
+	Follow bool
+	// FFmpegPath is the FFmpeg the user chose; empty looks for one.
+	FFmpegPath string
+	Settings   voice.Settings
+}
+
 type voicing struct {
 	tap  voice.Tap
-	find func(ctx context.Context) voice.Decoder
+	find func(ctx context.Context, chosen string) voice.Decoder
 	file string
 	pid  int
 
 	mu       sync.Mutex
+	setup    VoiceSetup
 	follower *voice.Follower
 	// starting numbers the starts; a start that finds a newer one asked for,
 	// or the fill off, closes what it started. inFlight counts those running.
@@ -47,9 +57,9 @@ func (s *Session) reviewVoice(restart bool) {
 		return
 	}
 	karaoke := s.subtitles.Karaoke()
-	wanted := karaoke.Enabled && karaoke.Fill
 	v.mu.Lock()
 	defer v.mu.Unlock()
+	wanted := karaoke.Enabled && karaoke.Fill && v.setup.Follow
 	if v.ended {
 		return
 	}
@@ -65,21 +75,28 @@ func (s *Session) reviewVoice(restart bool) {
 	}
 }
 
-// startVoice starts a follower with the sources there are now.
+// startVoice starts a follower with the sources and the setup there are now.
 func (s *Session) startVoice(attempt int) {
 	v := s.voice
+	v.mu.Lock()
+	setup := v.setup
+	v.mu.Unlock()
 	sources := s.voiceSources()
 	if v.find != nil && sources.Voice.File != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), findTimeout)
-		sources.Decoder = v.find(ctx)
+		sources.Decoder = v.find(ctx, setup.FFmpegPath)
 		cancel()
 	}
-	follower := voice.Follow(context.Background(), sources, s.clock, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	settings := setup.Settings
+	if !settings.Sensitivity.Valid() {
+		settings.Sensitivity = speech.SensitivityNormal
+	}
+	follower := voice.Follow(context.Background(), sources, s.clock, settings)
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.inFlight--
 	karaoke := s.subtitles.Karaoke()
-	if v.ended || attempt != v.starting || v.follower != nil || !(karaoke.Enabled && karaoke.Fill) {
+	if v.ended || attempt != v.starting || v.follower != nil || !(karaoke.Enabled && karaoke.Fill && v.setup.Follow) {
 		go follower.Close()
 		return
 	}
@@ -130,6 +147,38 @@ func playedAudio(info media.Info, chosen uint64) uint64 {
 		return audio[0].Number
 	}
 	return 0
+}
+
+// SetVoiceSetup changes how the voice is followed; a follower running starts
+// again with it.
+func (s *Session) SetVoiceSetup(setup VoiceSetup) {
+	v := s.voice
+	if v == nil {
+		return
+	}
+	v.mu.Lock()
+	changed := v.setup != setup
+	v.setup = setup
+	v.mu.Unlock()
+	if changed {
+		s.reviewVoice(true)
+	}
+}
+
+// VoiceMode tells how the voice is followed now; false when it is not (the
+// Modo Karaokê's fill is off, or following is).
+func (s *Session) VoiceMode() (voice.Mode, bool) {
+	v := s.voice
+	if v == nil {
+		return voice.ModeEstimate, false
+	}
+	v.mu.Lock()
+	follower := v.follower
+	v.mu.Unlock()
+	if follower == nil {
+		return voice.ModeEstimate, false
+	}
+	return follower.Mode(), true
 }
 
 // endVoice stops following for good; the follower closes in the background,

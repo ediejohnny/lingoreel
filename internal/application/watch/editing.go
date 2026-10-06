@@ -161,13 +161,19 @@ func (s *Session) selectionLocked() (Selection, bool) {
 
 // ClearSelection leaves the editing.
 func (s *Session) ClearSelection() {
-	s.editor.mu.Lock()
-	had := s.editor.selected != nil
-	s.editor.selected = nil
-	s.editor.mu.Unlock()
-	if had {
+	if s.leaveEditing() {
 		s.redraw()
 	}
+}
+
+// leaveEditing lets the selected line go, without drawing; it tells whether
+// a line was selected.
+func (s *Session) leaveEditing() bool {
+	s.editor.mu.Lock()
+	defer s.editor.mu.Unlock()
+	had := s.editor.selected != nil
+	s.editor.selected = nil
+	return had
 }
 
 // Edit changes the selected line. The video must be paused; an empty text

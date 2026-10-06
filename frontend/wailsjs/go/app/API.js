@@ -18,12 +18,20 @@ export function CheckShortcut(arg1) {
   return window['go']['app']['API']['CheckShortcut'](arg1);
 }
 
+export function ChooseFFmpeg() {
+  return window['go']['app']['API']['ChooseFFmpeg']();
+}
+
 export function ChoosePlayerProgram(arg1) {
   return window['go']['app']['API']['ChoosePlayerProgram'](arg1);
 }
 
 export function ChooseVideo() {
   return window['go']['app']['API']['ChooseVideo']();
+}
+
+export function ClearFFmpeg() {
+  return window['go']['app']['API']['ClearFFmpeg']();
 }
 
 export function ClearPlayerPath(arg1) {
@@ -68,6 +76,10 @@ export function FileAssociation() {
 
 export function InitialVideo() {
   return window['go']['app']['API']['InitialVideo']();
+}
+
+export function InstallFFmpeg() {
+  return window['go']['app']['API']['InstallFFmpeg']();
 }
 
 export function InstallPlayer(arg1) {
@@ -252,6 +264,10 @@ export function SetTranslationVisible(arg1) {
 
 export function SetVideoLayout(arg1) {
   return window['go']['app']['API']['SetVideoLayout'](arg1);
+}
+
+export function SetVoice(arg1) {
+  return window['go']['app']['API']['SetVoice'](arg1);
 }
 
 export function Settings() {

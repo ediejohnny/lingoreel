@@ -9,6 +9,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
+	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
@@ -58,6 +59,7 @@ func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 	tap := &listeningTap{}
 	r.ports.Tap = tap
 	r.request.Karaoke = paintingKaraoke()
+	r.request.Voice = watch.VoiceSetup{Follow: true}
 	r.request.Tracks.Audio = 3 // English, the line's language
 	s := r.start(t)
 
@@ -69,6 +71,13 @@ func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 	testkit.Eventually(t, "no longer hearing with the Modo Karaokê off", func() bool { return tap.listening.Load() == 0 })
 	s.SetKaraoke(true)
 	testkit.Eventually(t, "hearing again", func() bool { return tap.listening.Load() == 1 })
+	s.SetVoiceSetup(watch.VoiceSetup{Follow: false})
+	testkit.Eventually(t, "no longer hearing with following off", func() bool { return tap.listening.Load() == 0 })
+	if _, following := s.VoiceMode(); following {
+		t.Fatal("the voice is said to be followed with following off")
+	}
+	s.SetVoiceSetup(watch.VoiceSetup{Follow: true})
+	testkit.Eventually(t, "hearing with following on", func() bool { return tap.listening.Load() == 1 })
 	if err := s.Stop(); err != nil {
 		t.Fatal(err)
 	}
@@ -78,18 +87,19 @@ func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 // A dubbed voice says the line at other times: while the Portuguese track
 // plays under an English line, the player is not followed; switching to the
 // English audio follows it. The film's English track is decoded ahead by its
-// place among the audio tracks.
+// place among the audio tracks, with the FFmpeg the user chose.
 func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	tap, decoder := &listeningTap{}, &stretchDecoder{}
 	found := make(chan struct{}, 4)
 	r.ports.Tap = tap
-	r.ports.FindDecoder = func(context.Context) voice.Decoder {
+	r.ports.FindDecoder = func(context.Context, string) voice.Decoder {
 		found <- struct{}{}
 		return nil // no FFmpeg yet
 	}
 	r.request.Karaoke = paintingKaraoke()
+	r.request.Voice = watch.VoiceSetup{Follow: true}
 	r.request.Tracks.Audio = 2 // the Portuguese dub
 	r.running.audio = true
 	s := r.start(t)
@@ -104,11 +114,22 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	}
 	testkit.Eventually(t, "hearing the English audio", func() bool { return tap.listening.Load() == 1 })
 
-	r.ports.FindDecoder = func(context.Context) voice.Decoder { return decoder }
+	var chosen atomic.Value
+	r.ports.FindDecoder = func(_ context.Context, path string) voice.Decoder {
+		chosen.Store(path)
+		return decoder
+	}
+	r.request.Voice.FFmpegPath = `C:\ffmpeg\bin\ffmpeg.exe`
 	ahead := r.start(t)
 	defer ahead.Stop()
 	testkit.Eventually(t, "decoding ahead", func() bool { return decoder.asked() != nil })
 	if stretch := decoder.asked(); stretch.File != `C:\v.mkv` || stretch.Track != 1 {
 		t.Fatalf("decoding %+v, want the second audio track of the video", *stretch)
+	}
+	if path, _ := chosen.Load().(string); path != `C:\ffmpeg\bin\ffmpeg.exe` {
+		t.Fatalf("looked for FFmpeg at %q, want the one chosen", path)
+	}
+	if mode, following := ahead.VoiceMode(); !following || mode != voice.ModeAhead {
+		t.Fatalf("voice mode %v (following %v), want decoding ahead", mode, following)
 	}
 }

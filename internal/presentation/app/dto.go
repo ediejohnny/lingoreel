@@ -220,6 +220,10 @@ type Karaoke struct {
 	Indicator string `json:"indicator"`
 	// Repeat is how many times each line plays again; 0 is off.
 	Repeat int `json:"repeat"`
+	// Voice is how the line's voice is followed now: "ahead" (decoded with
+	// FFmpeg), "live" (the player heard), "estimate", or empty when it is
+	// not followed.
+	Voice string `json:"voice"`
 }
 
 // Passage is the passage being studied ("Estudar trecho").

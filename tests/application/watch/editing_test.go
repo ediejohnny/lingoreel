@@ -338,3 +338,32 @@ func TestEveryEditReachesTheScreen(t *testing.T) {
 		screenShows(t, r, text, func(screen session.Screen) bool { return screen.Primary == text })
 	}
 }
+
+// Playing again means the line was not going to be corrected: the outline
+// goes at once, and does not come back when the video stops on that line
+// again.
+func TestPlayingLeavesTheLineBeingEdited(t *testing.T) {
+	t.Parallel()
+	r, s := playingRig(t)
+	at(t, r, s, 1500*time.Millisecond)
+	screenShows(t, r, "the line", func(screen session.Screen) bool { return screen.Primary == "Hello there." })
+	if _, err := s.Select(session.LinePrimary); err != nil {
+		t.Fatal(err)
+	}
+	screenShows(t, r, "the outline", func(screen session.Screen) bool { return screen.Highlighted })
+
+	if err := s.Controls().Play(); err != nil {
+		t.Fatal(err)
+	}
+	screenShows(t, r, "the line without its outline", func(screen session.Screen) bool {
+		return screen.Primary == "Hello there." && !screen.Highlighted
+	})
+	if _, active := s.Selection(); active {
+		t.Fatal("the line is still being edited while the video plays")
+	}
+	at(t, r, s, 1500*time.Millisecond)
+	time.Sleep(50 * time.Millisecond) // a selection kept would outline the line again
+	screenShows(t, r, "the line, paused, without its outline", func(screen session.Screen) bool {
+		return screen.Primary == "Hello there." && !screen.Highlighted
+	})
+}

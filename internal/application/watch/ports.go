@@ -38,6 +38,8 @@ type Remote interface {
 	Reveal(pressed bool)
 	// Select picks a line on screen for editing; the video must be paused.
 	Select(line session.Line) (Selection, error)
+	// ClearSelection lets the picked line go: the user gave up correcting it.
+	ClearSelection()
 	// Edit changes the selected line, as the box over the video corrects
 	// its text; the video must be paused.
 	Edit(change EditChange) error
@@ -134,7 +136,7 @@ type Ports struct {
 	Tap voice.Tap
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
 	// the video; nil, or a nil answer, hears the player instead.
-	FindDecoder func(ctx context.Context) voice.Decoder
+	FindDecoder func(ctx context.Context, chosen string) voice.Decoder
 	Now         func() time.Time
 }
 
@@ -159,6 +161,8 @@ type Request struct {
 	// Saved is what the project keeps for each line: its offset and the
 	// user's edits, applied when they still fit the file.
 	Saved map[session.Line]project.Track
+	// Voice is how the actors' voice is followed for the Modo Karaokê's fill.
+	Voice VoiceSetup
 	// Karaoke is the Modo Karaokê to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke

@@ -130,6 +130,9 @@ type Deps struct {
 	Ports     watch.Ports
 	Settings  Settings
 	Installer Installer
+	// FFmpeg finds the user's FFmpeg, for the Modo Karaokê to decode the
+	// actors' voice ahead; nil offers none.
+	FFmpeg FFmpeg
 	// Window places the player's window for a video; nil leaves it to the player.
 	Window func(info media.Info) player.Placement
 	// InitialVideo is the file the app was opened with, if any.

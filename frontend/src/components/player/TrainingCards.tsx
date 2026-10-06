@@ -50,12 +50,21 @@ export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
   );
 }
 
+/** voiceStates word how the line's voice is followed now. */
+const voiceStates: Record<string, () => string> = {
+  ahead: () => t("ui.karaoke.voice.ahead"),
+  live: () => t("ui.karaoke.voice.live"),
+  estimate: () => t("ui.karaoke.voice.estimate"),
+};
+
 function KaraokeCard({ state, onCommand }: TrainingCardsProps) {
   const { karaoke } = state;
+  const voice = voiceStates[karaoke.voice];
   return (
     <Card title={t("ui.karaoke.title")} aside={<HelpTip topic={t("ui.karaoke.topic")}>{t("ui.karaoke.help")}</HelpTip>}>
       <div className="flex flex-col gap-4">
         <Toggle label={t("ui.karaoke.enable")} checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
+        {karaoke.enabled && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
         <Select
           label={t("ui.karaoke.indicator.label")}
           value={karaoke.indicator}
