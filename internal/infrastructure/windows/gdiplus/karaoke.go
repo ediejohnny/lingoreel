@@ -22,10 +22,11 @@ type CueLook struct {
 	Style appearance.CueStyle
 }
 
-// Indicator geometry, in style units (scaled like the text).
+// The indicator's geometry is the layout's, so the room the subtitles keep
+// for it is the room it takes.
 const (
-	cueBarMinPixels = 3.0
-	cueGap          = 8.0
+	cueBarMinPixels = layout.CueBarMinPixels
+	cueGap          = layout.CueGap
 )
 
 // drawPrimary draws the line on top: as a preview with its indicator, or

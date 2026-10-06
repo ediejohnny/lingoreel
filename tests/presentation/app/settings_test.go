@@ -82,6 +82,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.Shortcuts[shortcutAt(t, view, shortcut.Mute)].Chord = "" // no shortcut
 	view.PrecisionStep = 250
 	view.Primary.LineSpacing, view.Layout.LineGap = 1.4, 1
+	view.Layout.TranslationOnTop = true
 	view.Marks.Notice.Side, view.Marks.NoticeDuration, view.Marks.Selection.Width = "right", 3, 3
 	view.Karaoke.BarThickness, view.Karaoke.CountdownSize = 9, 1.2
 	if view.Mode != "on-demand" {
@@ -96,7 +97,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 		saved.Translation.Background.Color.A != 0xC8 || saved.Layout.MarginBottom != 0.1 || saved.Study.Karaoke.Lead.Std().Seconds() != 3 ||
 		saved.Sync.OffsetStep.Std().Milliseconds() != 100 || saved.Study.Reveal != "hold" || saved.Speed != 0.75 ||
 		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" || !saved.Shortcuts.Of(shortcut.Mute).IsZero() ||
-		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 {
+		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 || !saved.Layout.TranslationOnTop {
 		t.Fatalf("saved = %+v", saved)
 	}
 	// The video took the changed mode.
@@ -106,7 +107,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	// The video being watched took the new look at once.
 	look, looks := r.display.lastLook()
 	if looks != 1 || look.Primary.FontSize != 40 || look.FillColor.String() != "#00FF00" || look.Layout.MarginBottom != 0.1 ||
-		look.Primary.LineSpacing != 1.4 || look.Layout.LineGap != 1 || look.Notice.Side != appearance.AlignRight ||
+		look.Primary.LineSpacing != 1.4 || look.Layout.LineGap != 1 || !look.Layout.TranslationOnTop || look.Notice.Side != appearance.AlignRight ||
 		look.NoticeDuration != 3*time.Second || look.Selection.Width != 3 || look.Cue.BarThickness != 9 || look.Cue.CountdownSize != 1.2 {
 		t.Fatalf("display looks %d, last %+v", looks, look)
 	}

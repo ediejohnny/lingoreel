@@ -519,6 +519,7 @@ func (o *Overlay) redraw() error {
 	notice := style.Notice.Style()
 	frame := layout.Compute(layout.Input{
 		Floor:       floor,
+		Cue:         cueRoom(o.content.Cue, style.Cue),
 		Video:       layout.VideoRect(area, o.options.VideoWidth, o.options.VideoHeight),
 		DPI:         o.dpi,
 		Layout:      style.Layout,

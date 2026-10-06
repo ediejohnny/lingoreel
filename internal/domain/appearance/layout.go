@@ -24,9 +24,12 @@ type Layout struct {
 	// MaxWidth caps the text width as a fraction of the video width.
 	MaxWidth float64 `json:"maxWidth"`
 	// LineGap is the least room kept between the two subtitles when they
-	// come close, in line heights of the one that gives way (each still sits
-	// at its own height otherwise).
+	// come close, in line heights of the translation (each still sits at its
+	// own height otherwise).
 	LineGap float64 `json:"lineGap"`
+	// TranslationOnTop puts the translation above the study line; by default
+	// the study line is on top. The order never changes on its own.
+	TranslationOnTop bool `json:"translationOnTop"`
 }
 
 // DefaultLayout returns the layout used before the user changes anything.

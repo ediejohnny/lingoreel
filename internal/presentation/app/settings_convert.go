@@ -28,7 +28,7 @@ func profileView(profile settings.Profile, char ptbr.KeyChar) ProfileSettings {
 		Layout: LayoutSettings{
 			MarginLeft: profile.Layout.MarginLeft, MarginRight: profile.Layout.MarginRight,
 			MarginTop: profile.Layout.MarginTop, MarginBottom: profile.Layout.MarginBottom, MaxWidth: profile.Layout.MaxWidth,
-			LineGap: profile.Layout.LineGap,
+			LineGap: profile.Layout.LineGap, TranslationOnTop: profile.Layout.TranslationOnTop,
 		},
 		Marks:         marksView(profile.Marks),
 		Speed:         float64(profile.Speed),
@@ -177,6 +177,7 @@ func layoutFrom(view LayoutSettings) (appearance.Layout, error) {
 	layout := appearance.Layout{
 		MarginLeft: view.MarginLeft, MarginRight: view.MarginRight,
 		MarginTop: view.MarginTop, MarginBottom: view.MarginBottom, MaxWidth: view.MaxWidth, LineGap: view.LineGap,
+		TranslationOnTop: view.TranslationOnTop,
 	}
 	if err := layout.Validate(); err != nil {
 		return layout, refuse(ptbr.T("error.settings.margins", "problem", fieldProblem(err)))

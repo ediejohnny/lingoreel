@@ -276,6 +276,18 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
             </button>
           ))}
         </div>
+        <div className="mt-4">
+          <Segmented
+            label={t("ui.settings.subtitles.order.label")}
+            value={layout.translationOnTop ? "translation" : "study"}
+            options={[
+              { value: "study", label: t("ui.settings.subtitles.order.studyTop") },
+              { value: "translation", label: t("ui.settings.subtitles.order.translationTop") },
+            ]}
+            onChange={(next) => setLayout({ ...layout, translationOnTop: next === "translation" })}
+            help={<HelpTip topic={t("ui.settings.subtitles.order.label")}>{t("ui.settings.subtitles.order.help")}</HelpTip>}
+          />
+        </div>
       </Card>
       <Card
         title={t("ui.settings.subtitles.margins.title")}

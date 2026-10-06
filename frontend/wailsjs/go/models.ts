@@ -388,6 +388,7 @@ export namespace app {
 	    marginBottom: number;
 	    maxWidth: number;
 	    lineGap: number;
+	    translationOnTop: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LayoutSettings(source);
@@ -401,6 +402,7 @@ export namespace app {
 	        this.marginBottom = source["marginBottom"];
 	        this.maxWidth = source["maxWidth"];
 	        this.lineGap = source["lineGap"];
+	        this.translationOnTop = source["translationOnTop"];
 	    }
 	}
 	export class LineNames {

@@ -111,7 +111,7 @@ type StyleSettings struct {
 }
 
 // LayoutSettings are the margins and the text width, shares of the video,
-// and the least gap between the two lines, in lines.
+// the least gap between the two lines, in lines, and their order.
 type LayoutSettings struct {
 	MarginLeft   float64 `json:"marginLeft"`
 	MarginRight  float64 `json:"marginRight"`
@@ -119,6 +119,8 @@ type LayoutSettings struct {
 	MarginBottom float64 `json:"marginBottom"`
 	MaxWidth     float64 `json:"maxWidth"`
 	LineGap      float64 `json:"lineGap"`
+	// TranslationOnTop puts the translation above the study line.
+	TranslationOnTop bool `json:"translationOnTop"`
 }
 
 // MarkSettings are the marks over the video besides the subtitles.

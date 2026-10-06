@@ -49,11 +49,17 @@ func safeArea(in layout.Input) layout.Rect {
 // minFontAt96 is the readable minimum at 100% scaling (documented rule).
 const minFontAt96 = 10
 
-// checkInvariants holds for every layout: lines inside the safe area, no
-// overlap between the blocks and no word lost or invented.
+// checkInvariants holds for every layout: lines inside the safe area (a pair
+// with no room may take the bottom margin, down to the picture's edge), no
+// overlap between the blocks, the order the layout names, and no word lost
+// or invented.
 func checkInvariants(t *testing.T, in layout.Input, frame layout.Frame) {
 	t.Helper()
 	area := safeArea(in)
+	bottom := area.Bottom()
+	if frame.Primary != nil && frame.Translation != nil {
+		bottom = in.Video.Bottom()
+	}
 	blocks := map[string]*layout.Block{"primary": frame.Primary, "translation": frame.Translation}
 	texts := map[string]string{"primary": in.Primary.Content, "translation": in.Translation.Content}
 	for name, block := range blocks {
@@ -65,8 +71,8 @@ func checkInvariants(t *testing.T, in layout.Input, frame layout.Frame) {
 			if line.X < area.X-eps || line.X+line.Width > area.Right()+eps {
 				t.Errorf("%s line %q at x %v..%v leaves the safe area %v..%v", name, line.Text, line.X, line.X+line.Width, area.X, area.Right())
 			}
-			if line.Y < area.Y-eps || line.Y+line.Height > area.Bottom()+eps {
-				t.Errorf("%s line %q at y %v..%v leaves the safe area %v..%v", name, line.Text, line.Y, line.Y+line.Height, area.Y, area.Bottom())
+			if line.Y < area.Y-eps || line.Y+line.Height > bottom+eps {
+				t.Errorf("%s line %q at y %v..%v leaves the safe area %v..%v", name, line.Text, line.Y, line.Y+line.Height, area.Y, bottom)
 			}
 			words = append(words, strings.Fields(line.Text)...)
 		}
@@ -78,6 +84,20 @@ func checkInvariants(t *testing.T, in layout.Input, frame layout.Frame) {
 		if p.Bounds.Y < tr.Bounds.Bottom()-eps && tr.Bounds.Y < p.Bounds.Bottom()-eps {
 			t.Errorf("blocks overlap: primary %+v, translation %+v", p.Bounds, tr.Bounds)
 		}
+		checkOrder(t, in, frame)
+	}
+}
+
+// checkOrder holds for every pair: the line the layout puts on top never
+// sits below the other one.
+func checkOrder(t *testing.T, in layout.Input, frame layout.Frame) {
+	t.Helper()
+	upper, lower := frame.Primary, frame.Translation
+	if in.Layout.TranslationOnTop {
+		upper, lower = lower, upper
+	}
+	if upper.Bounds.Bottom() > lower.Bounds.Bottom()+eps {
+		t.Errorf("the order flipped (translation on top: %v): upper %+v, lower %+v", in.Layout.TranslationOnTop, upper.Bounds, lower.Bounds)
 	}
 }
 
@@ -147,17 +167,15 @@ func TestLongTranslationNeverCoversThePrimary(t *testing.T) {
 	if len(frame.Translation.Lines) < 3 {
 		t.Fatalf("translation has %d lines; the test needs one that cannot fit below the primary", len(frame.Translation.Lines))
 	}
-	alone := layout.Compute(defaults(video(1280, 720), "Short.", ""), monoMeasurer{})
-	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
-		t.Fatalf("primary moved for a long translation: alone %+v, paired %+v", alone.Primary.Bounds, frame.Primary.Bounds)
-	}
 }
 
-// The English line never moves when the translation appears, not
-// even when the translation does not fit on its side. At 1280x720 the
-// primary (82%) has about 97 px below it; this translation needs more even at
-// 80%, so it must go above the primary, which stays put.
-func TestPrimaryNeverMovesForATranslationThatDoesNotFitBelow(t *testing.T) {
+// The order never changes on its own (user report: with a large translation
+// in a box, every two-line translation jumped above the English and the
+// one-line ones stayed below). A translation with no room below the primary
+// stays below it at its size, and the primary rises to make room. At
+// 1280x720 the primary (82%) has about 97 px below it, and this translation
+// needs more even at 80%.
+func TestATranslationThatDoesNotFitBelowLiftsThePrimary(t *testing.T) {
 	t.Parallel()
 	primary := "I'm not going there."
 	translation := strings.TrimSpace(strings.Repeat("uma frase bem longa ", 45))
@@ -167,34 +185,134 @@ func TestPrimaryNeverMovesForATranslationThatDoesNotFitBelow(t *testing.T) {
 	checkInvariants(t, in, frame)
 
 	alone := layout.Compute(defaults(video(1280, 720), primary, ""), monoMeasurer{})
-	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
-		t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
+	if frame.Primary.Bounds.Bottom() >= alone.Primary.Bounds.Bottom()-eps {
+		t.Fatalf("the primary stayed at %+v, over the translation's place", frame.Primary.Bounds)
 	}
-	if frame.Translation.Bounds.Bottom() > frame.Primary.Bounds.Y+eps {
-		t.Fatalf("translation %+v not above the primary %+v", frame.Translation.Bounds, frame.Primary.Bounds)
+	if got, want := frame.Translation.Bounds.Bottom(), 0.91*720; math.Abs(got-want) > eps {
+		t.Fatalf("translation bottom = %v, want its own height %v", got, want)
 	}
 	if got, want := frame.Translation.Font.Size, 28*720.0/1080*0.8; got < want-eps {
 		t.Fatalf("translation font = %v; with room above it must not shrink below 80%% (%v)", got, want)
 	}
 }
 
-// When neither side has room even at the minimum size, the translation stays
-// on its side and the primary still does not move.
-func TestPrimaryStaysEvenWhenNothingFits(t *testing.T) {
+// The user's own profile: big lines in boxes (69 px bold study line at 82%,
+// 63 px translation at 91%, padding 8, at most two lines each). One line or
+// two, the translation stays below the study line, at its size.
+func TestTheUsersBigBoxedLinesKeepTheirOrder(t *testing.T) {
+	t.Parallel()
+	style := func(base appearance.SubtitleStyle, size, position float64) appearance.SubtitleStyle {
+		base.FontSize, base.VerticalPosition, base.MaxLines = size, position, 2
+		base.Background.Enabled, base.Background.Padding = true, 8
+		return base
+	}
+	for _, c := range []struct{ primary, translation string }{
+		{"I dream about you.", "Eu sonho com você."},
+		{"Approaching jump in 3.. 2.. 1.", "Ponto de salto\nem três..."},
+		{"and then move on\nwith enormous guilt...", "e depois seguir em frente\ncom uma tremenda culpa..."},
+	} {
+		in := defaults(video(1920, 1080), c.primary, c.translation)
+		in.Primary.Style = style(in.Primary.Style, 69, 0.82)
+		in.Primary.Style.Bold = true
+		in.Translation.Style = style(in.Translation.Style, 63, 0.91)
+		frame := layout.Compute(in, monoMeasurer{})
+		checkInvariants(t, in, frame)
+		if frame.Translation.Bounds.Y < frame.Primary.Bounds.Bottom()-eps {
+			t.Errorf("%q: the translation %+v is not below the study line %+v", c.translation, frame.Translation.Bounds, frame.Primary.Bounds)
+		}
+		if got := frame.Translation.Font.Size; got < 63*0.8-eps {
+			t.Errorf("%q: translation font = %v, shrunk below 80%%", c.translation, got)
+		}
+	}
+}
+
+// With the translation on top, it stays on top: with the default heights it
+// sits right above the study line, which takes the lower height; far apart,
+// each keeps its own height.
+func TestTheTranslationOnTopStaysOnTop(t *testing.T) {
+	t.Parallel()
+	in := defaults(video(1920, 1080), "I'm not going there.\nNot at all.", "Eu não vou para lá.\nDe jeito nenhum.")
+	in.Layout.TranslationOnTop = true
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	if got, want := frame.Primary.Bounds.Bottom(), 0.91*1080; math.Abs(got-want) > eps {
+		t.Fatalf("study line bottom = %v, want the lower height %v", got, want)
+	}
+	line := 1.25 * frame.Translation.Font.Size
+	if got, want := frame.Primary.Bounds.Y-frame.Translation.Bounds.Bottom(), in.Layout.LineGap*line; math.Abs(got-want) > eps {
+		t.Fatalf("%v px between them, want the gap %v", got, want)
+	}
+
+	far := defaults(video(1920, 1080), "Primary.", "Tradução em cima.")
+	far.Layout.TranslationOnTop = true
+	far.Translation.Style.VerticalPosition = 0.3
+	frame = layout.Compute(far, monoMeasurer{})
+	checkInvariants(t, far, frame)
+	if got := frame.Translation.Bounds.Bottom(); math.Abs(got-0.3*1080) > eps {
+		t.Fatalf("translation bottom = %v, want %v", got, 0.3*1080)
+	}
+	if got := frame.Primary.Bounds.Bottom(); math.Abs(got-0.82*1080) > eps {
+		t.Fatalf("primary bottom = %v, want %v", got, 0.82*1080)
+	}
+}
+
+// The heights never beat the order: a translation placed high on the picture
+// with the study line on top still goes below it.
+func TestTheOrderBeatsTheHeights(t *testing.T) {
+	t.Parallel()
+	in := defaults(video(1920, 1080), "Primary.", "Tradução.")
+	in.Translation.Style.VerticalPosition = 0.3
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	if got, want := frame.Translation.Bounds.Bottom(), 0.82*1080; math.Abs(got-want) > eps {
+		t.Fatalf("translation bottom = %v, want the lower height %v", got, want)
+	}
+}
+
+// When nothing fits even at the minimum size, the order still holds: the
+// lower line goes down to the picture's edge, both shrink to the minimum,
+// and the upper one keeps to the top.
+func TestTheOrderHoldsEvenWhenNothingFits(t *testing.T) {
 	t.Parallel()
 	// 3200 characters at the 10 px minimum (5 px each, 576 px per line) need
 	// about 28 lines of 12.5 px: more than the whole 360 px picture.
-	solo := defaults(video(640, 360), "Center.", "")
-	solo.Primary.Style.VerticalPosition = 0.5
-	in := solo
-	in.Translation.Content = strings.Repeat("palavra ", 400)
+	in := defaults(video(640, 360), "Center.", strings.Repeat("palavra ", 400))
+	in.Primary.Style.VerticalPosition = 0.5
 	frame := layout.Compute(in, monoMeasurer{})
-	alone := layout.Compute(solo, monoMeasurer{})
-	if !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
-		t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
-	}
+	checkOrder(t, in, frame)
 	if got := frame.Translation.Font.Size; math.Abs(got-minFontAt96) > eps {
 		t.Fatalf("translation font = %v, want the minimum %v before giving up", got, minFontAt96)
+	}
+	if got := frame.Primary.Font.Size; math.Abs(got-minFontAt96) > eps {
+		t.Fatalf("primary font = %v, want the minimum %v before giving up", got, minFontAt96)
+	}
+	if got := frame.Translation.Bounds.Bottom(); math.Abs(got-360) > eps {
+		t.Fatalf("translation bottom = %v, want the picture's edge 360", got)
+	}
+}
+
+// A pair with no room takes the bottom margin before the upper line shrinks:
+// at 1280x720 with 25% margins the area is 360 px tall; the study line takes
+// its 35% share (about 250 px) and the translation needs about 125 px even at
+// the minimum size, so they only fit once the translation goes down into the
+// margin.
+func TestALowerLineWithNoRoomTakesTheBottomMargin(t *testing.T) {
+	t.Parallel()
+	in := defaults(video(1280, 720), strings.TrimSpace(strings.Repeat("words ", 340)), strings.TrimSpace(strings.Repeat("palavras ", 255)))
+	in.Primary.Style.MaxLines = appearance.MaxLines
+	in.Translation.Style.MaxLines = appearance.MaxLines
+	in.Layout.MarginTop, in.Layout.MarginBottom = 0.25, 0.25
+	frame := layout.Compute(in, monoMeasurer{})
+	checkInvariants(t, in, frame)
+	if frame.Translation.Bounds.Bottom() <= safeArea(in).Bottom()+eps {
+		t.Fatalf("the translation %+v stayed inside the margin; the test needs a pair that only fits past it", frame.Translation.Bounds)
+	}
+	if got := frame.Translation.Font.Size; math.Abs(got-minFontAt96) > eps {
+		t.Fatalf("translation font = %v: it goes into the margin only at the minimum %v", got, minFontAt96)
+	}
+	alone := layout.Compute(defaults(video(1280, 720), in.Primary.Content, ""), monoMeasurer{})
+	if got, want := frame.Primary.Font.Size, alone.Primary.Font.Size; math.Abs(got-want) > eps {
+		t.Fatalf("study line font = %v, want its own %v: it shrinks only after the margin", got, want)
 	}
 }
 
@@ -255,20 +373,6 @@ func TestTopMarginKeepsTopSubtitlesOffTheEdge(t *testing.T) {
 	checkInvariants(t, in, frame)
 	if got, want := frame.Primary.Bounds.Y, 0.05*1080; math.Abs(got-want) > eps {
 		t.Fatalf("top = %v, want the top margin %v", got, want)
-	}
-}
-
-func TestTranslationAboveThePrimaryIsRespected(t *testing.T) {
-	t.Parallel()
-	in := defaults(video(1920, 1080), "Primary.", "Tradução em cima.")
-	in.Translation.Style.VerticalPosition = 0.3
-	frame := layout.Compute(in, monoMeasurer{})
-	checkInvariants(t, in, frame)
-	if got := frame.Translation.Bounds.Bottom(); math.Abs(got-0.3*1080) > eps {
-		t.Fatalf("translation bottom = %v, want %v", got, 0.3*1080)
-	}
-	if got := frame.Primary.Bounds.Bottom(); math.Abs(got-0.82*1080) > eps {
-		t.Fatalf("primary bottom = %v, want %v", got, 0.82*1080)
 	}
 }
 
@@ -493,9 +597,9 @@ func TestHostileInputsProduceNoBlocks(t *testing.T) {
 }
 
 func FuzzComputeKeepsInvariants(f *testing.F) {
-	f.Add("I'm gonna have to think about it.", "Vou ter que pensar sobre isso.", 1920.0, 1080.0, 0.82, 0.91)
-	f.Add(strings.Repeat("x", 500), "a\nb\nc\nd", 320.0, 180.0, 0.1, 0.05)
-	f.Fuzz(func(t *testing.T, primary, translation string, w, h, pPos, tPos float64) {
+	f.Add("I'm gonna have to think about it.", "Vou ter que pensar sobre isso.", 1920.0, 1080.0, 0.82, 0.91, false)
+	f.Add(strings.Repeat("x", 500), "a\nb\nc\nd", 320.0, 180.0, 0.1, 0.05, true)
+	f.Fuzz(func(t *testing.T, primary, translation string, w, h, pPos, tPos float64, onTop bool) {
 		if !(w >= 16 && w <= 8000 && h >= 16 && h <= 8000 && pPos > 0 && pPos <= 1 && tPos > 0 && tPos <= 1) {
 			t.Skip()
 		}
@@ -507,20 +611,19 @@ func FuzzComputeKeepsInvariants(f *testing.F) {
 		in.Translation.Style.VerticalPosition = tPos
 		in.Primary.Style.MaxLines = appearance.MaxLines
 		in.Translation.Style.MaxLines = appearance.MaxLines
+		in.Layout.TranslationOnTop = onTop
 		frame := layout.Compute(in, monoMeasurer{})
-		// The primary never moves, so overlap is allowed only once the
-		// translation has shrunk to the minimum and still found no room.
-		if frame.Translation != nil && frame.Translation.Font.Size <= minFontAt96+eps {
+		if frame.Primary == nil || frame.Translation == nil {
+			checkLinesOnly(t, in, frame)
+			return
+		}
+		// The order never flips; they may overlap only once both shrank to
+		// the minimum and still found no room.
+		checkOrder(t, in, frame)
+		if frame.Primary.Font.Size <= minFontAt96+eps && frame.Translation.Font.Size <= minFontAt96+eps {
 			frame.Translation = nil
-			in.Translation.Content = ""
 		}
 		checkLinesOnly(t, in, frame)
-		solo := defaults(video(w, h), primary, "")
-		solo.Primary.Style.VerticalPosition = pPos
-		solo.Primary.Style.MaxLines = appearance.MaxLines
-		if alone := layout.Compute(solo, monoMeasurer{}); frame.Primary != nil && !sameRect(alone.Primary.Bounds, frame.Primary.Bounds) {
-			t.Fatalf("primary moved: alone %+v, with translation %+v", alone.Primary.Bounds, frame.Primary.Bounds)
-		}
 	})
 }
 

@@ -144,7 +144,11 @@ export function Segmented({ label, value, options, onChange, help }: SegmentedPr
         <span className="text-sm font-medium text-fg">{label}</span>
         {help}
       </div>
-      <div role="radiogroup" aria-label={label} className="inline-flex w-fit rounded-control border border-line-strong p-0.5">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="inline-flex w-fit max-w-full flex-wrap rounded-control border border-line-strong p-0.5"
+      >
         {options.map((option) => (
           <button
             key={option.value}
