@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Track } from "./services/backend";
-import { forLine } from "./tracks";
+import { adopted, forLine } from "./tracks";
 
 describe("forLine", () => {
   // The app's order: English from the best, then Portuguese from the best, then the rest.
@@ -20,5 +20,17 @@ describe("forLine", () => {
 
   it("keeps the app's order when the line has no track", () => {
     expect(numbers(forLine(ranked, 0))).toEqual([9, 4, 7, 5, 8]);
+  });
+});
+
+describe("adopted", () => {
+  it("keeps what the user chose and takes the new suggestion for the rest", () => {
+    const chosen = { primary: "0", translation: "5", audio: "2" };
+    const suggested = { primary: 1000, translation: 6, audio: 3 };
+    expect(adopted(suggested, chosen, { primary: false, translation: true, audio: false })).toEqual({
+      primary: "1000",
+      translation: "5",
+      audio: "3",
+    });
   });
 });

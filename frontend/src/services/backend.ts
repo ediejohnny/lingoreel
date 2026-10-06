@@ -6,6 +6,7 @@ import { ClipboardSetText, EventsOn } from "../../wailsjs/runtime/runtime";
 import { t } from "../i18n";
 
 export type Video = app.Video;
+export type Listening = app.Listening;
 export type Track = app.Track;
 export type Players = app.Players;
 export type PlayerInstall = app.PlayerInstall;
@@ -79,6 +80,7 @@ const events = {
   fullscreen: "window:fullscreen",
   panel: "panel:open",
   video: "video:changed",
+  listening: "video:listening",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -185,4 +187,6 @@ export const backend = {
   onFullscreen: (listener: (on: boolean) => void) => EventsOn(events.fullscreen, listener),
   onPanel: (listener: (request: PanelRequest) => void) => EventsOn(events.panel, listener),
   onVideo: (listener: (video: Video) => void) => EventsOn(events.video, listener),
+  /** onListening hears how far hearing the open video, to choose its subtitle, has gone. */
+  onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
 };

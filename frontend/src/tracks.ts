@@ -32,3 +32,26 @@ export function noteOf(tracks: Track[], value: string): { note?: string; warning
   const track = tracks.find((candidate) => String(candidate.number) === value);
   return { note: track?.note || undefined, warning: track?.warning ?? false };
 }
+
+/** Chosen are the tracks picked on the session screen, as its lists hold them. */
+export interface Chosen {
+  primary: string;
+  translation: string;
+  audio: string;
+}
+
+/**
+ * adopted are the tracks once a new suggestion comes (the file that fits the film, found by hearing it): what the user
+ * chose stays, the rest takes the suggestion.
+ */
+export function adopted(
+  suggested: { primary: number; translation: number; audio: number },
+  chosen: Chosen,
+  touched: Record<keyof Chosen, boolean>,
+): Chosen {
+  return {
+    primary: touched.primary ? chosen.primary : String(suggested.primary),
+    translation: touched.translation ? chosen.translation : String(suggested.translation),
+    audio: touched.audio ? chosen.audio : String(suggested.audio),
+  };
+}

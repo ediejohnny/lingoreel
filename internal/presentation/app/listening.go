@@ -144,9 +144,10 @@ func (a *API) listened(l *listening, stretch int, done float64) {
 
 // endListening gives the open video the fits found, keeps them in its
 // project and tells the screens: the video described again, with the file
-// that fits on top, and the hearing over. A video no longer open changes
-// nothing; a session watching it is left as it is, and the next one starts
-// with the files' fits.
+// that fits on top and the hearing over, even when nothing was found, so
+// the session screen hears of the end one way only. A video no longer open
+// changes nothing; a session watching it is left as it is, and the next
+// one starts with the files' fits.
 func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 	a.mu.Lock()
 	if a.listen != l {
@@ -155,7 +156,7 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 	}
 	a.listen = nil
 	path := l.state.Path
-	if len(fits) == 0 || a.video == nil || a.video.Path != path {
+	if a.video == nil || a.video.Path != path {
 		a.mu.Unlock()
 		a.emit(EventListening, Listening{Path: path})
 		return

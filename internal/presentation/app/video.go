@@ -183,6 +183,9 @@ func subtitleNote(track media.Track) (string, bool) {
 		if correction, moved := analysis.Correction(track); moved {
 			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(correction.Offset))), false
 		}
+		if track.Alignment.Heard {
+			return ptbr.T("track.note.heard"), false
+		}
 		return ptbr.T("track.note.match"), false
 	case subtitle.VerdictOtherCut:
 		return ptbr.T("track.note.otherCut"), true

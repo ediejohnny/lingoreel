@@ -1,19 +1,21 @@
 import { Eraser, Play, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SavedPassages } from "../components/player/SavedPassages";
 import { SubtitlePicker } from "../components/player/SubtitlePicker";
 import { InstallCards } from "../components/session/InstallCards";
+import { ListeningQuestion } from "../components/session/ListeningQuestion";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Segmented } from "../components/ui/Inputs";
+import { ProgressBar } from "../components/ui/ProgressBar";
 import { Rich } from "../components/ui/Rich";
 import { Select, type Option } from "../components/ui/Select";
 import { t } from "../i18n";
 import { keyLabel } from "../keys";
 import { backend, messageOf } from "../services/backend";
 import type { Line, PlayerInstall, Players, SavedPassage, ShortcutSetting, Video, WatchRequest } from "../services/backend";
-import { forLine, none, noteOf, trackOptions } from "../tracks";
+import { adopted, forLine, none, noteOf, trackOptions, type Chosen } from "../tracks";
 
 interface SessionPageProps {
   video: Video;
@@ -52,6 +54,30 @@ export function SessionPage(props: SessionPageProps) {
   const [listError, setListError] = useState("");
   const [adding, setAdding] = useState<Line | "">("");
   const [addError, setAddError] = useState("");
+  // The app may still hear the film to tell which subtitle fits it; asking and waiting are the question on Watch.
+  const [listening, setListening] = useState(video.listening);
+  const [asking, setAsking] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  // start is the request to watch made on its own once the hearing waited for is over.
+  const [start, setStart] = useState<WatchRequest | null>(null);
+  // touched marks the choices the user made: a suggestion found later never changes them.
+  const [touched, setTouched] = useState({ primary: false, translation: false, audio: false });
+  const [seen, setSeen] = useState(video);
+  const choose = (line: keyof typeof touched, set: (value: string) => void) => (value: string) => {
+    setTouched((current) => ({ ...current, [line]: true }));
+    set(value);
+  };
+
+  useEffect(() => backend.onListening((state) => state.path === video.path && setListening(state)), [video.path]);
+  const onWatch = useRef(props.onWatch);
+  useEffect(() => {
+    onWatch.current = props.onWatch;
+  });
+  useEffect(() => {
+    if (start) {
+      onWatch.current(start);
+    }
+  }, [start]);
 
   useEffect(() => {
     let current = true;
@@ -82,20 +108,37 @@ export function SessionPage(props: SessionPageProps) {
 
   // A lost player's place, or where the video was left when asked; a saved
   // passage opens the video at its own start.
-  const watch = (resume = false, passage = "") =>
-    props.onWatch({
-      audio: fixedAudio ? 0 : Number(audio),
-      primary: Number(primary),
-      translation: Number(translation),
-      player,
-      alwaysUse,
-      mode,
-      resume: resume || (video.resume.offered && continueFrom),
-      passage,
-    });
+  const requestOf = (lines: Chosen, resume = false, passage = ""): WatchRequest => ({
+    audio: fixedAudio ? 0 : Number(lines.audio),
+    primary: Number(lines.primary),
+    translation: Number(lines.translation),
+    player,
+    alwaysUse,
+    mode,
+    resume: resume || (video.resume.offered && continueFrom),
+    passage,
+  });
+  const watch = (resume = false, passage = "") => props.onWatch(requestOf({ primary, translation, audio }, resume, passage));
+
+  // The video described again (the file that fits found by hearing it, or a file added): the choices the user did not
+  // make take the new suggestion, and when the user waited for the hearing, the film starts with them.
+  if (video !== seen) {
+    setSeen(video);
+    setListening(video.listening);
+    const lines = adopted(video.suggested, { primary, translation, audio }, touched);
+    setPrimary(lines.primary);
+    setTranslation(lines.translation);
+    setAudio(lines.audio);
+    if (waiting && !video.listening.active) {
+      setWaiting(false);
+      setAsking(false);
+      setStart(requestOf(lines));
+    }
+  }
 
   // A file from any folder joins the video and goes on the line it was added for.
   const addFile = async (line: Line) => {
+    setTouched((current) => ({ ...current, [line]: true }));
     setAdding(line);
     try {
       const added = await backend.addSubtitleFile(line);
@@ -115,6 +158,10 @@ export function SessionPage(props: SessionPageProps) {
       setAdding("");
     }
   };
+
+  // Watch while the film is still heard asks first, when the hearing may still change a line the user did not choose.
+  const decides = listening.active && (!touched.primary || !touched.translation);
+  const startWatching = () => (decides ? setAsking(true) : watch());
 
   const refresh = async () => setPassages(await backend.savedPassages());
   const listCommand = async (run: () => Promise<void>) => {
@@ -163,7 +210,7 @@ export function SessionPage(props: SessionPageProps) {
               label={t("ui.session.subtitles.primary")}
               value={primary}
               options={trackOptions(video.subtitles, t("ui.session.subtitles.none"))}
-              onChange={setPrimary}
+              onChange={choose("primary", setPrimary)}
               onAdd={() => void addFile("primary")}
               adding={adding === "primary"}
               {...noteOf(video.subtitles, primary)}
@@ -172,13 +219,21 @@ export function SessionPage(props: SessionPageProps) {
               label={t("ui.session.subtitles.translation")}
               value={translation}
               options={trackOptions(forLine(video.subtitles, video.suggested.translation), t("ui.session.subtitles.noTranslation"))}
-              onChange={setTranslation}
+              onChange={choose("translation", setTranslation)}
               onAdd={() => void addFile("translation")}
               adding={adding === "translation"}
               {...noteOf(video.subtitles, translation)}
             />
           </div>
           {video.subtitles.length === 0 && <p className="mt-4 text-sm text-fg-muted">{t("ui.session.subtitles.missing")}</p>}
+          {listening.active && (
+            <div className="mt-5">
+              <ProgressBar
+                label={t("ui.session.listening.label", { stretch: listening.stretch, stretches: listening.stretches })}
+                percent={listening.percent}
+              />
+            </div>
+          )}
           {video.modes.length > 0 && (
             <div className="mt-5">
               <Segmented
@@ -200,7 +255,7 @@ export function SessionPage(props: SessionPageProps) {
               { value: none, label: t("ui.session.audio.player") },
               ...video.audio.map((track) => ({ value: String(track.number), label: track.label })),
             ]}
-            onChange={setAudio}
+            onChange={choose("audio", setAudio)}
             disabled={fixedAudio}
             note={fixedAudio ? t("ui.session.audio.fixed", { name: chosenName }) : undefined}
           />
@@ -317,11 +372,27 @@ export function SessionPage(props: SessionPageProps) {
               {t("ui.session.continueFrom", { time: video.resume.text })}
             </label>
           )}
-          <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={() => watch()}>
+          <Button variant="primary" size="lg" icon={Play} disabled={!canWatch} loading={props.starting} onClick={startWatching}>
             {props.starting ? t("ui.session.starting") : t("ui.session.watch")}
           </Button>
         </div>
       </div>
+      {asking && (
+        <ListeningQuestion
+          listening={listening}
+          waiting={waiting}
+          onWait={() => setWaiting(true)}
+          onWatchNow={() => {
+            setAsking(false);
+            setWaiting(false);
+            watch();
+          }}
+          onCancel={() => {
+            setAsking(false);
+            setWaiting(false);
+          }}
+        />
+      )}
     </main>
   );
 }
