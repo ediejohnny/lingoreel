@@ -79,7 +79,7 @@ func Arguments(request player.LaunchRequest, port int, password, endpointDir str
 		// level is shared with the user's own VLC) and adds no gain of its own.
 		"--no-volume-save", "--gain=1",
 		// The sound always goes through Windows' mixer, never straight to a
-		// receiver as a bitstream, so the Modo Karaokê can hear the voice.
+		// receiver as a bitstream, so the karaoke mode can hear the voice.
 		"--mmdevice-passthrough=0", "--no-spdif",
 	}
 	if request.StartPaused {

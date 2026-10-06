@@ -93,7 +93,7 @@ export function keyLabel(keys: { command: string; label: string }[], command: st
   return keys.find((key) => key.command === command)?.label ?? "";
 }
 
-/** withKey adds a command's keys to a text: "Pausar (Espaço)", or the text alone. */
+/** withKey adds a command's keys to a text: "Pause (Space)", or the text alone. */
 export function withKey(text: string, label: string): string {
   return label === "" ? text : `${text} (${label})`;
 }

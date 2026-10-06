@@ -327,7 +327,7 @@ func TestReplayLine(t *testing.T) {
 	}
 	// Back to B's preview, and playing: the line is trained by speaking along.
 	if r.player.seekTarget != ms(15_000) || !slices.Contains(r.calls(), "play") {
-		t.Fatalf("Treinar de novo: seek %v, calls %v; want B's preview at 15 s, playing", r.player.seekTarget, r.calls())
+		t.Fatalf("training again: seek %v, calls %v; want B's preview at 15 s, playing", r.player.seekTarget, r.calls())
 	}
 	// Already playing, it only goes back.
 	r.at(ms(21_000), true)
@@ -345,7 +345,7 @@ func TestReplayLine(t *testing.T) {
 }
 
 // The reported case: a passage paused at its end ("Pausa no fim").
-// "Treinar de novo" trains B, the passage's last line, and plays on from it:
+// Training again trains B, the passage's last line, and plays on from it:
 // not from the passage's start, and the lap goes on. A line whose preview
 // starts before the passage is trained from the passage's start.
 func TestReplayLineInAPassagePausedAtItsEnd(t *testing.T) {
@@ -376,7 +376,7 @@ func TestReplayLineInAPassagePausedAtItsEnd(t *testing.T) {
 			t.Fatalf("%v: seek %v, calls %v; want %v, playing", c.passage, r.player.seekTarget, r.calls(), c.want)
 		}
 		if status := r.practice.Status(); !status.Active || status.AtEnd || status.Suspended || status.Lap != 1 {
-			t.Fatalf("%v: after Treinar de novo %+v", c.passage, status)
+			t.Fatalf("%v: after training again %+v", c.passage, status)
 		}
 	}
 }

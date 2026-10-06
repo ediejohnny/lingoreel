@@ -45,7 +45,7 @@ type Remote interface {
 	Edit(change EditChange) error
 
 	// What the bar's menus show and change: the passage being marked or
-	// studied and its options, the saved passages, the Modo Karaokê, the
+	// studied and its options, the saved passages, the karaoke mode, the
 	// study mode and the sync.
 	MarkedStart() (time.Duration, bool)
 	Passage() session.PracticeStatus
@@ -131,7 +131,7 @@ type Ports struct {
 	// ShowPanel brings the app's panel to the front, where the line editor
 	// is; nil leaves it where it is.
 	ShowPanel func()
-	// Tap hears the player's sound, so the Modo Karaokê paints each line
+	// Tap hears the player's sound, so the karaoke mode paints each line
 	// along the actor's voice; nil leaves the estimate from its letters.
 	Tap voice.Tap
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
@@ -161,9 +161,9 @@ type Request struct {
 	// Saved is what the project keeps for each line: its offset and the
 	// user's edits, applied when they still fit the file.
 	Saved map[session.Line]project.Track
-	// Voice is how the actors' voice is followed for the Modo Karaokê's fill.
+	// Voice is how the actors' voice is followed for the karaoke mode's fill.
 	Voice VoiceSetup
-	// Karaoke is the Modo Karaokê to start with, its indicator and how many
+	// Karaoke is the karaoke mode to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke
 	Indicator   study.Indicator

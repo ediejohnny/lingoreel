@@ -49,7 +49,7 @@ const (
 	flagLeft   = 0.26
 	flagTip    = 0.27
 	flagBottom = 0.55
-	// The note of the Modo Karaokê: its head from the top left and its size,
+	// The note of the karaoke mode: its head from the top left and its size,
 	// the stem's top, and the flag's end in from the right and down from the
 	// top.
 	noteHeadX   = 0.1

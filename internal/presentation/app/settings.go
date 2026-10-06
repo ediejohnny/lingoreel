@@ -32,7 +32,7 @@ const (
 	maxPreviewScale = 5
 )
 
-// The preview's views besides the plain one. The Modo Karaokê's fill paints
+// The preview's views besides the plain one. The karaoke mode's fill paints
 // the line on top as half spoken, so the fill color shows next to the
 // line's own; its cue shows that line before its time, halfway through the
 // bar or three seconds before it; the notice shows a notice as a sync
@@ -48,7 +48,7 @@ const (
 	previewNoticeOffset = subtitle.Offset(-150 * time.Millisecond)
 )
 
-// previewCue shows the line on top before its time, as the Modo Karaokê
+// previewCue shows the line on top before its time, as the karaoke mode
 // does, with the indicator and the look the screen sent.
 func previewCue(view KaraokeSettings, look *session.Look, screen *session.Screen) error {
 	color, err := appearance.ParseColor(view.PreviewColor)
@@ -242,7 +242,7 @@ func (a *API) commitConfig(next settings.Config) error {
 }
 
 // applyToSession gives the video being watched a profile's new choices:
-// the look, the keys, the translation key, the steps and the Modo Karaokê;
+// the look, the keys, the translation key, the steps and the karaoke mode;
 // the study mode only when it changed from previous, so a mode picked on the
 // panel for this video stays. A choice the session refuses is logged; the
 // profile is saved anyway.
@@ -260,7 +260,7 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 		s.SetSyncSteps(profile.Sync.Nudge()),
 		s.SetPrecisionStep(profile.Sync.PrecisionSeekStep.Std()),
 	)
-	// The Modo Karaokê of the video may come from its project or the bar:
+	// The karaoke mode of the video may come from its project or the bar:
 	// only the parts that changed in the profile replace it.
 	if karaoke.Enabled != before.Enabled || karaoke.MinGap != before.MinGap || karaoke.Lead != before.Lead || karaoke.Fill != before.Fill {
 		err = errors.Join(err, s.ApplyKaraoke(session.Karaoke{Enabled: karaoke.Enabled, Rules: karaoke.Rules(), Fill: karaoke.Fill}))
@@ -346,7 +346,7 @@ func (a *API) CheckShortcut(text string) (ShortcutCheck, error) {
 	return ShortcutCheck{Chord: chord.String(), Label: ptbr.ShortcutLabel(chord, a.deps.KeyChar)}, nil
 }
 
-// CheckFill tells which color the Modo Karaokê's fill is painted in over a
+// CheckFill tells which color the karaoke mode's fill is painted in over a
 // line of color text: a fill the line would hide gives way to one that shows.
 func (a *API) CheckFill(text, fill string) (FillCheck, error) {
 	textColor, err := appearance.ParseColor(text)

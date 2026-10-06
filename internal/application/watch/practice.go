@@ -64,7 +64,7 @@ func (s *Session) practiced(notice func(session.PracticeEvent, session.PracticeS
 	}
 }
 
-// SetKaraoke turns the Modo Karaokê on or off, keeping its rules.
+// SetKaraoke turns the karaoke mode on or off, keeping its rules.
 func (s *Session) SetKaraoke(enabled bool) {
 	karaoke := s.subtitles.Karaoke()
 	karaoke.Enabled = enabled
@@ -72,7 +72,7 @@ func (s *Session) SetKaraoke(enabled bool) {
 	s.followVoice()
 }
 
-// SetKaraokeSettings changes the Modo Karaokê as a whole: on or off, its
+// SetKaraokeSettings changes the karaoke mode as a whole: on or off, its
 // timing and the fill, refusing timing the rules refuse.
 func (s *Session) SetKaraokeSettings(karaoke session.Karaoke) error {
 	if err := karaoke.Rules.Validate(); err != nil {
@@ -105,7 +105,7 @@ func (s *Session) OpenEditor(line session.Line) error {
 	return nil
 }
 
-// Karaoke is the Modo Karaokê as it is now.
+// Karaoke is the karaoke mode as it is now.
 func (s *Session) Karaoke() session.Karaoke {
 	return s.subtitles.Karaoke()
 }
@@ -136,13 +136,13 @@ func (s *Session) LineRepeats() int {
 	return s.practice.LineRepeats()
 }
 
-// ReplayLine is "Treinar de novo": back to the start of the preview of the
+// ReplayLine trains the line again: back to the start of the preview of the
 // line being previewed, spoken or last spoken.
 func (s *Session) ReplayLine() error {
 	return s.practice.ReplayLine()
 }
 
-// StudyPassage starts "Estudar trecho"; snap widens the passage so no line
+// StudyPassage starts studying a passage; snap widens the passage so no line
 // is cut, never past the end of the video. The plan and snap become the
 // options of the next passage closed by the mark shortcut.
 func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, snap bool) error {

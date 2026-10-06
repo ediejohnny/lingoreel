@@ -12,7 +12,7 @@ import (
 // headphones take about 0.2 s, a receiver over HDMI a little more.
 const MaxVoiceDelay = time.Second
 
-// VoicePreferences are how the Modo Karaokê follows the actors' voice on
+// VoicePreferences are how the karaoke mode follows the actors' voice on
 // this computer: whether at all, how readily quiet sound counts as voice,
 // the FFmpeg the user chose (empty: looked for), the output's delay, and
 // whether to go on when the computer cannot keep up.

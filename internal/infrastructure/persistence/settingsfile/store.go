@@ -15,7 +15,7 @@ const (
 	appFolder = "LingoReel"
 	// configVersion and profilesVersion are the current document versions.
 	configVersion = 1
-	// profilesVersion 2 added the Modo Karaokê, 3 moved the subtitles to the
+	// profilesVersion 2 added the karaoke mode, 3 moved the subtitles to the
 	// app's own font, 4 made room for the passage marks, 5 added the looks
 	// and 6 gave the selection its cleaner frame (migrations.go).
 	profilesVersion = 6

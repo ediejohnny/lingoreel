@@ -57,7 +57,7 @@ func freshenTheSelection(document map[string]any) error {
 
 // addLooks (version 4 to 5) gives every profile the looks that were fixed
 // before: the line spacing and the gap between the subtitles, the marks and
-// the Modo Karaokê's indicator, whose bar takes the profile's preview color
+// the karaoke mode's indicator, whose bar takes the profile's preview color
 // as it did. A value a profile somehow has stays.
 func addLooks(document map[string]any) error {
 	defaults := settings.DefaultProfile()
@@ -172,7 +172,7 @@ func useTheAppFont(document map[string]any) error {
 	return nil
 }
 
-// addKaraoke (version 1 to 2) gives every profile the Modo Karaokê's
+// addKaraoke (version 1 to 2) gives every profile the karaoke mode's
 // defaults; a profile that somehow has them keeps its own.
 func addKaraoke(document map[string]any) error {
 	defaults, err := asObject(settings.DefaultKaraoke())

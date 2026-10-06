@@ -60,7 +60,7 @@ type Config struct {
 	Bar       BarPreferences            `json:"bar"`
 	Edit      appearance.EditStyle      `json:"edit"`
 	Interface appearance.InterfaceStyle `json:"interface"`
-	// Voice is how the Modo Karaokê follows the actors' voice on this
+	// Voice is how the karaoke mode follows the actors' voice on this
 	// computer.
 	Voice VoicePreferences `json:"voice"`
 }

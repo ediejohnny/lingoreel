@@ -38,7 +38,7 @@ const goalOptions = () =>
     label: laps === 0 ? t("ui.passage.goal.none") : t("ui.passage.goal.laps", { laps }),
   }));
 
-/** TrainingCards are the Modo Karaokê and "Estudar trecho" controls. */
+/** TrainingCards are the karaoke mode and passage study controls. */
 export function TrainingCards({ state, label, onCommand }: TrainingCardsProps) {
   return (
     <div className="@container">

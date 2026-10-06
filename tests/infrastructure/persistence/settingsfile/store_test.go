@@ -66,7 +66,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 }
 
-// Profiles saved before the Modo Karaokê (version 1) get its defaults; the
+// Profiles saved before the karaoke mode (version 1) get its defaults; the
 // rest of each profile stays as the user left it. Two profiles: decoding
 // over the default list, the first one would inherit the defaults anyway.
 func TestOldProfilesGetTheKaraokeDefaults(t *testing.T) {

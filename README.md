@@ -20,7 +20,7 @@ can stay on screen or show up only when you ask for it.
   visible.
 - Configurable shortcuts: 5, 10 and 30 second seeks, a precision step, frame by frame, speed, repeat the line and the
   last few seconds.
-- Karaoke mode ("Modo Karaokê"): in long pauses the next line shows up ahead of time, with a bar or a countdown, and
+- Karaoke mode: in long pauses the next line shows up ahead of time, with a bar or a countdown, and
   fills in while the actor speaks, so you can speak along.
 - Saved studies: Ctrl+F9 marks where a passage begins and Ctrl+F10 where it ends. The passage is saved with its times as
   its name and repeats until you leave it. When you open the video again, it resumes where you left off, with the speed,

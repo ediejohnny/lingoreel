@@ -41,7 +41,7 @@ const (
 	ActionEntry
 	// ActionSpeed plays at Speed.
 	ActionSpeed
-	// ActionPreset gives Field the value Duration (the Modo Karaokê's times,
+	// ActionPreset gives Field the value Duration (the karaoke mode's times,
 	// the pause between laps) or Count (repeats, the goal of laps).
 	ActionPreset
 	// ActionAudio switches to the audio track Track.

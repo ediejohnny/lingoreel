@@ -6,7 +6,7 @@ import "slices"
 // judge a line by: the Listener judges each frame against the last
 // listenWindow instead, with the same quiet, loudest and threshold as
 // DetectLine, worked out again every relistenEvery. The loudest fades only
-// slowly: a line after a long silence (the Modo Karaokê's preview) is
+// slowly: a line after a long silence (the karaoke mode's preview) is
 // measured against the voice heard before it.
 const (
 	listenWindow  = 400 // frames: 4 s

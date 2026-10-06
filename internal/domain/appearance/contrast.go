@@ -115,7 +115,7 @@ func radians(degrees float64) float64 {
 }
 
 // MinFillContrast is the least difference (CIEDE2000) between the text and
-// the Modo Karaokê's fill for the spoken part to show: the karaoke yellow
+// the karaoke mode's fill for the spoken part to show: the karaoke yellow
 // over the high-contrast yellow measures 7.6 and cannot be seen, over white
 // it measures 29.1.
 const MinFillContrast = 15

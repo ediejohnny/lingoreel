@@ -9,10 +9,10 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
-// ErrInvalidKaraoke reports Modo Karaokê settings outside their ranges.
-var ErrInvalidKaraoke = errors.New("invalid Modo Karaokê settings")
+// ErrInvalidKaraoke reports karaoke mode settings outside their ranges.
+var ErrInvalidKaraoke = errors.New("invalid karaoke mode settings")
 
-// Ranges of the Modo Karaokê. Below a 3 s gap the preview would last under
+// Ranges of the karaoke mode. Below a 3 s gap the preview would last under
 // 2 s and mix with quick, overlapping dialogue; a 2 s lead is about the time
 // to read a short line.
 const (
@@ -156,11 +156,11 @@ func NextCueStartAfter(timeline *subtitle.Timeline, offset subtitle.Offset, posi
 	return 0, false
 }
 
-// replayLeadIn is how far before a line "Treinar de novo" goes when the
+// replayLeadIn is how far before a line a replay goes when the
 // line has no preview: enough to hear it start.
 const replayLeadIn = time.Second
 
-// ReplayTarget is where "Treinar de novo" goes: the start of the preview of
+// ReplayTarget is where a replay goes: the start of the preview of
 // the line being previewed, spoken or last spoken; for a line without a
 // preview, a moment before it. False when no line has come yet.
 func ReplayTarget(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules) (time.Duration, bool) {

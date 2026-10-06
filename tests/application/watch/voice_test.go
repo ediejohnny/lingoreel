@@ -51,7 +51,7 @@ func paintingKaraoke() session.Karaoke {
 	return session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true}
 }
 
-// The player is heard only while the Modo Karaokê paints the line, and no
+// The player is heard only while the karaoke mode paints the line, and no
 // longer once the session ends.
 func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 	t.Parallel()
@@ -68,7 +68,7 @@ func TestThePlayerIsHeardWhileTheLineIsPainted(t *testing.T) {
 		t.Fatalf("heard process %d, want the player's 4242", tap.pid.Load())
 	}
 	s.SetKaraoke(false)
-	testkit.Eventually(t, "no longer hearing with the Modo Karaokê off", func() bool { return tap.listening.Load() == 0 })
+	testkit.Eventually(t, "no longer hearing with the karaoke mode off", func() bool { return tap.listening.Load() == 0 })
 	s.SetKaraoke(true)
 	testkit.Eventually(t, "hearing again", func() bool { return tap.listening.Load() == 1 })
 	s.SetVoiceSetup(watch.VoiceSetup{Follow: false})

@@ -138,8 +138,8 @@ func (s *Session) SetSyncWording(notice func(session.Line, subtitle.Offset) stri
 // the video or a file (number and what was loaded for it), or takes the
 // line's subtitle away (number 0). The line comes with its saved edits and
 // offset (saved); the editing on that line starts over, its selection, undo
-// and redo, since the new file numbers its lines afresh; and "Repetir cada
-// fala" counts afresh too. The pair of lines is checked again here, as the
+// and redo, since the new file numbers its lines afresh; and the line
+// repeats count afresh too. The pair of lines is checked again here, as the
 // other line may have changed while this file loaded.
 func (s *Session) SetLine(line session.Line, number uint64, loaded analysis.LoadedTrack, saved project.Track) error {
 	if !line.Valid() {

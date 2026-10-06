@@ -13,7 +13,7 @@ import type { SectionProps } from "./section";
 const delaySaveAfter = 400;
 
 /**
- * VoiceCard is how the Modo Karaokê follows the actors' voice on this computer, for every profile: each choice is
+ * VoiceCard is how the karaoke mode follows the actors' voice on this computer, for every profile: each choice is
  * saved at once, the FFmpeg is found, chosen or installed here.
  */
 export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {

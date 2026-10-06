@@ -262,7 +262,7 @@ func TestTheStudyModes(t *testing.T) {
 		t.Fatal("the screen hid the translation")
 	}
 
-	// On demand, Mostrar ambas and Só a legenda de cima set it either way.
+	// On demand, showing both lines or only the top one sets it either way.
 	_, onDemand := start(study.ModeOnDemand)
 	if err := onDemand.Run(shortcut.ShowBoth, false); err != nil || !onDemand.TranslationVisible() {
 		t.Fatalf("show both: %v, visible %v", err, onDemand.TranslationVisible())

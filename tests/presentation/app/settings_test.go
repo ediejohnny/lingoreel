@@ -117,7 +117,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	}
 }
 
-// The Modo Karaokê of the video being watched (from its project or the bar)
+// The karaoke mode of the video being watched (from its project or the bar)
 // is the video's: saving the settings changes only what changed in the
 // profile.
 func TestSavingTheSettingsKeepsTheVideosKaraoke(t *testing.T) {

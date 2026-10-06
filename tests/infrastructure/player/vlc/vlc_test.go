@@ -95,7 +95,7 @@ func TestArgumentsKeepControlLocalAndPlayerQuiet(t *testing.T) {
 	}
 	// The volume is the app's: none saved between sessions (shared with the
 	// user's own VLC) and no gain of VLC's own. The sound goes through the
-	// mixer, where the Modo Karaokê hears it.
+	// mixer, where the karaoke mode hears it.
 	for _, flag := range []string{"--no-spu", "--no-one-instance", "--no-metadata-network-access", "--play-and-pause", "--dummy-quiet", "--no-volume-save", "--gain=1",
 		"--mmdevice-passthrough=0", "--no-spdif"} {
 		if !slices.Contains(args, flag) {

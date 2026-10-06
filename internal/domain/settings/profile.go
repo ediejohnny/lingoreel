@@ -39,14 +39,14 @@ type LanguagePreferences struct {
 }
 
 // StudyPreferences configures how the translation is revealed and the
-// Modo Karaokê.
+// karaoke mode.
 type StudyPreferences struct {
 	Mode    study.Mode           `json:"mode"`
 	Reveal  study.RevealBehavior `json:"reveal"`
 	Karaoke KaraokePreferences   `json:"karaoke"`
 }
 
-// KaraokePreferences configure the Modo Karaokê: the next line shows before
+// KaraokePreferences configure the karaoke mode: the next line shows before
 // its time after a long silence, and fills in as it is spoken.
 type KaraokePreferences struct {
 	Enabled bool `json:"enabled"`
@@ -147,7 +147,7 @@ func (s SyncPreferences) Nudge() subtitle.NudgeSteps {
 	return subtitle.NudgeSteps{Step: time.Duration(s.OffsetStep), FastStep: time.Duration(s.OffsetLargeStep)}
 }
 
-// Profile is a named set of study preferences, such as "Inglês" or "Francês".
+// Profile is a named set of study preferences, such as "English" or "French".
 type Profile struct {
 	Name string `json:"name"`
 	// PreferredPlayer is a player id; empty means automatic choice.

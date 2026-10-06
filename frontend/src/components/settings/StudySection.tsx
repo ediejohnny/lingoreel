@@ -10,7 +10,7 @@ import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
 import { VoiceCard } from "./VoiceCard";
 
-/** StudySection holds the Modo Karaokê and the translation key. */
+/** StudySection holds the karaoke mode and the translation key. */
 export function StudySection(props: SectionProps) {
   const { view, draft, setDraft } = props;
   const karaoke = draft.karaoke;

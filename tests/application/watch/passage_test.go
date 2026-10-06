@@ -145,7 +145,7 @@ func TestAnEndBeforeTheStartSwapsThem(t *testing.T) {
 }
 
 // By default the marked passage is fitted to the lines, like the panel's
-// "Ajustar às falas"; the options last picked (or set) apply to the next.
+// fitting option; the options last picked (or set) apply to the next.
 func TestMarkedPassagesFollowThePassageOptions(t *testing.T) {
 	t.Parallel()
 	r, s := markingRig(t)
@@ -283,7 +283,7 @@ func TestSavedPassagesToldByTheAppAreStudied(t *testing.T) {
 	_ = r
 }
 
-// The Modo Karaokê's timing changes as a whole, refusing what the rules
+// The karaoke mode's timing changes as a whole, refusing what the rules
 // refuse.
 func TestTheKaraokeSettingsChangeAsAWhole(t *testing.T) {
 	t.Parallel()

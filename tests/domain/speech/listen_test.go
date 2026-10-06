@@ -8,8 +8,8 @@ import (
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
-// The Modo Karaokê's line comes after a long silence, and "Treinar de
-// novo" seeks to it: the Listener still hears it from its first syllable,
+// The karaoke mode's line comes after a long silence, and training it
+// again seeks to it: the Listener still hears it from its first syllable,
 // measured against the voice heard before.
 func TestTheListenerHearsALineAfterASilenceAndASeek(t *testing.T) {
 	t.Parallel()

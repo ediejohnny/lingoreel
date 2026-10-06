@@ -357,7 +357,7 @@ func TestRememberFileMakesRoomOnlyFromFilesThatAreGone(t *testing.T) {
 	}
 }
 
-// "Continuar de" is offered where the video was left, but not in its first
+// Resuming is offered where the video was left, but not in its first
 // seconds nor in its credits; with the length unknown, only the first
 // seconds count.
 func TestGoingOnIsOfferedOnlyPastTheStartAndBeforeTheCredits(t *testing.T) {

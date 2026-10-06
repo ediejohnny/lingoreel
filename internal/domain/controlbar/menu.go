@@ -9,7 +9,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 )
 
-// Menu names a menu of the bar: the passage, the Modo Karaokê and the
+// Menu names a menu of the bar: the passage, the karaoke mode and the
 // subtitles. The speed list is apart (ActionSpeed).
 type Menu int
 
@@ -62,7 +62,7 @@ const (
 	FieldProgressive
 	FieldLadder
 	FieldGoal
-	// The Modo Karaokê.
+	// The karaoke mode.
 	FieldKaraoke
 	FieldIndicator
 	FieldMinGap
@@ -114,7 +114,7 @@ type SavedItem struct {
 }
 
 // StudyState is what the menus and the study text show: the passage being
-// marked or studied, its options, the saved passages, the Modo Karaokê and
+// marked or studied, its options, the saved passages, the karaoke mode and
 // the subtitles.
 type StudyState struct {
 	MarkSet   bool

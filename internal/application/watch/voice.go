@@ -10,7 +10,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 )
 
-// While the Modo Karaokê paints the line, a follower finds the actor's voice
+// While the karaoke mode paints the line, a follower finds the actor's voice
 // for it. It starts in the background (finding the user's FFmpeg takes a
 // moment, and the video must not wait for it), starts again when the audio
 // or the line on top changes, and stops when the fill is turned off or the
@@ -44,7 +44,7 @@ type voicing struct {
 	ended    bool
 }
 
-// followVoice starts or stops following the voice as the Modo Karaokê asks.
+// followVoice starts or stops following the voice as the karaoke mode asks.
 func (s *Session) followVoice() {
 	s.reviewVoice(false)
 }
@@ -166,7 +166,7 @@ func (s *Session) SetVoiceSetup(setup VoiceSetup) {
 }
 
 // VoiceMode tells how the voice is followed now; false when it is not (the
-// Modo Karaokê's fill is off, or following is).
+// karaoke mode's fill is off, or following is).
 func (s *Session) VoiceMode() (voice.Mode, bool) {
 	v := s.voice
 	if v == nil {

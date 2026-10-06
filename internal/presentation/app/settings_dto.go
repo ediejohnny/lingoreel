@@ -14,7 +14,7 @@ type SettingsView struct {
 	// profile.
 	Appearance AppearanceSettings `json:"appearance"`
 	Players    []PlayerSetting    `json:"players"`
-	// Voice is how the Modo Karaokê follows the actors' voice on this
+	// Voice is how the karaoke mode follows the actors' voice on this
 	// computer.
 	Voice   VoiceSettings   `json:"voice"`
 	Options SettingsOptions `json:"options"`
@@ -38,7 +38,7 @@ type GeneralSettings struct {
 	Languages []Option `json:"languages"`
 }
 
-// VoiceSettings are how the Modo Karaokê follows the actors' voice on this
+// VoiceSettings are how the karaoke mode follows the actors' voice on this
 // computer.
 type VoiceSettings struct {
 	Follow bool `json:"follow"`
@@ -151,7 +151,7 @@ type SelectionSettings struct {
 	Radius float64 `json:"radius"`
 }
 
-// KaraokeSettings are the Modo Karaokê's choices. The bar's thickness is in
+// KaraokeSettings are the karaoke mode's choices. The bar's thickness is in
 // pixels at 1080 lines; CountdownSize is a share of the line's size.
 type KaraokeSettings struct {
 	Enabled       bool    `json:"enabled"`
@@ -232,7 +232,7 @@ type ShortcutCheck struct {
 	Label string `json:"label"`
 }
 
-// FillCheck is the color the Modo Karaokê's fill is painted in over the line
+// FillCheck is the color the karaoke mode's fill is painted in over the line
 // on top: the chosen one, or the one standing in for it when the line would
 // hide it (Changed).
 type FillCheck struct {
@@ -338,7 +338,7 @@ type PreviewRequest struct {
 	// "primary", "translation", or "" for none.
 	Highlight string `json:"highlight"`
 	// View is "" for the subtitles as they look between lines, "fill" for
-	// the Modo Karaokê's fill, "cue" for a line shown before its time with
+	// the karaoke mode's fill, "cue" for a line shown before its time with
 	// the time left, both as Karaoke says, or "notice" for a notice as
 	// Marks says. Each part is read only by the view that shows it.
 	View    string          `json:"view"`

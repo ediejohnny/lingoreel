@@ -7,8 +7,8 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 )
 
-// RecentSound is how much of the sound heard Memory keeps: enough for
-// "Treinar de novo" on the lines just spoken.
+// RecentSound is how much of the sound heard Memory keeps: enough to
+// train the lines just spoken again.
 const RecentSound = 2 * time.Minute
 
 // joinTolerance is how far a piece may land from where the last one ended

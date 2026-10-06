@@ -8,20 +8,23 @@ All notable changes to this project are listed here. The format follows
 
 ## [0.23.0] - 2026-10-06
 
-The Modo Karaokê paints each line along the actor's voice: the fill moves while they speak and holds in their pauses.
+The karaoke mode can follow the actors' voice, as an experiment, and its estimate now weighs each line by its syllables.
 
 ### Added
 
-- The Modo Karaokê follows the actors' voice. With an FFmpeg on the computer (found, chosen, or installed with winget
-  from its authors), the voice is analyzed a little ahead of the video; without one, the app hears the player's own
-  sound as it plays. A line trained again ("Treinar de novo") is painted from the voice heard the first time. When the
-  voice cannot be told (music, a dubbed track playing, a busy computer), the line is painted by the estimate, as before.
-- Configurações › Estudo › "Voz dos atores": follow the voice or not, the sensitivity, the FFmpeg, the output's delay
-  for wireless headphones, and following on even when the computer is busy. The panel tells how the voice is followed.
+- The karaoke mode can follow the actors' voice: the fill moves while they speak and holds in their pauses. Following
+  the voice comes on with the karaoke mode and can be turned off; it is still an experiment, since music and sound
+  effects can pass for a voice and paint a line worse than the estimate. With an FFmpeg on the computer (found, chosen,
+  or installed with winget from its authors), the voice is analyzed a little ahead of the video; without one, the app
+  hears the player's own sound as it plays. A line trained again is painted from the voice heard the first time. When
+  the voice cannot be told (music, a dubbed track playing, a busy computer), the line is painted by the estimate, as
+  before.
+- Settings › Study › Actors' voice: follow the voice or not, the sensitivity, the FFmpeg, the output's delay for
+  wireless headphones, and following on even when the computer is busy. The panel tells how the voice is followed.
 - The estimate weighs a line by its syllables: a sound's description ("[DOOR SLAMS]") and a speaker's name take no time,
   a stretched sound ("duuuu") takes longer, and the fill holds at commas and periods.
 - The app's own icon and logo, also beside the app's name.
-- AVISOS-DE-TERCEIROS.txt in the zip, with the licenses of everything inside the app.
+- A third-party notices file in the zip, with the licenses of everything inside the app.
 
 ### Changed
 
@@ -32,8 +35,8 @@ The Modo Karaokê paints each line along the actor's voice: the fill moves while
 
 ### Fixed
 
-- The Modo Karaokê's fill was invisible over a line of a close color (the yellow of "Alto contraste"): such a fill now
-  gives way to a contrasting one, and Settings says which.
+- The karaoke mode's fill was invisible over a line of a close color (the yellow of the high contrast look): such a
+  fill now gives way to a contrasting one, and Settings says which.
 - Closing the app (Alt+F4) with a video playing left the window on screen for several seconds: it now goes at once,
   while the player closes behind it.
 - The fill started up to a second late at the start of a line.
@@ -43,7 +46,7 @@ The Modo Karaokê paints each line along the actor's voice: the fill moves while
 
 ### Added
 
-- Configurações › Geral › Janela: "Manter o app sempre no topo", on by default. The app's window, with the subtitles and
+- Settings › General › Window: keep the app always on top, on by default. The app's window, with the subtitles and
   the bar over the video, stays in front of other programs; turned off, it can go behind them.
 - The menu over the video shows stop in red, play in blue and pause in amber.
 
@@ -61,17 +64,17 @@ its menus, the correction box and the app itself.
 
 ### Added
 
-- Each subtitle's line spacing ("Entrelinha"), and the least distance between the two subtitles when they meet.
-- "Avisos no vídeo": the font, size, colors, side at the top, margin and width of the short notices, and how long they
-  stay.
-- "Fala selecionada": the colors, width, gap and corners of the frame around the line being corrected.
-- Modo Karaokê: the thickness and color of the bar before a line and the size of the countdown; the preview can show a
+- Each subtitle's line spacing, and the least distance between the two subtitles when they meet.
+- Notices on the video: the font, size, colors, side at the top, margin and width of the short notices, and how long
+  they stay.
+- The selected line: the colors, width, gap and corners of the frame around the line being corrected.
+- Karaoke mode: the thickness and color of the bar before a line and the size of the countdown; the preview can show a
   line before its time.
-- Settings › Aparência:
+- Settings › Appearance:
   - the control bar and its menus: colors, font, size (75% to 200%) and how long the bar stays, with a picture of it;
   - the correction box: its colors and the hint's size, with a sample;
   - the app's own accent color, font and text size (85% to 150%).
-- "Restaurar o padrão" on each of these groups.
+- Restoring the defaults on each of these groups.
 
 ### Changed
 
@@ -84,19 +87,19 @@ A review of 0.20.0: the menu reaches the app, and smaller fixes.
 
 ### Fixed
 
-- The menu over the video lacked the app's items in the app ("Encerrar o vídeo", "Abrir outro vídeo…",
-  "Configurações…", copying a line, its look, adding and exporting subtitles) and greyed out the track lists.
+- The menu over the video lacked the app's items in the app (ending the video, opening another one, the settings,
+  copying a line, its look, adding and exporting subtitles) and greyed out the track lists.
 - A sync step made right as the line's subtitle switched could still be kept on the other file.
 - Adding a subtitle file while the video played read the video's saved passages without the lock that guards them.
-- The "Legendas" card offers "Nenhuma" on top when the video plays without a subtitle there, instead of naming a track
-  that is not on screen.
+- The subtitles card offers none on top when the video plays without a subtitle there, instead of naming a track that
+  is not on screen.
 - The menu's "CC" icon fits its picture; its frame was cut on both sides.
-- A pause or a lap of "Estudar trecho" that the player does not carry out is told on the video.
+- A pause or a lap of a passage being studied that the player does not carry out is told on the video.
 - `scripts\make-fixtures.ps1` runs its last step again.
 
 ### Changed
 
-- The menu's item is named "Adicionar arquivo de legenda…", as on the session screen and the panel.
+- The menu's item for adding a subtitle file is named as on the session screen and the panel.
 - The developer tool `spdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
 - The check runs staticcheck.
 
@@ -107,13 +110,13 @@ A right click on the video opens a full menu, and subtitles switch while the vid
 ### Added
 
 - The right button on the video or its bar, the menu key or Shift+F10 opens Windows' own menu over the video: the line
-  under the click (correct it in place, copy it, its look), playback, speed, audio, subtitles and sync, study mode, Modo
-  Karaokê, passages, another video, the settings and closing, with icons, submenus and the key the profile gives each
-  command.
+  under the click (correct it in place, copy it, its look), playback, speed, audio, subtitles and sync, study mode,
+  karaoke mode, passages, another video, the settings and closing, with icons, submenus and the key the profile gives
+  each command.
 - Switching the subtitle on top or below, or the audio, while the video plays, from the menu or from the panel's new
-  "Legendas" card; "Nenhuma" takes the translation away.
-- "Adicionar arquivo de legenda…" on the session screen, the panel and the menu: a subtitle file from any folder joins
-  the video and comes back the next time it opens.
+  subtitles card; choosing none takes the translation away.
+- Adding a subtitle file on the session screen, the panel and the menu: a subtitle file from any folder joins the video
+  and comes back the next time it opens.
 
 ### Changed
 
@@ -134,13 +137,13 @@ The app is ready for translations.
 - Every text of the interface comes from a catalog per language, read by the Go side and the screens alike; Brazilian
   Portuguese is the complete one. Adding a language is adding a folder, with no code changes: see
   [Translating](docs/translating.md).
-- The interface's language: the Windows display language when the app speaks it, and a field in Configurações › Geral as
+- The interface's language: the Windows display language when the app speaks it, and a field in Settings › General as
   soon as there is more than one.
 - Telling a subtitle's language from its text also knows German and Italian; each language's words are a data file.
 
 ### Fixed
 
-- "1 voltas" and "Meta de 1 repetições concluída" now read in the singular.
+- One lap and a goal of one repetition now read in the singular.
 
 ## [0.18.0] - 2026-10-05
 
@@ -149,10 +152,10 @@ One window: with VLC, the video plays inside the app's window, with the panel be
 ### Added
 
 - The video plays under the header of the app's window; the panel beside it (▤) holds the playback controls, the
-  corrections, the Modo Karaokê, the passages and the settings, its edge dragged wider and its state remembered.
+  corrections, the karaoke mode, the passages and the settings, its edge dragged wider and its state remembered.
 - Fullscreen (F, double click, the bar's button) leaves only the video; Esc comes back.
-- Closing the window, or Alt+F4 on the video, closes everything, the video's work saved first; "Encerrar" goes back to
-  the session screen. The window's title names the video.
+- Closing the window, or Alt+F4 on the video, closes everything, the video's work saved first; ending the video goes
+  back to the session screen. The window's title names the video.
 - With PotPlayer, which keeps its own window, closing PotPlayer closes the app too.
 
 ### Changed
@@ -179,11 +182,11 @@ The volume goes up to 200% on VLC, gradually while a key is held.
 - VLC no longer changes the level of the user's own VLC: it keeps no volume between sessions.
 ## [0.16.3] - 2026-10-05
 
-The Modo Karaokê's fill color on the page of the line on top, and three fixes.
+The karaoke mode's fill color on the page of the line on top, and three fixes.
 
 ### Added
 
-- Settings › Legendas › De cima edits the Modo Karaokê's fill color, and its preview can show the line half spoken.
+- Settings › Subtitles › Top edits the karaoke mode's fill color, and its preview can show the line half spoken.
 
 ### Fixed
 
@@ -191,7 +194,7 @@ The Modo Karaokê's fill color on the page of the line on top, and three fixes.
   longer show.
 - Jobs of a window's thread run while a modal loop is open (a window being dragged or sized, a menu), instead of waiting
   for the next one.
-- Saving the settings no longer undoes the Modo Karaokê of the video being watched, set by its project or the bar.
+- Saving the settings no longer undoes the karaoke mode of the video being watched, set by its project or the bar.
 
 ### Changed
 
@@ -213,12 +216,12 @@ Each subtitle line has its settings page, with the preview beside the fields.
 
 ## [0.16.1] - 2026-10-03
 
-The passage's save button and "Treinar de novo".
+The passage's save button and training a line again.
 
 ### Fixed
 
 - A field's button keeps its whole label on one line
-- "Treinar de novo" plays the line again, also at a passage's end
+- Training a line again plays it again, also at a passage's end
 
 ### Documentation
 
@@ -253,8 +256,8 @@ Saved studies and the full control bar.
 - The video's project keeps how it was left and each passage's plan
 - Ctrl+F9 and Ctrl+F10 mark a passage, save it and study it
 - A video comes back as it was left; passages managed before watching
-- Saved passages and "Continuar de" on the session screen
-- The bar over the video drives the passage, the Modo Karaokê and the subtitles
+- Saved passages and resuming where the video was left, on the session screen
+- The bar over the video drives the passage, the karaoke mode and the subtitles
 
 ### Fixed
 
@@ -262,7 +265,7 @@ Saved studies and the full control bar.
 
 ### Documentation
 
-- The Modo Karaokê, saved studies and the bar in the README
+- The karaoke mode, saved studies and the bar in the README
 
 ## [0.14.0] - 2026-10-03
 
@@ -286,7 +289,7 @@ Robustness and packaging.
 - Wait for a silent player, and hold the subtitles of a frozen one
 - Say what went wrong and what to do
 - Diagnostics in the advanced settings
-- Optional "Abrir com" and context menu entry for videos
+- Optional "Open with" and context menu entry for videos
 
 ### Changed
 
@@ -319,11 +322,11 @@ Settings, profiles, preview and configurable shortcuts.
 
 ## [0.9.0] - 2026-10-01
 
-Modo Karaokê and Estudar trecho.
+Karaoke mode and studying a passage.
 
 ### Added
 
-- Modo Karaokê and "Estudar trecho"
+- Karaoke mode and studying a passage
 
 ## [0.8.0] - 2026-10-01
 

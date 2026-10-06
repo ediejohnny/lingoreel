@@ -87,7 +87,7 @@ type Session struct {
 	// saved are the video's saved passages, told by the app; showPanel
 	// brings the app's panel up for the line editor.
 	saved atomic.Pointer[[]SavedPassage]
-	// voice follows the actor's voice for the Modo Karaokê's fill.
+	// voice follows the actor's voice for the karaoke mode's fill.
 	voice     *voicing
 	showPanel func()
 

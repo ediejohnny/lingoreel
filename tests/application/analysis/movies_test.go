@@ -15,7 +15,7 @@ import (
 
 // movieCeiling is the most a real film may take from a drop on the window to
 // the session screen: reading the tracks, the subtitle files and the chosen
-// subtitles. The user's note was "abre a tela da sessão em poucos segundos".
+// subtitles. The user asked for it in a few seconds.
 const movieCeiling = 10 * time.Second
 
 // TestRealMoviesOpenQuickly measures the films in LINGOREEL_MOVIES (the

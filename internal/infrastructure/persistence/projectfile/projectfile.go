@@ -71,7 +71,7 @@ var migrations = map[int]jsonstore.Migration{
 
 // fromVersion1 (version 1 to 2) needs no new value: a passage without a
 // plan pauses at the end with no helps, and a video without "last" starts
-// from the beginning with the profile's speed and Modo Karaokê. A passage
+// from the beginning with the profile's speed and karaoke mode. A passage
 // that is not an object is still refused when the file is decoded.
 func fromVersion1(map[string]any) error { return nil }
 

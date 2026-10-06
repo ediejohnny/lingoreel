@@ -134,7 +134,7 @@ func step(r watch.Remote, field controlbar.Field, delta int) error {
 }
 
 // set gives a field a value, kept inside its limits: a time (the pause
-// between laps, the Modo Karaokê's times) or a count (the goal, repeats).
+// between laps, the karaoke mode's times) or a count (the goal, repeats).
 // The bar's steppers and the menu's ready-made values both go through it.
 func set(r watch.Remote, field controlbar.Field, duration time.Duration, count int) error {
 	switch field {

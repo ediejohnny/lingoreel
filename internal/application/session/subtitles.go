@@ -28,10 +28,10 @@ type Visible struct {
 	Primary     []subtitle.Event
 	Translation []subtitle.Event
 	// Cue is set when the primary line is the next one, shown before its
-	// time by the Modo Karaokê; Primary and Translation then hold that line.
+	// time by the karaoke mode; Primary and Translation then hold that line.
 	Cue *study.Cue
-	// Fill is the share of the primary line already spoken, for the Modo
-	// Karaokê's fill; zero when nothing is filled.
+	// Fill is the share of the primary line already spoken, for the karaoke
+	// mode's fill; zero when nothing is filled.
 	Fill float64
 	// Filling tells the primary line is being painted: its fill may move
 	// even while it is still zero, before the voice begins.
@@ -73,7 +73,7 @@ func (v Visible) Animating() bool {
 // plays: 25 frames per second, and no polling otherwise.
 const KaraokeFrame = 40 * time.Millisecond
 
-// Karaoke is the session's Modo Karaokê.
+// Karaoke is the session's karaoke mode.
 type Karaoke struct {
 	Enabled bool
 	Rules   study.CueRules
@@ -135,7 +135,7 @@ func (l Line) Valid() bool {
 	return l == LinePrimary || l == LineTranslation
 }
 
-// SetKaraoke turns the Modo Karaokê on or off and changes its rules, and
+// SetKaraoke turns the karaoke mode on or off and changes its rules, and
 // signals the change.
 func (s *Subtitles) SetKaraoke(karaoke Karaoke) {
 	s.mu.Lock()
@@ -153,15 +153,15 @@ func (s *Subtitles) SetVoice(voice VoiceFill) {
 	s.notify()
 }
 
-// Karaoke returns the Modo Karaokê's state.
+// Karaoke returns the karaoke mode's state.
 func (s *Subtitles) Karaoke() Karaoke {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.karaoke
 }
 
-// At returns the events visible at a playback position. With the Modo
-// Karaokê on, a silence before a line shows that line ahead of time, with
+// At returns the events visible at a playback position. With the karaoke
+// mode on, a silence before a line shows that line ahead of time, with
 // its translation, and a line being spoken carries its fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()

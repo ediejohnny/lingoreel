@@ -136,7 +136,7 @@ func (s *Session) SetShortcuts(keys shortcut.Map) error {
 }
 
 // LookOf is how a profile draws the subtitles and the marks around them. The
-// Modo Karaokê's fill is painted over the line on top, so a fill too close to
+// karaoke mode's fill is painted over the line on top, so a fill too close to
 // that line's color gives way to one that shows (turning it off is a setting
 // of its own).
 func LookOf(profile settings.Profile) session.Look {
@@ -158,7 +158,7 @@ func (s *Session) Restyle(look session.Look) error {
 	return restyler.Restyle(look)
 }
 
-// ApplyKaraoke replaces the Modo Karaokê's state, its rules and its fill.
+// ApplyKaraoke replaces the karaoke mode's state, its rules and its fill.
 func (s *Session) ApplyKaraoke(karaoke session.Karaoke) error {
 	if err := karaoke.Rules.Validate(); err != nil {
 		return err

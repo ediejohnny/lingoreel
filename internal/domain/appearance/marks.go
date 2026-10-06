@@ -2,8 +2,8 @@ package appearance
 
 import "strings"
 
-// Ranges accepted for the notices, the selection outline and the Modo
-// Karaokê's indicator.
+// Ranges accepted for the notices, the selection outline and the karaoke
+// mode's indicator.
 const (
 	MaxNoticeFontSize = 72.0
 	// MaxNoticeMargin and the widths are shares of the picture.
@@ -95,7 +95,7 @@ type SelectionLook struct {
 
 // DefaultSelectionLook is a sharp line in the app's blue with a half-dark
 // edge outside: blue reads as "selected", sits apart from white or yellow
-// text and from the Modo Karaokê's fill, and the edge carries it over bright
+// text and from the karaoke mode's fill, and the edge carries it over bright
 // pictures.
 func DefaultSelectionLook() SelectionLook {
 	return SelectionLook{Color: RGB(0x5B, 0x9B, 0xFF), Edge: black.WithAlpha(0x80), Width: 1, Gap: 4, Radius: 1.5}
@@ -116,7 +116,7 @@ func (s SelectionLook) Validate() error {
 	}, ErrInvalidStyle)
 }
 
-// CueStyle is how the Modo Karaokê shows the time left before a line: a bar
+// CueStyle is how the karaoke mode shows the time left before a line: a bar
 // above it, or the seconds in a smaller copy of its font.
 type CueStyle struct {
 	// BarThickness is in style units, like the outline.

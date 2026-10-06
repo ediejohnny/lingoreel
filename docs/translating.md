@@ -44,7 +44,7 @@ Each file is a JSON object of keys and texts:
 2. Translate every text in both files. Keep the keys and the parameters.
 3. Check your catalog: `go test ./tests/presentation/i18n/`. The test fails when a key is missing or extra, or when a
    text lost or gained a parameter, and names the key.
-4. Build the app (`scripts\build.ps1`). The "Idioma da interface" field in Configurações › Geral appears as soon as there
+4. Build the app (`scripts\build.ps1`). The interface language field in Settings › General appears as soon as there
    is more than one catalog; a choice there applies the next time the app opens. Until someone picks one, the app speaks
    the Windows display language when it has a catalog for it.
 5. Open a pull request with your folder.

@@ -122,7 +122,7 @@ func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 	player.play(start, sound, 4200*ms, 4900*ms)
 	within(t, `"are you?" said`, fill(t, follower, howAreYou, 4890*ms), 11.5, 13)
 
-	follower.Seeked() // "Treinar de novo"
+	follower.Seeked() // the line trained again
 	within(t, "trained again, in the pause", fill(t, follower, howAreYou, 3*time.Second), 5.5, 6)
 	within(t, `trained again, during "are you?"`, fill(t, follower, howAreYou, 4500*ms), 7, 11)
 }

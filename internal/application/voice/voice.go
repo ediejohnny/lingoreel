@@ -1,4 +1,4 @@
-// Package voice brings the film's sound to the Modo Karaokê: it hears the
+// Package voice brings the film's sound to the karaoke mode: it hears the
 // player or decodes the film ahead, finds the voice, and keeps what it
 // found by the film's clock. The system's own ways of hearing sound are
 // adapters behind the ports here, so the rest is the same on every system.

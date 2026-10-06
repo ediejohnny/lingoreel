@@ -142,7 +142,7 @@ func subtitleQuality(track Track) int {
 }
 
 // VoiceTrack is the audio track that speaks a language, the one whose voice
-// the Modo Karaokê follows, and its position among the audio tracks.
+// the karaoke mode follows, and its position among the audio tracks.
 // Declared and default tracks come first, so the film wins over a
 // commentary. False when no track speaks the language.
 func VoiceTrack(info Info, language LanguageTag) (track Track, position int, found bool) {

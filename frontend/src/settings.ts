@@ -9,8 +9,8 @@ export type { KeyPress } from "./keys";
 export type SubtitleLine = "primary" | "translation";
 
 /**
- * PreviewView is what the preview shows: the lines as they look, the Modo
- * Karaokê's fill or the line shown before its time, or a notice.
+ * PreviewView is what the preview shows: the lines as they look, the karaoke
+ * mode's fill or the line shown before its time, or a notice.
  */
 export type PreviewView = "" | "fill" | "cue" | "notice";
 

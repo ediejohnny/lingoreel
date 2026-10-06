@@ -41,7 +41,7 @@ type Look struct {
 	Layout      appearance.Layout
 	Primary     appearance.SubtitleStyle
 	Translation appearance.SubtitleStyle
-	// PreviewColor and FillColor are the Modo Karaokê's colors: a line
+	// PreviewColor and FillColor are the karaoke mode's colors: a line
 	// shown before its time, and the part of a line already spoken. Cue is
 	// how the time left before such a line shows.
 	PreviewColor, FillColor appearance.Color
