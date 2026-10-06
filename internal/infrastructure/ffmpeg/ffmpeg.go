@@ -68,7 +68,9 @@ func Arguments(stretch voice.Stretch) ([]string, int) {
 	if strings.HasPrefix(stretch.Codec, "A_DTS") {
 		args = append(args, "-core_only", "1") // the core is enough, and the cheapest to decode
 	}
-	args = append(args, "-ss", seconds(stretch.From), "-i", stretch.File, "-t", seconds(stretch.Length),
+	// file: keeps FFmpeg to reading that local file, whatever its name: it
+	// never takes the path for another of its protocols (http:, concat:).
+	args = append(args, "-ss", seconds(stretch.From), "-i", "file:"+stretch.File, "-t", seconds(stretch.Length),
 		"-map", "0:a:"+strconv.Itoa(stretch.Track), "-vn", "-sn", "-dn")
 	// Without first_pts=0 a track that starts later than the video (a
 	// dubbed one, often) would shift every line by that much.

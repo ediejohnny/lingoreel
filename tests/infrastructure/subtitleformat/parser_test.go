@@ -33,6 +33,11 @@ func TestNewParserSelectsStrategyByFormat(t *testing.T) {
 
 func TestDetectFormat(t *testing.T) {
 	t.Parallel()
+	const (
+		srt = "1\n00:00:01,000 --> 00:00:02,000\nx"
+		ass = "[Script Info]\nTitle: x"
+		vtt = "WEBVTT\n\n00:01.000 --> 00:02.000\nx"
+	)
 	cases := []struct {
 		name     string
 		fileName string
@@ -40,14 +45,20 @@ func TestDetectFormat(t *testing.T) {
 		want     subtitle.Format
 		wantOK   bool
 	}{
-		{"srt extension", "Movie.PT-BR.SRT", "", subtitle.FormatSRT, true},
-		{"ass extension", "movie.ass", "", subtitle.FormatASS, true},
-		{"ssa extension", "movie.ssa", "", subtitle.FormatSSA, true},
-		{"vtt extension", "movie.vtt", "", subtitle.FormatWebVTT, true},
-		{"sniff webvtt", "movie.txt", "WEBVTT\n\n00:01.000 --> 00:02.000\nx", subtitle.FormatWebVTT, true},
-		{"sniff ass", "movie.sub", "[Script Info]\nTitle: x", subtitle.FormatASS, true},
-		{"sniff srt", "", "1\n00:00:01,000 --> 00:00:02,000\nx", subtitle.FormatSRT, true},
-		{"unknown", "notes.txt", "hello", "", false},
+		{"srt", "Movie.PT-BR.SRT", srt, subtitle.FormatSRT, true},
+		{"ass", "movie.ass", ass, subtitle.FormatASS, true},
+		{"ssa reads as ass, the name tells", "movie.ssa", ass, subtitle.FormatSSA, true},
+		{"vtt", "movie.vtt", vtt, subtitle.FormatWebVTT, true},
+		{"vtt renamed", "movie.txt", vtt, subtitle.FormatWebVTT, true},
+		{"ass named srt", "movie.srt", ass, subtitle.FormatASS, true},
+		{"no name", "", srt, subtitle.FormatSRT, true},
+		{"utf-16 with its bom", "movie.srt", "\xff\xfe1\x00\n\x000\x000\x00:\x000\x000\x00:\x000\x001\x00,\x000\x000\x000\x00 \x00-\x00-\x00>\x00", subtitle.FormatSRT, true},
+		// Not subtitles, whatever their name says.
+		{"a page renamed", "movie.srt", "<html><script>alert(1)</script></html>", "", false},
+		{"a script renamed", "movie.ass", "Remove-Item -Recurse C:\\", "", false},
+		{"a program renamed", "movie.srt", "MZ\x90\x00\x03\x00\x00\x00 1\n00:00:01,000 --> 00:00:02,000\n", "", false},
+		{"an empty srt", "movie.srt", "", "", false},
+		{"text", "notes.txt", "hello", "", false},
 		{"empty", "", "", "", false},
 	}
 	for _, tc := range cases {

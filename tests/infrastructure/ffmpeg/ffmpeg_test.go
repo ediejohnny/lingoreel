@@ -24,12 +24,15 @@ func value(args []string, flag string) string {
 }
 
 // FFmpeg takes the dialogue's channel from a surround mix and both sides of
-// a stereo one; a DTS track is decoded by its core.
+// a stereo one; a DTS track is decoded by its core. The film is always read
+// as a local file, never as another of FFmpeg's protocols.
 func TestTheArgumentsTakeTheVoiceOfTheMix(t *testing.T) {
 	t.Parallel()
 	surround, channels := ffmpeg.Arguments(voice.Stretch{File: `D:\film.mkv`, Track: 1, Channels: 6, Codec: "A_DTS", From: 90 * time.Second, Length: time.Minute})
 	core, input := slices.Index(surround, "-core_only"), slices.Index(surround, "-i")
 	switch {
+	case value(surround, "-i") != `file:D:\film.mkv`:
+		t.Fatalf("input = %q, want the local file", value(surround, "-i"))
 	case channels != 1 || value(surround, "-ac") != "1":
 		t.Fatalf("surround gives %d channels: %q", channels, surround)
 	case core < 0 || core > input || value(surround, "-core_only") != "1":
