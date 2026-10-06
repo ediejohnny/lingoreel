@@ -36,6 +36,9 @@ type Alignment struct {
 	// the reference once aligned, from 0 to 1.
 	Score   float64
 	Verdict Verdict
+	// Heard tells it was found by the voice heard in the video
+	// (AlignToVoice), not by a subtitle of the video.
+	Heard bool
 }
 
 const (

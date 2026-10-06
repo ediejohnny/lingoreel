@@ -76,6 +76,11 @@ const (
 	// worth applying; below them the file already matches.
 	minCorrectionOffset = time.Millisecond
 	minCorrectionRate   = 1e-6
+	// minHeardOffset is the least offset found by the voice worth applying:
+	// the voice is found a little after a subtitle shows (a median 0.12 s, by
+	// lines marked by ear), so a file that fits comes out up to 0.25 s off
+	// and is better left as its authors timed it.
+	minHeardOffset = 250 * time.Millisecond
 )
 
 // Service runs the analysis use cases.
@@ -359,13 +364,18 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 
 // Correction is how a subtitle file's times move to match the video: only for
 // a file whose timing matched (tracks of the video are never measured), and
-// only when the move is measurable; false leaves its times as they are.
+// only when the move is measurable (for a file matched by the voice, when it
+// is more than the voice can tell); false leaves its times as they are.
 func Correction(track media.Track) (subtitle.Alignment, bool) {
 	alignment := track.Alignment
 	if alignment.Verdict != subtitle.VerdictMatch {
 		return subtitle.Alignment{}, false
 	}
-	moves := alignment.Offset.Abs() >= minCorrectionOffset || math.Abs(alignment.Rate-1) >= minCorrectionRate
+	least := minCorrectionOffset
+	if alignment.Heard {
+		least = minHeardOffset
+	}
+	moves := alignment.Offset.Abs() >= least || math.Abs(alignment.Rate-1) >= minCorrectionRate
 	return alignment, moves
 }
 

@@ -153,6 +153,13 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 			p.Tracks["uid:42"].Edits["5"] = e
 		}
 	}
+	fit := func(change func(*project.Fit)) func(*project.Project) {
+		return func(p *project.Project) {
+			f := project.Fit{Of: project.HashOf("lines"), Verdict: subtitle.VerdictMatch, Offset: -2000, Rate: 1.04, Score: 0.9}
+			change(&f)
+			p.Tracks["file:Subs/Filme.en.srt"] = project.Track{Fit: &f}
+		}
+	}
 	cases := []struct {
 		name   string
 		change func(*project.Project)
@@ -164,6 +171,13 @@ func TestValidateRefusesWhatAHostileFileCouldHold(t *testing.T) {
 		{"long key", func(p *project.Project) { p.Tracks[strings.Repeat("k", project.MaxKeyRunes+1)] = project.Track{} }, false},
 		{"key at the limit", func(p *project.Project) { p.Tracks[strings.Repeat("é", project.MaxKeyRunes)] = project.Track{} }, true},
 		{"bad hash", edit(func(e *project.Edit) { e.Original = "XYZ" }), false},
+		{"a fit heard", fit(func(f *project.Fit) {}), true},
+		{"a fit of no lines", fit(func(f *project.Fit) { f.Of = "lines" }), false},
+		{"a fit's unknown verdict", fit(func(f *project.Fit) { f.Verdict = "maybe" }), false},
+		{"a fit's speed not a number", fit(func(f *project.Fit) { f.Rate = math.NaN() }), false},
+		{"a fit's speed far off", fit(func(f *project.Fit) { f.Rate = 2 }), false},
+		{"a fit's score past 1", fit(func(f *project.Fit) { f.Score = 1.5 }), false},
+		{"a fit's offset past the limit", fit(func(f *project.Fit) { f.Offset = int64(maxOffset) + 1 }), false},
 		{"upper-case hash", edit(func(e *project.Edit) { e.Original = strings.ToUpper(project.HashOf("x")) }), false},
 		{"empty text", edit(func(e *project.Edit) { e.Text = ptr("") }), false},
 		{"blank text", edit(func(e *project.Edit) { e.Text = ptr(" \n ") }), false},

@@ -204,7 +204,7 @@ func cmpFloat(a, b float64) int {
 // stretches of the video (HearingStretches), in the file's time: a line
 // instant t shows at t*Rate + Offset, as with Align.
 func AlignToVoice(heard []speech.Track, lines []speech.Span, videoDuration time.Duration) VoiceAlignment {
-	unknown := VoiceAlignment{Alignment: Alignment{Rate: 1, Verdict: VerdictUnknown}}
+	unknown := VoiceAlignment{Alignment: Alignment{Rate: 1, Verdict: VerdictUnknown, Heard: true}}
 	v := voiceLines{}
 	for _, line := range lines {
 		if line.Start >= 0 && line.End > line.Start && line.End <= maxAlignInstant {
@@ -223,7 +223,7 @@ func AlignToVoice(heard []speech.Track, lines []speech.Span, videoDuration time.
 		return unknown
 	}
 
-	result := VoiceAlignment{Alignment: Alignment{Rate: 1}}
+	result := VoiceAlignment{Alignment: Alignment{Rate: 1, Heard: true}}
 	offset, rival := v.best(stretches, 1)
 	result.Offset = offset
 	result.Score, result.Lines = v.score(stretches, 1, offset)
