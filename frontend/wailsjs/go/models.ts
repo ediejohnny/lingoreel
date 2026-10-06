@@ -1090,6 +1090,7 @@ export namespace app {
 	    syncFastStep: number;
 	    precisionStep: number;
 	    translationOwnTiming: boolean;
+	    volumeStep: number;
 	    karaoke: KaraokeSettings;
 	    mode: string;
 	    reveal: string;
@@ -1113,6 +1114,7 @@ export namespace app {
 	        this.syncFastStep = source["syncFastStep"];
 	        this.precisionStep = source["precisionStep"];
 	        this.translationOwnTiming = source["translationOwnTiming"];
+	        this.volumeStep = source["volumeStep"];
 	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
 	        this.mode = source["mode"];
 	        this.reveal = source["reveal"];
@@ -1201,6 +1203,8 @@ export namespace app {
 	    hintSizeMax: number;
 	    textSizeMin: number;
 	    textSizeMax: number;
+	    volumeStepMin: number;
+	    volumeStepMax: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsLimits(source);
@@ -1252,6 +1256,8 @@ export namespace app {
 	        this.hintSizeMax = source["hintSizeMax"];
 	        this.textSizeMin = source["textSizeMin"];
 	        this.textSizeMax = source["textSizeMax"];
+	        this.volumeStepMin = source["volumeStepMin"];
+	        this.volumeStepMax = source["volumeStepMax"];
 	    }
 	}
 	export class SettingsOptions {

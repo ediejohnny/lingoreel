@@ -84,6 +84,10 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 	view.Primary.LineSpacing, view.Layout.LineGap = 1.4, 1
 	view.Layout.TranslationOnTop = true
 	view.TranslationOwnTiming = true
+	if view.VolumeStep != 5 {
+		t.Fatalf("volume step = %d%%, want the default 5%%", view.VolumeStep)
+	}
+	view.VolumeStep = 2
 	view.Marks.Notice.Side, view.Marks.NoticeDuration, view.Marks.Selection.Width = "right", 3, 3
 	view.Karaoke.BarThickness, view.Karaoke.CountdownSize = 9, 1.2
 	if view.Mode != "on-demand" {
@@ -99,7 +103,7 @@ func TestSaveProfileKeepsTheChoicesAndAppliesThemToTheVideo(t *testing.T) {
 		saved.Sync.OffsetStep.Std().Milliseconds() != 100 || saved.Study.Reveal != "hold" || saved.Speed != 0.75 ||
 		saved.Shortcuts.Of(shortcut.PlayPause).Key != "KeyP" || !saved.Shortcuts.Of(shortcut.Mute).IsZero() ||
 		saved.Study.Mode != "dual" || saved.Sync.PrecisionSeekStep.Std().Milliseconds() != 250 || !saved.Layout.TranslationOnTop ||
-		!saved.Sync.TranslationOwnTiming {
+		!saved.Sync.TranslationOwnTiming || saved.VolumeTouch != 0.02 {
 		t.Fatalf("saved = %+v", saved)
 	}
 	// The video took the changed mode.
@@ -245,6 +249,8 @@ func TestSaveProfileRefusesBadChoicesInPortuguese(t *testing.T) {
 		{"indicator", func(p *app.ProfileSettings) { p.Karaoke.Indicator = "dots" }, "escolha a barra ou a contagem"},
 		{"repeat", func(p *app.ProfileSettings) { p.Karaoke.Repeat = 11 }, "Modo Karaokê: repetir cada fala"},
 		{"speed", func(p *app.ProfileSettings) { p.Speed = 3 }, "Escolha uma das velocidades"},
+		{"volume step", func(p *app.ProfileSettings) { p.VolumeStep = 30 }, "Passo do volume: de 1% a 25%"},
+		{"no volume step", func(p *app.ProfileSettings) { p.VolumeStep = 0 }, "Passo do volume: de 1% a 25%"},
 		{"sync step", func(p *app.ProfileSettings) { p.SyncStep = 5 }, "Passos da sincronização"},
 		{"reveal", func(p *app.ProfileSettings) { p.Reveal = "wink" }, "tecla da tradução"},
 		{"language", func(p *app.ProfileSettings) { p.Languages.Primary = "english!" }, "Confira os idiomas"},

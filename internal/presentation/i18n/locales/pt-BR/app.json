@@ -173,6 +173,7 @@
   "error.settings.speed": "Escolha uma das velocidades da lista.",
   "error.settings.style": "{line}: {problem}.",
   "error.settings.syncSteps": "Passos da sincronização: o passo vai de {min} a {max} ms, e o passo segurando vai do passo até {fastMax} ms.",
+  "error.settings.volumeStep": "Passo do volume: de {min}% a {max}%.",
   "error.shortcut.problem": "Atalho de “{command}”: {problem}",
   "error.shortcut.unknown": "Atalho desconhecido.",
   "error.shortcut.unknownCommand": "Atalhos: comando desconhecido.",

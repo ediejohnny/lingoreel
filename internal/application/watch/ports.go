@@ -179,6 +179,9 @@ type Request struct {
 	// TranslationOwnTiming shows the translation on its own file's time
 	// instead of with the study line it translates.
 	TranslationOwnTiming bool
+	// VolumeTouch is how far one touch of a volume key moves the level;
+	// zero is the default.
+	VolumeTouch playback.Volume
 	// Passage, when set, is studied as soon as the player shows the video:
 	// the session opens at its start. Start is then ignored.
 	Passage *PassageStart

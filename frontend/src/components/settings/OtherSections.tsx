@@ -35,6 +35,16 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
             onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
             help={<HelpTip topic={t("ui.settings.playback.audio.topic")}>{t("ui.settings.playback.audio.help")}</HelpTip>}
           />
+          <NumberField
+            label={t("ui.settings.playback.volumeStep")}
+            value={draft.volumeStep}
+            min={options.limits.volumeStepMin}
+            max={options.limits.volumeStepMax}
+            step={1}
+            unit="%"
+            onChange={(step) => change(setDraft, "volumeStep")(Math.round(step))}
+            help={<HelpTip topic={t("ui.settings.playback.volumeStep")}>{t("ui.settings.playback.volumeStepHelp")}</HelpTip>}
+          />
         </div>
       </Card>
       <Card title={t("ui.settings.playback.seek.title")}>

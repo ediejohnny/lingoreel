@@ -71,8 +71,10 @@ type ProfileSettings struct {
 	PrecisionStep int `json:"precisionStep"`
 	// TranslationOwnTiming shows the translation on its own file's time
 	// instead of with the study line it translates.
-	TranslationOwnTiming bool            `json:"translationOwnTiming"`
-	Karaoke              KaraokeSettings `json:"karaoke"`
+	TranslationOwnTiming bool `json:"translationOwnTiming"`
+	// VolumeStep is how far one touch of a volume key moves the level, in %.
+	VolumeStep int             `json:"volumeStep"`
+	Karaoke    KaraokeSettings `json:"karaoke"`
 	// Mode is the study mode a video opens with.
 	Mode      string            `json:"mode"`
 	Reveal    string            `json:"reveal"`
@@ -327,6 +329,9 @@ type SettingsLimits struct {
 	HintSizeMax  float64 `json:"hintSizeMax"`
 	TextSizeMin  float64 `json:"textSizeMin"`
 	TextSizeMax  float64 `json:"textSizeMax"`
+	// VolumeStepMin and VolumeStepMax bound a touch of a volume key, in %.
+	VolumeStepMin int `json:"volumeStepMin"`
+	VolumeStepMax int `json:"volumeStepMax"`
 }
 
 // PreviewRequest asks for a picture of two styles on the settings screen.

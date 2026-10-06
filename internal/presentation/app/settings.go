@@ -133,6 +133,7 @@ func (a *API) settingsOptions() SettingsOptions {
 			HideDelayMin: settings.MinBarHideDelay.Seconds(), HideDelayMax: settings.MaxBarHideDelay.Seconds(),
 			HintSizeMin: appearance.MinEditHintSize, HintSizeMax: appearance.MaxEditHintSize,
 			TextSizeMin: appearance.MinTextSize, TextSizeMax: appearance.MaxTextSize,
+			VolumeStepMin: playback.MinVolumeTouch.Percent(), VolumeStepMax: playback.MaxVolumeTouch.Percent(),
 		},
 		AppearanceDefaults: appearanceView(settings.DefaultBar(), appearance.DefaultEditStyle()),
 		EditHint:           ptbr.EditHint,
@@ -315,6 +316,7 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 		err = errors.Join(err, s.SetMode(profile.Study.Mode))
 	}
 	s.SetTranslationTiming(profile.Sync.TranslationOwnTiming)
+	s.SetVolumeTouch(profile.VolumeTouch)
 	if err != nil {
 		a.logger.Warn("the video did not take every new choice", "error", err)
 	}

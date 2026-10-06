@@ -68,6 +68,8 @@ interface SettingsPageProps {
   narrow?: boolean;
   /** shown tells the page kept in a hidden tab that it shows again: without a draft, it reads the settings anew. */
   shown?: boolean;
+  /** onSaved is told once the profile changed: saved, reset or switched. */
+  onSaved?: () => void;
   ref?: Ref<SettingsHandle>;
 }
 
@@ -93,6 +95,7 @@ export function SettingsPage({
   section: first = "general",
   narrow = false,
   shown = true,
+  onSaved,
   ref,
 }: SettingsPageProps) {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -143,6 +146,7 @@ export function SettingsPage({
       try {
         await action();
         await reload();
+        onSaved?.();
         if (done) {
           setNotice(done);
         }
@@ -150,7 +154,7 @@ export function SettingsPage({
         setError(messageOf(failure));
       }
     },
-    [reload],
+    [reload, onSaved],
   );
 
   // While the choices differ from the saved ones the video shows them: it is
@@ -242,6 +246,7 @@ export function SettingsPage({
       await backend.saveProfile(draft);
       previewing.current = false; // saving gave the video the saved look
       await reload();
+      onSaved?.();
       setNotice(t("ui.settings.saved"));
       return true;
     } catch (failure) {

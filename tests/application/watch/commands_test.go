@@ -52,7 +52,7 @@ func TestEveryVolumeKeyShowsTheLevelOnTheVideo(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, _, notices, _ := r.display.last(); !slices.Equal(notices, []string{"101%", "102%", "101%"}) {
+	if _, _, notices, _ := r.display.last(); !slices.Equal(notices, []string{"105%", "110%", "105%"}) {
 		t.Fatalf("notices = %q, want one per key with the level", notices)
 	}
 }

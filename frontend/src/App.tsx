@@ -23,6 +23,7 @@ import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
 import { t, setLanguage } from "./i18n";
+import { useVideoKeys } from "./videoKeys";
 
 type Screen = "home" | "session" | "playing" | "settings";
 
@@ -241,6 +242,10 @@ export function App() {
   // A video drawn inside the window plays under the header, with the panel
   // beside it; fullscreen leaves only the video.
   const embedded = screen === "playing" && video !== null && state !== null && state.embedded;
+  // The keys work while a video plays wherever the screen has them, with or
+  // without the panel; saved settings may change them.
+  const [keysVersion, setKeysVersion] = useState(0);
+  useVideoKeys({ active: screen === "playing" && state !== null, embedded, version: keysVersion, commands, onCommand: command });
   const keepPanel = (next: PanelState) => {
     setPanel(next);
     // The panel still changes when saving fails; it is only not remembered.
@@ -342,6 +347,7 @@ export function App() {
                   error={error}
                   onDismissError={() => setError("")}
                   onCommand={command}
+                  keysVersion={keysVersion}
                   commands={commands}
                 />
               }
@@ -355,13 +361,21 @@ export function App() {
                   section={settingsSection}
                   narrow
                   shown={panelTab === "settings" && !fullscreen}
+                  onSaved={() => setKeysVersion((version) => version + 1)}
                 />
               }
             />
           )}
         </div>
       ) : screen === "settings" ? (
-        <SettingsPage ref={settingsPage} theme={theme} onTheme={chooseTheme} look={look} onLook={chooseLook} />
+        <SettingsPage
+          ref={settingsPage}
+          theme={theme}
+          onTheme={chooseTheme}
+          look={look}
+          onLook={chooseLook}
+          onSaved={() => setKeysVersion((version) => version + 1)}
+        />
       ) : screen === "playing" && video && state ? (
         <PlayingPage
           name={video.name}
@@ -371,6 +385,7 @@ export function App() {
           error={error}
           onDismissError={() => setError("")}
           onCommand={command}
+          keysVersion={keysVersion}
           commands={commands}
         />
       ) : screen === "session" && video && players ? (

@@ -300,6 +300,8 @@
   "ui.settings.playback.speed.help": "A velocidade com que o vídeo começa. Durante o filme, ela muda pelo painel ou pela barra do vídeo.",
   "ui.settings.playback.speed.label": "Velocidade inicial",
   "ui.settings.playback.speed.topic": "Velocidade inicial",
+  "ui.settings.playback.volumeStep": "Passo do volume",
+  "ui.settings.playback.volumeStepHelp": "Quanto cada toque em ↑ ou ↓ muda o volume. Segurando a tecla, o volume sobe ou desce aos poucos, cerca de 20% por segundo, até o máximo do player.",
   "ui.settings.players.choose": "Escolher programa…",
   "ui.settings.players.custom": "Escolhido por você: {path}",
   "ui.settings.players.detect": "Detectar novamente",
