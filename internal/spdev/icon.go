@@ -15,15 +15,13 @@ import (
 	"path/filepath"
 )
 
-// The app's icon, drawn here so its art is the project's own: a dark square
-// with a play sign in the app's blue and two subtitle lines below it, the top
-// one half painted in the Modo Karaokê's fill.
+// The app's icon and logo, drawn here so it stays sharp at every size: a
+// dark rounded square with a play sign split across the middle, its halves
+// in two reds, a color few icons on a taskbar have.
 var (
-	iconBackground = color.NRGBA{R: 0x0B, G: 0x12, B: 0x20, A: 0xFF}
-	iconPlay       = color.NRGBA{R: 0x5B, G: 0x9B, B: 0xFF, A: 0xFF}
-	iconLine       = color.NRGBA{R: 0xF2, G: 0xF2, B: 0xF2, A: 0xFF}
-	iconFill       = color.NRGBA{R: 0x00, G: 0xE5, B: 0xFF, A: 0xFF}
-	iconSecondLine = color.NRGBA{R: 0x8A, G: 0x9B, B: 0xB4, A: 0xFF}
+	iconBackground = color.NRGBA{R: 0x0C, G: 0x11, B: 0x1F, A: 0xFF}
+	iconTop        = color.NRGBA{R: 0xE5, G: 0x09, B: 0x14, A: 0xFF}
+	iconBottom     = color.NRGBA{R: 0xFF, G: 0x6F, B: 0x61, A: 0xFF}
 )
 
 // iconSizes are the sizes in the Windows icon: the taskbar, the title bar,
@@ -43,39 +41,39 @@ type shape struct {
 	color  color.NRGBA
 }
 
-func iconShapes() []shape {
-	const corner = 0.09 // a square, barely rounded, like the app's interface
+func iconShapes(size int) []shape {
+	const corner = 0.19
 	roundedSquare := func(x, y float64) bool {
 		dx := math.Max(math.Max(corner-x, x-(1-corner)), 0)
 		dy := math.Max(math.Max(corner-y, y-(1-corner)), 0)
 		return x >= 0 && x <= 1 && y >= 0 && y <= 1 && dx*dx+dy*dy <= corner*corner
 	}
-	// The play sign: a triangle pointing right, its weight centered.
-	ax, ay, bx, by, cx, cy := 0.38, 0.17, 0.38, 0.55, 0.68, 0.36
+	// The play sign: a triangle pointing right, its tip on the middle line.
+	const left, top, bottom, tip = 0.274, 0.185, 0.815, 0.80
 	play := func(x, y float64) bool {
-		d1 := (x-bx)*(ay-by) - (ax-bx)*(y-by)
-		d2 := (x-cx)*(by-cy) - (bx-cx)*(y-cy)
-		d3 := (x-ax)*(cy-ay) - (cx-ax)*(y-ay)
-		negative := d1 < 0 || d2 < 0 || d3 < 0
-		positive := d1 > 0 || d2 > 0 || d3 > 0
-		return !(negative && positive)
+		if x < left || x > tip {
+			return false
+		}
+		half := (bottom - top) / 2 * (tip - x) / (tip - left)
+		return math.Abs(y-0.5) <= half
 	}
-	bar := func(left, top, right, bottom float64) func(x, y float64) bool {
-		return func(x, y float64) bool { return x >= left && x <= right && y >= top && y <= bottom }
+	// A thin dark line splits the halves; under a pixel wide, in the small
+	// sizes, it would only blur them, and the colors split them already.
+	split := 0.005
+	if float64(size)*2*split < 1 {
+		split = 0
 	}
 	return []shape{
 		{roundedSquare, iconBackground},
-		{play, iconPlay},
-		{bar(0.16, 0.66, 0.84, 0.735), iconLine},
-		{bar(0.16, 0.66, 0.50, 0.735), iconFill},
-		{bar(0.26, 0.80, 0.74, 0.855), iconSecondLine},
+		{func(x, y float64) bool { return play(x, y) && y < 0.5-split }, iconTop},
+		{func(x, y float64) bool { return play(x, y) && y > 0.5+split }, iconBottom},
 	}
 }
 
 // drawIcon draws the icon at a size, each pixel the average of its
 // subsamples, the last shape over a point winning.
 func drawIcon(size int) *image.NRGBA {
-	shapes := iconShapes()
+	shapes := iconShapes(size)
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
 	for py := range size {
 		for px := range size {

@@ -1,3 +1,5 @@
+<img src="build/appicon.png" alt="" width="96" align="right">
+
 # LingoReel
 
 A Windows 10/11 app that helps you study languages with movies and series. It opens the video in your favorite
