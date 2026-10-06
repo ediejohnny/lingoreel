@@ -10,10 +10,13 @@ import (
 )
 
 // Packet is a piece of the sound, at speech.SampleRate, interleaved when
-// stereo.
+// stereo. Its samples are only good during the call that hands it over.
 type Packet struct {
 	Samples  []float32
 	Channels int
+	// System says the sound is everything the speakers play, not only the
+	// player's: Windows could not hear the player alone.
+	System bool
 	// At is when the system took the first sample, on the wall clock: the
 	// sound is heard a moment later, after the output's delay.
 	At time.Time

@@ -36,6 +36,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return diag(stdout)
 	case "icon":
 		return icon(args[1:], stdout)
+	case "tap-probe":
+		return tapProbe(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -59,6 +61,9 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  overlay <video> [options]       like play, drawing the subtitles over the video")
 	fmt.Fprintln(w, "  diag                            shows the monitors, their scaling and a checklist")
 	fmt.Fprintln(w, "  icon [--out <build folder>]     draws the app's icon (appicon.png and windows\\icon.ico)")
+	fmt.Fprintln(w, "  tap-probe --pid <id> [options]  hears a player's sound and prints what came, second by second")
+	fmt.Fprintln(w, "      --seconds <n>                   how long to listen (10 by default)")
+	fmt.Fprintln(w, "      --speakers                      hears everything the speakers play instead")
 	fmt.Fprintln(w, "  help                            shows this help")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Sync (play and overlay, with the player in front):")
