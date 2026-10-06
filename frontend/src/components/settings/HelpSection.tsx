@@ -2,6 +2,7 @@ import { ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { backend, messageOf } from "../../services/backend";
+import { noticesOf, type NoticeSection } from "../../settings";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
 
@@ -17,7 +18,7 @@ export function HelpSection() {
  */
 function AboutCard() {
   const [version, setVersion] = useState("");
-  const [notices, setNotices] = useState<string | null>(null);
+  const [notices, setNotices] = useState<NoticeSection[] | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -38,7 +39,7 @@ function AboutCard() {
     backend
       .thirdPartyNotices()
       .then((text) => {
-        setNotices(text);
+        setNotices(noticesOf(text));
         setOpen(true);
         setStatus("");
       })
@@ -63,13 +64,18 @@ function AboutCard() {
         )}
       </div>
       {open && notices !== null && (
-        <pre
+        <div
           tabIndex={0}
           aria-label={t("ui.settings.about.text")}
-          className="mt-3 max-h-96 overflow-y-auto rounded-control border border-line bg-surface-sunken p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-fg select-text"
+          className="mt-3 max-h-96 overflow-y-auto rounded-control border border-line bg-surface-sunken select-text"
         >
-          {notices}
-        </pre>
+          {notices.map((notice, index) => (
+            <section key={`${index}-${notice.title}`} className="border-b border-line p-3 last:border-b-0">
+              <h3 className="mb-2 text-xs font-semibold break-words text-fg">{notice.title}</h3>
+              <pre className="font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-fg-secondary">{notice.text}</pre>
+            </section>
+          ))}
+        </div>
       )}
     </Card>
   );

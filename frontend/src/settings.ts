@@ -142,6 +142,40 @@ export function clampNumber(text: string, min: number, max: number, fallback: nu
   return Math.min(Math.max(value, min), max);
 }
 
+/** NoticeSection is one license of the third-party notices: what it covers, and its text as its authors wrote it. */
+export interface NoticeSection {
+  title: string;
+  text: string;
+}
+
+/** noticeRule opens each license in the notices, above the name and version of what it covers. */
+const noticeRule = "=".repeat(78);
+
+/** noticesOf splits the third-party notices into their licenses, so each shows under its own title. */
+export function noticesOf(notices: string): NoticeSection[] {
+  const lines = notices.split("\n");
+  const sections: NoticeSection[] = [];
+  for (let at = 0; at < lines.length; at++) {
+    if (lines[at] !== noticeRule) {
+      continue;
+    }
+    // The title, then a rule of dashes, then the license up to the next one.
+    let end = at + 3;
+    while (end < lines.length && lines[end] !== noticeRule) {
+      end++;
+    }
+    sections.push({
+      title: lines[at + 1] ?? "",
+      text: lines
+        .slice(at + 3, end)
+        .join("\n")
+        .trim(),
+    });
+    at = end - 1;
+  }
+  return sections;
+}
+
 /** sectionOfPage is the settings page a request names ("subtitles-primary"), or the first one for a name it does not know. */
 export function sectionOfPage(page: string | undefined): SectionId {
   const ids: string[] = [];
