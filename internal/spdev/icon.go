@@ -48,8 +48,9 @@ func iconShapes(size int) []shape {
 		dy := math.Max(math.Max(corner-y, y-(1-corner)), 0)
 		return x >= 0 && x <= 1 && y >= 0 && y <= 1 && dx*dx+dy*dy <= corner*corner
 	}
-	// The play sign: a triangle pointing right, its tip on the middle line.
-	const left, top, bottom, tip = 0.274, 0.185, 0.815, 0.80
+	// The play sign: a triangle pointing right, its tip on the middle line,
+	// a tenth larger than the first drawing around the same center.
+	const left, top, bottom, tip = 0.2477, 0.1535, 0.8465, 0.8263
 	play := func(x, y float64) bool {
 		if x < left || x > tip {
 			return false

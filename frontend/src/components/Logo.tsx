@@ -7,8 +7,8 @@ export function Logo({ size = 24 }: { size?: number }) {
   return (
     <svg aria-hidden width={size} height={size} viewBox="0 0 100 100" className="shrink-0">
       <rect width="100" height="100" rx="19" fill="#0C111F" />
-      <polygon points="27.4,18.5 79.2,49.5 27.4,49.5" fill="#E50914" />
-      <polygon points="27.4,50.5 79.2,50.5 27.4,81.5" fill="#FF6F61" />
+      <polygon points="24.77,15.35 81.8,49.5 24.77,49.5" fill="#E50914" />
+      <polygon points="24.77,50.5 81.8,50.5 24.77,84.65" fill="#FF6F61" />
     </svg>
   );
 }
