@@ -6,6 +6,8 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-06
+
 The karaoke mode follows the actors' voice with a speech model inside the app, and a video with no subtitle of its
 own is heard to tell which subtitle file fits it. A film can be watched with no subtitle at all, and every wait fills
 a bar.
@@ -588,7 +590,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/ediejohnny/lingoreel/compare/v0.22.0...v0.23.0
