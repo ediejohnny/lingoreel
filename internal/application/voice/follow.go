@@ -87,6 +87,12 @@ const (
 	aheadErrors  = 3
 	// AheadMemory keeps the window decoded and the sound just played.
 	aheadMemory = 3 * time.Minute
+	// Each window is decoded from aheadWarmUp before it, so the model has
+	// heard what leads into its first line, and aheadTail past it, so its
+	// last frames are judged on the sound after them; only the window's own
+	// frames are kept.
+	aheadWarmUp = time.Second
+	aheadTail   = 100 * time.Millisecond
 )
 
 // How live hearing is judged: a player silent for silentPlayer while it
@@ -128,10 +134,7 @@ type Follower struct {
 	// seeks is the clock's count of jumps already taken into account.
 	seeks uint64
 	// Live hearing.
-	stream      speech.Stream
-	analyzer    *speech.Analyzer
 	listener    *speech.Listener
-	frames      []speech.Frame
 	sure        bool
 	lastSound   time.Time
 	silentSince time.Time
@@ -352,8 +355,13 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 	}
 	window, cancel := context.WithCancel(ctx)
 	defer cancel()
-	seeked := make(chan struct{})
+	seeked, watched := make(chan struct{}), make(chan struct{})
+	defer func() { // keep reads what the caller changes next
+		cancel()
+		<-watched
+	}()
 	go func() {
+		defer close(watched)
 		ticker := time.NewTicker(aheadPoll)
 		defer ticker.Stop()
 		for {
@@ -369,15 +377,26 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 			}
 		}
 	}()
+	decode := stretch
+	decode.From = max(stretch.From-aheadWarmUp, 0)
+	decode.Length = stretch.From + stretch.Length + aheadTail - decode.From
+	end := stretch.From + stretch.Length
 	var analyzer *speech.Analyzer
 	var frames []speech.Frame
-	at := stretch.From
+	at, kept := decode.From, stretch.From // the next frame's time; how far the window's frames reach
 	store := func() {
-		f.memory.Add(at, frames)
+		first := min(framesUntil(stretch.From-at), len(frames))
+		last := max(min(framesUntil(end-at), len(frames)), first)
+		if last > first {
+			f.memory.Add(at+time.Duration(first)*speech.FrameLength, frames[first:last])
+			kept = at + time.Duration(last)*speech.FrameLength
+		}
 		at += time.Duration(len(frames)) * speech.FrameLength
 	}
+	paced := pace{duty: aheadDuty}
 	started := time.Now()
-	err = f.sources.Decoder.Decode(window, stretch, func(samples []float32, channels int) {
+	err = f.sources.Decoder.Decode(window, decode, func(samples []float32, channels int) {
+		began := time.Now()
 		if analyzer == nil {
 			analyzer, _ = speech.NewAnalyzer(channels, stream)
 		}
@@ -385,6 +404,7 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 			frames = analyzer.Write(samples, frames[:0])
 			store()
 		}
+		paced.worked(window, time.Since(began))
 	})
 	if err == nil && analyzer != nil {
 		frames = analyzer.Flush(frames[:0])
@@ -394,10 +414,19 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 	cancel()
 	select {
 	case <-seeked:
-		return at - stretch.From, slow, true, nil
+		return kept - stretch.From, slow, true, nil
 	default:
-		return at - stretch.From, slow, false, err
+		return kept - stretch.From, slow, false, err
 	}
+}
+
+// framesUntil is how many frames start before a time from now: none for a
+// time already past.
+func framesUntil(d time.Duration) int {
+	if d <= 0 {
+		return 0
+	}
+	return int((d + speech.FrameLength - 1) / speech.FrameLength)
 }
 
 // fallBack leaves decoding ahead for hearing the player, or the estimate.
@@ -420,18 +449,38 @@ func (f *Follower) hearLive(ctx context.Context) {
 		f.setMode(ModeEstimate)
 		return
 	}
-	f.mu.Lock()
-	f.stream = stream
-	f.mu.Unlock()
-	if err := f.sources.Tap.Listen(ctx, f.sources.PID, f.hear); err != nil && ctx.Err() == nil {
+	sound := &liveSound{stream: stream}
+	hear := func(packet Packet) { f.hear(sound, packet) }
+	if err := f.sources.Tap.Listen(ctx, f.sources.PID, hear); err != nil && ctx.Err() == nil {
 		f.setMode(ModeEstimate)
 	}
 }
 
-// hear takes a packet of the player's sound.
-func (f *Follower) hear(packet Packet) {
+// liveSound is what hearing the player keeps from one packet to the next;
+// only the tap's goroutine touches it.
+type liveSound struct {
+	stream   speech.Stream
+	analyzer *speech.Analyzer
+	frames   []speech.Frame
+}
+
+// hear takes a packet of the player's sound. The model judges it before the
+// lock is taken, so drawing a line never waits for the model; the system
+// keeps the sound coming meanwhile.
+func (f *Follower) hear(sound *liveSound, packet Packet) {
 	state := f.clock.State()
-	now := time.Now()
+	// Paused, the sound is silence that says nothing of the film's.
+	playing := state.Status == playback.StatusPlaying
+	sound.frames = sound.frames[:0]
+	if playing {
+		if sound.analyzer == nil {
+			sound.analyzer, _ = speech.NewAnalyzer(packet.Channels, sound.stream)
+		}
+		if sound.analyzer != nil {
+			sound.frames = sound.analyzer.Write(packet.Samples, sound.frames)
+		}
+	}
+	now := time.Now() // after the model: how late the packet is tells whether the computer keeps up
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.noticeSeeks()
@@ -443,8 +492,7 @@ func (f *Follower) hear(packet Packet) {
 	} else {
 		f.lateSince = time.Time{}
 	}
-	// Paused, the sound is silence that says nothing of the film's.
-	if state.Status != playback.StatusPlaying {
+	if !playing {
 		f.heardAt = time.Time{}
 		return
 	}
@@ -455,12 +503,9 @@ func (f *Follower) hear(packet Packet) {
 	} else {
 		f.silentSince = time.Time{}
 	}
-	if f.analyzer == nil {
-		if f.analyzer, _ = speech.NewAnalyzer(packet.Channels, f.stream); f.analyzer == nil {
-			return // neither mono nor stereo
-		}
+	if sound.analyzer == nil {
+		return // neither mono nor stereo
 	}
-	f.frames = f.analyzer.Write(packet.Samples, f.frames[:0])
 	position := f.clock.PositionAt(packet.At.Add(f.settings.Delay))
 	if !f.heardAt.IsZero() {
 		expected := f.heardPosition + time.Duration(float64(packet.At.Sub(f.heardAt))*float64(state.Speed))
@@ -471,9 +516,9 @@ func (f *Follower) hear(packet Packet) {
 	f.heardAt, f.heardPosition = packet.At, position
 	// At another speed a frame is not 10 ms of the film: kept only at 1×.
 	if state.Speed == playback.NormalSpeed {
-		f.memory.Add(position, f.frames)
+		f.memory.Add(position, sound.frames)
 	}
-	for i, frame := range f.frames {
+	for i, frame := range sound.frames {
 		voice, sure := f.listener.Hear(frame)
 		f.sure = sure
 		at := position + time.Duration(float64(time.Duration(i)*speech.FrameLength)*float64(state.Speed))

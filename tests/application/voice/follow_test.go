@@ -218,6 +218,138 @@ func TestTheVoiceIsDecodedAhead(t *testing.T) {
 	}
 }
 
+// blockingModel holds each judgment until released, and tells when one
+// began.
+type blockingModel struct{ began, release chan struct{} }
+
+func (m blockingModel) NewStream() (speech.Stream, error) { return m, nil }
+
+func (m blockingModel) Speech([]float32) float32 {
+	select {
+	case m.began <- struct{}{}:
+	default:
+	}
+	<-m.release
+	return 0
+}
+
+// While the model judges the player's sound, the line is still drawn: the
+// overlay never waits for the model.
+func TestDrawingALineNeverWaitsForTheModel(t *testing.T) {
+	t.Parallel()
+	model := blockingModel{began: make(chan struct{}, 1), release: make(chan struct{})}
+	sound, player, start := film(), newTap(), time.Now()
+	follower := voice.Follow(context.Background(), voice.Sources{Model: model, Tap: player, PID: 1}, newClock(start),
+		voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	defer close(model.release)
+
+	go player.play(start, sound, 0, 40*ms) // 32 ms make the first chunk
+	<-model.began
+	drawn := make(chan struct{})
+	go func() {
+		follower.Fill(howAreYou, 0)
+		close(drawn)
+	}()
+	select {
+	case <-drawn:
+	case <-time.After(time.Second):
+		t.Fatal("drawing the line waited for the model")
+	}
+}
+
+// slowModel takes a while over each chunk, and adds up the time.
+type slowModel struct{ spent *atomic.Int64 }
+
+func (m slowModel) NewStream() (speech.Stream, error) { return m, nil }
+
+func (m slowModel) Speech([]float32) float32 {
+	began := time.Now()
+	time.Sleep(time.Millisecond)
+	m.spent.Add(int64(time.Since(began)))
+	return 0
+}
+
+// timedDecoder tells how long each decoding took.
+type timedDecoder struct {
+	decoder
+	took chan time.Duration
+}
+
+func (d timedDecoder) Decode(ctx context.Context, stretch voice.Stretch, hear func([]float32, int)) error {
+	began := time.Now()
+	err := d.decoder.Decode(ctx, stretch, hear)
+	d.took <- time.Since(began)
+	return err
+}
+
+// Decoding ahead rests between bursts, so the model takes at most a
+// quarter of a core: the video and the computer keep the rest.
+func TestDecodingAheadRestsBetweenBursts(t *testing.T) {
+	t.Parallel()
+	var spent atomic.Int64
+	decoding := timedDecoder{decoder{sound: film()}, make(chan time.Duration, 8)}
+	follower := voice.Follow(context.Background(), voice.Sources{Model: slowModel{&spent}, Decoder: decoding, Voice: voice.Stretch{File: "film.mkv"}},
+		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	took := <-decoding.took
+	if work := time.Duration(spent.Load()); took < 3*work {
+		t.Fatalf("the film took %v to decode with %v of the model's work, want at least %v", took, work, 3*work)
+	}
+}
+
+// warmingModel is sure of a voice only after a quarter of a second of it,
+// as a model that judges by what it heard before.
+type warmingModel struct{}
+
+func (warmingModel) NewStream() (speech.Stream, error) {
+	loud, _ := testkit.LoudModel{}.NewStream()
+	return &warming{loud: loud}, nil
+}
+
+type warming struct {
+	loud   speech.Stream
+	chunks int
+}
+
+func (w *warming) Speech(chunk []float32) float32 {
+	if w.loud.Speech(chunk) > 0.1 {
+		w.chunks++
+	} else {
+		w.chunks = 0
+	}
+	if w.chunks >= 8 {
+		return 1
+	}
+	return 0
+}
+
+// A window decoded ahead starts a second early, so the model has heard
+// what leads into it: a line said across two windows is found from where
+// the model was sure the first time, not a quarter of a second later.
+func TestAWindowAheadHearsTheSecondBeforeIt(t *testing.T) {
+	t.Parallel()
+	// Windows from 43 s to 103 s and on; the line is said from 102.8 s.
+	sound := testkit.Then(testkit.Silence(102800*ms), testkit.Voiced(1200*ms, -20, 40), testkit.Silence(6*time.Second))
+	line := voice.Line{Text: "How are you?", Start: 102800 * ms, End: 104 * time.Second}
+	playing := newClock(time.Now())
+	playing.seek(45*time.Second, time.Now(), false)
+	decoding := timedDecoder{decoder{sound: sound}, make(chan time.Duration, 8)}
+	follower := voice.Follow(context.Background(), voice.Sources{Model: warmingModel{}, Decoder: decoding, Voice: voice.Stretch{File: "film.mkv"}},
+		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	<-decoding.took // the first window
+
+	playing.seek(85*time.Second, time.Now(), false) // under 30 s left: the next window
+	testkit.Eventually(t, "the line decoded", func() bool {
+		_, ok := follower.Fill(line, 103200*ms)
+		return ok
+	})
+	if share, _ := follower.Fill(line, 103200*ms); share < 0.05 {
+		t.Fatalf("at 103.2 s %.2f of the line is painted, want its voice found from about 103.03 s", share)
+	}
+}
+
 // askedDecoder tells whether it was asked to decode.
 type askedDecoder struct{ asked *atomic.Bool }
 
