@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -176,6 +177,58 @@ func TestAVideoHeardBeforeIsNotHeardAgain(t *testing.T) {
 	if video.Listening.Active || video.Suggested.Primary != media.ExternalTrackBase || found.Load() != 0 {
 		t.Fatalf("listening %+v, primary %d, FFmpeg looked for %d times; want the kept file on top, nothing heard",
 			video.Listening, video.Suggested.Primary, found.Load())
+	}
+}
+
+// A file kept from an earlier opening was chosen before anyone knew whether
+// it fits: when the video is first heard and it does not, the file in its
+// language that fits takes its place, once.
+func TestTheHearingReplacesAKeptFileThatDoesNotFit(t *testing.T) {
+	t.Parallel()
+	r, _ := hearingRig(t)
+	kept := project.New()
+	kept.Choice.Primary = "file:subs/wrong.en.srt"
+	if err := r.projects.Save(unsubtitledVideo, kept); err != nil {
+		t.Fatal(err)
+	}
+
+	video, err := r.api.OpenVideo(unsubtitledVideo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !video.Listening.Active || video.Suggested.Primary != media.ExternalTrackBase+1 {
+		t.Fatalf("as it opens: listening %+v, primary %d; want the kept file, still heard", video.Listening, video.Suggested.Primary)
+	}
+	testkit.EventuallyWithin(t, "the video heard", time.Minute, func() bool {
+		states := r.ui.listenings()
+		return len(states) > 0 && !states[len(states)-1].Active
+	})
+	told, _ := r.ui.last(app.EventVideo)
+	if heard := told.(app.Video); heard.Suggested.Primary != media.ExternalTrackBase {
+		t.Fatalf("after hearing: primary %d; want the file that fits in place of the kept one", heard.Suggested.Primary)
+	}
+}
+
+// Files found not to fit are not a missing language: the note says the ones
+// found do not fit this video, beside the language that has none at all.
+func TestTheNoteTellsFilesThatDoNotFitFromNone(t *testing.T) {
+	t.Parallel()
+	r, _ := hearingRig(t)
+	kept := project.New()
+	for key, seed := range map[string]uint64{"file:subs/right.en.srt": 1, "file:subs/wrong.en.srt": 2} {
+		fit := project.FitFrom(subtitle.Alignment{Verdict: subtitle.VerdictNoMatch, Rate: 1, Score: 0.5}, project.FitOf(spokenLines(seed).Events))
+		kept.Tracks[key] = project.Track{Fit: &fit}
+	}
+	if err := r.projects.Save(unsubtitledVideo, kept); err != nil {
+		t.Fatal(err)
+	}
+	video, err := r.api.OpenVideo(unsubtitledVideo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "Não há legenda em português do Brasil neste vídeo, e a legenda em inglês que o app achou não bate com ele"
+	if !strings.HasPrefix(video.LanguageNote, want) {
+		t.Fatalf("language note = %q, want it to start with %q", video.LanguageNote, want)
 	}
 }
 

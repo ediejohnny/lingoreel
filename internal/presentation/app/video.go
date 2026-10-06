@@ -139,10 +139,11 @@ func subtitleTracks(info media.Info, preferences media.Preferences) []Track {
 }
 
 // languageNote tells when the video has subtitles but none in a language
-// the profile asks for.
+// the profile asks for, or only files in it that were found not to fit.
 func languageNote(info media.Info, suggested media.Selection, preferences media.Preferences) string {
+	subtitles := info.TracksOf(media.TrackSubtitle)
 	readable := 0
-	for _, track := range info.TracksOf(media.TrackSubtitle) {
+	for _, track := range subtitles {
 		if track.Readable {
 			readable++
 		}
@@ -150,20 +151,49 @@ func languageNote(info media.Info, suggested media.Selection, preferences media.
 	if readable == 0 {
 		return ""
 	}
-	var missing []string
-	if suggested.Primary == 0 && preferences.Primary != "" {
-		missing = append(missing, ptbr.LanguageName(preferences.Primary))
+	var missing, unfit []string
+	for _, line := range []struct {
+		chosen uint64
+		want   media.LanguageTag
+	}{{suggested.Primary, preferences.Primary}, {suggested.Translation, preferences.Translation}} {
+		if line.chosen != 0 || line.want == "" {
+			continue
+		}
+		if name := ptbr.LanguageName(line.want); allUnfit(subtitles, line.want) {
+			unfit = append(unfit, name)
+		} else {
+			missing = append(missing, name)
+		}
 	}
-	if suggested.Translation == 0 && preferences.Translation != "" {
-		missing = append(missing, ptbr.LanguageName(preferences.Translation))
-	}
-	switch len(missing) {
-	case 0:
+	switch {
+	case len(unfit) == 0 && len(missing) == 0:
 		return ""
-	case 1:
+	case len(unfit) == 0 && len(missing) == 1:
 		return ptbr.T("video.missingLanguage", "language", missing[0])
+	case len(unfit) == 0:
+		return ptbr.T("video.missingLanguages", "first", missing[0], "second", missing[1])
+	case len(missing) == 0 && len(unfit) == 1:
+		return ptbr.T("video.unfitLanguage", "language", unfit[0])
+	case len(missing) == 0:
+		return ptbr.T("video.unfitLanguages", "first", unfit[0], "second", unfit[1])
 	}
-	return ptbr.T("video.missingLanguages", "first", missing[0], "second", missing[1])
+	return ptbr.T("video.missingAndUnfit", "missing", missing[0], "unfit", unfit[0])
+}
+
+// allUnfit reports a language whose readable subtitle files were all found
+// not to fit the video (timed for another film or cut).
+func allUnfit(tracks []media.Track, language media.LanguageTag) bool {
+	found := false
+	for _, track := range tracks {
+		if !track.Readable || track.Language.Base() != language.Base() {
+			continue
+		}
+		if verdict := track.Alignment.Verdict; verdict != subtitle.VerdictNoMatch && verdict != subtitle.VerdictOtherCut {
+			return false
+		}
+		found = true
+	}
+	return found
 }
 
 func extensionOf(path string) string {

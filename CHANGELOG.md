@@ -22,6 +22,8 @@ a bar.
   another speed. A bar shows the hearing, and what was found is kept for the next time the video opens.
 - Watch, pressed while the film is still heard, asks first: Wait starts the film on its own with the best subtitle
   once the hearing ends; Watch now starts at once with the choice made.
+- A subtitle file kept from an earlier opening, chosen before the video was heard, gives way once to the file in its
+  language that fits the voice when the hearing finds it does not; a file chosen afterwards stays.
 - Both lines can be off, on the session screen and in the panel: a film can be watched with no subtitle at all.
 - Opening a video fills a bar from 0 to 100%.
 - Settings › Help › About: the app's version and license, and the licenses of the code from others it carries (Go
@@ -45,6 +47,8 @@ a bar.
   made while paused.
 - A subtitle file named after the video but timed for another release is no longer chosen on its own once the video
   is heard.
+- The session screen said a language had no subtitle when its files were found not to fit the video; it now says the
+  files found do not fit.
 
 ## [0.24.0] - 2026-10-06
 

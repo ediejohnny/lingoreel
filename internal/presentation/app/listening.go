@@ -144,8 +144,9 @@ func (a *API) listened(l *listening, stretch int, done float64) {
 }
 
 // endListening gives the open video the fits found, keeps them in its
-// project and tells the screens: the video described again, with the file
-// that fits on top and the hearing over, even when nothing was found, so
+// project, where they may also replace a file kept from an earlier opening
+// that does not fit, and tells the screens: the video described again, with
+// the file that fits on top and the hearing over, even when nothing was found, so
 // the session screen hears of the end one way only. A video no longer open
 // changes nothing; a session watching it is left as it is, and the next
 // one starts with the files' fits.
@@ -180,6 +181,7 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 				opened.value.Tracks[key] = track
 			}
 		}
+		opened.correctInherited(next.Info, fits)
 		suggested, mode = opened.remembered(next.Info, next.Suggested, mode)
 	} else {
 		opened = nil
