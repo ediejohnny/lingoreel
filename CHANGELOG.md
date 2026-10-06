@@ -6,6 +6,15 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-10-06
+
+The app's icon in a neon red and a pink, its play sign larger and centered.
+
+### Changed
+
+- The app's icon and logo: the play sign is a tenth larger and moved so it looks centered, its straight side sharp at
+  every size, in a neon red and a pink that stand out on the taskbar.
+
 ## [0.23.0] - 2026-10-06
 
 The karaoke mode can follow the actors' voice, as an experiment, and its estimate now weighs each line by its syllables.
@@ -503,7 +512,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...HEAD
+[0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/ediejohnny/lingoreel/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/ediejohnny/lingoreel/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/ediejohnny/lingoreel/compare/v0.20.1...v0.21.0

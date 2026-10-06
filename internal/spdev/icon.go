@@ -17,11 +17,11 @@ import (
 
 // The app's icon and logo, drawn here so it stays sharp at every size: a
 // dark rounded square with a play sign split across the middle, its halves
-// in two reds, a color few icons on a taskbar have.
+// a neon red and a pink, colors few icons on a taskbar have.
 var (
 	iconBackground = color.NRGBA{R: 0x0C, G: 0x11, B: 0x1F, A: 0xFF}
-	iconTop        = color.NRGBA{R: 0xE5, G: 0x09, B: 0x14, A: 0xFF}
-	iconBottom     = color.NRGBA{R: 0xFF, G: 0x6F, B: 0x61, A: 0xFF}
+	iconTop        = color.NRGBA{R: 0xFF, G: 0x00, B: 0x3C, A: 0xFF}
+	iconBottom     = color.NRGBA{R: 0xFF, G: 0x5C, B: 0x8A, A: 0xFF}
 )
 
 // iconSizes are the sizes in the Windows icon: the taskbar, the title bar,
@@ -49,7 +49,11 @@ func iconShapes(size int) []shape {
 		return x >= 0 && x <= 1 && y >= 0 && y <= 1 && dx*dx+dy*dy <= corner*corner
 	}
 	// The play sign: a triangle pointing right, its tip on the middle line.
-	const left, top, bottom, tip = 0.274, 0.185, 0.815, 0.80
+	// Its weight sits a third of the way from its flat side, so it is moved
+	// right until that weight is near the middle, and its corners land on
+	// whole pixels at every size, so the flat side stays sharp.
+	snap := func(v float64) float64 { return math.Round(v*float64(size)) / float64(size) }
+	left, top, bottom, tip := snap(0.2771), snap(0.1535), snap(0.8465), snap(0.8557)
 	play := func(x, y float64) bool {
 		if x < left || x > tip {
 			return false
