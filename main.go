@@ -37,6 +37,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/silero"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
@@ -47,6 +48,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/power"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
@@ -155,6 +157,8 @@ func run() error {
 			StartShortcuts: func(target watch.ShortcutTarget, chords []shortcut.Chord) (watch.Shortcuts, error) {
 				return hotkeys.StartGlobal(target, chords, logger)
 			},
+			Model:       silero.Embedded{},
+			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
 			FindDecoder: findFFmpeg,
 		},

@@ -38,10 +38,14 @@ type GeneralSettings struct {
 	Languages []Option `json:"languages"`
 }
 
-// VoiceSettings are how the karaoke mode follows the actors' voice on this
-// computer.
+// VoiceSettings are how the app hears the actors' voice on this computer.
 type VoiceSettings struct {
-	Follow bool `json:"follow"`
+	// Model lets the voice model work on this computer; ModelOnBattery, on
+	// its battery too. Battery tells the computer has one (read only).
+	Model          bool `json:"model"`
+	ModelOnBattery bool `json:"modelOnBattery"`
+	Battery        bool `json:"battery"`
+	Follow         bool `json:"follow"`
 	// Sensitivity is "low", "normal" or "high".
 	Sensitivity string `json:"sensitivity"`
 	// DelayMs is the output's delay, in milliseconds (0 to 1000).

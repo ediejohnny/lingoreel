@@ -6,6 +6,52 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-06
+
+The karaoke mode follows the actors' voice with a speech model inside the app, and a video with no subtitle of its
+own is heard to tell which subtitle file fits it. A film can be watched with no subtitle at all, and every wait fills
+a bar.
+
+### Added
+
+- A speech model inside the app, computed in Go (Silero VAD v6.2.1, MIT): it tells speech from music and effects. The
+  karaoke mode follows the voice with it: measured against 49 lines marked by ear in five films, the fill starts a
+  median 29 ms from the voice, where the subtitle's own start is 126 ms off.
+- Settings › Study › Actors' voice: "Use the voice AI on this computer" (on) and "Also on the battery" (off, shown
+  only on a computer with a battery). The karaoke panel says when the AI rests.
+- A video with no subtitle inside is heard as it opens, six stretches of 45 s at a quarter of a core, to tell which
+  subtitle file beside it fits: that file goes on top, moved onto the voice when it is 250 ms off or more or runs at
+  another speed. A bar shows the hearing, and what was found is kept for the next time the video opens.
+- Watch, pressed while the film is still heard, asks first: Wait starts the film on its own with the best subtitle
+  once the hearing ends; Watch now starts at once with the choice made.
+- A subtitle file kept from an earlier opening, chosen before the video was heard, gives way once to the file in its
+  language that fits the voice when the hearing finds it does not; a file chosen afterwards stays.
+- Both lines can be off, on the session screen and in the panel: a film can be watched with no subtitle at all.
+- Opening a video fills a bar from 0 to 100%.
+- Settings › Help › About: the app's version and license, and the licenses of the code from others it carries (Go
+  and its modules, the screens' packages, the voice model), as their authors ask. The app ships as a single file, so
+  they go inside it; `scripts/update-notices.ps1` writes them, the check refuses them out of date and the build makes
+  sure they name every module inside the app. The help page will also hold the guide to using the app.
+- `spdev voice-check` measures the voice found against a film's lines, printing only numbers, and `spdev inspect
+  --hear` hears a video to tell which file fits it.
+
+### Changed
+
+- The loudness detector is gone: without the AI, switched off or on the battery, the lines follow the estimate.
+- Following the voice never makes the video wait: the model judges the sound outside the lock, and decoding ahead
+  takes at most a quarter of a core, each window starting a second early so the model hears what leads into it.
+- With no line on top, the voice is not followed.
+- The log tells when a video could not be heard because no FFmpeg was found.
+
+### Fixed
+
+- Following the voice decoded ahead missed seeks: one made during a window, one back after the film's end, and one
+  made while paused.
+- A subtitle file named after the video but timed for another release is no longer chosen on its own once the video
+  is heard.
+- The session screen said a language had no subtitle when its files were found not to fit the video; it now says the
+  files found do not fit.
+
 ## [0.24.0] - 2026-10-06
 
 Settings can always be saved, and every change shows on the video at once. The two subtitle lines keep the order the
@@ -544,7 +590,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1
 [0.23.0]: https://github.com/ediejohnny/lingoreel/compare/v0.22.0...v0.23.0

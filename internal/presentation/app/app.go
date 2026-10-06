@@ -206,7 +206,9 @@ type API struct {
 	video    *analysis.Analysis
 	project  *videoProject
 	watching *watching
-	initial  string
+	// listen is the hearing of the open video's voice, nil when none runs.
+	listen  *listening
+	initial string
 	// resume is where a session the player lost had reached, for
 	// "Assistir de novo".
 	resume *resumePoint

@@ -26,6 +26,10 @@ type videoProject struct {
 	// newer version, or damaged) from being overwritten; note tells why.
 	readOnly bool
 	note     string
+	// inherited are the lines whose file was chosen in an earlier opening
+	// and not chosen again in this one: chosen before anyone knew whether it
+	// fits, so a hearing may still replace it (correctInherited).
+	inherited map[session.Line]bool
 	// dirty tells something changed that is saved a moment later rather
 	// than at once: the offsets of a held shortcut, the position, the speed,
 	// the karaoke mode, the mode. flush is that pending save.
@@ -78,6 +82,9 @@ func (a *API) loadProject(video string, info media.Info) *videoProject {
 		p.note = ptbr.T("project.unreadable")
 	default:
 		p.value = loaded
+		p.inherited = map[session.Line]bool{
+			session.LinePrimary: loaded.Choice.Primary != "", session.LineTranslation: loaded.Choice.Translation != "",
+		}
 	}
 	return p
 }
@@ -113,6 +120,35 @@ func (p *videoProject) remembered(info media.Info, suggested media.Selection, mo
 		mode = choice.Mode
 	}
 	return suggested, mode
+}
+
+// correctInherited puts, once, the file that fits in place of a line's file
+// from an earlier opening when the hearing that just ended (heard) found
+// that file does not fit and another in its language does. A file chosen in
+// this opening stays, and so does one that no file can replace.
+func (p *videoProject) correctInherited(info media.Info, heard map[uint64]subtitle.Alignment) {
+	choice := &p.value.Choice
+	for _, line := range []session.Line{session.LinePrimary, session.LineTranslation} {
+		key, other := &choice.Primary, choice.Translation
+		if line == session.LineTranslation {
+			key, other = &choice.Translation, choice.Primary
+		}
+		kept, found := p.numberOf(*key, info, media.TrackSubtitle)
+		fit, fresh := heard[kept]
+		if !p.inherited[line] || !found || !fresh ||
+			(fit.Verdict != subtitle.VerdictNoMatch && fit.Verdict != subtitle.VerdictOtherCut) {
+			continue
+		}
+		keptTrack, _ := info.Track(kept)
+		best := media.SelectTracks(info, media.Preferences{Primary: keptTrack.Language}).Primary
+		bestTrack, found := info.Track(best)
+		if !found || bestTrack.Alignment.Verdict != subtitle.VerdictMatch || p.keys[best] == "" || p.keys[best] == other ||
+			bestTrack.Language.Base() != keptTrack.Language.Base() {
+			continue
+		}
+		*key = p.keys[best]
+		delete(p.inherited, line)
+	}
 }
 
 // saved is what the project keeps for the lines of a session.
@@ -247,6 +283,14 @@ func (a *API) keepChoice(current *watching, tracks media.Selection, mode study.M
 	p := a.projectOf(current)
 	if p == nil {
 		return
+	}
+	// A line watched with another file than the one kept was chosen now,
+	// knowing what fits: no hearing replaces it.
+	if p.keys[tracks.Primary] != p.value.Choice.Primary {
+		delete(p.inherited, session.LinePrimary)
+	}
+	if p.keys[tracks.Translation] != p.value.Choice.Translation {
+		delete(p.inherited, session.LineTranslation)
 	}
 	p.value.Choice = project.Choice{
 		Audio: p.keys[tracks.Audio], Primary: p.keys[tracks.Primary], Translation: p.keys[tracks.Translation], Mode: mode,

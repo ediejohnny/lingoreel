@@ -11,6 +11,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/silero"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/audiotap"
 )
 
@@ -35,7 +36,11 @@ func tapProbe(ctx context.Context, args []string, stdout io.Writer) error {
 	defer cancel()
 
 	out := &printer{w: stdout}
-	analyzer, err := speech.NewAnalyzer(2)
+	stream, err := silero.Embedded{}.NewStream()
+	if err != nil {
+		return err
+	}
+	analyzer, err := speech.NewAnalyzer(2, stream)
 	if err != nil {
 		return err
 	}

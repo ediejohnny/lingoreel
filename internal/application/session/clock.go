@@ -52,6 +52,9 @@ type Clock struct {
 	slewFactor float64
 	slewUntil  time.Time
 	changes    chan struct{}
+	// seeks counts the jumps of the position: the session's, and the
+	// player's own (its interface, or a stream that skipped).
+	seeks uint64
 }
 
 // NewClock creates a clock for a player of the given precision.
@@ -73,10 +76,13 @@ func (c *Clock) Observe(sample playback.Sample) {
 	stateChanged := !c.anchored || sample.Status != c.anchor.Status || sample.Speed != c.anchor.Speed
 	c.anchor.Duration = sample.Duration
 
-	if !stateChanged && sample.ObservedAt.Before(c.graceUntil) {
-		expected := c.extrapolate(sample.ObservedAt)
-		if absolute(sample.Position-expected) > seekTolerance {
-			return
+	if !stateChanged && c.anchored {
+		jumped := absolute(sample.Position-c.extrapolate(sample.ObservedAt)) > seekTolerance
+		if jumped && sample.ObservedAt.Before(c.graceUntil) {
+			return // a stale answer to the session's own command
+		}
+		if jumped {
+			c.seeks++
 		}
 	}
 	valueChanged := sample.Position != c.lastReported
@@ -172,7 +178,19 @@ func (c *Clock) Stalled() bool {
 
 // SetPosition moves the clock after the session itself moved the player.
 func (c *Clock) SetPosition(position time.Duration) {
-	c.reanchor(func(sample *playback.Sample) { sample.Position = position })
+	c.reanchor(func(sample *playback.Sample) {
+		sample.Position = position
+		c.seeks++
+	})
+}
+
+// Seeks counts the jumps of the position so far, the session's and the
+// player's own: when it changes, what was heard before says nothing of
+// what comes.
+func (c *Clock) Seeks() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.seeks
 }
 
 // SetStatus records a play or pause requested by the session.

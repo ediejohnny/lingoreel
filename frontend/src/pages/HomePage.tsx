@@ -1,17 +1,20 @@
 import { Clapperboard, FolderOpen } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
+import { ProgressBar } from "../components/ui/ProgressBar";
 import { t } from "../i18n";
 
 interface HomePageProps {
   loading: boolean;
+  /** opened is how far opening the video went, from 0 to 100. */
+  opened: number;
   error: string;
   onChoose: () => void;
   onDismissError: () => void;
 }
 
 /** HomePage is the empty state: what to do to start. */
-export function HomePage({ loading, error, onChoose, onDismissError }: HomePageProps) {
+export function HomePage({ loading, opened, error, onChoose, onDismissError }: HomePageProps) {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
       <div className="flex w-full max-w-xl flex-col gap-4">
@@ -20,8 +23,8 @@ export function HomePage({ loading, error, onChoose, onDismissError }: HomePageP
             <Clapperboard aria-hidden className="size-7" />
           </span>
           {loading ? (
-            <div role="status" className="flex flex-col gap-1">
-              <p className="text-lg font-semibold text-fg">{t("ui.home.loading")}</p>
+            <div role="status" className="flex w-full max-w-sm flex-col gap-3 text-left">
+              <ProgressBar label={t("ui.home.loading")} percent={opened} />
               <p className="text-sm text-fg-muted">{t("ui.home.loadingNote")}</p>
             </div>
           ) : (

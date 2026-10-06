@@ -4,7 +4,7 @@ import type { Line, Playback } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
-import { forLine, noteOf, playingOptions } from "../../tracks";
+import { forLine, noteOf, trackOptions } from "../../tracks";
 import { SubtitlePicker } from "./SubtitlePicker";
 
 interface SubtitlesCardProps {
@@ -44,7 +44,7 @@ export function SubtitlesCard({ state, onCommand, commands }: SubtitlesCardProps
           <SubtitlePicker
             label={t("ui.playing.subtitles.primary")}
             value={primary}
-            options={playingOptions("primary", tracks.subtitles, tracks.current.primary, t("ui.playing.subtitles.none"))}
+            options={trackOptions(tracks.subtitles, t("ui.playing.subtitles.none"))}
             disabled={tracks.loading}
             onChange={(value) => onCommand(() => commands.switchSubtitle("primary", Number(value)))}
             onAdd={() => add("primary")}
@@ -55,12 +55,7 @@ export function SubtitlesCard({ state, onCommand, commands }: SubtitlesCardProps
           <SubtitlePicker
             label={t("ui.playing.subtitles.translation")}
             value={translation}
-            options={playingOptions(
-              "translation",
-              forLine(tracks.subtitles, tracks.current.translation),
-              tracks.current.translation,
-              t("ui.playing.subtitles.none"),
-            )}
+            options={trackOptions(forLine(tracks.subtitles, tracks.current.translation), t("ui.playing.subtitles.none"))}
             disabled={tracks.loading}
             onChange={(value) => onCommand(() => commands.switchSubtitle("translation", Number(value)))}
             onAdd={() => add("translation")}

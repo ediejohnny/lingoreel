@@ -41,7 +41,7 @@ func TestTheVoiceSettings(t *testing.T) {
 	r := newRigWith(t, func(deps *app.Deps) { deps.FFmpeg = someFFmpeg{found: `C:\ffmpeg\bin\ffmpeg.exe`} })
 	r.attach(t)
 	voice := settingsOf(t, r).Voice
-	if !voice.Follow || voice.Sensitivity != "normal" || voice.FFmpegFound != `C:\ffmpeg\bin\ffmpeg.exe` || voice.FFmpegPath != "" {
+	if !voice.Model || voice.ModelOnBattery || !voice.Follow || voice.Sensitivity != "normal" || voice.FFmpegFound != `C:\ffmpeg\bin\ffmpeg.exe` || voice.FFmpegPath != "" {
 		t.Fatalf("first voice settings = %+v", voice)
 	}
 

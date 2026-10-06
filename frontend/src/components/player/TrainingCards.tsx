@@ -55,6 +55,8 @@ const voiceStates: Record<string, () => string> = {
   ahead: () => t("ui.karaoke.voice.ahead"),
   live: () => t("ui.karaoke.voice.live"),
   estimate: () => t("ui.karaoke.voice.estimate"),
+  battery: () => t("ui.karaoke.voice.battery"),
+  off: () => t("ui.karaoke.voice.off"),
 };
 
 function KaraokeCard({ state, onCommand }: TrainingCardsProps) {

@@ -6,6 +6,7 @@ import { ClipboardSetText, EventsOn } from "../../wailsjs/runtime/runtime";
 import { t } from "../i18n";
 
 export type Video = app.Video;
+export type Listening = app.Listening;
 export type Track = app.Track;
 export type Players = app.Players;
 export type PlayerInstall = app.PlayerInstall;
@@ -21,6 +22,7 @@ export type PassagePlan = Plain<app.PassagePlan>;
 export type PassageOptions = Plain<app.PassageOptions>;
 export type EditRequest = Plain<app.EditRequest>;
 export type Diagnostics = Plain<app.Diagnostics>;
+export type AboutView = Plain<app.AboutView>;
 
 /** Plain is a generated class's data without its methods, as the screens build it. */
 type Plain<T> = T extends (infer U)[]
@@ -64,6 +66,12 @@ export interface Ended {
   resume: boolean;
 }
 
+/** Opening is how far opening a video has gone: percent from 0 to 100. */
+export interface Opening {
+  path: string;
+  percent: number;
+}
+
 export interface InstallProgress {
   id: string;
   done: boolean;
@@ -79,6 +87,8 @@ const events = {
   fullscreen: "window:fullscreen",
   panel: "panel:open",
   video: "video:changed",
+  listening: "video:listening",
+  opening: "video:opening",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -171,6 +181,8 @@ export const backend = {
   clearPlayerPath: (id: string) => api.ClearPlayerPath(id),
   openSettingsFolder: () => api.OpenSettingsFolder(),
   diagnostics: (): Promise<Diagnostics> => api.Diagnostics(),
+  about: (): Promise<AboutView> => api.About(),
+  thirdPartyNotices: (): Promise<string> => api.ThirdPartyNotices(),
   fileAssociation: () => api.FileAssociation(),
   setFileAssociation: (on: boolean) => api.SetFileAssociation(on),
   copyText: (text: string) => ClipboardSetText(text),
@@ -185,4 +197,8 @@ export const backend = {
   onFullscreen: (listener: (on: boolean) => void) => EventsOn(events.fullscreen, listener),
   onPanel: (listener: (request: PanelRequest) => void) => EventsOn(events.panel, listener),
   onVideo: (listener: (video: Video) => void) => EventsOn(events.video, listener),
+  /** onListening hears how far hearing the open video, to choose its subtitle, has gone. */
+  onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
+  /** onOpening hears how far opening a video has gone, for the bar while a large video is read. */
+  onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
 };

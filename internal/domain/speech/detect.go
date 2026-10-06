@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Sensitivity is how readily quiet sound counts as voice.
+// Sensitivity is how readily a doubtful sound counts as voice.
 type Sensitivity string
 
 const (
@@ -20,16 +20,25 @@ func (s Sensitivity) Valid() bool {
 	return s == SensitivityLow || s == SensitivityNormal || s == SensitivityHigh
 }
 
-// tuning is where between a line's quiet and its loudest the voice begins,
-// and how far apart those two must be to tell anything (in dB).
-func (s Sensitivity) tuning() (share, contrast float64) {
+// threshold is the speech from which a frame starts a stretch of voice.
+func (s Sensitivity) threshold() float32 {
 	switch s {
 	case SensitivityLow:
-		return 0.55, 12
+		return 0.65
 	case SensitivityHigh:
-		return 0.35, 8
+		return 0.35
 	}
-	return 0.45, 10
+	return 0.5
+}
+
+// speechFall is how far under the threshold the speech must fall before
+// the voice ends, so a word that wavers stays whole (as Silero's own
+// segmenting does).
+const speechFall = 0.15
+
+// hears tells whether a frame is voice, going on from the frame before.
+func hears(frame Frame, threshold float32, before bool) bool {
+	return frame.Speech >= threshold || (before && frame.Speech >= threshold-speechFall)
 }
 
 // Track is a run of frames from a point of the film's clock.
@@ -59,19 +68,17 @@ const (
 	Trusted Verdict = iota
 	// Missing: the sound does not cover the line.
 	Missing
-	// TooQuiet: nothing stands out from the sound around the line.
-	TooQuiet
-	// NoVoice: voice fills under a quarter of the line.
+	// NoVoice: voice fills under 15% of the line.
 	NoVoice
-	// Steady: sound fills the line and the silence around it, so it is
-	// music or noise, not someone speaking.
+	// Steady: voice fills the line and the silence around it, so talk goes
+	// on across lines and this one's voice cannot be told apart.
 	Steady
 	// WrongPace: the voice is far too short or too long for the line's
 	// syllables.
 	WrongPace
 )
 
-var verdictNames = [...]string{"trusted", "missing", "too quiet", "no voice", "steady", "wrong pace"}
+var verdictNames = [...]string{"trusted", "missing", "no voice", "steady", "wrong pace"}
 
 func (v Verdict) String() string {
 	if v < 0 || int(v) >= len(verdictNames) {
@@ -90,35 +97,17 @@ type Detection struct {
 // by, when the track has it.
 const LineMargin = 500 * time.Millisecond
 
-// The detector's rules. Each line is judged on its own sound, a margin
-// around it included: its quiet (the 10th percentile) and its loudest (the
-// 95th) set where voice begins, so a whisper in a quiet scene counts as
-// much as a shout in a loud one. A gap shorter than shortestPause is a stop
-// inside a word (the closure before a P or a T); a burst shorter than
-// shortestVoice is a click.
+// The detector's rules. A gap shorter than shortestPause is a stop inside
+// a word or between two said together; a burst shorter than shortestVoice
+// (two of the model's chunks) is a breath or a click.
 const (
-	floorPercentile = 0.10
-	peakPercentile  = 0.95
-	hysteresis      = 2.0 // dB below the threshold before the voice ends
-	shortestPause   = 120 * time.Millisecond
-	shortestVoice   = 50 * time.Millisecond
+	shortestPause   = 100 * time.Millisecond
+	shortestVoice   = 64 * time.Millisecond
 	leastLineShare  = 0.15 // "How... (2 s)... are you?" speaks in a quarter of its time
 	mostWindowShare = 0.98
 	slowestPace     = 1.0 // syllables per second of voice
 	fastestPace     = 12.0
 )
-
-// leastCenterDB bounds how much a sound spread wide is turned down: near
-// zero, the share in the middle of noise swings far in decibels.
-const leastCenterDB = -12
-
-func voiceLevel(f Frame) float64 { return float64(f.Voice) + centerDB(f) }
-
-func hissLevel(f Frame) float64 { return float64(f.Hiss) + centerDB(f) }
-
-func centerDB(f Frame) float64 {
-	return max(10*math.Log10(float64(f.Center)), leastCenterDB)
-}
 
 // DetectLine finds the voice of a line spoken from start to end, whose
 // text weighs syllables (study.SpeechUnits).
@@ -131,41 +120,22 @@ func DetectLine(track Track, start, end time.Duration, syllables float64, sensit
 	to := min(track.frameAt(end+LineMargin), len(track.Frames))
 	frames := track.Frames[from:to]
 
-	share, contrast := sensitivity.tuning()
+	threshold := sensitivity.threshold()
 	active := make([]bool, len(frames))
-	levels := make([]float64, len(frames))
-	sorted := make([]float64, len(frames))
-	usable := false
-	for _, level := range [...]func(Frame) float64{voiceLevel, hissLevel} {
-		for i, frame := range frames {
-			levels[i] = level(frame)
-		}
-		copy(sorted, levels)
-		slices.Sort(sorted)
-		floor := sorted[int(floorPercentile*float64(len(sorted)-1))]
-		peak := sorted[int(peakPercentile*float64(len(sorted)-1))]
-		if peak-floor < contrast {
-			continue
-		}
-		usable = true
-		threshold := floor + share*(peak-floor)
-		on := false
-		for i, l := range levels {
-			on = l >= threshold || (on && l >= threshold-hysteresis)
-			active[i] = active[i] || on
-		}
-	}
-	if !usable {
-		return Detection{Verdict: TooQuiet}
+	on := false
+	for i, frame := range frames {
+		on = hears(frame, threshold, on)
+		active[i] = on
 	}
 
-	runs := voiceRuns(active)
+	// Voice only in the margin is another line's, or a sound around this one.
+	runs := slices.DeleteFunc(voiceRuns(active), func(run [2]int) bool {
+		return run[1] <= first-from || run[0] >= last-from
+	})
 	voiced, inLine := 0, 0
-	spans := make([]Span, len(runs))
-	for i, run := range runs {
+	for _, run := range runs {
 		voiced += run[1] - run[0]
 		inLine += max(min(run[1], last-from)-max(run[0], first-from), 0)
-		spans[i] = Span{Start: track.timeOf(from + run[0]), End: track.timeOf(from + run[1])}
 	}
 	switch pace := syllables / (float64(voiced) * FrameLength.Seconds()); {
 	case float64(inLine) < leastLineShare*float64(last-first):
@@ -175,7 +145,60 @@ func DetectLine(track Track, start, end time.Duration, syllables float64, sensit
 	case !(pace >= slowestPace && pace <= fastestPace):
 		return Detection{Verdict: WrongPace}
 	}
+	runs = lineOnset(frames, runs, first-from, threshold)
+	spans := make([]Span, len(runs))
+	for i, run := range runs {
+		spans[i] = Span{Start: track.timeOf(from + run[0]), End: track.timeOf(from + run[1])}
+	}
 	return Detection{Spans: spans, Verdict: Trusted}
+}
+
+// Where a line's own voice begins, measured against the voice's start marked
+// by ear in five films: the line before often runs up to this one, and the
+// model's speech rises a little after the voice does.
+const (
+	// lineTail: a stretch of voice already going when the line shows that
+	// ends this soon after is the end of the line before.
+	lineTail = 150 * time.Millisecond
+	// alreadySpeaking: voice going this long before the line shows runs into
+	// it; the line's voice begins after the deepest dip within onsetReach of
+	// the line's start, or with the line when there is none.
+	alreadySpeaking = 150 * time.Millisecond
+	onsetReach      = 300 * time.Millisecond
+	// risingSpeech: the speech a voice starting near the line rises from;
+	// its start goes back to there.
+	risingSpeech = 0.2
+)
+
+// lineOnset moves the start of the first run to where the line's own voice
+// begins; first is the frame where the line shows.
+func lineOnset(frames []Frame, runs [][2]int, first int, threshold float32) [][2]int {
+	if len(runs) > 1 && runs[0][0] < first && runs[0][1] < first+int(lineTail/FrameLength) {
+		runs = runs[1:]
+	}
+	run := &runs[0]
+	reach := int(onsetReach / FrameLength)
+	if run[0] < first-int(alreadySpeaking/FrameLength) {
+		lo, hi := max(first-reach, run[0]), min(first+reach, run[1]-1)
+		dip := lo
+		for i := lo; i <= hi; i++ {
+			if frames[i].Speech < frames[dip].Speech {
+				dip = i
+			}
+		}
+		if frames[dip].Speech < threshold {
+			run[0] = dip + 1
+		} else {
+			run[0] = first
+		}
+		return runs
+	}
+	if run[0] > first-reach {
+		for run[0] > 0 && frames[run[0]-1].Speech >= risingSpeech && frames[run[0]-1].Speech < threshold {
+			run[0]--
+		}
+	}
+	return runs
 }
 
 // voiceRuns turns the frames heard as voice into runs [from, to), joining

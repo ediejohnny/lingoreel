@@ -13,7 +13,15 @@ const waitLimit = 5 * time.Second
 // fake player makes true, and fails the test naming what never came.
 func Eventually(t testing.TB, what string, condition func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(waitLimit)
+	EventuallyWithin(t, what, waitLimit, condition)
+}
+
+// EventuallyWithin is Eventually for a condition that takes real work to
+// come, such as hearing stretches of a film at the pace of the app, which
+// the race detector and a full parallel run slow down many times.
+func EventuallyWithin(t testing.TB, what string, limit time.Duration, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(limit)
 	for !condition() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)

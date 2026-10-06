@@ -20,6 +20,7 @@ param(
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "lib\native.ps1")
 . (Join-Path $PSScriptRoot "lib\version.ps1")
+. (Join-Path $PSScriptRoot "lib\notices.ps1")
 
 $root = Split-Path -Parent $PSScriptRoot
 $wailsBin = Join-Path $root "build\bin"
@@ -39,18 +40,18 @@ $env:CGO_ENABLED = "0"
 Push-Location -LiteralPath $root
 try {
     $spdev = Join-Path $binDir "spdev.exe"
-    Write-Host "[1/4] Building spdev.exe (version $buildVersion)..."
+    Write-Host "[1/5] Building spdev.exe (version $buildVersion)..."
     Invoke-Native -FilePath "go" -Arguments @("build", "-trimpath", "-ldflags", $ldflags, "-o", $spdev, "./cmd/spdev") `
         -FailureMessage "Building spdev failed"
 
-    Write-Host "[2/4] Checking the version stamped in the executable..."
+    Write-Host "[2/5] Checking the version stamped in the executable..."
     $reported = Invoke-Native -FilePath $spdev -Arguments @("version") -FailureMessage "spdev.exe did not run" -Capture
     if ("$reported".Trim() -ne $buildVersion) {
         throw "spdev.exe reports version '$reported', but '$buildVersion' was expected."
     }
 
     $app = Join-Path $binDir "LingoReel.exe"
-    Write-Host "[3/4] Building the app (LingoReel.exe) with its interface..."
+    Write-Host "[3/5] Building the app (LingoReel.exe) with its interface..."
     # The file version lives in wails.json: it is set for this build only and
     # the file goes back as it was.
     $originalConfig = [IO.File]::ReadAllBytes($wailsConfig)
@@ -75,13 +76,25 @@ try {
         throw "The app was not built at $app."
     }
 
-    Write-Host "[4/4] Checking the app's file properties..."
+    Write-Host "[4/5] Checking the app's file properties..."
     $productVersion = Get-FileProperty -Path $app -Name "ProductVersion"
     $company = Get-FileProperty -Path $app -Name "CompanyName"
     if ($productVersion -ne $fileVersion -or $company -ne "Edie Johnny") {
         throw "The app came out with version '$productVersion' and author '$company'; expected '$fileVersion' and 'Edie Johnny'."
     }
 
+    Write-Host "[5/5] Checking the notices inside the app name every module it carries..."
+    $notices = [IO.File]::ReadAllText((Get-NoticesPath -Root $root))
+    $carried = Invoke-Native -FilePath "go" -Arguments @("version", "-m", $app) -FailureMessage "go version -m failed" -Capture
+    $missing = @($carried | ForEach-Object {
+            $fields = "$_".Trim() -split '\s+'
+            if ($fields.Count -ge 3 -and $fields[0] -eq "dep" -and -not $notices.Contains("`n$($fields[1]) $($fields[2])")) {
+                "$($fields[1]) $($fields[2])"
+            }
+        })
+    if ($missing.Count -gt 0) {
+        throw "The app carries no notice for $($missing -join ', '). Run scripts\update-notices.ps1 and build again."
+    }
     $sizeMb = [math]::Round((Get-Item -LiteralPath $spdev).Length / 1MB, 1)
     Write-Host ""
     Write-Host "Build finished." -ForegroundColor Green

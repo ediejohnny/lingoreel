@@ -260,6 +260,9 @@ func TestExactClockAdoptsEverySample(t *testing.T) {
 	}
 }
 
+// Right after a seek the player's stale answers are ignored. Every jump is
+// counted, the session's and the player's own, and nothing else: the voice
+// heard before a jump says nothing of what comes.
 func TestClockIgnoresOldPositionsRightAfterASeek(t *testing.T) {
 	t.Parallel()
 	for _, precision := range []playback.Precision{playback.PrecisionExact, playback.PrecisionEstimated} {
@@ -268,6 +271,13 @@ func TestClockIgnoresOldPositionsRightAfterASeek(t *testing.T) {
 			clock := session.NewClock(precision, now.Now)
 			clock.Observe(sample(ms(5_000), playback.StatusPlaying, 1, now.Now()))
 			clock.SetPosition(ms(60_000))
+			seeks := func(want uint64) {
+				t.Helper()
+				if got := clock.Seeks(); got != want {
+					t.Fatalf("seeks = %d, want %d", got, want)
+				}
+			}
+			seeks(1)
 
 			now.Advance(ms(100))
 			clock.Observe(sample(ms(5_150), playback.StatusPlaying, 1, now.Now())) // player not there yet
@@ -280,12 +290,14 @@ func TestClockIgnoresOldPositionsRightAfterASeek(t *testing.T) {
 			if got := clock.Position(); got != ms(60_150) {
 				t.Fatalf("sample near the target not adopted: %v", got)
 			}
+			seeks(1)
 
 			now.Advance(time.Second) // grace period over: a real jump is accepted
 			clock.Observe(sample(ms(2_000), playback.StatusPlaying, 1, now.Now()))
 			if got := clock.Position(); got != ms(2_000) {
 				t.Fatalf("jump after the grace period ignored: %v", got)
 			}
+			seeks(2)
 		})
 	}
 }

@@ -1,5 +1,6 @@
-﻿# check.ps1 - Quality gates required before every commit: formatting, static
-# analysis and tests (with the race detector when a C compiler is available),
+﻿# check.ps1 - Quality gates required before every commit: formatting, the
+# third-party notices the app carries, static analysis and tests (with the
+# race detector when a C compiler is available),
 # and, side by side with them, the window's frontend: types, lint and tests.
 #
 # By default the Go tests run with -short, which skips the slow ones (windows
@@ -16,6 +17,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "lib\native.ps1")
+. (Join-Path $PSScriptRoot "lib\notices.ps1")
 
 $root = Split-Path -Parent $PSScriptRoot
 # Every test lives under tests\, mirroring the production tree.
@@ -74,14 +76,14 @@ if (-not $env:LINGOREEL_TEST_FFMPEG -and (Test-Path -LiteralPath $localFFmpeg)) 
     $env:LINGOREEL_TEST_FFMPEG = $localFFmpeg
 }
 try {
-    Write-Host "[1/6] Validating the PowerShell scripts (encoding and syntax)..."
+    Write-Host "[1/7] Validating the PowerShell scripts (encoding and syntax)..."
     $scriptProblems = @(Test-PowerShellScripts)
     if ($scriptProblems.Count -gt 0) {
         $scriptProblems | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
         throw "Some PowerShell scripts have problems."
     }
 
-    Write-Host "[2/6] Checking where the tests live (only under tests\)..."
+    Write-Host "[2/7] Checking where the tests live (only under tests\)..."
     $packages = Invoke-Native -FilePath "go" -Arguments (@("list", "-f", "{{.Dir}}|{{len .TestGoFiles}}|{{len .XTestGoFiles}}") + $goPackages) `
         -FailureMessage "Could not list the Go packages" -Capture
     $misplacedTests = @($packages | ForEach-Object {
@@ -95,7 +97,7 @@ try {
         throw "Some packages have test files outside the tests\ folder."
     }
 
-    Write-Host "[3/6] Checking the formatting (gofmt)..."
+    Write-Host "[3/7] Checking the formatting (gofmt)..."
     $sourceDirs = @($goSourceDirs | Where-Object { Test-Path -LiteralPath (Join-Path $root $_) })
     $unformatted = Invoke-Native -FilePath "gofmt" -Arguments (@("-l") + $sourceDirs) `
         -FailureMessage "gofmt failed" -Capture
@@ -107,7 +109,7 @@ try {
 
     # The frontend's checks need nothing from Go: they run side by side, in
     # the background, while Go is analysed and tested.
-    Write-Host "[4/6] Interface (types, lint, formatting and tests), alongside Go..."
+    Write-Host "[4/7] Interface (types, lint, formatting and tests), alongside Go..."
     if (-not (Test-Path -LiteralPath (Join-Path $frontendDir "node_modules"))) {
         Push-Location -LiteralPath $frontendDir
         try {
@@ -124,10 +126,21 @@ try {
         Start-NativeJob -FilePath "npm.cmd" -Arguments @("test") -WorkingDirectory $frontendDir -FailureMessage "Some interface tests are failing"
     )
 
+    # The licenses the app carries must name what goes inside it today.
+    Write-Host "[5/7] Checking the third-party notices the app carries..."
+    $noticesFailure = $null
+    try {
+        if (-not (Test-ThirdPartyNotices -Root $root)) {
+            $noticesFailure = "The third-party notices are out of date: run scripts\update-notices.ps1."
+        }
+    }
+    catch {
+        $noticesFailure = $_.Exception.Message
+    }
     # Go's failures are kept until the frontend is done, so both are told.
     $goFailure = $null
     try {
-        Write-Host "[5/6] Static analysis (go vet and staticcheck)..."
+        Write-Host "[6/7] Static analysis (go vet and staticcheck)..."
         Invoke-Native -FilePath "go" -Arguments (@("vet") + $goPackages) -FailureMessage "go vet found problems"
         Invoke-Native -FilePath (Find-Staticcheck) -Arguments $goPackages -FailureMessage "staticcheck found problems"
 
@@ -150,7 +163,7 @@ try {
         }
         $testArguments = @("test") + $testFlags + $goPackages
         $mode = if ($Full) { "full" } else { "quick: the slow tests run with -Full" }
-        Write-Host "[6/6] Tests, $mode (go $($testArguments -join ' '))..."
+        Write-Host "[7/7] Tests, $mode (go $($testArguments -join ' '))..."
         Invoke-Native -FilePath "go" -Arguments $testArguments -FailureMessage "Some tests are failing"
     }
     catch {
@@ -165,13 +178,13 @@ try {
     catch {
         $interfaceFailure = $_.Exception.Message
     }
-    $failures = @($goFailure, $interfaceFailure) | Where-Object { $_ }
+    $failures = @($noticesFailure, $goFailure, $interfaceFailure) | Where-Object { $_ }
     if ($failures.Count -gt 0) {
         throw ($failures -join " ")
     }
 
     Write-Host ""
-    Write-Host "All good: scripts, layout, formatting, static analysis, tests and interface passed." -ForegroundColor Green
+    Write-Host "All good: scripts, layout, formatting, notices, static analysis, tests and interface passed." -ForegroundColor Green
 }
 finally {
     $env:CGO_ENABLED = $previousCgo

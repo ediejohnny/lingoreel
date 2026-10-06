@@ -26,6 +26,27 @@ type Video struct {
 	SavedPassages []SavedPassage `json:"savedPassages"`
 	// Resume offers to go on where the video was left.
 	Resume Resume `json:"resume"`
+	// Listening is how far hearing the video, to tell which subtitle file
+	// fits it, has gone; the video:listening event tells it as it goes.
+	Listening Listening `json:"listening"`
+}
+
+// Opening is how far opening a video has gone.
+type Opening struct {
+	Path string `json:"path"`
+	// Percent is how much was read, from 0 to 100.
+	Percent int `json:"percent"`
+}
+
+// Listening is how far hearing a video's voice has gone.
+type Listening struct {
+	Path   string `json:"path"`
+	Active bool   `json:"active"`
+	// Percent is how much was heard, from 0 to 100.
+	Percent int `json:"percent"`
+	// Stretch is the stretch being heard, from 1, of Stretches.
+	Stretch   int `json:"stretch"`
+	Stretches int `json:"stretches"`
 }
 
 // Resume is where the video was left, when it is worth going back to.
@@ -221,8 +242,9 @@ type Karaoke struct {
 	// Repeat is how many times each line plays again; 0 is off.
 	Repeat int `json:"repeat"`
 	// Voice is how the line's voice is followed now: "ahead" (decoded with
-	// FFmpeg), "live" (the player heard), "estimate", or empty when it is
-	// not followed.
+	// FFmpeg), "live" (the player heard), "estimate", "battery" or "off" (the
+	// voice model rests on the battery, or is switched off), or empty when
+	// it is not followed.
 	Voice string `json:"voice"`
 }
 

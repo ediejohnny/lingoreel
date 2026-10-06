@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Track } from "./services/backend";
-import { forLine, none, playingOptions } from "./tracks";
-
-const subtitles = [
-  { number: 4, label: "Inglês", language: "en", readable: true, note: "", warning: false },
-  { number: 5, label: "Português", language: "pt-BR", readable: true, note: "", warning: false },
-] as Track[];
+import { adopted, forLine } from "./tracks";
 
 describe("forLine", () => {
   // The app's order: English from the best, then Portuguese from the best, then the rest.
@@ -28,14 +23,14 @@ describe("forLine", () => {
   });
 });
 
-describe("playingOptions", () => {
-  it("offers none below, always", () => {
-    expect(playingOptions("translation", subtitles, 5, "Nenhuma")[0]?.value).toBe(none);
-  });
-
-  it("offers none on top only while the line shows none", () => {
-    expect(playingOptions("primary", subtitles, 4, "Nenhuma").map((option) => option.value)).toEqual(["4", "5"]);
-    // A session started without a subtitle on top: the list shows what is on screen.
-    expect(playingOptions("primary", subtitles, 0, "Nenhuma").map((option) => option.value)).toEqual([none, "4", "5"]);
+describe("adopted", () => {
+  it("keeps what the user chose and takes the new suggestion for the rest", () => {
+    const chosen = { primary: "0", translation: "5", audio: "2" };
+    const suggested = { primary: 1000, translation: 6, audio: 3 };
+    expect(adopted(suggested, chosen, { primary: false, translation: true, audio: false })).toEqual({
+      primary: "1000",
+      translation: "5",
+      audio: "3",
+    });
   });
 });

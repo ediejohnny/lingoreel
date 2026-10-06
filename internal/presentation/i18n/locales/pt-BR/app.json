@@ -187,7 +187,6 @@
   "error.subtitleFile.tooMany": "Este vídeo já tem {max} arquivos de legenda adicionados, o máximo.",
   "error.subtitleFile.unreadable": "Esse arquivo não é uma legenda que o app consiga ler (.srt, .ass, .ssa ou .vtt).",
   "error.track.loading": "Espere a legenda que está carregando.",
-  "error.track.needsPrimary": "A legenda de estudo precisa de uma faixa.",
   "error.track.notLoaded": "Não foi possível carregar essa legenda.",
   "error.track.sameAsOther": "A outra legenda já mostra essa faixa.",
   "error.track.unknown": "Essa faixa não é uma legenda que o app consiga ler neste vídeo.",
@@ -390,12 +389,16 @@
   "track.hearingImpaired": "para surdos",
   "track.note.adjusted": "O tempo foi ajustado sozinho para casar com o vídeo ({offset}).",
   "track.note.candidate": "Encontrada numa subpasta; não deu para conferir se é deste vídeo.",
+  "track.note.heard": "Bate com a voz do filme: o app ouviu trechos do filme para conferir.",
   "track.note.match": "O tempo casa com o vídeo.",
   "track.note.noMatch": "O tempo não casa com este vídeo: pode ser de outro filme ou de outra versão.",
   "track.note.otherCut": "Parece ser de outra versão do filme (estendida ou versão do diretor): sai de sincronia a cada cena.",
   "track.note.unreadable": "Não dá para usar: legenda em imagem ou num formato que o LingoReel não lê.",
   "unit.seconds": "{value} s",
+  "video.missingAndUnfit": "Não há legenda em {missing} neste vídeo, e a legenda em {unfit} que o app achou não bate com ele: pode ser de outro filme ou de outra versão. Escolha outra abaixo, ou coloque os arquivos certos na pasta do vídeo e abra-o de novo.",
   "video.missingLanguage": "Não há legenda em {language} neste vídeo. Escolha outra abaixo, ou coloque um arquivo .srt na pasta do vídeo e abra-o de novo.",
   "video.missingLanguages": "Não há legenda em {first} nem em {second} neste vídeo. Escolha outra abaixo, ou coloque um arquivo .srt na pasta do vídeo e abra-o de novo.",
-  "video.noExtension": "sem extensão"
+  "video.noExtension": "sem extensão",
+  "video.unfitLanguage": "A legenda em {language} que o app achou não bate com este vídeo: pode ser de outro filme ou de outra versão. Escolha outra abaixo, ou coloque o arquivo certo na pasta do vídeo e abra-o de novo.",
+  "video.unfitLanguages": "As legendas em {first} e em {second} que o app achou não batem com este vídeo: podem ser de outro filme ou de outra versão. Escolha outras abaixo, ou coloque os arquivos certos na pasta do vídeo e abra-o de novo."
 }

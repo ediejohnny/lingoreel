@@ -198,9 +198,9 @@ func TestEditsThatAreRefused(t *testing.T) {
 	if err := s.RestoreOriginal(); !errors.Is(err, watch.ErrPlaying) {
 		t.Errorf("restore while playing: %v", err)
 	}
-	if got := shownLine(t, s).Text(); got != "Hi\nthere." {
-		t.Fatalf("playing changed the line to %q", got)
-	}
+	// Playing lets the selection go on the runner's loop, so the line is
+	// read on the screen.
+	screenShows(t, r, "the line unchanged while playing", func(screen session.Screen) bool { return screen.Primary == "Hi\nthere." })
 
 	// Where no line shows, there is nothing to pick.
 	at(t, r, s, 5*time.Second)

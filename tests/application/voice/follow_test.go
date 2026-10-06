@@ -3,6 +3,8 @@ package voice_test
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,13 +26,61 @@ func film() []float32 {
 
 var howAreYou = voice.Line{Text: "How... are you?", Start: 1900 * ms, End: 4900 * ms}
 
-// clock plays the film from start at normal speed.
-type clock struct{ start time.Time }
+// filmPeriod is how often the film's 6 s repeat in a long film.
+const filmPeriod = 6 * time.Second
 
-func (c clock) PositionAt(at time.Time) time.Duration { return at.Sub(c.start) }
+// howAreYouAt is the line in the film's repeat that starts at the given
+// time.
+func howAreYouAt(repeat time.Duration) voice.Line {
+	line := howAreYou
+	line.Start += repeat
+	line.End += repeat
+	return line
+}
 
-func (c clock) State() playback.Sample {
-	return playback.Sample{Status: playback.StatusPlaying, Speed: playback.NormalSpeed}
+// clock plays the film at normal speed from start, until a test pauses it
+// or seeks; it counts the seeks, as the session's does.
+type clock struct {
+	mu       sync.Mutex
+	anchor   time.Time
+	position time.Duration
+	paused   bool
+	seeks    uint64
+}
+
+func newClock(start time.Time) *clock { return &clock{anchor: start} }
+
+func (c *clock) PositionAt(at time.Time) time.Duration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.paused {
+		return c.position
+	}
+	return c.position + at.Sub(c.anchor)
+}
+
+func (c *clock) State() playback.Sample {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	status := playback.StatusPlaying
+	if c.paused {
+		status = playback.StatusPaused
+	}
+	return playback.Sample{Status: status, Speed: playback.NormalSpeed}
+}
+
+func (c *clock) Seeks() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.seeks
+}
+
+// seek jumps to a position at an instant, paused there or playing on.
+func (c *clock) seek(to time.Duration, at time.Time, paused bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.position, c.anchor, c.paused = to, at, paused
+	c.seeks++
 }
 
 // tap hands over the packets a test feeds, one at a time.
@@ -67,20 +117,36 @@ func (t *tap) play(start time.Time, sound []float32, from, to time.Duration) {
 	}
 }
 
-// decoder decodes the film, or fails.
+// decoder decodes the film, or fails. Given a length, the film's 6 s
+// repeat until it; given a pace, each 100 ms piece takes that long.
 type decoder struct {
-	sound []float32
-	fail  bool
+	sound  []float32
+	fail   bool
+	length time.Duration
+	pace   time.Duration
 }
 
-func (d decoder) Decode(_ context.Context, stretch voice.Stretch, hear func([]float32, int)) error {
+func (d decoder) Decode(ctx context.Context, stretch voice.Stretch, hear func([]float32, int)) error {
 	if d.fail {
 		return errors.New("broken")
 	}
-	from := min(int(stretch.From.Seconds()*16000), len(d.sound))
-	to := min(from+int(stretch.Length.Seconds()*16000), len(d.sound))
+	total := len(d.sound)
+	if d.length > 0 {
+		total = int(d.length.Seconds() * 16000)
+	}
+	from := min(int(stretch.From.Seconds()*16000), total)
+	to := min(from+int(stretch.Length.Seconds()*16000), total)
+	piece := make([]float32, 0, 1600)
 	for at := from; at < to; at += 1600 {
-		hear(d.sound[at:min(at+1600, to)], 1)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		time.Sleep(d.pace)
+		piece = piece[:0]
+		for i := at; i < min(at+1600, to); i++ {
+			piece = append(piece, d.sound[i%len(d.sound)])
+		}
+		hear(piece, 1)
 	}
 	return nil
 }
@@ -102,11 +168,13 @@ func within(t *testing.T, what string, got, low, high float64) {
 }
 
 // Heard as it plays, the line follows the voice and holds in the pause;
-// trained again, it is painted from the sound heard the first time.
+// trained again (paused, back to its start), it is painted from the sound
+// heard the first time, not left whole.
 func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 	t.Parallel()
 	sound, player, start := film(), newTap(), time.Now()
-	follower := voice.Follow(context.Background(), voice.Sources{Tap: player, PID: 1}, clock{start}, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	playing := newClock(start)
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Tap: player, PID: 1}, playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 
 	player.play(start, sound, 0, 1900*ms)
@@ -122,7 +190,9 @@ func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 	player.play(start, sound, 4200*ms, 4900*ms)
 	within(t, `"are you?" said`, fill(t, follower, howAreYou, 4890*ms), 11.5, 13)
 
-	follower.Seeked() // the line trained again
+	// Trained again: the player is paused and taken back, and says nothing
+	// until it plays again.
+	playing.seek(howAreYou.Start, time.Now(), true)
 	within(t, "trained again, in the pause", fill(t, follower, howAreYou, 3*time.Second), 5.5, 6)
 	within(t, `trained again, during "are you?"`, fill(t, follower, howAreYou, 4500*ms), 7, 11)
 }
@@ -131,8 +201,8 @@ func TestTheVoiceIsFollowedLiveAndKeptForTrainingAgain(t *testing.T) {
 // a song is left to the estimate.
 func TestTheVoiceIsDecodedAhead(t *testing.T) {
 	t.Parallel()
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: decoder{sound: film()}, Voice: voice.Stretch{File: "film.mkv"}},
-		clock{time.Now()}, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{sound: film()}, Voice: voice.Stretch{File: "film.mkv"}},
+		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 	testkit.Eventually(t, "the line decoded", func() bool {
 		_, ok := follower.Fill(howAreYou, 0)
@@ -148,14 +218,215 @@ func TestTheVoiceIsDecodedAhead(t *testing.T) {
 	}
 }
 
+// blockingModel holds each judgment until released, and tells when one
+// began.
+type blockingModel struct{ began, release chan struct{} }
+
+func (m blockingModel) NewStream() (speech.Stream, error) { return m, nil }
+
+func (m blockingModel) Speech([]float32) float32 {
+	select {
+	case m.began <- struct{}{}:
+	default:
+	}
+	<-m.release
+	return 0
+}
+
+// While the model judges the player's sound, the line is still drawn: the
+// overlay never waits for the model.
+func TestDrawingALineNeverWaitsForTheModel(t *testing.T) {
+	t.Parallel()
+	model := blockingModel{began: make(chan struct{}, 1), release: make(chan struct{})}
+	sound, player, start := film(), newTap(), time.Now()
+	follower := voice.Follow(context.Background(), voice.Sources{Model: model, Tap: player, PID: 1}, newClock(start),
+		voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	defer close(model.release)
+
+	go player.play(start, sound, 0, 40*ms) // 32 ms make the first chunk
+	<-model.began
+	drawn := make(chan struct{})
+	go func() {
+		follower.Fill(howAreYou, 0)
+		close(drawn)
+	}()
+	select {
+	case <-drawn:
+	case <-time.After(time.Second):
+		t.Fatal("drawing the line waited for the model")
+	}
+}
+
+// slowModel takes a while over each chunk, and adds up the time.
+type slowModel struct{ spent *atomic.Int64 }
+
+func (m slowModel) NewStream() (speech.Stream, error) { return m, nil }
+
+func (m slowModel) Speech([]float32) float32 {
+	began := time.Now()
+	time.Sleep(time.Millisecond)
+	m.spent.Add(int64(time.Since(began)))
+	return 0
+}
+
+// timedDecoder tells how long each decoding took.
+type timedDecoder struct {
+	decoder
+	took chan time.Duration
+}
+
+func (d timedDecoder) Decode(ctx context.Context, stretch voice.Stretch, hear func([]float32, int)) error {
+	began := time.Now()
+	err := d.decoder.Decode(ctx, stretch, hear)
+	d.took <- time.Since(began)
+	return err
+}
+
+// Decoding ahead rests between bursts, so the model takes at most a
+// quarter of a core: the video and the computer keep the rest.
+func TestDecodingAheadRestsBetweenBursts(t *testing.T) {
+	t.Parallel()
+	var spent atomic.Int64
+	decoding := timedDecoder{decoder{sound: film()}, make(chan time.Duration, 8)}
+	follower := voice.Follow(context.Background(), voice.Sources{Model: slowModel{&spent}, Decoder: decoding, Voice: voice.Stretch{File: "film.mkv"}},
+		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	took := <-decoding.took
+	if work := time.Duration(spent.Load()); took < 3*work {
+		t.Fatalf("the film took %v to decode with %v of the model's work, want at least %v", took, work, 3*work)
+	}
+}
+
+// warmingModel is sure of a voice only after a quarter of a second of it,
+// as a model that judges by what it heard before.
+type warmingModel struct{}
+
+func (warmingModel) NewStream() (speech.Stream, error) {
+	loud, _ := testkit.LoudModel{}.NewStream()
+	return &warming{loud: loud}, nil
+}
+
+type warming struct {
+	loud   speech.Stream
+	chunks int
+}
+
+func (w *warming) Speech(chunk []float32) float32 {
+	if w.loud.Speech(chunk) > 0.1 {
+		w.chunks++
+	} else {
+		w.chunks = 0
+	}
+	if w.chunks >= 8 {
+		return 1
+	}
+	return 0
+}
+
+// A window decoded ahead starts a second early, so the model has heard
+// what leads into it: a line said across two windows is found from where
+// the model was sure the first time, not a quarter of a second later.
+func TestAWindowAheadHearsTheSecondBeforeIt(t *testing.T) {
+	t.Parallel()
+	// Windows from 43 s to 103 s and on; the line is said from 102.8 s.
+	sound := testkit.Then(testkit.Silence(102800*ms), testkit.Voiced(1200*ms, -20, 40), testkit.Silence(6*time.Second))
+	line := voice.Line{Text: "How are you?", Start: 102800 * ms, End: 104 * time.Second}
+	playing := newClock(time.Now())
+	playing.seek(45*time.Second, time.Now(), false)
+	decoding := timedDecoder{decoder{sound: sound}, make(chan time.Duration, 8)}
+	follower := voice.Follow(context.Background(), voice.Sources{Model: warmingModel{}, Decoder: decoding, Voice: voice.Stretch{File: "film.mkv"}},
+		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	<-decoding.took // the first window
+
+	playing.seek(85*time.Second, time.Now(), false) // under 30 s left: the next window
+	testkit.Eventually(t, "the line decoded", func() bool {
+		_, ok := follower.Fill(line, 103200*ms)
+		return ok
+	})
+	if share, _ := follower.Fill(line, 103200*ms); share < 0.05 {
+		t.Fatalf("at 103.2 s %.2f of the line is painted, want its voice found from about 103.03 s", share)
+	}
+}
+
+// askedDecoder tells whether it was asked to decode.
+type askedDecoder struct{ asked *atomic.Bool }
+
+func (d askedDecoder) Decode(context.Context, voice.Stretch, func([]float32, int)) error {
+	d.asked.Store(true)
+	return nil
+}
+
+// Without the model (switched off, or on battery) nothing is decoded or
+// heard: every line keeps the estimate.
+func TestWithoutTheModelEveryLineKeepsTheEstimate(t *testing.T) {
+	t.Parallel()
+	var asked atomic.Bool
+	sources := voice.Sources{Decoder: askedDecoder{&asked}, Voice: voice.Stretch{File: "film.mkv"}, Tap: newTap(), PID: 1}
+	follower := voice.Follow(context.Background(), sources, newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
+	if follower.Mode() != voice.ModeEstimate {
+		t.Fatalf("mode = %v, want the estimate", follower.Mode())
+	}
+	if _, ok := follower.Fill(howAreYou, 3*time.Second); ok {
+		t.Fatal("followed a voice with no model")
+	}
+	follower.Close()
+	if asked.Load() {
+		t.Fatal("decoded the film with no model")
+	}
+}
+
 // An FFmpeg that keeps failing, with no player to hear, leaves the estimate.
 func TestABrokenDecoderFallsBackToTheEstimate(t *testing.T) {
 	t.Parallel()
-	follower := voice.Follow(context.Background(), voice.Sources{Decoder: decoder{fail: true}, Voice: voice.Stretch{File: "film.mkv"}},
-		clock{time.Now()}, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{fail: true}, Voice: voice.Stretch{File: "film.mkv"}},
+		newClock(time.Now()), voice.Settings{Sensitivity: speech.SensitivityNormal})
 	defer follower.Close()
 	testkit.Eventually(t, "the estimate", func() bool { return follower.Mode() == voice.ModeEstimate })
 	if _, ok := follower.Fill(howAreYou, 3*time.Second); ok {
 		t.Fatal("followed a voice nobody could decode")
 	}
+}
+
+// A seek while a window is decoded on a slow computer (8 s a window)
+// decodes the new place at once, not after the window.
+func TestASeekDuringAWindowDecodesTheNewPlaceAtOnce(t *testing.T) {
+	t.Parallel()
+	playing := newClock(time.Now())
+	slow := decoder{sound: film(), length: 20 * time.Minute, pace: 13 * ms}
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: slow, Voice: voice.Stretch{File: "film.mkv"}},
+		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+
+	time.Sleep(300 * ms) // the first window is being decoded
+	later := 30 * filmPeriod
+	playing.seek(later, time.Now(), false)
+	testkit.Eventually(t, "the line after the seek decoded", func() bool {
+		_, ok := follower.Fill(howAreYouAt(later), later)
+		return ok
+	})
+}
+
+// After the end of the film was decoded, a seek back past what is kept
+// decodes again.
+func TestASeekBackAfterTheEndDecodesAgain(t *testing.T) {
+	t.Parallel()
+	length := 40 * filmPeriod // 4 min, past the 3 min kept
+	playing := newClock(time.Now())
+	playing.seek(length-10*time.Second, time.Now(), false)
+	follower := voice.Follow(context.Background(), voice.Sources{Model: testkit.LoudModel{}, Decoder: decoder{sound: film(), length: length}, Voice: voice.Stretch{File: "film.mkv"}},
+		playing, voice.Settings{Sensitivity: speech.SensitivityNormal})
+	defer follower.Close()
+	end := length - filmPeriod
+	testkit.Eventually(t, "the end decoded", func() bool {
+		_, ok := follower.Fill(howAreYouAt(end), end)
+		return ok
+	})
+
+	playing.seek(0, time.Now(), false)
+	testkit.Eventually(t, "the start decoded again", func() bool {
+		_, ok := follower.Fill(howAreYou, 0)
+		return ok
+	})
 }

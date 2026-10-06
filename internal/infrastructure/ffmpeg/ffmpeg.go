@@ -62,7 +62,7 @@ func Find(ctx context.Context, chosen string) (string, error) {
 // Arguments is the command line that decodes a stretch to 16 kHz float on
 // the standard output, and the channels it gives: the centre alone of a
 // surround mix (the dialogue's channel), both sides of a stereo one (the
-// analyzer tells the middle from the sides).
+// analyzer mixes them).
 func Arguments(stretch voice.Stretch) ([]string, int) {
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-threads", "1"}
 	if strings.HasPrefix(stretch.Codec, "A_DTS") {

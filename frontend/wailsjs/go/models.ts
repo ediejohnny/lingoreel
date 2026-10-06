@@ -1,5 +1,17 @@
 export namespace app {
 	
+	export class AboutView {
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AboutView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	    }
+	}
 	export class EditSettings {
 	    background: string;
 	    text: string;
@@ -417,6 +429,26 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.primary = source["primary"];
 	        this.translation = source["translation"];
+	    }
+	}
+	export class Listening {
+	    path: string;
+	    active: boolean;
+	    percent: number;
+	    stretch: number;
+	    stretches: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Listening(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.active = source["active"];
+	        this.percent = source["percent"];
+	        this.stretch = source["stretch"];
+	        this.stretches = source["stretches"];
 	    }
 	}
 	export class SelectionSettings {
@@ -1309,6 +1341,9 @@ export namespace app {
 		}
 	}
 	export class VoiceSettings {
+	    model: boolean;
+	    modelOnBattery: boolean;
+	    battery: boolean;
 	    follow: boolean;
 	    sensitivity: string;
 	    delayMs: number;
@@ -1323,6 +1358,9 @@ export namespace app {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.modelOnBattery = source["modelOnBattery"];
+	        this.battery = source["battery"];
 	        this.follow = source["follow"];
 	        this.sensitivity = source["sensitivity"];
 	        this.delayMs = source["delayMs"];
@@ -1407,6 +1445,7 @@ export namespace app {
 	    languageNote: string;
 	    savedPassages: SavedPassage[];
 	    resume: Resume;
+	    listening: Listening;
 	
 	    static createFrom(source: any = {}) {
 	        return new Video(source);
@@ -1427,6 +1466,7 @@ export namespace app {
 	        this.languageNote = source["languageNote"];
 	        this.savedPassages = this.convertValues(source["savedPassages"], SavedPassage);
 	        this.resume = this.convertValues(source["resume"], Resume);
+	        this.listening = this.convertValues(source["listening"], Listening);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

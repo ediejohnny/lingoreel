@@ -33,8 +33,12 @@ func (a *API) ChooseVideo() (string, error) {
 	return path, nil
 }
 
+// EventOpening tells the screens how far opening a video has gone (an
+// Opening): a large video not yet read takes a moment.
+const EventOpening = "video:opening"
+
 // OpenVideo reads a video's tracks and the subtitle files next to it, and
-// suggests what to watch it with.
+// suggests what to watch it with, telling how far it went as it goes.
 func (a *API) OpenVideo(path string) (Video, error) {
 	ctx, err := a.context()
 	if err != nil {
@@ -54,7 +58,13 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
 		Translation: media.LanguageTag(languages.Translation),
 	}
-	result, err := a.deps.Service.Analyze(ctx, path, preferences)
+	told := -1
+	result, err := a.deps.Service.AnalyzeWithProgress(ctx, path, preferences, func(done float64) {
+		if percent := int(done * 100); percent != told {
+			told = percent
+			a.emit(EventOpening, Opening{Path: path, Percent: percent})
+		}
+	})
 	if err != nil {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -66,9 +76,12 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		"audio", len(result.Info.TracksOf(media.TrackAudio)), "subtitles", len(result.Info.TracksOf(media.TrackSubtitle)))
 	opened := a.loadProject(path, result.Info)
 	result = a.addRemembered(result, opened)
+	result = withKeptFits(result, opened, preferences)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()
+	a.stopListening() // a video opened before
 	a.video, a.project = &result, opened
+	a.startListening(ctx, result, preferences)
 	a.mu.Unlock()
 	return a.describeVideo(result, opened, suggested, mode), nil
 }
@@ -86,6 +99,7 @@ func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, sugg
 	}
 	a.mu.Lock()
 	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
+	video.Listening = a.listeningTo(result.Path)
 	if opened != nil {
 		video.ProjectNote = opened.note
 	}
@@ -125,10 +139,11 @@ func subtitleTracks(info media.Info, preferences media.Preferences) []Track {
 }
 
 // languageNote tells when the video has subtitles but none in a language
-// the profile asks for.
+// the profile asks for, or only files in it that were found not to fit.
 func languageNote(info media.Info, suggested media.Selection, preferences media.Preferences) string {
+	subtitles := info.TracksOf(media.TrackSubtitle)
 	readable := 0
-	for _, track := range info.TracksOf(media.TrackSubtitle) {
+	for _, track := range subtitles {
 		if track.Readable {
 			readable++
 		}
@@ -136,20 +151,49 @@ func languageNote(info media.Info, suggested media.Selection, preferences media.
 	if readable == 0 {
 		return ""
 	}
-	var missing []string
-	if suggested.Primary == 0 && preferences.Primary != "" {
-		missing = append(missing, ptbr.LanguageName(preferences.Primary))
+	var missing, unfit []string
+	for _, line := range []struct {
+		chosen uint64
+		want   media.LanguageTag
+	}{{suggested.Primary, preferences.Primary}, {suggested.Translation, preferences.Translation}} {
+		if line.chosen != 0 || line.want == "" {
+			continue
+		}
+		if name := ptbr.LanguageName(line.want); allUnfit(subtitles, line.want) {
+			unfit = append(unfit, name)
+		} else {
+			missing = append(missing, name)
+		}
 	}
-	if suggested.Translation == 0 && preferences.Translation != "" {
-		missing = append(missing, ptbr.LanguageName(preferences.Translation))
-	}
-	switch len(missing) {
-	case 0:
+	switch {
+	case len(unfit) == 0 && len(missing) == 0:
 		return ""
-	case 1:
+	case len(unfit) == 0 && len(missing) == 1:
 		return ptbr.T("video.missingLanguage", "language", missing[0])
+	case len(unfit) == 0:
+		return ptbr.T("video.missingLanguages", "first", missing[0], "second", missing[1])
+	case len(missing) == 0 && len(unfit) == 1:
+		return ptbr.T("video.unfitLanguage", "language", unfit[0])
+	case len(missing) == 0:
+		return ptbr.T("video.unfitLanguages", "first", unfit[0], "second", unfit[1])
 	}
-	return ptbr.T("video.missingLanguages", "first", missing[0], "second", missing[1])
+	return ptbr.T("video.missingAndUnfit", "missing", missing[0], "unfit", unfit[0])
+}
+
+// allUnfit reports a language whose readable subtitle files were all found
+// not to fit the video (timed for another film or cut).
+func allUnfit(tracks []media.Track, language media.LanguageTag) bool {
+	found := false
+	for _, track := range tracks {
+		if !track.Readable || track.Language.Base() != language.Base() {
+			continue
+		}
+		if verdict := track.Alignment.Verdict; verdict != subtitle.VerdictNoMatch && verdict != subtitle.VerdictOtherCut {
+			return false
+		}
+		found = true
+	}
+	return found
 }
 
 func extensionOf(path string) string {
@@ -178,6 +222,9 @@ func subtitleNote(track media.Track) (string, bool) {
 	case subtitle.VerdictMatch:
 		if correction, moved := analysis.Correction(track); moved {
 			return ptbr.T("track.note.adjusted", "offset", ptbr.Offset(subtitle.Offset(correction.Offset))), false
+		}
+		if track.Alignment.Heard {
+			return ptbr.T("track.note.heard"), false
 		}
 		return ptbr.T("track.note.match"), false
 	case subtitle.VerdictOtherCut:

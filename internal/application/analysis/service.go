@@ -76,6 +76,11 @@ const (
 	// worth applying; below them the file already matches.
 	minCorrectionOffset = time.Millisecond
 	minCorrectionRate   = 1e-6
+	// minHeardOffset is the least offset found by the voice worth applying:
+	// the voice is found a little after a subtitle shows (a median 0.12 s, by
+	// lines marked by ear), so a file that fits comes out up to 0.25 s off
+	// and is better left as its authors timed it.
+	minHeardOffset = 250 * time.Millisecond
 )
 
 // Service runs the analysis use cases.
@@ -108,9 +113,31 @@ func readsTracks(path string) bool {
 // Analyze reads the tracks of a video and suggests the audio, primary
 // subtitle and translation for the given language preferences.
 func (s *Service) Analyze(ctx context.Context, path string, preferences media.Preferences) (Analysis, error) {
+	return s.AnalyzeWithProgress(ctx, path, preferences, nil)
+}
+
+// The shares of an analysis the progress tells: the tracks, the files
+// beside the video, and the subtitles inside it read to compare the files
+// with (the long part, a whole pass over a large file not yet cached).
+const (
+	tracksShare = 0.05
+	filesShare  = 0.10
+)
+
+// AnalyzeWithProgress is Analyze telling how far it went, from 0 to 1, as it
+// goes, for a bar on the screen.
+func (s *Service) AnalyzeWithProgress(ctx context.Context, path string, preferences media.Preferences, progress func(done float64)) (Analysis, error) {
+	told := 0.0
+	tell := func(done float64) {
+		if progress != nil {
+			told = min(max(done, told), 1) // never back, whatever the rounding
+			progress(told)
+		}
+	}
 	if !IsSupported(path) {
 		return Analysis{}, fmt.Errorf("%w: %s", ErrUnsupportedFile, filepath.Base(path))
 	}
+	tell(0)
 	var info media.Info
 	if readsTracks(path) {
 		var err error
@@ -120,17 +147,25 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 	} else if err := s.reader.Check(path); err != nil {
 		return Analysis{}, fmt.Errorf("opening %s: %w", filepath.Base(path), err)
 	}
-	tracks, contents, err := s.externalTracks(ctx, path, info.Duration)
+	tell(tracksShare)
+	tracks, contents, err := s.externalTracks(ctx, path, info.Duration, func(done float64) { tell(tracksShare + filesShare*done) })
 	if err != nil {
 		return Analysis{}, err
 	}
+	tell(tracksShare + filesShare)
 	var internal map[uint64]media.SubtitleContent
 	if len(contents) > 0 {
-		if internal, err = s.alignFiles(ctx, path, info, tracks, contents, nil); err != nil {
+		reading := func(done, total int64) {
+			if total > 0 {
+				tell(tracksShare + filesShare + (1-tracksShare-filesShare)*float64(done)/float64(total))
+			}
+		}
+		if internal, err = s.alignFiles(ctx, path, info, tracks, contents, nil, reading); err != nil {
 			return Analysis{}, err
 		}
 	}
 	info.Tracks = append(info.Tracks, tracks...)
+	tell(1)
 	return Analysis{Path: path, Info: info, Suggested: media.SelectTracks(info, preferences), external: contents, internal: internal}, nil
 }
 
@@ -139,7 +174,7 @@ func (s *Service) Analyze(ctx context.Context, path string, preferences media.Pr
 // that are returned to be kept, so loading one of them later reads nothing;
 // tracks already read (internal) are not read again. A video whose tracks
 // cannot be read is only compared by its length.
-func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, tracks []media.Track, contents, internal map[uint64]media.SubtitleContent) (map[uint64]media.SubtitleContent, error) {
+func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, tracks []media.Track, contents, internal map[uint64]media.SubtitleContent, progress func(done, total int64)) (map[uint64]media.SubtitleContent, error) {
 	var readable []uint64
 	for _, track := range info.TracksOf(media.TrackSubtitle) {
 		if track.Readable && !track.External() {
@@ -147,7 +182,7 @@ func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, 
 		}
 	}
 	if len(readable) > 0 && internal == nil {
-		read, err := s.reader.ReadSubtitles(ctx, path, readable, nil)
+		read, err := s.reader.ReadSubtitles(ctx, path, readable, progress)
 		switch {
 		case ctx.Err() != nil:
 			return nil, ctx.Err()
@@ -172,7 +207,7 @@ func (s *Service) alignFiles(ctx context.Context, path string, info media.Info, 
 // externalTracks describes the subtitle files of the video, then the
 // candidates nearby. Each one is read now: to know whether it is readable
 // and what its text says (judgeContent). What was read is kept for loading.
-func (s *Service) externalTracks(ctx context.Context, videoPath string, videoLength time.Duration) ([]media.Track, map[uint64]media.SubtitleContent, error) {
+func (s *Service) externalTracks(ctx context.Context, videoPath string, videoLength time.Duration, progress func(done float64)) ([]media.Track, map[uint64]media.SubtitleContent, error) {
 	if s.files == nil {
 		return nil, nil, nil
 	}
@@ -202,6 +237,7 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string, videoLen
 			contents[track.Number] = content
 		}
 		tracks = append(tracks, track)
+		progress(float64(i+1) / float64(len(paths)))
 	}
 	return tracks, contents, nil
 }
@@ -247,7 +283,7 @@ func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path s
 	}
 	judgeContent(&track, content, analysis.Info.Duration)
 	measured := []media.Track{track}
-	internal, err := s.alignFiles(ctx, analysis.Path, analysis.Info, measured, map[uint64]media.SubtitleContent{next: content}, analysis.internal)
+	internal, err := s.alignFiles(ctx, analysis.Path, analysis.Info, measured, map[uint64]media.SubtitleContent{next: content}, analysis.internal, nil)
 	if err != nil {
 		return analysis, media.Track{}, err
 	}
@@ -359,13 +395,18 @@ func (s *Service) LoadSubtitles(ctx context.Context, analysis Analysis, tracks [
 
 // Correction is how a subtitle file's times move to match the video: only for
 // a file whose timing matched (tracks of the video are never measured), and
-// only when the move is measurable; false leaves its times as they are.
+// only when the move is measurable (for a file matched by the voice, when it
+// is more than the voice can tell); false leaves its times as they are.
 func Correction(track media.Track) (subtitle.Alignment, bool) {
 	alignment := track.Alignment
 	if alignment.Verdict != subtitle.VerdictMatch {
 		return subtitle.Alignment{}, false
 	}
-	moves := alignment.Offset.Abs() >= minCorrectionOffset || math.Abs(alignment.Rate-1) >= minCorrectionRate
+	least := minCorrectionOffset
+	if alignment.Heard {
+		least = minHeardOffset
+	}
+	moves := alignment.Offset.Abs() >= least || math.Abs(alignment.Rate-1) >= minCorrectionRate
 	return alignment, moves
 }
 

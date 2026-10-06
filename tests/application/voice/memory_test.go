@@ -11,14 +11,14 @@ import (
 const ms = time.Millisecond
 
 // hear adds length of sound from a position in packets of 160 ms, each
-// placed by a clock that wavers by up to 20 ms; every frame's Voice is its
+// placed by a clock that wavers by up to 20 ms; every frame's Speech is its
 // own position in seconds, so a test can tell which frames came back.
 func hear(memory *voice.Memory, from, length time.Duration) {
 	waver := []time.Duration{0, 20 * ms, -15 * ms, 5 * ms}
 	for at, i := from, 0; at < from+length; at, i = at+160*ms, i+1 {
 		frames := make([]speech.Frame, 16)
 		for j := range frames {
-			frames[j].Voice = float32((at + time.Duration(j)*speech.FrameLength).Seconds())
+			frames[j].Speech = float32((at + time.Duration(j)*speech.FrameLength).Seconds())
 		}
 		memory.Add(at+waver[i%len(waver)], frames)
 	}
@@ -35,7 +35,7 @@ func TestTheMemoryKeepsTheRecentSoundByTheFilmsClock(t *testing.T) {
 	if !ok || track.Start != 10500*ms || len(track.Frames) != 200 {
 		t.Fatalf("line 11s-12s: ok=%v from %v, %d frames; want from 10.5s, 200 frames", ok, track.Start, len(track.Frames))
 	}
-	if got := track.Frames[50].Voice; got < 10.999 || got > 11.001 {
+	if got := track.Frames[50].Speech; got < 10.999 || got > 11.001 {
 		t.Fatalf("the frame at 11s holds the sound of %.3fs", got)
 	}
 

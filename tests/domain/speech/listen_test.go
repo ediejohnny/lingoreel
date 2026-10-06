@@ -2,54 +2,46 @@ package speech_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
-	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
-// The karaoke mode's line comes after a long silence, and training it
-// again seeks to it: the Listener still hears it from its first syllable,
-// measured against the voice heard before.
-func TestTheListenerHearsALineAfterASilenceAndASeek(t *testing.T) {
+// Heard as it plays, the voice is told only after a few frames, from the
+// start and again after a seek; a word the model doubts halfway through
+// stays voice, as in DetectLine.
+func TestTheListenerWarmsUpAndForgetsOnASeek(t *testing.T) {
 	t.Parallel()
-	sound := testkit.Mix(
-		testkit.Noise(9*time.Second, 100, 7000, -65, 20),
-		testkit.Then(testkit.Silence(500*ms), testkit.Voiced(time.Second, -20, 21),
-			testkit.Silence(5500*ms), testkit.Voiced(time.Second, -20, 22)),
-	)
-	frames := analyze(t, 1, sound).Frames
 	listener := speech.NewListener(speech.SensitivityNormal)
-	var first, last time.Duration
-	for i, frame := range frames {
-		at := time.Duration(i) * speech.FrameLength
-		if at == 4*time.Second {
-			listener.Reset() // a seek
+	hear := func(speeches ...float32) (voices []bool, sure bool) {
+		for _, s := range speeches {
+			var voice bool
+			voice, sure = listener.Hear(speech.Frame{Speech: s})
+			voices = append(voices, voice)
 		}
-		voice, sure := listener.Hear(frame)
-		switch {
-		case at >= 7*time.Second && !sure:
-			t.Fatalf("at %v the listener is not sure", at)
-		case voice && at > 1600*ms && at < 6900*ms:
-			t.Fatalf("voice heard at %v, in the silence", at)
-		case voice && at >= 6900*ms && first == 0:
-			first = at
-		case voice:
-			last = at
+		return voices, sure
+	}
+	repeat := func(s float32, n int) []float32 {
+		out := make([]float32, n)
+		for i := range out {
+			out[i] = s
 		}
+		return out
 	}
-	if first < 6980*ms || first > 7040*ms || last < 7900*ms || last > 8030*ms {
-		t.Fatalf("the line was heard from %v to %v, want about 7s to 8s", first, last)
-	}
-}
 
-// A steady sound never tells voice from silence.
-func TestTheListenerIsNotSureOfASteadySound(t *testing.T) {
-	t.Parallel()
-	listener := speech.NewListener(speech.SensitivityNormal)
-	for _, frame := range analyze(t, 1, testkit.Noise(5*time.Second, 100, 7000, -40, 23)).Frames {
-		if _, sure := listener.Hear(frame); sure {
-			t.Fatal("sure of a steady noise")
-		}
+	if _, sure := hear(repeat(voice, 10)...); sure {
+		t.Fatal("sure within the first 100 ms")
+	}
+	voices, sure := hear(voice, unsure, quiet, unsure)
+	if !sure || !voices[0] || !voices[1] || voices[2] || voices[3] {
+		t.Fatalf("voice %v, sure %v; want voice held while doubtful, then gone", voices, sure)
+	}
+
+	hear(voice)
+	listener.Reset() // a seek
+	if _, sure := hear(repeat(unsure, 10)...); sure {
+		t.Fatal("sure within 100 ms of a seek")
+	}
+	if voices, sure := hear(unsure); !sure || voices[0] {
+		t.Fatalf("voice %v, sure %v; want no voice carried over the seek", voices, sure)
 	}
 }

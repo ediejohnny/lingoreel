@@ -31,7 +31,7 @@ var errNotFFmpeg = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg"
 // voiceSetup is how a session follows the voice, from the settings.
 func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 	return watch.VoiceSetup{
-		Follow: v.Follow, FFmpegPath: v.FFmpegPath,
+		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Follow: v.Follow, FFmpegPath: v.FFmpegPath,
 		Settings: voice.Settings{Sensitivity: v.Sensitivity, Delay: time.Duration(v.Delay), EvenWhenBusy: v.EvenWhenBusy},
 	}
 }
@@ -40,6 +40,7 @@ func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 // FFmpeg in use (looked for now) and whether one can be installed.
 func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceSettings {
 	view := VoiceSettings{
+		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Battery: a.deps.Ports.Power != nil && a.deps.Ports.Power.HasBattery(),
 		Follow: v.Follow, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
 		EvenWhenBusy: v.EvenWhenBusy, FFmpegPath: v.FFmpegPath,
 	}
@@ -60,6 +61,7 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 func (a *API) SetVoice(view VoiceSettings) error {
 	a.mu.Lock()
 	next := a.config
+	next.Voice.Model, next.Voice.ModelOnBattery = view.Model, view.ModelOnBattery
 	next.Voice.Follow, next.Voice.EvenWhenBusy = view.Follow, view.EvenWhenBusy
 	next.Voice.Sensitivity = speech.Sensitivity(view.Sensitivity)
 	next.Voice.Delay = settings.Duration(time.Duration(view.DelayMs) * time.Millisecond)
@@ -157,12 +159,15 @@ func (a *API) applyVoice() {
 	current.session.SetVoiceSetup(setup)
 }
 
-// voiceMode words how the voice of the line is followed now, for the panel;
-// empty when it is not followed.
+// voiceMode words how the voice of the line is followed now, for the panel:
+// why the voice model rests, if it does; empty when it is not followed.
 func voiceMode(s *watch.Session) string {
 	mode, following := s.VoiceMode()
-	if !following {
+	switch rest := s.ModelRest(); {
+	case !following:
 		return ""
+	case rest != watch.ModelAtWork:
+		return string(rest)
 	}
 	return mode.String()
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
@@ -131,8 +132,13 @@ type Ports struct {
 	// ShowPanel brings the app's panel to the front, where the line editor
 	// is; nil leaves it where it is.
 	ShowPanel func()
-	// Tap hears the player's sound, so the karaoke mode paints each line
-	// along the actor's voice; nil leaves the estimate from its letters.
+	// Model tells the actor's voice in the film's sound, so the karaoke mode
+	// paints each line along it; nil leaves the estimate from its letters.
+	Model speech.Model
+	// Power tells when the computer runs on its battery, where the Model
+	// rests unless the user wants it there too; nil: always plugged in.
+	Power voice.Power
+	// Tap hears the player's sound for the Model as it plays.
 	Tap voice.Tap
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
 	// the video; nil, or a nil answer, hears the player instead.

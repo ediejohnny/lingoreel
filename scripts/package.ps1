@@ -54,6 +54,18 @@ MIT. Veja o arquivo LICENSE. (c) Edie Johnny.
 As licenças dos programas de terceiros incluídos estão em AVISOS-DE-TERCEIROS.txt.
 "@
 
+# The notices' introduction, in the language of the read-me; the licenses
+# themselves stay as their authors wrote them (the app carries the same ones).
+$noticesHeader = @"
+LingoReel - avisos de terceiros
+======================================
+
+O LingoReel é distribuído sob a licença MIT (veja LICENSE.txt). Ele inclui
+programas de terceiros, cada um sob a sua própria licença, reproduzida abaixo
+como os autores pedem. Nenhum deles pertence ao autor do LingoReel.
+
+"@
+
 foreach ($required in @($app, $license)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "File not found: $required. Run scripts\build.ps1 first."
@@ -75,10 +87,14 @@ if (Test-Path -LiteralPath $staging) {
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
 Copy-Item -LiteralPath $app -Destination $staging
 Copy-Item -LiteralPath $license -Destination (Join-Path $staging "LICENSE.txt")
-$noticeCount = New-ThirdPartyNotices -Root $root -App $app -Destination (Join-Path $staging "AVISOS-DE-TERCEIROS.txt")
-Write-Host "      $noticeCount third-party licenses in AVISOS-DE-TERCEIROS.txt"
+if (-not (Test-ThirdPartyNotices -Root $root)) {
+    throw "The third-party notices are out of date. Run scripts\update-notices.ps1."
+}
+$notices = $noticesHeader + "`n" + [IO.File]::ReadAllText((Get-NoticesPath -Root $root))
 # Notepad reads UTF-8 with a BOM correctly on every Windows version.
-[IO.File]::WriteAllText((Join-Path $staging "LEIA-ME.txt"), ($readMe -replace "`r?`n", "`r`n"), (New-Object Text.UTF8Encoding($true)))
+$withBom = New-Object Text.UTF8Encoding($true)
+[IO.File]::WriteAllText((Join-Path $staging "AVISOS-DE-TERCEIROS.txt"), ($notices -replace "`r?`n", "`r`n"), $withBom)
+[IO.File]::WriteAllText((Join-Path $staging "LEIA-ME.txt"), ($readMe -replace "`r?`n", "`r`n"), $withBom)
 
 Write-Host "[3/3] Compressing..."
 $zip = Join-Path $distDir "$name.zip"

@@ -49,3 +49,15 @@ type Decoder interface {
 	// the decoding fails. The pieces are only good during the call.
 	Decode(ctx context.Context, stretch Stretch, hear func(samples []float32, channels int)) error
 }
+
+// Power tells whether the computer runs on its battery, where the voice
+// model rests unless the user wants it there too.
+type Power interface {
+	// HasBattery tells whether the computer has a battery at all.
+	HasBattery() bool
+	// OnBattery tells whether the computer runs on its battery now.
+	OnBattery() bool
+	// Watch calls changed each time the computer goes on or off its
+	// battery, until ctx ends.
+	Watch(ctx context.Context, changed func(onBattery bool))
+}

@@ -5,6 +5,7 @@ import {
   joinColor,
   lineLanguage,
   lineOfSection,
+  noticesOf,
   sameSettings,
   settingsSections,
   splitColor,
@@ -38,6 +39,7 @@ describe("settingsSections", () => {
       "Player",
       "Aparência",
       "Avançado",
+      "Ajuda",
     ]);
   });
 
@@ -154,5 +156,17 @@ describe("sectionOfPage", () => {
     expect(sectionOfPage("karaoke")).toBe("general");
     expect(sectionOfPage("")).toBe("general");
     expect(sectionOfPage(undefined)).toBe("general");
+  });
+});
+
+describe("noticesOf", () => {
+  it("splits the notices into their licenses, each under what it covers", () => {
+    const rule = "=".repeat(78);
+    const dashes = "-".repeat(78);
+    const notices = `${rule}\nGo go1.26.0\n${dashes}\nCopyright Go.\n\nBSD terms.\n\n${rule}\nreact 19.3.0\n${dashes}\nMIT terms.\n`;
+    expect(noticesOf(notices)).toEqual([
+      { title: "Go go1.26.0", text: "Copyright Go.\n\nBSD terms." },
+      { title: "react 19.3.0", text: "MIT terms." },
+    ]);
   });
 });
