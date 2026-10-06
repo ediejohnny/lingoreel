@@ -270,6 +270,53 @@ func TestNoticeIsDrawnInItsCornerWithItsBox(t *testing.T) {
 	}
 }
 
+// The volume's bar shows the level in the control bar's colors: the fill up
+// to 100%, the loud color past it, a faint track after the level, and a tick
+// in the text's color at 100%.
+func TestALevelIsDrawnInTheVolumesColors(t *testing.T) {
+	r := newRenderer(t)
+	dib := newDIB(t, 1280, 720)
+	look := appearance.DefaultNoticeLook().WithLevel()
+	notice := look.Style()
+	fill, loud := appearance.RGB(0x5B, 0x9B, 0xFF), appearance.RGB(0xF5, 0xA5, 0x24)
+	frame := layout.Compute(layout.Input{
+		Video: layout.Rect{W: 1280, H: 720}, DPI: 96, Layout: appearance.DefaultLayout(),
+		Notice: layout.Notice{
+			Text:   layout.Text{Style: notice, Content: "Volume 150%"},
+			Margin: look.Margin, MaxWidth: look.MaxWidth,
+			Meter: &layout.Meter{Level: 0.75, Mark: 0.5},
+		},
+	}, r)
+	if frame.Meter == nil {
+		t.Fatal("no meter laid out")
+	}
+	if err := r.Draw(dib, frame, gdiplus.Look{Notice: notice, Meter: gdiplus.MeterLook{Fill: fill, Loud: loud}}); err != nil {
+		t.Fatalf("Draw: %v", err)
+	}
+	bar := frame.Meter.Bar
+	y := int(bar.Y + bar.H/2)
+	pixel := func(share float64) [4]byte {
+		i := (y*dib.Width + int(bar.X+bar.W*share)) * 4
+		return [4]byte(dib.Pixels[i : i+4])
+	}
+	// The pixels are premultiplied BGRA; opaque ones carry the color as is.
+	bgra := func(c appearance.Color) [4]byte { return [4]byte{c.B, c.G, c.R, 0xFF} }
+	if got := pixel(0.25); got != bgra(fill) {
+		t.Errorf("below 100%% the bar is %v, want the fill %v", got, bgra(fill))
+	}
+	if got := pixel(0.62); got != bgra(loud) {
+		t.Errorf("past 100%% the bar is %v, want the loud color %v", got, bgra(loud))
+	}
+	if got := pixel(0.5); got != bgra(look.Color) {
+		t.Errorf("at 100%% the bar is %v, want the tick in the text's color %v", got, bgra(look.Color))
+	}
+	// After the level: the track, faint white over the see-through dark box,
+	// so a grey (premultiplied) a little more opaque than the box.
+	if got := pixel(0.9); got[3] <= 0xA0 || got[3] == 0xFF || got[0] == 0 || got[0] >= got[3] || got[0] != got[1] || got[1] != got[2] {
+		t.Errorf("after the level the bar is %v, want a see-through grey over the box", got)
+	}
+}
+
 func TestDrawRejectsAMissingBitmap(t *testing.T) {
 	r := newRenderer(t)
 	if err := r.Draw(nil, layout.Frame{}, gdiplus.Look{}); err == nil {

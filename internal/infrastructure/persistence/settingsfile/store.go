@@ -17,8 +17,9 @@ const (
 	configVersion = 1
 	// profilesVersion 2 added the karaoke mode, 3 moved the subtitles to the
 	// app's own font, 4 made room for the passage marks, 5 added the looks
-	// and 6 gave the selection its cleaner frame (migrations.go).
-	profilesVersion = 6
+	// 6 gave the selection its cleaner frame and 7 moved the notices to the
+	// right (migrations.go).
+	profilesVersion = 7
 )
 
 // Dir is where the app keeps its settings: %APPDATA%\LingoReel.

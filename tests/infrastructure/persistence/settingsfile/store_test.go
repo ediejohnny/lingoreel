@@ -377,6 +377,45 @@ func TestOldProfilesGetTheCleanerSelection(t *testing.T) {
 		t.Errorf("the user's frame became %+v, want it kept", got)
 	}
 }
+
+// The notices of a profile in the top left corner, where they went unseen,
+// move to the top right one; a notice the user centered stays.
+func TestOldProfilesGetTheNoticesOnTheRight(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	version6 := func(name string, side appearance.Alignment) map[string]any {
+		profile := settings.DefaultProfile()
+		profile.Name, profile.Marks.Notice.Side = name, side
+		var object map[string]any
+		data, err := json.Marshal(profile)
+		if err == nil {
+			err = json.Unmarshal(data, &object)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return object
+	}
+	old, err := json.Marshal(map[string]any{"version": 6, "profiles": []any{
+		version6("Inglês", appearance.AlignLeft), version6("Mine", appearance.AlignCenter),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), old, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := settingsfile.Open(dir).LoadProfiles()
+	if err != nil {
+		t.Fatalf("LoadProfiles of a version 6 file: %v", err)
+	}
+	if got := profiles.Items[0].Marks.Notice; got != appearance.DefaultNoticeLook() {
+		t.Errorf("the notice on the left became %+v, want the default on the right", got)
+	}
+	if got := profiles.Items[1].Marks.Notice.Side; got != appearance.AlignCenter {
+		t.Errorf("the centered notice went %q, want it kept", got)
+	}
+}
 func karaokeJSON(t *testing.T) string {
 	t.Helper()
 	data, err := json.Marshal(settings.DefaultKaraoke())

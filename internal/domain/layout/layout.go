@@ -60,7 +60,33 @@ type Notice struct {
 	// Margin keeps it off the picture's edges, as a share of the picture
 	// height; MaxWidth is the most of the picture width it may take.
 	Margin, MaxWidth float64
+	// Meter is a level drawn under the text, inside the notice's box; nil
+	// draws none.
+	Meter *Meter
 }
+
+// Meter is a level, such as the volume's. Level and Mark are shares of the
+// bar's length: how far it is filled, and where the usual range ends (100% of
+// the sound); a mark at the end or past it marks nothing.
+type Meter struct {
+	Level, Mark float64
+}
+
+// PlacedMeter is a meter laid out: its bar, under its notice's text.
+type PlacedMeter struct {
+	Meter
+	Bar Rect
+}
+
+// The meter's geometry: its gap below the text and its thickness in style
+// units, the thinnest bar in pixels, and its shortest length in ems of the
+// notice's font, so the box keeps its width while the level changes.
+const (
+	MeterGap         = 6.0
+	MeterThickness   = 6.0
+	MeterMinPixels   = 3.0
+	meterMinLengthEm = 7.0
+)
 
 // Input is everything the layout depends on.
 type Input struct {
@@ -120,6 +146,8 @@ type Frame struct {
 	Primary     *Block
 	Translation *Block
 	Notice      *Block
+	// Meter is the notice's level, nil when it has none.
+	Meter *PlacedMeter
 }
 
 // Compute places both subtitles. Alone, each sits where its style puts it;
@@ -153,12 +181,13 @@ func Compute(in Input, m Measurer) Frame {
 	if primary != nil && translation != nil {
 		placePair(primary, translation, in, area, edge, m)
 	}
-	return Frame{Primary: primary.finish(area), Translation: translation.finish(area), Notice: placeNotice(in, m)}
+	notice, meter := placeNotice(in, m)
+	return Frame{Primary: primary.finish(area), Translation: translation.finish(area), Notice: notice, Meter: meter}
 }
 
 // placeNotice puts the notice at the top of the picture, on its side, away
-// from the subtitles whatever their margins.
-func placeNotice(in Input, m Measurer) *Block {
+// from the subtitles whatever their margins, with its meter under the text.
+func placeNotice(in Input, m Measurer) (*Block, *PlacedMeter) {
 	video := in.Video
 	margin := in.Notice.Margin * video.H
 	width := math.Min(in.Notice.MaxWidth*video.W, math.Max(video.W-2*margin, 0))
@@ -172,10 +201,25 @@ func placeNotice(in Input, m Measurer) *Block {
 	area := Rect{X: left, Y: video.Y + margin, W: width, H: math.Max(video.H-2*margin, 0)}
 	notice := wrapBlock(in.Notice.Text, in, area, m)
 	if notice == nil {
-		return nil
+		return nil, nil
+	}
+	var gap, thickness float64
+	if in.Notice.Meter != nil {
+		gap, thickness = MeterGap*notice.scale, math.Max(MeterThickness*notice.scale, MeterMinPixels)
+		notice.below = gap + thickness
+		notice.minWidth = math.Min(meterMinLengthEm*notice.font.Size, notice.maxWidth)
 	}
 	notice.bottom = clampBottom(area.Y+notice.height(), notice.height(), area)
-	return notice.finish(area)
+	block := notice.finish(area)
+	if in.Notice.Meter == nil {
+		return block, nil
+	}
+	inside := block.Bounds
+	bar := Rect{
+		X: inside.X + notice.padding, Y: inside.Bottom() - notice.padding - thickness,
+		W: math.Max(inside.W-2*notice.padding, 0), H: thickness,
+	}
+	return block, &PlacedMeter{Meter: *in.Notice.Meter, Bar: bar}
 }
 
 // shaped is a block whose lines are wrapped but not yet placed vertically.
@@ -199,10 +243,13 @@ type shaped struct {
 	natural    float64
 	padding    float64
 	bottom     float64
+	// below is room kept under the lines inside the box, and minWidth the
+	// narrowest the text inside it may be, for a notice's meter.
+	below, minWidth float64
 }
 
 func (s *shaped) height() float64 {
-	return float64(len(s.lines))*s.lineHeight + 2*s.padding
+	return float64(len(s.lines))*s.lineHeight + s.below + 2*s.padding
 }
 
 func (s *shaped) top() float64 {
@@ -372,6 +419,7 @@ func (s *shaped) finish(area Rect) *Block {
 			Y: top + float64(i)*s.lineHeight + leading, Width: width, Height: s.natural,
 		}
 	}
+	widest = math.Max(widest, s.minWidth)
 	left := alignX(s.style.Alignment, widest, area, s.padding)
 	block.Bounds = Rect{
 		X: left - s.padding, Y: top - s.padding,

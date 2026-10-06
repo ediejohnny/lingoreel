@@ -3,6 +3,7 @@ package watch_test
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"testing"
 	"time"
@@ -40,20 +41,37 @@ func playingRig(t *testing.T) (*rig, *watch.Session) {
 }
 
 // Every touch of a volume key shows the level on the video, as a sync step
-// does, even past 100%.
+// does, even past 100%: the words and a bar of the player's whole range with
+// 100% marked on it. Muted, the bar is empty.
 func TestEveryVolumeKeyShowsTheLevelOnTheVideo(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	r.running.loud = true
-	r.ports.VolumeNotice = func(volume, _ playback.Volume, _ bool) string { return fmt.Sprintf("%d%%", volume.Percent()) }
+	r.ports.VolumeNotice = func(volume, _ playback.Volume, muted bool) string {
+		if muted {
+			return "muted"
+		}
+		return fmt.Sprintf("%d%%", volume.Percent())
+	}
 	s := r.start(t)
-	for _, command := range []shortcut.Command{shortcut.VolumeUp, shortcut.VolumeUp, shortcut.VolumeDown} {
+	for _, command := range []shortcut.Command{shortcut.VolumeUp, shortcut.VolumeUp, shortcut.VolumeDown, shortcut.Mute} {
 		if err := s.Run(command, false); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, _, notices, _ := r.display.last(); !slices.Equal(notices, []string{"105%", "110%", "105%"}) {
+	if _, _, notices, _ := r.display.last(); !slices.Equal(notices, []string{"105%", "110%", "105%", "muted"}) {
 		t.Fatalf("notices = %q, want one per key with the level", notices)
+	}
+	// This player goes to 200%: 100% is half the bar.
+	want := []session.Meter{{Level: 0.525, Mark: 0.5}, {Level: 0.55, Mark: 0.5}, {Level: 0.525, Mark: 0.5}, {Level: 0, Mark: 0.5}}
+	got := r.display.levels()
+	if len(got) != len(want) {
+		t.Fatalf("levels = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if math.Abs(got[i].Level-want[i].Level) > 1e-9 || math.Abs(got[i].Mark-want[i].Mark) > 1e-9 {
+			t.Fatalf("levels = %+v, want %+v", got, want)
+		}
 	}
 }
 

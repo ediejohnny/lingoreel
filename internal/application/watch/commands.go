@@ -122,14 +122,28 @@ func (s *Session) playFrom(position time.Duration) error {
 	return s.controls.Play()
 }
 
-// tellVolume shows the volume on the video after a change that worked.
+// tellVolume shows the volume on the video after a change that worked, with
+// its level on a bar marked at 100% when the display can draw one.
 func (s *Session) tellVolume(err error) error {
 	if err != nil || s.display == nil || s.volumeNotice == nil {
 		return err
 	}
 	volume, muted := s.controls.Volume()
-	if text := s.volumeNotice(volume, s.controls.Capabilities().VolumeCeiling(), muted); text != "" {
-		_ = s.display.Notify(text) // a lost notice is cosmetic
+	ceiling := s.controls.Capabilities().VolumeCeiling()
+	text := s.volumeNotice(volume, ceiling, muted)
+	if text == "" {
+		return nil
 	}
+	// A lost notice is cosmetic.
+	meters, ok := s.display.(session.MeterDisplay)
+	if !ok || ceiling <= 0 {
+		_ = s.display.Notify(text)
+		return nil
+	}
+	meter := session.Meter{Level: float64(volume / ceiling), Mark: float64(playback.FullVolume / ceiling)}
+	if muted {
+		meter.Level = 0
+	}
+	_ = meters.NotifyLevel(text, meter)
 	return nil
 }

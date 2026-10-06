@@ -23,6 +23,26 @@ var profilesMigrations = map[int]jsonstore.Migration{
 	3: freeThePassageMarks,
 	4: addLooks,
 	5: freshenTheSelection,
+	6: moveTheNoticesRight,
+}
+
+// moveTheNoticesRight (version 6 to 7) moves the notices of every profile
+// from the top left corner, the old default, to the top right one, the new
+// default: in the left one they went unseen.
+func moveTheNoticesRight(document map[string]any) error {
+	items, _ := document["profiles"].([]any)
+	for i, item := range items {
+		profile, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("profile %d is not an object", i)
+		}
+		marks, _ := profile["marks"].(map[string]any)
+		notice, _ := marks["notice"].(map[string]any)
+		if notice != nil && notice["side"] == string(appearance.AlignLeft) {
+			notice["side"] = string(appearance.AlignRight)
+		}
+	}
+	return nil
 }
 
 // freshenTheSelection (version 5 to 6) gives every profile still on the old

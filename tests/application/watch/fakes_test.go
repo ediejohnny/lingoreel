@@ -222,7 +222,9 @@ type fakeDisplay struct {
 	mu      sync.Mutex
 	shown   []session.Screen
 	notices []string
-	closed  bool
+	// meters holds the level of each notice that came with one.
+	meters []session.Meter
+	closed bool
 }
 
 func (d *fakeDisplay) Show(screen session.Screen) error {
@@ -236,6 +238,17 @@ func (d *fakeDisplay) Notify(text string) error {
 	defer d.mu.Unlock()
 	d.notices = append(d.notices, text)
 	return nil
+}
+func (d *fakeDisplay) NotifyLevel(text string, meter session.Meter) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.notices, d.meters = append(d.notices, text), append(d.meters, meter)
+	return nil
+}
+func (d *fakeDisplay) levels() []session.Meter {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]session.Meter(nil), d.meters...)
 }
 func (d *fakeDisplay) Done() <-chan struct{} { return nil }
 func (d *fakeDisplay) Close() error {

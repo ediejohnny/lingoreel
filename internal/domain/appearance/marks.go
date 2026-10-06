@@ -42,13 +42,25 @@ const noticeBackgroundAlpha = 0xA0
 // noticePadding is the room around the notice's text, in style units.
 const noticePadding = 8
 
-// DefaultNoticeLook is white app font text on a dark box, in the top left
-// corner.
+// DefaultNoticeLook is white app font text on a dark box, in the top right
+// corner, where the eye goes first: in the left one notices went unseen.
 func DefaultNoticeLook() NoticeLook {
 	return NoticeLook{
 		FontFamily: AppFont, FontSize: 22, Color: white, Background: black.WithAlpha(noticeBackgroundAlpha),
-		Side: AlignLeft, Margin: 0.03, MaxWidth: 0.6,
+		Side: AlignRight, Margin: 0.03, MaxWidth: 0.6,
 	}
+}
+
+// levelNoticeScale is how much larger a notice with a level is than the
+// others.
+const levelNoticeScale = 1.5
+
+// WithLevel is the look of a notice with a level under its text, such as the
+// volume's: larger than the others, as it is read at a glance while the
+// sound changes.
+func (n NoticeLook) WithLevel() NoticeLook {
+	n.FontSize *= levelNoticeScale
+	return n
 }
 
 // Style is the notice as a subtitle style the layout and the renderer

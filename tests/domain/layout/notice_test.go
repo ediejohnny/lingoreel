@@ -52,22 +52,26 @@ func TestNoticeSitsOnItsSideWithinItsMargin(t *testing.T) {
 	}
 }
 
-func TestNoticeSitsInTheTopLeftCorner(t *testing.T) {
+func TestNoticeSitsInTheTopRightCorner(t *testing.T) {
 	t.Parallel()
-	const notice = "Legenda de cima (inglês): −0,150 s" // 34 runes
+	const notice = "Legenda de estudo (inglês): −0,150 s" // 36 runes
 	frame := layout.Compute(withNotice(defaults(video(1920, 1080), "Hi.", ""), notice), monoMeasurer{})
 	block := frame.Notice
 	if block == nil || len(block.Lines) != 1 {
 		t.Fatalf("notice = %+v, want one line", block)
 	}
 	// Responsive 22 px at 1080p: font 22, lines 27.5 apart, 11 px per rune,
-	// padding 8. Margin 3% of 1080 = 32.4 from the top and the left.
+	// padding 8. Margin 3% of 1080 = 32.4 from the top and the right: the
+	// box ends at 1887.6 and is 396 + 16 wide.
 	line := block.Lines[0]
-	if !near(block.Font.Size, 22) || !near(line.X, 40.4) || !near(line.Y, 40.4) || !near(line.Width, 374) {
-		t.Fatalf("line = %+v, font %v; want x 40.4, y 40.4, width 374, font 22", line, block.Font.Size)
+	if !near(block.Font.Size, 22) || !near(line.X, 1483.6) || !near(line.Y, 40.4) || !near(line.Width, 396) {
+		t.Fatalf("line = %+v, font %v; want x 1483.6, y 40.4, width 396, font 22", line, block.Font.Size)
 	}
-	if want := (layout.Rect{X: 32.4, Y: 32.4, W: 390, H: 43.5}); !sameRect(block.Bounds, want) {
+	if want := (layout.Rect{X: 1475.6, Y: 32.4, W: 412, H: 43.5}); !sameRect(block.Bounds, want) {
 		t.Fatalf("bounds = %+v, want %+v", block.Bounds, want)
+	}
+	if frame.Meter != nil {
+		t.Fatalf("a notice of text alone got a meter: %+v", frame.Meter)
 	}
 }
 
@@ -76,8 +80,48 @@ func TestNoticeFollowsTheLetterboxedPicture(t *testing.T) {
 	picture := layout.Rect{X: 0, Y: 140, W: 1920, H: 800}
 	block := layout.Compute(withNotice(defaults(picture, "", ""), "Aviso"), monoMeasurer{}).Notice
 	// 3% of 800 = 24 below the picture's top edge, not the window's.
-	if block == nil || !near(block.Bounds.Y, 164) || !near(block.Bounds.X, 24) {
-		t.Fatalf("notice = %+v, want its box at (24, 164)", block)
+	if block == nil || !near(block.Bounds.Y, 164) || !near(block.Bounds.Right(), 1920-24) {
+		t.Fatalf("notice = %+v, want its box 24 from the picture's top and right", block)
+	}
+}
+
+// The volume's notice is larger and keeps its box while the level changes
+// (a held key would make a box that follows the text jump), with the bar
+// under the words, inside the box, across its whole width.
+func TestALevelNoticeKeepsItsBoxWhileTheLevelChanges(t *testing.T) {
+	t.Parallel()
+	v := video(1920, 1080)
+	look := appearance.DefaultNoticeLook().WithLevel()
+	in := func(text string, level float64) layout.Input {
+		in := withNoticeLook(defaults(v, "", ""), text, look)
+		in.Notice.Meter = &layout.Meter{Level: level, Mark: 0.5}
+		return in
+	}
+	low := layout.Compute(in("Volume 5%", 0.025), monoMeasurer{})
+	high := layout.Compute(in("Volume 135%", 0.675), monoMeasurer{})
+	if low.Notice == nil || low.Meter == nil || high.Notice == nil || high.Meter == nil {
+		t.Fatalf("notices %+v / %+v, want both with a meter", low, high)
+	}
+	if !near(low.Notice.Font.Size, 33) {
+		t.Fatalf("font %v, want 1.5 × 22 at 1080p", low.Notice.Font.Size)
+	}
+	if !sameRect(low.Notice.Bounds, high.Notice.Bounds) || !sameRect(low.Meter.Bar, high.Meter.Bar) {
+		t.Fatalf("box %+v / bar %+v at 5%%, %+v / %+v at 135%%: want the same", low.Notice.Bounds, low.Meter.Bar,
+			high.Notice.Bounds, high.Meter.Bar)
+	}
+	box, bar, line := high.Notice.Bounds, high.Meter.Bar, high.Notice.Lines[0]
+	// Padding 8 and gap 6 × 1.0 scale; the bar is 6 thick.
+	if !near(bar.X, box.X+8) || !near(bar.Right(), box.Right()-8) || !near(bar.Bottom(), box.Bottom()-8) || !near(bar.H, 6) {
+		t.Fatalf("bar %+v, want it 8 inside the box %+v and 6 thick", bar, box)
+	}
+	if bar.Y < line.Y+line.Height+6-eps {
+		t.Fatalf("bar at %v, want it 6 below the text ending at %v", bar.Y, line.Y+line.Height)
+	}
+	if !near(box.Right(), v.W-0.03*v.H) || !near(box.Y, 0.03*v.H) {
+		t.Fatalf("box %+v, want it in the top right corner", box)
+	}
+	if high.Meter.Level != 0.675 || high.Meter.Mark != 0.5 {
+		t.Fatalf("meter %+v, want the level and mark asked for", high.Meter.Meter)
 	}
 }
 
@@ -103,10 +147,11 @@ func TestLongNoticeWrapsInsideItsCornerAndKeepsEveryWord(t *testing.T) {
 		t.Fatal("no notice")
 	}
 	var words []string
+	right := 1280 - 0.03*720
 	for _, line := range block.Lines {
-		// The box may take 60% of the width from the 3% margin on.
-		if line.X+line.Width > 0.03*720+0.6*1280+eps {
-			t.Errorf("line %q ends at %v, past the notice's 60%% of the width", line.Text, line.X+line.Width)
+		// The box may take 60% of the width up to the 3% margin.
+		if line.X < right-0.6*1280-eps || line.X+line.Width > right+eps {
+			t.Errorf("line %q spans %v to %v, past the notice's 60%% of the width up to %v", line.Text, line.X, line.X+line.Width, right)
 		}
 		words = append(words, strings.Fields(line.Text)...)
 	}
