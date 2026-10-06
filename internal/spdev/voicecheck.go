@@ -287,7 +287,7 @@ func reportVoice(out *printer, sound speech.Track, events []subtitle.Event, shif
 		starts[i], ends[i] = event.Start+shift, event.End+shift
 	}
 	var lines []measuredLine
-	var subtitleErrs, foundErrs, paintedErrs []time.Duration
+	var subtitleErrs, foundErrs, paintedErrs, liveErrs []time.Duration
 	trustedMarked := 0
 	var marginVoice, marginAll, lineVoice, lineAll int
 	voiced := listened(sound, sensitivity)
@@ -329,6 +329,10 @@ func reportVoice(out *printer, sound speech.Track, events []subtitle.Event, shif
 				trustedMarked++
 				foundErrs = append(foundErrs, (painted - voiceAt).Abs())
 			}
+			// Live, the fill hears the line from its start (study.LiveFill).
+			if heardAt, ok := firstVoice(voiced, starts[i], ends[i]); ok {
+				liveErrs = append(liveErrs, (heardAt - voiceAt).Abs())
+			}
 		}
 		lines = append(lines, line)
 	}
@@ -351,6 +355,8 @@ func reportVoice(out *printer, sound speech.Track, events []subtitle.Event, shif
 		out.line("    the subtitle's start (the estimate)  %s / %s", quantile(subtitleErrs, 0.5), quantile(subtitleErrs, 0.9))
 		out.line("    the voice found (%s trusted)        %s / %s", share(trustedMarked, len(subtitleErrs)), quantile(foundErrs, 0.5), quantile(foundErrs, 0.9))
 		out.line("    what the app paints from            %s / %s", quantile(paintedErrs, 0.5), quantile(paintedErrs, 0.9))
+		out.line("    live, the player heard as it plays  %s / %s (%d lines; up to 32 ms more until a chunk is judged)",
+			quantile(liveErrs, 0.5), quantile(liveErrs, 0.9), len(liveErrs))
 	}
 	var quarters []string
 	for stretch := 0; time.Duration(stretch)*checkStretch < heard; stretch++ {
@@ -376,6 +382,17 @@ func listened(sound speech.Track, sensitivity speech.Sensitivity) []bool {
 		voiced[i], _ = listener.Hear(frame)
 	}
 	return voiced
+}
+
+// firstVoice is the first frame heard as voice from one time to another.
+func firstVoice(voiced []bool, from, to time.Duration) (time.Duration, bool) {
+	first, last := max(int(from/speech.FrameLength), 0), min(int(to/speech.FrameLength), len(voiced))
+	for i := first; i < last; i++ {
+		if voiced[i] {
+			return time.Duration(i) * speech.FrameLength, true
+		}
+	}
+	return 0, false
 }
 
 // countVoice counts the frames of voice from one time to another, and all

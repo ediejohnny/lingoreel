@@ -74,6 +74,10 @@ function New-ThirdPartyNotices {
         }
     }
 
+    # The Silero VAD model, embedded in the executable as its authors published
+    # it: not a Go module, so named here.
+    & $add "Silero VAD (silero_vad_16k_op15.onnx)" "v6.2.1" (Join-Path $Root "internal\infrastructure\silero\model\LICENSE") ""
+
     # The frontend packages bundled into the screens: those the lock file does
     # not mark as development only, and Tailwind, whose CSS is generated into
     # the bundle.
