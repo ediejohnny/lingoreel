@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"math/rand/v2"
+	"slices"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -174,5 +175,26 @@ func TestAVideoHeardBeforeIsNotHeardAgain(t *testing.T) {
 	if video.Listening.Active || video.Suggested.Primary != media.ExternalTrackBase || found.Load() != 0 {
 		t.Fatalf("listening %+v, primary %d, FFmpeg looked for %d times; want the kept file on top, nothing heard",
 			video.Listening, video.Suggested.Primary, found.Load())
+	}
+}
+
+// Opening a video tells how far it went, from 0 to 100, for a bar that
+// fills while a large video not yet read takes a moment.
+func TestOpeningAVideoTellsHowFarItWent(t *testing.T) {
+	t.Parallel()
+	r, _ := hearingRig(t)
+	if _, err := r.api.OpenVideo(unsubtitledVideo); err != nil {
+		t.Fatal(err)
+	}
+	r.ui.mu.Lock()
+	var percents []int
+	for _, e := range r.ui.events {
+		if opening, ok := e.data.(app.Opening); ok && e.name == app.EventOpening && opening.Path == unsubtitledVideo {
+			percents = append(percents, opening.Percent)
+		}
+	}
+	r.ui.mu.Unlock()
+	if len(percents) < 3 || percents[0] != 0 || percents[len(percents)-1] != 100 || !slices.IsSorted(percents) {
+		t.Fatalf("told %v, want it rising from 0 to 100", percents)
 	}
 }

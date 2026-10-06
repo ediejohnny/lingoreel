@@ -44,6 +44,8 @@ export function App() {
   const [players, setPlayers] = useState<Players | null>(null);
   const [state, setState] = useState<Playback | null>(null);
   const [loading, setLoading] = useState(false);
+  // opened is how far opening the video went, from 0 to 100, for the bar while it loads.
+  const [opened, setOpened] = useState(0);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   // resumable offers "Assistir de novo" after the player was lost.
@@ -65,6 +67,7 @@ export function App() {
       return;
     }
     setLoading(true);
+    setOpened(0);
     setError("");
     try {
       const opened = await backend.openVideo(path);
@@ -109,6 +112,7 @@ export function App() {
     const offFullscreen = backend.onFullscreen(setFullscreen);
     // A subtitle file added from the menu over the video: the session screen lists it afterwards.
     const offVideo = backend.onVideo(setVideo);
+    const offOpening = backend.onOpening((opening) => setOpened(opening.percent));
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
       if (request.section === "settings") {
@@ -135,6 +139,7 @@ export function App() {
       offEnded();
       offFullscreen();
       offVideo();
+      offOpening();
       offPanel();
       offInstall();
     };
@@ -388,7 +393,7 @@ export function App() {
           keysVersion={keysVersion}
           commands={commands}
         />
-      ) : screen === "session" && video && players ? (
+      ) : screen === "session" && !loading && video && players ? (
         <SessionPage
           key={`${video.path}#${resets}`}
           video={video}
@@ -410,7 +415,7 @@ export function App() {
           onDismissRecommendation={dismissRecommendation}
         />
       ) : (
-        <HomePage loading={loading} error={error} onChoose={chooseVideo} onDismissError={() => setError("")} />
+        <HomePage loading={loading} opened={opened} error={error} onChoose={chooseVideo} onDismissError={() => setError("")} />
       )}
     </div>
   );

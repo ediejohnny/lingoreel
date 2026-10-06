@@ -33,8 +33,12 @@ func (a *API) ChooseVideo() (string, error) {
 	return path, nil
 }
 
+// EventOpening tells the screens how far opening a video has gone (an
+// Opening): a large video not yet read takes a moment.
+const EventOpening = "video:opening"
+
 // OpenVideo reads a video's tracks and the subtitle files next to it, and
-// suggests what to watch it with.
+// suggests what to watch it with, telling how far it went as it goes.
 func (a *API) OpenVideo(path string) (Video, error) {
 	ctx, err := a.context()
 	if err != nil {
@@ -54,7 +58,13 @@ func (a *API) OpenVideo(path string) (Video, error) {
 		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
 		Translation: media.LanguageTag(languages.Translation),
 	}
-	result, err := a.deps.Service.Analyze(ctx, path, preferences)
+	told := -1
+	result, err := a.deps.Service.AnalyzeWithProgress(ctx, path, preferences, func(done float64) {
+		if percent := int(done * 100); percent != told {
+			told = percent
+			a.emit(EventOpening, Opening{Path: path, Percent: percent})
+		}
+	})
 	if err != nil {
 		a.logger.Warn("video analysis failed", "path", path, "error", err)
 		if errors.Is(err, fs.ErrNotExist) {

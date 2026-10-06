@@ -65,6 +65,12 @@ export interface Ended {
   resume: boolean;
 }
 
+/** Opening is how far opening a video has gone: percent from 0 to 100. */
+export interface Opening {
+  path: string;
+  percent: number;
+}
+
 export interface InstallProgress {
   id: string;
   done: boolean;
@@ -81,6 +87,7 @@ const events = {
   panel: "panel:open",
   video: "video:changed",
   listening: "video:listening",
+  opening: "video:opening",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -189,4 +196,6 @@ export const backend = {
   onVideo: (listener: (video: Video) => void) => EventsOn(events.video, listener),
   /** onListening hears how far hearing the open video, to choose its subtitle, has gone. */
   onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
+  /** onOpening hears how far opening a video has gone, for the bar while a large video is read. */
+  onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
 };

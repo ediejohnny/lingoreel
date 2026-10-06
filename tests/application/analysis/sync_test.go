@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
@@ -168,5 +169,25 @@ func TestNoFilesMeansNoReferenceRead(t *testing.T) {
 	}
 	if reader.requested != nil {
 		t.Fatalf("read %v without any file to compare", reader.requested)
+	}
+}
+
+// Opening a large video not yet read takes a moment: the analysis tells how
+// far it went as it goes, rising from 0 to 1, through the files beside the
+// video and the subtitles read inside it, so the screen fills a bar.
+func TestTheAnalysisTellsHowFarItWent(t *testing.T) {
+	t.Parallel()
+	reader, files := movieWithDownloads()
+	var told []float64
+	_, err := analysis.NewService(reader, files).AnalyzeWithProgress(context.Background(), `D:\Filmes\Exemplo.mkv`, preferences,
+		func(done float64) { told = append(told, done) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(told) < 5 || told[0] != 0 || told[len(told)-1] != 1 || !slices.IsSorted(told) {
+		t.Fatalf("told %v, want it rising from 0 to 1", told)
+	}
+	if !slices.ContainsFunc(told, func(done float64) bool { return done > 0.2 && done < 0.9 }) {
+		t.Fatalf("told %v, want the reading inside the video on the way", told)
 	}
 }

@@ -31,6 +31,13 @@ type Video struct {
 	Listening Listening `json:"listening"`
 }
 
+// Opening is how far opening a video has gone.
+type Opening struct {
+	Path string `json:"path"`
+	// Percent is how much was read, from 0 to 100.
+	Percent int `json:"percent"`
+}
+
 // Listening is how far hearing a video's voice has gone.
 type Listening struct {
 	Path   string `json:"path"`
