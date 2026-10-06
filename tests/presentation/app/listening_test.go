@@ -135,7 +135,8 @@ func TestAVideoWithoutSubtitlesIsHeardToChooseItsFile(t *testing.T) {
 	if !video.Listening.Active || video.Listening.Stretches != 6 || video.Suggested.Primary != 0 {
 		t.Fatalf("as it opens: listening %+v, primary %d; want hearing and no file chosen yet", video.Listening, video.Suggested.Primary)
 	}
-	testkit.Eventually(t, "the video heard", func() bool {
+	// Six stretches heard at a quarter of a core: real work, slowed down by -race.
+	testkit.EventuallyWithin(t, "the video heard", time.Minute, func() bool {
 		states := r.ui.listenings()
 		return len(states) > 0 && !states[len(states)-1].Active
 	})
