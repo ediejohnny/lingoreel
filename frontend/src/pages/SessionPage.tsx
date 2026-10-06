@@ -73,7 +73,8 @@ export function SessionPage(props: SessionPageProps) {
     label: item.supported ? item.name : t("ui.session.player.soon", { name: item.name }),
     disabled: !item.supported,
   }));
-  const canWatch = supported.some((item) => item.id === player) && (primary !== none || translation !== none);
+  // Both lines may be off: whoever only wants to see the film watches without subtitles.
+  const canWatch = supported.some((item) => item.id === player);
   // A player that keeps its own audio track: the choice is hidden, never sent.
   const chosen = players.installed.find((item) => item.id === player);
   const fixedAudio = chosen?.fixedAudio ?? false;

@@ -16,7 +16,6 @@ import (
 var (
 	errUnknownTrack   = worded(func() string { return ptbr.T("error.track.unknown") })
 	errSameTrack      = worded(func() string { return ptbr.T("error.track.sameAsOther") })
-	errNeedsPrimary   = worded(func() string { return ptbr.T("error.track.needsPrimary") })
 	errTrackLoading   = worded(func() string { return ptbr.T("error.track.loading") })
 	errTrackNotLoaded = worded(func() string { return ptbr.T("error.track.notLoaded") })
 	errSubtitleFile   = worded(func() string { return ptbr.T("error.subtitleFile.unreadable") })
@@ -105,8 +104,6 @@ func lineRefusal(err error) error {
 		return nil
 	case errors.Is(err, watch.ErrSameTrack):
 		return errSameTrack
-	case errors.Is(err, watch.ErrNeedsPrimary):
-		return errNeedsPrimary
 	}
 	return errUnknownTrack
 }

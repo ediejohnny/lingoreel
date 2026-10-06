@@ -130,7 +130,8 @@ func TestASwitchNeedsSubtitlesAndALine(t *testing.T) {
 
 // What a line cannot show is refused before anything loads: a subtitle in
 // pictures, an audio track, a track the video lacks, the track the other
-// line shows, none on top, a line that does not exist. None below is fine.
+// line shows, a line that does not exist. None is fine on either line:
+// whoever only wants to see the film watches without subtitles.
 func TestALineRefusesWhatItCannotShow(t *testing.T) {
 	t.Parallel()
 	s := newRig(t).start(t)
@@ -145,7 +146,6 @@ func TestALineRefusesWhatItCannotShow(t *testing.T) {
 		{session.LinePrimary, 99, watch.ErrUnknownTrack},
 		{session.LinePrimary, 5, watch.ErrSameTrack},
 		{session.LineTranslation, 4, watch.ErrSameTrack},
-		{session.LinePrimary, 0, watch.ErrNeedsPrimary},
 		{session.Line(7), 4, nil},
 	} {
 		err := s.CheckLine(c.line, c.number)
@@ -153,8 +153,10 @@ func TestALineRefusesWhatItCannotShow(t *testing.T) {
 			t.Errorf("CheckLine(%d, %d) = %v, want %v", c.line, c.number, err, c.want)
 		}
 	}
-	if err := s.CheckLine(session.LineTranslation, 0); err != nil {
-		t.Errorf("none below refused: %v", err)
+	for _, line := range []session.Line{session.LinePrimary, session.LineTranslation} {
+		if err := s.CheckLine(line, 0); err != nil {
+			t.Errorf("none on line %d refused: %v", line, err)
+		}
 	}
 }
 
@@ -167,9 +169,7 @@ func TestASwitchChecksThePairOfLinesAgain(t *testing.T) {
 	if err := s.SetLine(session.LinePrimary, 5, loadedFile(t, "Same as below."), project.Track{}); !errors.Is(err, watch.ErrSameTrack) {
 		t.Errorf("the other line's track on top = %v, want ErrSameTrack", err)
 	}
-	if err := s.SetLine(session.LinePrimary, 0, analysis.LoadedTrack{}, project.Track{}); !errors.Is(err, watch.ErrNeedsPrimary) {
-		t.Errorf("none on top = %v, want ErrNeedsPrimary", err)
-	}
+
 	if after := s.Tracks().Current; after != before {
 		t.Fatalf("a refused switch changed the tracks to %+v", after)
 	}

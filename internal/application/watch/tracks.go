@@ -39,8 +39,6 @@ var (
 	ErrUnknownTrack = errors.New("not a readable subtitle track of the video")
 	// ErrSameTrack: the other line shows that track already.
 	ErrSameTrack = errors.New("the other line shows that track")
-	// ErrNeedsPrimary: the line on top always shows a subtitle.
-	ErrNeedsPrimary = errors.New("the line on top needs a subtitle")
 )
 
 // CheckLine tells whether a line can show a track (zero: none), before it
@@ -58,12 +56,10 @@ func (s *Session) CheckLine(line session.Line, number uint64) error {
 }
 
 // pairs tells whether a line can show a track next to what the other line
-// shows: never none on top, never the track the other line shows.
+// shows: never the track the other line shows. Either line may show none,
+// both too: whoever only wants to see the film watches without subtitles.
 func (t Tracks) pairs(line session.Line, number uint64) error {
 	if number == 0 {
-		if line == session.LinePrimary {
-			return ErrNeedsPrimary
-		}
 		return nil
 	}
 	other := session.LineTranslation

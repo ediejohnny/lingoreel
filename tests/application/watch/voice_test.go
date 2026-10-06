@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/project"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
@@ -204,4 +206,31 @@ func TestTheVoiceModelRestsOnTheBattery(t *testing.T) {
 	if s.ModelRest() != watch.ModelOff {
 		t.Fatalf("switched off, the rest is %q", s.ModelRest())
 	}
+}
+
+// Watching without subtitles hears nothing: the voice is followed once a
+// subtitle goes on top from the panel, and no longer when it is taken away.
+func TestWithoutALineOnTopTheVoiceIsNotFollowed(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.ports.Model = testkit.LoudModel{}
+	tap := &listeningTap{}
+	r.ports.Tap = tap
+	r.request.Karaoke = paintingKaraoke()
+	r.request.Voice = watch.VoiceSetup{Model: true, Follow: true}
+	r.request.Tracks.Audio, r.request.Tracks.Primary, r.request.Tracks.Translation = 3, 0, 0
+	s := r.start(t)
+
+	time.Sleep(100 * time.Millisecond) // a follower wrongly started would be hearing
+	if tap.listening.Load() != 0 {
+		t.Fatal("the voice is followed with no line on top")
+	}
+	if err := s.SetLine(session.LinePrimary, 4, loadedFile(t, "Hello."), project.Track{}); err != nil {
+		t.Fatal(err)
+	}
+	testkit.Eventually(t, "hearing with a line on top", func() bool { return tap.listening.Load() == 1 })
+	if err := s.SetLine(session.LinePrimary, 0, analysis.LoadedTrack{}, project.Track{}); err != nil {
+		t.Fatal(err)
+	}
+	testkit.Eventually(t, "no longer hearing without it", func() bool { return tap.listening.Load() == 0 })
 }

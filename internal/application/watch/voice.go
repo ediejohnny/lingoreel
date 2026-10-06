@@ -78,6 +78,14 @@ func (s *Session) followVoice() {
 	s.reviewVoice(false)
 }
 
+// voiceWanted tells whether the voice is to be followed: the karaoke mode
+// paints the line on top, there is one, and the user follows the voice;
+// callers hold v.mu.
+func (s *Session) voiceWanted() bool {
+	karaoke := s.subtitles.Karaoke()
+	return karaoke.Enabled && karaoke.Fill && s.voice.setup.Follow && s.Tracks().Current.Primary != 0
+}
+
 // reviewVoice follows the voice when the fill is on; again (restart) when
 // what it follows changed, such as the audio track.
 func (s *Session) reviewVoice(restart bool) {
@@ -85,10 +93,9 @@ func (s *Session) reviewVoice(restart bool) {
 	if v == nil || v.model == nil || (v.tap == nil && v.find == nil) {
 		return
 	}
-	karaoke := s.subtitles.Karaoke()
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	wanted := karaoke.Enabled && karaoke.Fill && v.setup.Follow
+	wanted := s.voiceWanted()
 	if v.ended {
 		return
 	}
@@ -127,8 +134,7 @@ func (s *Session) startVoice(attempt int) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.inFlight--
-	karaoke := s.subtitles.Karaoke()
-	if v.ended || attempt != v.starting || v.follower != nil || !(karaoke.Enabled && karaoke.Fill && v.setup.Follow) {
+	if v.ended || attempt != v.starting || v.follower != nil || !s.voiceWanted() {
 		go follower.Close()
 		return
 	}
