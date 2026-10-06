@@ -6,6 +6,39 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-06
+
+The Modo Karaokê paints each line along the actor's voice: the fill moves while they speak and holds in their pauses.
+
+### Added
+
+- The Modo Karaokê follows the actors' voice. With an FFmpeg on the computer (found, chosen, or installed with winget
+  from its authors), the voice is analyzed a little ahead of the video; without one, the app hears the player's own
+  sound as it plays. A line trained again ("Treinar de novo") is painted from the voice heard the first time. When the
+  voice cannot be told (music, a dubbed track playing, a busy computer), the line is painted by the estimate, as before.
+- Configurações › Estudo › "Voz dos atores": follow the voice or not, the sensitivity, the FFmpeg, the output's delay
+  for wireless headphones, and following on even when the computer is busy. The panel tells how the voice is followed.
+- The estimate weighs a line by its syllables: a sound's description ("[DOOR SLAMS]") and a speaker's name take no time,
+  a stretched sound ("duuuu") takes longer, and the fill holds at commas and periods.
+- The app's own icon and logo, also beside the app's name.
+- AVISOS-DE-TERCEIROS.txt in the zip, with the licenses of everything inside the app.
+
+### Changed
+
+- The frame around a line picked for a correction is a thin, sharp blue line with a dark edge outside it.
+- VLC sends its sound through the Windows mixer, never straight to a receiver, so the voice can be heard.
+- The app no longer carries Microsoft's WebView2 installer: a computer without WebView2 is offered the download from
+  Microsoft. The app is 1.7 MB smaller.
+
+### Fixed
+
+- The Modo Karaokê's fill was invisible over a line of a close color (the yellow of "Alto contraste"): such a fill now
+  gives way to a contrasting one, and Settings says which.
+- Closing the app (Alt+F4) with a video playing left the window on screen for several seconds: it now goes at once,
+  while the player closes behind it.
+- The fill started up to a second late at the start of a line.
+- The frame around a line picked for a correction never went away: a click beside the lines or playing lets it go.
+
 ## [0.22.0] - 2026-10-05
 
 ### Added
