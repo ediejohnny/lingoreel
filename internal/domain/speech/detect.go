@@ -86,6 +86,10 @@ type Detection struct {
 	Verdict Verdict
 }
 
+// LineMargin is the sound on each side of a line that DetectLine judges it
+// by, when the track has it.
+const LineMargin = 500 * time.Millisecond
+
 // The detector's rules. Each line is judged on its own sound, a margin
 // around it included: its quiet (the 10th percentile) and its loudest (the
 // 95th) set where voice begins, so a whisper in a quiet scene counts as
@@ -93,7 +97,6 @@ type Detection struct {
 // inside a word (the closure before a P or a T); a burst shorter than
 // shortestVoice is a click.
 const (
-	lineMargin      = 500 * time.Millisecond
 	floorPercentile = 0.10
 	peakPercentile  = 0.95
 	hysteresis      = 2.0 // dB below the threshold before the voice ends
@@ -124,8 +127,8 @@ func DetectLine(track Track, start, end time.Duration, syllables float64, sensit
 	if end <= start || first < 0 || last > len(track.Frames) {
 		return Detection{Verdict: Missing}
 	}
-	from := max(track.frameAt(start-lineMargin), 0)
-	to := min(track.frameAt(end+lineMargin), len(track.Frames))
+	from := max(track.frameAt(start-LineMargin), 0)
+	to := min(track.frameAt(end+LineMargin), len(track.Frames))
 	frames := track.Frames[from:to]
 
 	share, contrast := sensitivity.tuning()
