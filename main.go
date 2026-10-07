@@ -21,6 +21,7 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
@@ -161,6 +162,10 @@ func run() error {
 			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
 			FindDecoder: findFFmpeg,
+			OpenStills:  openStills,
+			StillsStopped: func(err error) {
+				logger.Info("the seek bar shows the time alone", "reason", err)
+			},
 		},
 		Stage:         stagePort{stage},
 		Settings:      files,
@@ -369,4 +374,14 @@ func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
 		return nil
 	}
 	return ffmpeg.Decoder{Path: path}
+}
+
+// openStills prepares a film for the seek bar's stills with the user's own
+// FFmpeg.
+func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
+	path, err := ffmpeg.Find(ctx, chosen)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
+	}
+	return ffmpeg.Stills{Path: path}.Open(ctx, file)
 }

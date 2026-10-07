@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -112,6 +113,10 @@ type fakeRemote struct {
 	// context menu.
 	visible session.Visible
 	tracks  watch.Tracks
+	// thumbnail is what the seek bar is shown for any moment; wanted the
+	// moments the pointer asked for.
+	thumbnail thumbnail.View
+	wanted    []time.Duration
 }
 
 func newRemote(p *recordingPlayer) *fakeRemote {
@@ -227,6 +232,18 @@ func (r *fakeRemote) Tracks() watch.Tracks {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.tracks
+}
+
+func (r *fakeRemote) Thumbnail(time.Duration) thumbnail.View {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.thumbnail
+}
+
+func (r *fakeRemote) WantThumbnail(at time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.wanted = append(r.wanted, at)
 }
 
 var _ watch.Remote = (*fakeRemote)(nil)
