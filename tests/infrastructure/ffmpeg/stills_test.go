@@ -163,7 +163,7 @@ func TestARealFFmpegTakesTheStillAtItsMoment(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := rgbAt(decodeStill(t, picture, 240, 135), 120, 67); !near(got, c.want, 40) {
+		if got := rgbAt(decodeStill(t, picture, 384, 216), 192, 108); !near(got, c.want, 40) {
 			t.Errorf("at %v: colour %v, want about %v", c.at, got, c.want)
 		}
 		if picture.At > c.at || picture.At < c.at-time.Second {
@@ -181,8 +181,8 @@ func TestARealFFmpegKeepsThePicturesShape(t *testing.T) {
 		name, source  string
 		width, height int
 	}{
-		{"wide pixels", "color=c=green:s=720x480:r=25:d=2,setsar=32/27", 240, 135},
-		{"4:3", "color=c=green:s=640x480:r=25:d=2", 180, 135},
+		{"wide pixels", "color=c=green:s=720x480:r=25:d=2,setsar=32/27", 384, 216},
+		{"4:3", "color=c=green:s=640x480:r=25:d=2", 288, 216},
 	} {
 		file := filepath.Join(t.TempDir(), "shape.mkv")
 		makeFilm(t, path, "-f", "lavfi", "-i", c.source, "-c:v", "mpeg4", "-q:v", "2", file)
@@ -226,7 +226,7 @@ func TestARealFFmpegKeepsTheColoursOfAnUntaggedHDFilm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := rgbAt(decodeStill(t, picture, 240, 135), 120, 67); !near(got, [3]int{0xC0, 0x40, 0x20}, 5) {
+	if got := rgbAt(decodeStill(t, picture, 384, 216), 192, 108); !near(got, [3]int{0xC0, 0x40, 0x20}, 5) {
 		t.Fatalf("colour %v, want about [192 64 32]", got)
 	}
 }
@@ -254,8 +254,8 @@ func TestARealFFmpegToneMapsAnHDRFilm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	still := decodeStill(t, picture, 240, 135)
-	if mid, high := rgbAt(still, 60, 67)[1], rgbAt(still, 180, 67)[1]; mid < 140 || mid > 185 || high < 235 {
+	still := decodeStill(t, picture, 384, 216)
+	if mid, high := rgbAt(still, 96, 108)[1], rgbAt(still, 288, 108)[1]; mid < 140 || mid > 185 || high < 235 {
 		t.Fatalf("100 nits at %d, the highlight at %d: want 140–185 and at least 235", mid, high)
 	}
 }

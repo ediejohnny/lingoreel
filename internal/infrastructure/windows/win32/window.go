@@ -326,6 +326,14 @@ func TopChild(hwnd windows.HWND) windows.HWND {
 	return windows.HWND(r)
 }
 
+// WindowAbove is the window right above another in the screen's order; zero
+// for the one on top.
+func WindowAbove(hwnd windows.HWND) windows.HWND {
+	const gwPrevious = 3
+	r, _, _ := procGetWindow.Call(uintptr(hwnd), gwPrevious)
+	return windows.HWND(r)
+}
+
 // ExecutableIcons returns the first large and small icons of a program
 // file, zero when it has none; DestroyIcon frees them.
 func ExecutableIcons(path string) (large, small windows.Handle) {

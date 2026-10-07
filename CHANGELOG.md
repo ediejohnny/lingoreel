@@ -8,10 +8,10 @@ All notable changes to this project are listed here. The format follows
 
 ### Added
 
-- The seek bar shows, above the pointer (and along a drag), the time under it and a small still of that moment
-  (120×68 at 100%, growing with the screen's scale and the bar's size), as video sites do: a still only near the
-  moment shows blurred until its own arrives, an empty box waits for the first, and a film with no stills shows the
-  time alone. It stands over the subtitles, takes no clicks, and replaces the track's tip.
+- The seek bar shows, above the pointer (and along a drag), the time under it and a still of that moment (240×135 at
+  100%, growing with the screen's scale and the bar's size), as video sites do: a still only near the moment shows
+  blurred until its own arrives, an empty box waits for the first, and a film with no stills shows the time alone. It
+  stays over the subtitles even when they show after it, takes no clicks, and replaces the track's tip.
 - While a film plays in the app's window, stills for its seek bar are taken in the background, one at a time: about
   10 s after it starts (at once when the pointer reaches the bar), one each 10 s of film (further apart past 1000
   stills), from coarse to fine so that the first hundred already cover the whole film, and the moment under the
@@ -19,7 +19,7 @@ All notable changes to this project are listed here. The format follows
   Ending the film never waits for a still, and a film with no stills to take, or whose stills keep failing, leaves
   them off.
 - Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
-  just before a moment (about 1 MB read and 150–240 ms here), scaled into a 240×135 box keeping the picture's shape
+  just before a moment (about 1 MB read and 150–240 ms here), scaled into a 384×216 box keeping the picture's shape
   (anamorphic DVDs included) as a JPEG. An HD film with no colour tags keeps the BT.709 colours players show,
   interlaced pictures are deinterlaced, and HDR (PQ, HLG) is made small first and tone-mapped after; Dolby Vision
   profile 5 gives no stills. The film is read only as the local file of the container the app opened.

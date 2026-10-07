@@ -91,10 +91,9 @@ func TestTheHoverAsksForTheMomentUnderIt(t *testing.T) {
 }
 
 // Dragging along the track, the preview stands above the pointer, over the
-// subtitles' window and the video, with the still over the time; with no
-// still to show the time stands alone. (Showing the preview already puts it
-// on top here; the window also places it there itself, so a mutant leaving
-// that out survives.)
+// subtitles' window and the video, with the still over the time, and comes
+// back on top when the subtitles' window (made on another thread, shown when
+// it likes) comes over it; with no still to show the time stands alone.
 func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	testkit.Slow(t)
 	host, remote := openPreviewing(t)
@@ -120,11 +119,18 @@ func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	if r.Bottom > origin.Top+308 || r.Bottom-r.Top < 68 {
 		t.Fatalf("preview at %+v: want the still and the time above the track (client y 308)", r)
 	}
-	if subtitles := ownedWindow(host, "LingoReelOverlay"); zOrder(preview) > zOrder(subtitles) || zOrder(preview) > zOrder(host) {
-		t.Fatalf("the preview (place %d) is behind the subtitles (%d) or the video (%d)", zOrder(preview), zOrder(subtitles), zOrder(host))
+	subtitles := ownedWindow(host, "LingoReelOverlay")
+	onTop := func() bool { return zOrder(preview) < zOrder(subtitles) && zOrder(preview) < zOrder(host) }
+	testkit.Eventually(t, "the preview over the subtitles and the video", onTop)
+	if err := win32.SetWindowPos(subtitles, 0, win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE); err != nil {
+		t.Fatal(err)
+	}
+	if onTop() {
+		t.Fatal("the subtitles' window did not come over the preview")
 	}
 	post(t, bar, win32.WM_MOUSEMOVE, 1, at(400, 42))
 	testkit.Eventually(t, "the preview to follow to x 400", placed(400))
+	testkit.Eventually(t, "the preview back over the subtitles", onTop)
 
 	remote.show(thumbnail.View{}) // no stills for this film
 	post(t, bar, win32.WM_MOUSEMOVE, 1, at(410, 42))

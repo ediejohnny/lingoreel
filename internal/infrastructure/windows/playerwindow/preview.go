@@ -29,6 +29,9 @@ const (
 	// keptStills is how many decoded stills the window keeps, for a pointer
 	// going back and forth.
 	keptStills = 8
+	// maxWindowsAbove bounds the walk up the screen's windows, which may
+	// change while it runs.
+	maxWindowsAbove = 4096
 )
 
 var (
@@ -134,14 +137,28 @@ func (w *Window) drawPreview(remote watch.Remote, state controlbar.State, bar co
 		return
 	}
 	if !w.previewShown {
-		// Shown at the top: the subtitles' window, made after the bar on
-		// another thread, sits above the bar and would cover it. The preview
-		// owns nothing, so leaving the owner where it is
-		// (SWP_NOOWNERZORDER) only keeps the app's window from jumping in
-		// front of other programs as the mouse passes.
-		_ = win32.SetWindowPos(w.preview, 0, win32.Rect{},
-			win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE|win32.SWP_NOOWNERZORDER|win32.SWP_SHOWWINDOW)
+		win32.ShowWindow(w.preview, win32.SW_SHOWNA)
 		w.previewShown = true
+	}
+	w.keepPreviewOnTop()
+}
+
+// keepPreviewOnTop puts the preview back on top when one of the app's own
+// windows is over it, wherever above (other windows, hidden ones too, may
+// lie between): the subtitles' window, made on another thread, shows when
+// it likes and would cover it. With none of the app's above, it stays where
+// it is. The preview owns nothing, so leaving its owner where it is
+// (SWP_NOOWNERZORDER) keeps the app's window from jumping in front of other
+// programs as the mouse passes.
+func (w *Window) keepPreviewOnTop() {
+	root := win32.RootOwner(w.preview)
+	above := win32.WindowAbove(w.preview)
+	for steps := 0; above != 0 && steps < maxWindowsAbove; steps++ {
+		if win32.RootOwner(above) == root {
+			_ = win32.SetWindowPos(w.preview, 0, win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE|win32.SWP_NOOWNERZORDER)
+			return
+		}
+		above = win32.WindowAbove(above)
 	}
 }
 

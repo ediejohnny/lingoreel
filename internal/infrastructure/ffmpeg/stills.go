@@ -19,10 +19,10 @@ import (
 )
 
 // StillWidth and StillHeight are the box a still fits in, keeping its
-// shape: sharp on the bar up to twice its size on the screen.
+// shape: sharp on the bar (240x135 at 100%) up to a screen scaled to 160%.
 const (
-	StillWidth  = 240
-	StillHeight = 135
+	StillWidth  = 384
+	StillHeight = 216
 )
 
 const (

@@ -9,9 +9,9 @@ import (
 // Sizes of the seek preview at 100% scaling, in pixels.
 const (
 	// previewWidth and previewHeight are the box the still fits in, keeping
-	// its shape: half a video site's.
-	previewWidth  = 120.0
-	previewHeight = 67.5
+	// its shape: a video site's.
+	previewWidth  = 240.0
+	previewHeight = 135.0
 	// previewGap is between the track and the time; labelGap between the
 	// time and the still; previewMargin keeps the preview off the edges.
 	previewGap    = 6.0
