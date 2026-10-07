@@ -343,7 +343,7 @@ export function SettingsPage({
             {section === "shortcuts" && <ShortcutsSection {...props} />}
             {section === "players" && <PlayersSection {...props} />}
             {section === "appearance" && (
-              <AppearanceSection view={view} draft={draft} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
+              <AppearanceSection view={view} draft={draft} run={props.run} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
             )}
             {section === "advanced" && <AdvancedSection {...props} />}
             {section === "help" && <HelpSection />}

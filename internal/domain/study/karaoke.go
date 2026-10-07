@@ -216,6 +216,36 @@ func pauseWeight(b Break) float64 {
 	return 0
 }
 
+// A line's fill always ends while the line shows, whatever paints it: a
+// voice that runs on after the line goes, or a quick line drawn a frame too
+// early, would leave it half painted. Over the line's last finishWindow
+// (never more than finishShare of it) what is left is painted, all of it
+// finishLead before the line goes (never more than a third of it).
+const (
+	finishWindow = 400 * time.Millisecond
+	finishShare  = 0.3
+	finishLead   = 120 * time.Millisecond
+)
+
+// FinishedFill is a line's fill at a moment, caught up so that it ends
+// before the line does; it never paints less than fill, and moves on as
+// fill does. The line shows from start to end, on the moment's clock.
+func FinishedFill(fill float64, at, start, end time.Duration) float64 {
+	length := end - start
+	if fill >= 1 || length <= 0 {
+		return fill
+	}
+	deadline := end - min(finishLead, length/3)
+	from := deadline - min(finishWindow, time.Duration(finishShare*float64(length)))
+	switch {
+	case at >= deadline:
+		return 1
+	case at <= from:
+		return fill
+	}
+	return fill + (1-fill)*float64(at-from)/float64(deadline-from)
+}
+
 // SpokenFraction is the share of the line's visible characters (spaces
 // left out) already spoken at a position of the track's clock: 0 before the
 // line, 1 once it is all said. A line where nothing is said aloud (only a

@@ -32,8 +32,9 @@ can stay on screen or show up only when you ask for it.
 - Windowed, fullscreen, several monitors and display scaling from 100% to 200%.
 - Subtitle corrections while the video is paused: double-click a line to open a box right over the video and fix the
   text; the timing is adjusted in the app's panel. Undo and redo (Ctrl+Z/Ctrl+Y), and the original text is never lost.
-- One corrections file per video (`Movie.dualsub.json`, next to the video) that keeps the corrections, the sync, the
-  chosen tracks and mode, and the passages saved for study.
+- One project per video that keeps the corrections, the sync, the chosen tracks and mode, and the passages saved for
+  study. It stays in the app's own folder (`%APPDATA%\LingoReel\projects`), never next to the video, and the video
+  is known by its content, so renaming or moving it keeps its project.
 - Exports the corrected, synchronized subtitle as `.srt` or `.ass`, to use in another player.
 - A single portable `.exe`, no installation. It uses Windows' WebView2, which Windows 11 and up-to-date Windows 10
   already have; a machine without it is offered the download from Microsoft.

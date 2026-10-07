@@ -46,6 +46,10 @@ export function ClearSelection() {
   return window['go']['app']['API']['ClearSelection']();
 }
 
+export function ClearThumbnails() {
+  return window['go']['app']['API']['ClearThumbnails']();
+}
+
 export function CreateProfile(arg1) {
   return window['go']['app']['API']['CreateProfile'](arg1);
 }
@@ -268,6 +272,10 @@ export function SetSyncNotice(arg1) {
 
 export function SetTheme(arg1) {
   return window['go']['app']['API']['SetTheme'](arg1);
+}
+
+export function SetThumbnails(arg1) {
+  return window['go']['app']['API']['SetThumbnails'](arg1);
 }
 
 export function SetTranslationVisible(arg1) {

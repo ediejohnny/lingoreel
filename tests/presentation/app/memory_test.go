@@ -303,10 +303,50 @@ func TestResetForgetsEverythingAboutTheVideo(t *testing.T) {
 	r.api.StopWatching()
 	testkit.Eventually(t, "the end", func() bool { return !r.api.PlaybackState().Active })
 
-	// A file that cannot be removed is told, and nothing else changes.
+	// A file that cannot be removed is told, and nothing else changes: the
+	// video's project keeps being kept.
+	kept := project.New()
+	kept.Passages = []project.Passage{{Name: "Loja", Start: 10_000, End: 20_000}}
+	if err := r.projects.Save(movie, kept); err != nil {
+		t.Fatal(err)
+	}
+	openMovie(t, r)
 	r.projects.removeErr = errors.New("in use")
 	_, err = r.api.ResetProject()
-	wantMessage(t, "ResetProject of a file in use", err, "Não foi possível apagar")
+	wantMessage(t, "ResetProject of a file in use", err, "Não foi possível esquecer")
+	if err := r.api.RenamePassage("Loja", "Rua"); err != nil {
+		t.Fatal(err)
+	}
+	if stored, _ := r.projects.stored(t, movie); len(stored.Passages) != 1 || stored.Passages[0].Name != "Rua" {
+		t.Fatalf("after a reset that failed, a change kept %+v", stored.Passages)
+	}
+}
+
+// A save that failed with no video playing is tried again as the app
+// closes: the disk may have room by then.
+func TestAFailedSaveIsTriedAgainAsTheAppCloses(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	kept := project.New()
+	kept.Passages = []project.Passage{{Name: "Loja", Start: 10_000, End: 20_000}}
+	if err := r.projects.Save(movie, kept); err != nil {
+		t.Fatal(err)
+	}
+	r.attach(t)
+	openMovie(t, r)
+	r.projects.mu.Lock()
+	r.projects.saveErr = errors.New("full")
+	r.projects.mu.Unlock()
+	if err := r.api.DeletePassage("Loja"); err == nil {
+		t.Fatal("a delete whose save failed said nothing")
+	}
+	r.projects.mu.Lock()
+	r.projects.saveErr = nil
+	r.projects.mu.Unlock()
+	r.lifecycle.Shutdown()
+	if stored, _ := r.projects.stored(t, movie); len(stored.Passages) != 0 {
+		t.Fatalf("after the app closed, kept %+v", stored.Passages)
+	}
 }
 
 // The slower laps of a progressive passage are the passage's, not the

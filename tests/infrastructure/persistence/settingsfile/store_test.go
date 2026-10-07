@@ -126,7 +126,8 @@ func TestConfigFieldsAddedLaterKeepTheirMeaning(t *testing.T) {
 	config, err := files.LoadConfig()
 	defaults := settings.DefaultConfig()
 	if err != nil || !config.SyncNotice || !config.AlwaysOnTop || config.Theme != settings.ThemeDark || config.Window.Saved() ||
-		config.Bar != defaults.Bar || config.Edit != defaults.Edit || config.Interface != defaults.Interface || config.Voice != defaults.Voice {
+		config.Bar != defaults.Bar || config.Edit != defaults.Edit || config.Interface != defaults.Interface || config.Voice != defaults.Voice ||
+		config.Thumbnails != (settings.ThumbnailPreferences{On: true, OnDisk: true}) {
 		t.Fatalf("old config = %+v, %v", config, err)
 	}
 	config.SyncNotice = false

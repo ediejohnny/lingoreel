@@ -83,6 +83,45 @@ func Arguments(stretch voice.Stretch) ([]string, int) {
 
 func seconds(d time.Duration) string { return strconv.FormatFloat(d.Seconds(), 'f', 3, 64) }
 
+// runKind is what an FFmpeg runs for, which decides the job it runs in.
+type runKind int
+
+const (
+	// plainRun: the voice, or a film's description.
+	plainRun runKind = iota
+	// stillRun: a still for the bar that someone waits for, or one of the
+	// overview's, held to some memory.
+	stillRun
+	// pacedRun: a still nobody waits for, held also to a share of one processor.
+	pacedRun
+	runKinds
+)
+
+// start runs an FFmpeg tied to the app: when the app ends, even by a crash,
+// the system ends it too. It tells whether the FFmpeg is held to its kind's
+// limits.
+func start(command *exec.Cmd, kind runKind) (bool, error) {
+	if err := command.Start(); err != nil {
+		return false, fmt.Errorf("ffmpeg: starting: %w", err)
+	}
+	return contain(command.Process, kind), nil
+}
+
+// turn lets one of the app's FFmpeg run at a time, the voice's or a still's,
+// so the film never shares the processor with two; the still the pointer
+// waits for does not queue.
+var turn = make(chan struct{}, 1)
+
+// takeTurn waits for the turn, and gives the function that hands it on.
+func takeTurn(ctx context.Context) (func(), error) {
+	select {
+	case turn <- struct{}{}:
+		return func() { <-turn }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 // Decoder decodes with an FFmpeg, implementing voice.Decoder.
 type Decoder struct{ Path string }
 
@@ -103,8 +142,13 @@ func (d Decoder) Decode(ctx context.Context, stretch voice.Stretch, hear func([]
 	if err != nil {
 		return fmt.Errorf("ffmpeg: %w", err)
 	}
-	if err := command.Start(); err != nil {
-		return fmt.Errorf("ffmpeg: starting: %w", err)
+	release, err := takeTurn(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if _, err := start(command, plainRun); err != nil {
+		return err
 	}
 	readErr := deliver(out, channels, hear)
 	waitErr := command.Wait()

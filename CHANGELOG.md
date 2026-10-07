@@ -6,6 +6,83 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-07
+
+The seek bar shows a still of the moment under the pointer, as video sites do: taken in the background without
+crowding the film, and kept in the app's own folder, where each video's project now lives too, following a film that
+is renamed or moved. When the app cannot keep something on the disk it says why and what to do, and loses nothing.
+
+### Added
+
+- The seek bar shows, above the pointer (and along a drag), the time under it and a still of that moment (240×135 at
+  100%, growing with the screen's scale and the bar's size), as video sites do: a still only near the moment shows
+  blurred until its own arrives, an empty box waits for the first, and a film with no stills shows the time alone. It
+  stays over the subtitles even when they show after it, takes no clicks, and replaces the track's tip.
+- While a film plays in the app's window, stills for its seek bar are taken in the background, one at a time: about
+  10 s after it starts (at once when the pointer reaches the bar), one each 10 s of film (further apart past 1000
+  stills), from coarse to fine so that the first hundred already cover the whole film, and the moment under the
+  pointer before any other. Past those first hundred, with nobody at the bar, the system holds the background to a
+  quarter of one processor, and on a battery only the moment under the pointer gets a still. Ending the film never
+  waits for a still, and a film with no stills to take, or whose stills keep failing, leaves them off.
+- The stills are bounded: each FFmpeg that takes one may commit at most 384 MB, a still that reads more than 24 MB of
+  the film (or in more than 500 reads) is ended, and a film where that happens twice, or whose index (an MKV's Cues,
+  an AVI's idx1 or OpenDML index) leaves out its video, gives no stills, since a seek there reads the film from its
+  start. One of the app's FFmpeg runs at a time, the voice's or a still's; the still the pointer waits for never
+  queues.
+- A film's seek-bar stills are kept in the app's own folder (`%APPDATA%\LingoReel\thumbnails`), never beside the
+  film: opened again, even renamed or moved (it is known by its size and its first and last 64 KiB), its stills show at
+  once, and a film kept whole runs no FFmpeg at all. One film's stills take up to 64 MB and all of them up to 4 GB, the
+  films opened longest ago leaving first. They never leave the disk with less than 1 GB free: older films leave to make
+  room, and a disk still too full keeps the stills in memory for the session. A damaged package is refused within bounds
+  and the film starts over. Each save at least doubles what is kept, so a long film is written some twice its size in
+  all.
+- The settings' Appearance page has a card for the seek bar's stills: showing them or not, taking them in the
+  background on a battery too, keeping them on the disk or taking them again at each opening (in memory only, the disk
+  never read or written), how much the kept stills take with a button that clears them, and the FFmpeg that takes them,
+  the same as the voice's. Each choice applies at once, to the video playing too, and a configuration from before keeps
+  the stills on and on the disk. The settings folder's note says the projects and the stills live there.
+- When the app cannot keep something on the disk, its message says why and what to do: a full disk, Windows refusing
+  the folder (its rights, an antivirus, a read-only file), a file another program holds, a write-protected disk, a disk
+  or network share that is gone, or a path too long. It shows when saving the settings and profiles, a video's
+  corrections and passages, forgetting a video, exporting a subtitle, clearing the kept stills, changing the file
+  association or a karaoke mode choice, and when a session cannot start because the disk is full (no longer blamed on a
+  slow player). The seek bar's card says when their disk is nearly full and new stills stay in memory.
+- `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
+  or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
+  loses, and held to a few processors as a smaller computer, printing the film's key and never its name.
+- Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
+  just before a moment (about 1 MB read and 150–240 ms here), scaled into a 384×216 box keeping the picture's shape
+  (anamorphic DVDs included) as a JPEG. An HD film with no colour tags keeps the BT.709 colours players show,
+  interlaced pictures are deinterlaced, and HDR (PQ, HLG) is made small first and tone-mapped after; Dolby Vision
+  profile 5 gives no stills. The film is read only as the local file of the container the app opened.
+
+### Changed
+
+- A video's project (its corrections, sync, chosen tracks and mode, saved passages and where it was left) is kept in
+  the app's own folder (`%APPDATA%\LingoReel\projects`), named by the film's content, so renaming or moving the
+  film keeps it; nothing is written beside the film any more. A project an older version left beside the film, or in
+  the app's folder by the film's path, moves in the first time the film opens: written, read back and compared before
+  the old file goes, and one that cannot be removed (in use, in a folder without rights) stays, no longer read. A film
+  written over in place (a download that ended, a better copy) keeps the project its path last kept. "Forget
+  everything" leaves the film with nothing, old files included.
+- Following the actors' voice is no longer marked experimental in the settings.
+
+### Fixed
+
+- Exporting over a subtitle that was there (the film's own, say) no longer spoils it when the disk fills up or the app
+  stops halfway: the new file is written whole beside it and only then takes its place.
+- A video's project that could not be saved is no longer lost quietly: the save stays due and runs again with the next
+  one, as the session ends and as the app closes; the panel says why until a save works (the saves that wait a moment,
+  such as the sync and the position, included), and one that fails as the session ends is told with its end.
+- "Forget everything" that could not remove a video's project no longer left that opening's next changes unsaved.
+- With "always use this player" ticked, profiles that could not be saved no longer kept the video from playing.
+- Choosing a theme or the app's look now says so when it could not be kept.
+- The karaoke mode's fill always ends while its line shows: a line that went before the actor stopped speaking (the
+  voice found runs on past it), or a quick one, was left half painted, half in the fill's color and half in the line's.
+  Over a line's last 400 ms (never more than 30% of it) what is left is painted, all of it 120 ms before the line goes.
+- An FFmpeg the app started (the voice's too) could outlive the app if it crashed: every FFmpeg now joins a job that
+  ends with the app.
+
 ## [0.25.0] - 2026-10-06
 
 The karaoke mode follows the actors' voice with a speech model inside the app, and a video with no subtitle of its
@@ -590,7 +667,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1

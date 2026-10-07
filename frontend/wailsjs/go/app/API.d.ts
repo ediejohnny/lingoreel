@@ -24,6 +24,8 @@ export function ClearPlayerPath(arg1:string):Promise<void>;
 
 export function ClearSelection():Promise<void>;
 
+export function ClearThumbnails():Promise<void>;
+
 export function CreateProfile(arg1:string):Promise<void>;
 
 export function DeletePassage(arg1:string):Promise<void>;
@@ -135,6 +137,8 @@ export function SetStudyMode(arg1:string):Promise<void>;
 export function SetSyncNotice(arg1:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function SetThumbnails(arg1:app.ThumbnailSettings):Promise<void>;
 
 export function SetTranslationVisible(arg1:boolean):Promise<void>;
 

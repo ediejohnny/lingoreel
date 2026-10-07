@@ -1340,6 +1340,28 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class ThumbnailSettings {
+	    on: boolean;
+	    onBattery: boolean;
+	    onDisk: boolean;
+	    battery: boolean;
+	    keptBytes: number;
+	    crowded: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ThumbnailSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.on = source["on"];
+	        this.onBattery = source["onBattery"];
+	        this.onDisk = source["onDisk"];
+	        this.battery = source["battery"];
+	        this.keptBytes = source["keptBytes"];
+	        this.crowded = source["crowded"];
+	    }
+	}
 	export class VoiceSettings {
 	    model: boolean;
 	    modelOnBattery: boolean;
@@ -1377,6 +1399,7 @@ export namespace app {
 	    appearance: AppearanceSettings;
 	    players: PlayerSetting[];
 	    voice: VoiceSettings;
+	    thumbnails: ThumbnailSettings;
 	    options: SettingsOptions;
 	    folder: string;
 	
@@ -1392,6 +1415,7 @@ export namespace app {
 	        this.appearance = this.convertValues(source["appearance"], AppearanceSettings);
 	        this.players = this.convertValues(source["players"], PlayerSetting);
 	        this.voice = this.convertValues(source["voice"], VoiceSettings);
+	        this.thumbnails = this.convertValues(source["thumbnails"], ThumbnailSettings);
 	        this.options = this.convertValues(source["options"], SettingsOptions);
 	        this.folder = source["folder"];
 	    }
@@ -1428,6 +1452,7 @@ export namespace app {
 	        this.label = source["label"];
 	    }
 	}
+	
 	
 	
 	

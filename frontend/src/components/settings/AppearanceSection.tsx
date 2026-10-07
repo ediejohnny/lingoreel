@@ -16,6 +16,7 @@ import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { RestoreButton } from "./RestoreButton";
 import type { SectionProps } from "./section";
+import { ThumbnailsCard } from "./ThumbnailsCard";
 
 /** waitBeforeApplying lets a slider move before the look is applied to the video. */
 const waitBeforeApplying = 300;
@@ -29,7 +30,7 @@ const sampleSize = 24;
 /** fallbackAccent is the light theme's blue, for an accent when the screen's cannot be read. */
 const fallbackAccent = "#1F66D1";
 
-interface AppearanceSectionProps extends Pick<SectionProps, "view" | "draft"> {
+interface AppearanceSectionProps extends Pick<SectionProps, "view" | "draft" | "run"> {
   theme: Theme;
   onTheme: (theme: Theme) => void;
   /** look is the app's own accent, font and text size; onLook applies and keeps another. */
@@ -39,11 +40,11 @@ interface AppearanceSectionProps extends Pick<SectionProps, "view" | "draft"> {
 
 /**
  * AppearanceSection holds the app's theme and own look, and the look of the
- * controls over the video: the control bar with its menus, and the box that
- * corrects a line. Like the theme, they are not part of the profile: each
- * change applies at once, to the video being watched too.
+ * controls over the video: the control bar with its menus and the seek bar's
+ * stills, and the box that corrects a line. Like the theme, they are not part
+ * of the profile: each change applies at once, to the video being watched too.
  */
-export function AppearanceSection({ view, draft, theme, onTheme, look, onLook }: AppearanceSectionProps) {
+export function AppearanceSection({ view, draft, run, theme, onTheme, look, onLook }: AppearanceSectionProps) {
   const [controls, setControls] = useState<AppearanceSettings>(view.appearance);
   const applied = useRef(JSON.stringify(view.appearance));
   const [problem, setProblem] = useState("");
@@ -80,6 +81,7 @@ export function AppearanceSection({ view, draft, theme, onTheme, look, onLook }:
       )}
       <AppCard view={view} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
       <BarCard view={view} bar={controls.bar} onChange={(bar) => setControls((now) => ({ ...now, bar }))} />
+      <ThumbnailsCard view={view} run={run} />
       <EditCard
         view={view}
         edit={controls.edit}
@@ -91,7 +93,7 @@ export function AppearanceSection({ view, draft, theme, onTheme, look, onLook }:
 }
 
 /** AppCard edits the app's own look: its theme, accent, font and text size. */
-function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionProps, "draft">) {
+function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionProps, "draft" | "run">) {
   const themes: Theme[] = ["system", "light", "dark"];
   const options = view.options;
   const limits = options.limits;

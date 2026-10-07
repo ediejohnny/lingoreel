@@ -21,6 +21,7 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
@@ -29,11 +30,14 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/seekable"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/settingsfile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/stillcache"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
@@ -82,6 +86,9 @@ const singleInstanceID = "lingoreel-edie-johnny"
 // they never hold subtitle text.
 const logFolder = "logs"
 
+// thumbnailsFolder holds the films' seek-bar stills, next to the settings.
+const thumbnailsFolder = "thumbnails"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "LingoReel:", err)
@@ -104,6 +111,7 @@ func run() error {
 		return err
 	}
 	files := settingsfile.Open(dir)
+	stills := stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)}
 	// The interface speaks its language from the first text on; a
 	// configuration that does not load is reported by the app later.
 	config, _ := files.LoadConfig()
@@ -137,7 +145,7 @@ func run() error {
 			Service: service, Registry: registry,
 			OpenWindow: stage.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
-				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
+				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus, Moment: ptbr.Clock,
 				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty, Menu: ptbr.MenuTexts(keyboard.Char),
 			}, ptbr.WindowTitle, logger),
 			WindowHearsKeys: true,
@@ -161,11 +169,22 @@ func run() error {
 			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
 			FindDecoder: findFFmpeg,
+			OpenStills:  openStills,
+			StillsStopped: func(err error) {
+				logger.Info("the seek bar's stills stopped", "reason", err)
+			},
+			// The stills stay in the app's own folder, never beside the film.
+			KeepStills: stills,
+			StillsUnkept: func(err error) {
+				logger.Warn("keeping the seek bar's stills", "err", err)
+			},
 		},
 		Stage:         stagePort{stage},
 		Settings:      files,
 		Installer:     install.Winget{},
 		FFmpeg:        userFFmpeg{},
+		Stills:        stills,
+		Faults:        diskfault.Of,
 		Window:        placement.ForVideo,
 		Logger:        logger,
 		KeyChar:       keyboard.Char,
@@ -369,4 +388,14 @@ func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
 		return nil
 	}
 	return ffmpeg.Decoder{Path: path}
+}
+
+// openStills prepares a film for the seek bar's stills with the user's own
+// FFmpeg.
+func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
+	path, err := ffmpeg.Find(ctx, chosen)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
+	}
+	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)
 }

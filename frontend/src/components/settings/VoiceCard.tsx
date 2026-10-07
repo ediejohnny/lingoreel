@@ -1,12 +1,11 @@
-import { Download, FolderOpen, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";
-import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
+import { FFmpegRow } from "./FFmpegRow";
 import type { SectionProps } from "./section";
 
 /** delaySaveAfter is how long the delay waits for the slider to stop before it is saved. */
@@ -19,25 +18,9 @@ const delaySaveAfter = 400;
  */
 export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
   const voice = view.voice;
-  const [installing, setInstalling] = useState(false);
-  const [installError, setInstallError] = useState("");
   const [delay, setDelay] = useState<number | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  useEffect(
-    () =>
-      backend.onInstall((progress) => {
-        if (progress.id !== "ffmpeg") {
-          return;
-        }
-        setInstalling(false);
-        setInstallError(progress.error);
-        if (!progress.error) {
-          void run(async () => undefined, t("ui.settings.voice.ffmpeg.installed"));
-        }
-      }),
-    [run],
-  );
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const following = voice.model && voice.follow;
@@ -49,14 +32,6 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
       setDelay(null);
       save({ delayMs: ms });
     }, delaySaveAfter);
-  };
-  const install = () => {
-    setInstalling(true);
-    setInstallError("");
-    backend.installFFmpeg().catch((failure: unknown) => {
-      setInstalling(false);
-      setInstallError(String(failure));
-    });
   };
 
   return (
@@ -97,35 +72,14 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           onChange={(sensitivity) => save({ sensitivity })}
           help={<HelpTip topic={t("ui.settings.voice.sensitivity.topic")}>{t("ui.settings.voice.sensitivity.help")}</HelpTip>}
         />
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-medium text-fg">{t("ui.settings.voice.ffmpeg.label")}</span>
-            <HelpTip topic={t("ui.settings.voice.ffmpeg.topic")}>{t("ui.settings.voice.ffmpeg.help")}</HelpTip>
-          </div>
-          <p className="text-sm break-all text-fg-muted">
-            {voice.ffmpegFound ? t("ui.settings.voice.ffmpeg.found", { path: voice.ffmpegFound }) : t("ui.settings.voice.ffmpeg.missing")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              icon={FolderOpen}
-              disabled={!following}
-              onClick={() => void run(() => backend.chooseFFmpeg(), t("ui.settings.voice.ffmpeg.chosen"))}
-            >
-              {t("ui.settings.voice.ffmpeg.choose")}
-            </Button>
-            {voice.ffmpegPath && (
-              <Button icon={X} onClick={() => void run(() => backend.clearFFmpeg())}>
-                {t("ui.settings.voice.ffmpeg.clear")}
-              </Button>
-            )}
-            {voice.canInstall && (
-              <Button icon={Download} loading={installing} disabled={!following} onClick={install}>
-                {t("ui.settings.voice.ffmpeg.install")}
-              </Button>
-            )}
-          </div>
-          {installError && <p className="text-sm text-error">{installError}</p>}
-        </div>
+        <FFmpegRow
+          voice={voice}
+          run={run}
+          disabled={!following}
+          found={(path) => t("ui.settings.voice.ffmpeg.found", { path })}
+          missing={t("ui.settings.voice.ffmpeg.missing")}
+          help={t("ui.settings.voice.ffmpeg.help")}
+        />
         <NumberField
           label={t("ui.settings.voice.delay.label")}
           value={delay ?? voice.delayMs}

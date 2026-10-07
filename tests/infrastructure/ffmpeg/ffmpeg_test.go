@@ -52,14 +52,24 @@ func TestTheArgumentsTakeTheVoiceOfTheMix(t *testing.T) {
 }
 
 // testFFmpeg is the FFmpeg the tests may use, never shipped with the app:
-// LINGOREEL_TEST_FFMPEG, or one installed on the machine.
+// the one LINGOREEL_TEST_FFMPEG names (scripts\check.ps1 names the one
+// kept beside the project). The tests never search the machine for another.
 func testFFmpeg(t *testing.T) string {
 	t.Helper()
-	path, err := ffmpeg.Find(context.Background(), os.Getenv("LINGOREEL_TEST_FFMPEG"))
-	if err != nil {
+	path := os.Getenv("LINGOREEL_TEST_FFMPEG")
+	if path == "" || ffmpeg.Check(context.Background(), path) != nil {
 		t.Skip("no FFmpeg for the tests (LINGOREEL_TEST_FFMPEG)")
 	}
 	return path
+}
+
+// makeFilm has the test FFmpeg write a film from its arguments.
+func makeFilm(t *testing.T, path string, args ...string) {
+	t.Helper()
+	command := exec.Command(path, append([]string{"-hide_banner", "-loglevel", "error", "-y"}, args...)...)
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("making the film: %v: %s", err, out)
+	}
 }
 
 // A real FFmpeg decodes a stretch of a 5.1 film whose centre speaks from
@@ -76,14 +86,11 @@ func TestARealFFmpegDecodesTheCentreOfAStretch(t *testing.T) {
 	}
 
 	film := filepath.Join(t.TempDir(), "film.mkv")
-	make := exec.Command(path, "-hide_banner", "-loglevel", "error",
+	makeFilm(t, path,
 		"-f", "lavfi", "-i", "sine=frequency=1000:duration=1,adelay=1000,apad=whole_dur=3",
 		"-f", "lavfi", "-i", "sine=frequency=300:duration=3",
 		"-filter_complex", "[0][1][1]join=inputs=3:channel_layout=3.0:map=0.0-FC|1.0-FL|2.0-FR,pan=5.1|FL=FL|FR=FR|FC=FC[out]",
 		"-map", "[out]", "-c:a", "ac3", film)
-	if out, err := make.CombinedOutput(); err != nil {
-		t.Fatalf("making the film: %v: %s", err, out)
-	}
 
 	var sound []float32
 	got := 0

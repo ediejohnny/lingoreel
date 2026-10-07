@@ -154,7 +154,7 @@ func (a *API) ExportSubtitle(line string) error {
 	}
 	if written, err := a.deps.WriteSubtitle(path, events); err != nil {
 		a.logger.Warn("export failed", "path", written, "error", err)
-		return errExport
+		return a.because(errExport, err)
 	}
 	return nil
 }

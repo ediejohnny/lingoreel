@@ -1,11 +1,15 @@
 package projectfile_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
@@ -46,6 +50,66 @@ func samePassages(a, b []project.Passage) bool {
 	return true
 }
 
+// film writes a video of its own content in dir.
+func film(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	video := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(video), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return video
+}
+
+// legacy is where an older version kept a video's project in the app's
+// folder when the video's folder took no writing: by its path.
+func legacy(app, video string) string {
+	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(video))))
+	return filepath.Join(app, "projects", hex.EncodeToString(sum[:8])+projectfile.Extension)
+}
+
+// only fails unless the folder holds just the names given.
+func only(t *testing.T, dir string, names ...string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, entry := range entries {
+		got = append(got, entry.Name())
+	}
+	if strings.Join(got, "|") != strings.Join(names, "|") {
+		t.Fatalf("%s holds %q, want %q", dir, got, names)
+	}
+}
+
+// changeInPlace writes the film over with content of the same size, as a
+// download that ended does, an hour later.
+func changeInPlace(t *testing.T, video, content string) {
+	t.Helper()
+	info, err := os.Stat(video)
+	if err != nil || info.Size() != int64(len(content)) {
+		t.Fatalf("changeInPlace with %d bytes over %v (%v)", len(content), info, err)
+	}
+	if err := os.WriteFile(video, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	later := info.ModTime().Add(time.Hour)
+	if err := os.Chtimes(video, later, later); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func gone(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("%s is still there (%v)", filepath.Base(path), err)
+	}
+}
+
 func TestBesideTheVideo(t *testing.T) {
 	t.Parallel()
 	cases := map[string]string{
@@ -60,10 +124,12 @@ func TestBesideTheVideo(t *testing.T) {
 	}
 }
 
+// The project is kept in the app's folder, never beside the film, and comes
+// back whole.
 func TestSaveAndLoadAgain(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
+	video := film(t, filepath.Join(dir, "Filmes"), "Movie.mkv", "the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
 
 	empty, err := store.Load(video)
@@ -73,9 +139,14 @@ func TestSaveAndLoadAgain(t *testing.T) {
 	if err := store.Save(video, sample()); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "Movie.dualsub.json"))
+	only(t, filepath.Join(dir, "Filmes"), "Movie.mkv")
+	path, err := store.File(video)
+	if err != nil || filepath.Dir(path) != filepath.Join(dir, "app", "projects") {
+		t.Fatalf("File = %s, %v", path, err)
+	}
+	data, err := os.ReadFile(path)
 	if err != nil || !strings.Contains(string(data), `"version": 3`) {
-		t.Fatalf("file beside the video: %v\n%s", err, data)
+		t.Fatalf("file in the app's folder: %v\n%s", err, data)
 	}
 	got, err := store.Load(video)
 	if err != nil {
@@ -93,84 +164,193 @@ func TestSaveAndLoadAgain(t *testing.T) {
 	}
 	// A track kept without edits can take one at once.
 	got.Tracks["file:Subs/Movie.pt-BR.srt"].Edits["1"] = project.Edit{Original: project.HashOf("x"), Text: new("y")}
-	if _, err := os.Stat(filepath.Join(dir, "app")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatal("the app's folder was written while the video's folder took the file")
-	}
 }
 
-func TestAFolderThatTakesNoWritingUsesTheAppFolder(t *testing.T) {
+// A film renamed or moved keeps its project; another film has its own.
+func TestTheProjectFollowsTheFilm(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
-	// A folder where the file should be: writing beside the video fails.
-	blocked := projectfile.Beside(video)
-	if err := os.Mkdir(blocked, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	video := film(t, dir, "Movie.mkv", strings.Repeat("the film ", 40_000))
 	store := projectfile.Open(filepath.Join(dir, "app"))
 	if err := store.Save(video, sample()); err != nil {
 		t.Fatal(err)
 	}
-	fallback := store.Fallback(video)
-	if !strings.HasPrefix(fallback, filepath.Join(dir, "app", "projects")) {
-		t.Fatalf("fallback at %s", fallback)
+	renamed := filepath.Join(dir, "Filme da escola.mkv")
+	moved := filepath.Join(dir, "Pendrive", "Outro nome.mkv")
+	if err := os.Rename(video, renamed); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := os.Stat(fallback); err != nil {
-		t.Fatalf("no file in the app's folder: %v", err)
+	if got, err := store.Load(renamed); err != nil || got.Choice.Mode != "dual" {
+		t.Fatalf("renamed: %q, %v", got.Choice.Mode, err)
 	}
-	// The same video typed in another case has the same file.
-	if store.Fallback(strings.ToUpper(video)) != fallback {
-		t.Fatal("the fallback depends on the case of the path")
+	if err := os.MkdirAll(filepath.Dir(moved), 0o700); err != nil {
+		t.Fatal(err)
 	}
-	if store.Fallback(filepath.Join(dir, "Other.mkv")) == fallback {
-		t.Fatal("two videos share a fallback")
+	if err := os.Rename(renamed, moved); err != nil {
+		t.Fatal(err)
 	}
-	// Loading finds it there, and nothing was left in the blocked folder.
-	if got, err := store.Load(video); err != nil || got.Choice.Mode != "dual" {
-		t.Fatalf("Load = %+v %v", got.Choice, err)
+	if got, err := store.Load(moved); err != nil || got.Choice.Mode != "dual" || len(got.Passages) != 2 {
+		t.Fatalf("moved: %+v, %v", got.Choice, err)
 	}
-	if entries, _ := os.ReadDir(blocked); len(entries) != 0 {
-		t.Fatalf("left %d entries in the blocked folder", len(entries))
-	}
-	// Without an app folder the failure is reported.
-	if err := projectfile.Open("").Save(video, sample()); err == nil {
-		t.Fatal("saved nowhere without an error")
+	other := film(t, dir, "Outro filme.mkv", strings.Repeat("another film ", 30_000))
+	if got, err := store.Load(other); err != nil || got.Choice.Mode != "" || len(got.Passages) != 0 {
+		t.Fatalf("another film: %+v, %v", got, err)
 	}
 }
 
-func TestTheFileBesideTheVideoComesFirst(t *testing.T) {
+// A film written over in place (a download that ended, a copy put in its
+// place) keeps the project its path last kept, and the next save keeps it
+// by the new content.
+func TestAFilmChangedInPlaceKeepsItsProject(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
+	video := film(t, dir, "Movie.mkv", "half of the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
-	beside, fallback := sample(), sample()
-	fallback.Choice.Mode = "always"
-	// One save through a blocked folder lands in the app's folder; the next,
-	// with the folder free, beside the video: both files exist.
-	blocked := projectfile.Beside(video)
-	if err := os.Mkdir(blocked, 0o700); err != nil {
+	if err := store.Save(video, sample()); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Save(video, fallback); err != nil {
+	before, err := store.File(video)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(blocked); err != nil {
+	changeInPlace(t, video, "whole film, done")
+	got, err := store.Load(video)
+	if err != nil || got.Choice.Mode != "dual" {
+		t.Fatalf("changed in place: %q, %v", got.Choice.Mode, err)
+	}
+	got.Choice.Mode = "always"
+	if err := store.Save(video, got); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Save(video, beside); err != nil {
+	after, err := store.File(video)
+	if err != nil || after == before {
+		t.Fatalf("the new content is kept as %s (%v), the old as %s", after, err, before)
+	}
+	if again, err := store.Load(video); err != nil || again.Choice.Mode != "always" {
+		t.Fatalf("again: %q, %v", again.Choice.Mode, err)
+	}
+}
+
+// A project an older version left beside the film moves into the app's
+// folder on the first opening: the old file goes, and so does the older
+// copy kept by the film's path.
+func TestAProjectBesideTheFilmMovesIn(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	app := filepath.Join(dir, "app")
+	video := film(t, filepath.Join(dir, "Filmes"), "Movie.mkv", "the film")
+	if err := os.WriteFile(projectfile.Beside(video), []byte(`{"version": 2, "choice": {"mode": "dual"}, "passages": [{"name": "Rua", "start": 60000, "end": 64000}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := store.Load(video); err != nil || got.Choice.Mode != "dual" {
-		t.Fatalf("Load took %q (%v), want the file beside the video", got.Choice.Mode, err)
+	older := legacy(app, video)
+	if err := os.MkdirAll(filepath.Dir(older), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(older, []byte(`{"version": 2, "choice": {"mode": "always"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := projectfile.Open(app)
+	got, err := store.Load(video)
+	if err != nil || got.Choice.Mode != "dual" || len(got.Passages) != 1 {
+		t.Fatalf("Load = %+v, %v", got, err)
+	}
+	only(t, filepath.Join(dir, "Filmes"), "Movie.mkv")
+	gone(t, older)
+	path, _ := store.File(video)
+	if data, err := os.ReadFile(path); err != nil || !strings.Contains(string(data), `"version": 3`) || !strings.Contains(string(data), `"Rua"`) {
+		t.Fatalf("moved in: %v\n%s", err, data)
+	}
+	// A fresh store (the app opened again) finds it there.
+	if again, err := projectfile.Open(app).Load(video); err != nil || len(again.Passages) != 1 || again.Choice.Mode != "dual" {
+		t.Fatalf("again = %+v, %v", again, err)
+	}
+}
+
+// A project an older version kept in the app's folder by the film's path
+// (its folder took no writing) moves in too, whatever the path's case.
+func TestAProjectKeptByThePathMovesIn(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	app := filepath.Join(dir, "app")
+	video := film(t, dir, "Movie.mkv", "the film")
+	older := legacy(app, strings.ToUpper(video))
+	if err := os.MkdirAll(filepath.Dir(older), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(older, []byte(`{"version": 3, "choice": {"mode": "always"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := projectfile.Open(app)
+	if got, err := store.Load(video); err != nil || got.Choice.Mode != "always" {
+		t.Fatalf("Load = %q, %v", got.Choice.Mode, err)
+	}
+	gone(t, older)
+	if got, err := projectfile.Open(app).Load(video); err != nil || got.Choice.Mode != "always" {
+		t.Fatalf("again = %q, %v", got.Choice.Mode, err)
+	}
+}
+
+// An old project that cannot be removed (in use by another program, in a
+// folder without rights) stays where it is but is no longer read: what is
+// saved after wins, and forgetting the video leaves it empty.
+func TestAnOldProjectThatCannotGoStaysUnread(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "windows" {
+		t.Skip("an open file can be removed here")
+	}
+	dir := t.TempDir()
+	video := film(t, dir, "Movie.mkv", "the film")
+	beside := projectfile.Beside(video)
+	if err := os.WriteFile(beside, []byte(`{"version": 3, "choice": {"mode": "dual"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Go opens files without letting them be removed while open.
+	holder, err := os.Open(beside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { holder.Close() })
+	store := projectfile.Open(filepath.Join(dir, "app"))
+	got, err := store.Load(video)
+	if err != nil || got.Choice.Mode != "dual" {
+		t.Fatalf("Load = %q, %v", got.Choice.Mode, err)
+	}
+	if _, err := os.Stat(beside); err != nil {
+		t.Fatalf("the file in use went: %v", err)
+	}
+	// Changed in place before any save, the film keeps the project moved in,
+	// and the old file is not read (nor moved in) again.
+	changeInPlace(t, video, "the mlif")
+	if got, err = store.Load(video); err != nil || got.Choice.Mode != "dual" {
+		t.Fatalf("changed in place: %q, %v", got.Choice.Mode, err)
+	}
+	if path, _ := store.File(video); path != "" {
+		gone(t, path)
+	}
+	got.Choice.Mode = "always"
+	if err := store.Save(video, got); err != nil {
+		t.Fatal(err)
+	}
+	if again, err := projectfile.Open(filepath.Join(dir, "app")).Load(video); err != nil || again.Choice.Mode != "always" {
+		t.Fatalf("after a save: %q, %v", again.Choice.Mode, err)
+	}
+	if err := store.Remove(video); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if again, err := projectfile.Open(filepath.Join(dir, "app")).Load(video); err != nil || again.Choice.Mode != "" {
+		t.Fatalf("forgotten, the old file came back: %q, %v", again.Choice.Mode, err)
 	}
 }
 
 func TestFilesThatCannotBeTrusted(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
+	video := film(t, dir, "Movie.mkv", "the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
-	path := projectfile.Beside(video)
+	kept, err := store.File(video)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cases := []struct {
 		name string
 		body string
@@ -191,40 +371,61 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 		{"no version", `{"tracks": {}}`, nil},
 		{"wrong types", `{"version": 1, "tracks": []}`, nil},
 	}
-	for _, c := range cases {
-		if err := os.WriteFile(path, []byte(c.body), 0o600); err != nil {
+	// Left beside the film by an older version, or kept by the app: refused
+	// alike, never changed, and an old one never moved in.
+	for _, path := range []string{projectfile.Beside(video), kept} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		got, err := store.Load(video)
-		if err == nil || (c.want != nil && !errors.Is(err, c.want)) {
-			t.Errorf("%s: Load = %v, want %v", c.name, err, c.want)
+		for _, c := range cases {
+			if err := os.WriteFile(path, []byte(c.body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := store.Load(video)
+			if err == nil || (c.want != nil && !errors.Is(err, c.want)) {
+				t.Errorf("%s, %s: Load = %v, want %v", filepath.Base(path), c.name, err, c.want)
+			}
+			if got.Tracks == nil || len(got.Tracks) != 0 || len(got.Passages) != 0 {
+				t.Errorf("%s, %s: a refused file left values: %+v", filepath.Base(path), c.name, got)
+			}
+			if data, _ := os.ReadFile(path); string(data) != c.body {
+				t.Errorf("%s, %s: Load changed the file", filepath.Base(path), c.name)
+			}
+			if path != kept {
+				if _, err := os.Stat(kept); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("%s: a refused old file was moved in", c.name)
+				}
+			}
 		}
-		if got.Tracks == nil || len(got.Tracks) != 0 || len(got.Passages) != 0 {
-			t.Errorf("%s: a refused file left values: %+v", c.name, got)
+		// A file larger than the store reads is refused without reading it all.
+		huge := `{"version": 1, "passages": [` + strings.Repeat(`{"name": "P", "start": 0, "end": 1},`, 300_000) + `]}`
+		if err := os.WriteFile(path, []byte(huge), 0o600); err != nil {
+			t.Fatal(err)
 		}
-		if data, _ := os.ReadFile(path); string(data) != c.body {
-			t.Errorf("%s: Load changed the file", c.name)
+		if _, err := store.Load(video); err == nil {
+			t.Fatalf("%s: a huge file was read", filepath.Base(path))
 		}
-	}
-	// A file larger than the store reads is refused without reading it all.
-	huge := `{"version": 1, "passages": [` + strings.Repeat(`{"name": "P", "start": 0, "end": 1},`, 300_000) + `]}`
-	if err := os.WriteFile(path, []byte(huge), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := store.Load(video); err == nil {
-		t.Fatal("a huge file was read")
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// An invalid project is never written.
 	bad := sample()
 	bad.Passages[0].End = 0
-	if err := os.Remove(path); err != nil {
-		t.Fatal(err)
-	}
 	if err := store.Save(video, bad); !errors.Is(err, project.ErrInvalid) {
 		t.Fatalf("Save of an invalid project = %v", err)
 	}
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatal("an invalid project reached the disk")
+	gone(t, kept)
+	// The mark of the film's path names a key, never a file elsewhere.
+	mark := strings.TrimSuffix(legacy(filepath.Join(dir, "app"), video), projectfile.Extension) + ".film"
+	if err := os.WriteFile(mark, []byte(`..\..\escape`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "escape"+projectfile.Extension), []byte(`{"version": 3, "choice": {"mode": "dual"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := store.Load(video); err != nil || got.Choice.Mode != "" {
+		t.Fatalf("a mark led out of the app's folder: %q, %v", got.Choice.Mode, err)
 	}
 }
 
@@ -234,7 +435,7 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
+	video := film(t, dir, "Movie.mkv", "the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
 	old := `{"version": 1, "tracks": {"uid:7": {"offset": 250, "edits": {}}},
 		"choice": {"audio": "", "primary": "uid:7", "translation": "", "mode": "on-demand"},
@@ -260,63 +461,80 @@ func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 	if err := store.Save(video, got); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(projectfile.Beside(video))
+	path, _ := store.File(video)
+	data, err := os.ReadFile(path)
 	if err != nil || !strings.Contains(string(data), `"version": 3`) || !strings.Contains(string(data), `"Rua"`) {
 		t.Fatalf("saved again: %v\n%s", err, data)
 	}
 }
 
-// Forgetting a video removes its file beside it and the one in the app's
-// folder, and is quiet when there is nothing to remove.
-func TestRemoveForgetsBothFiles(t *testing.T) {
+// Forgetting a video removes its project, is quiet when there is nothing to
+// remove, and leaves a folder of that name alone.
+func TestRemoveForgetsTheProject(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Movie.mkv")
+	video := film(t, dir, "Movie.mkv", "the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
-	// One save through a blocked folder lands in the app's folder, the next
-	// beside the video: both files exist.
-	blocked := projectfile.Beside(video)
-	if err := os.Mkdir(blocked, 0o700); err != nil {
-		t.Fatal(err)
-	}
 	if err := store.Save(video, sample()); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(blocked); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Save(video, sample()); err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{projectfile.Beside(video), store.Fallback(video)} {
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("setup: %s missing: %v", path, err)
-		}
-	}
+	path, _ := store.File(video)
 	if err := store.Remove(video); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
-	for _, path := range []string{projectfile.Beside(video), store.Fallback(video)} {
-		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("%s is still there after Remove (%v)", path, err)
-		}
-	}
+	gone(t, path)
 	if got, err := store.Load(video); err != nil || len(got.Passages) != 0 || got.Choice.Mode != "" {
 		t.Fatalf("after Remove, Load = %+v %v; want an empty project", got, err)
 	}
 	if err := store.Remove(video); err != nil {
 		t.Fatalf("Remove with nothing left: %v", err)
 	}
-	// A folder named like the file is no project: it stays.
-	if err := os.Mkdir(blocked, 0o700); err != nil {
+	if err := os.Mkdir(path, 0o700); err != nil {
 		t.Fatal(err)
+	}
+	if got, err := store.Load(video); err != nil || got.Choice.Mode != "" {
+		t.Fatalf("a folder in the way was read: %q, %v", got.Choice.Mode, err)
 	}
 	if err := store.Remove(video); err != nil {
 		t.Fatalf("Remove with a folder in the way: %v", err)
 	}
-	if info, err := os.Stat(blocked); err != nil || !info.IsDir() {
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
 		t.Fatal("Remove deleted a folder")
 	}
+	// Saved again, the video has a project again.
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(video, sample()); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := projectfile.Open(filepath.Join(dir, "app")).Load(video); err != nil || got.Choice.Mode != "dual" {
+		t.Fatalf("saved after Remove: %q, %v", got.Choice.Mode, err)
+	}
+	// A film changed in place, forgotten before any save, has nothing either.
+	changeInPlace(t, video, "the mlif")
+	if err := store.Remove(video); err != nil {
+		t.Fatalf("Remove of a film changed in place: %v", err)
+	}
+	if got, err := projectfile.Open(filepath.Join(dir, "app")).Load(video); err != nil || got.Choice.Mode != "" {
+		t.Fatalf("forgotten after a change in place: %q, %v", got.Choice.Mode, err)
+	}
+}
+
+// A film that cannot be read has its project kept nowhere, and without the
+// app's folder nothing is kept: never beside the film.
+func TestNothingIsKeptWithoutAFilmOrAFolder(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "Movie.mkv")
+	if err := projectfile.Open(filepath.Join(dir, "app")).Save(missing, sample()); err == nil {
+		t.Fatal("saved the project of a film that is not there")
+	}
+	video := film(t, dir, "Movie.mkv", "the film")
+	if err := projectfile.Open("").Save(video, sample()); !errors.Is(err, projectfile.ErrNoFolder) {
+		t.Fatalf("Save without the app's folder = %v", err)
+	}
+	only(t, dir, "Movie.mkv")
 }
 
 func TestTrackKeysSurviveANewAnalysis(t *testing.T) {
@@ -347,10 +565,7 @@ func TestTrackKeysSurviveANewAnalysis(t *testing.T) {
 func TestAddedFilesComeBack(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	video := filepath.Join(dir, "Filmes", "Movie.mkv")
-	if err := os.MkdirAll(filepath.Dir(video), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	video := film(t, filepath.Join(dir, "Filmes"), "Movie.mkv", "the film")
 	store := projectfile.Open(filepath.Join(dir, "app"))
 	if err := os.WriteFile(projectfile.Beside(video), []byte(`{"version": 2, "passages": [{"name": "Rua", "start": 60000, "end": 64000}]}`), 0o600); err != nil {
 		t.Fatal(err)

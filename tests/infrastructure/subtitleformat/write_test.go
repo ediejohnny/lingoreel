@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
@@ -59,6 +62,51 @@ func TestWriteFileTakesTheFormatOfTheName(t *testing.T) {
 	}
 	if _, err := subtitleformat.WriteFile(filepath.Join(dir, "missing", "x.srt"), exportSample()); err == nil {
 		t.Fatal("a folder that is not there was written to")
+	}
+}
+
+// Writing over a subtitle that was there replaces it whole, or leaves it as
+// it was when the new one cannot take its place (held by another program
+// here, as a full disk would leave it): never half written, and nothing
+// else left in the folder.
+func TestAnExportNeverSpoilsTheFileItReplaces(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows' own sharing")
+	}
+	dir := t.TempDir()
+	original := filepath.Join(dir, "Movie.en.srt")
+	if err := os.WriteFile(original, []byte("1\r\n00:00:01,000 --> 00:00:02,000\r\nThe film's own.\r\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	name, err := windows.UTF16PtrFromString(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := windows.CreateFile(name, windows.GENERIC_READ, 0, nil, windows.OPEN_EXISTING, windows.FILE_ATTRIBUTE_NORMAL, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := subtitleformat.WriteFile(original, exportSample()); err == nil {
+		t.Fatal("a file held without sharing was written over")
+	}
+	windows.CloseHandle(held)
+	if body, err := os.ReadFile(original); err != nil || !strings.Contains(string(body), "The film's own.") {
+		t.Fatalf("the original after a failed export: %q, %v", body, err)
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 1 {
+		t.Fatalf("the folder holds %d entries after a failed export, want the original alone", len(entries))
+	}
+	if _, err := subtitleformat.WriteFile(original, exportSample()); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(original)
+	if err != nil || !strings.Contains(string(body), "I'm gonna...") || strings.Contains(string(body), "The film's own.") {
+		t.Fatalf("the original after an export: %q, %v", body, err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 1 {
+		t.Fatalf("the folder holds %d entries after an export", len(entries))
 	}
 }
 

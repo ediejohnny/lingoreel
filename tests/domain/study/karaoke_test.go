@@ -269,3 +269,47 @@ func TestCueRulesValidate(t *testing.T) {
 		t.Error("indicator validity")
 	}
 }
+
+// A line's fill always ends while the line shows: whatever paints it (a
+// voice still at half when the line goes, an estimate drawn a frame too
+// early) is caught up over the line's last moments and is all painted
+// before it goes, never going back and never painting less.
+func TestAFillAlwaysEndsWhileItsLineShows(t *testing.T) {
+	t.Parallel()
+	for _, shown := range []struct{ start, end time.Duration }{
+		{s(20), s(23)},  // caught up over its last 400 ms, done 120 ms before it goes
+		{s(1), s(1.3)},  // a quick line: over its last 90 ms, done 100 ms before
+		{s(5), s(5.03)}, // a flash: done in its first two thirds
+	} {
+		last := 0.0
+		for at := shown.start; at < shown.end; at += time.Millisecond {
+			voice := 0.5 * float64(at-shown.start) / float64(shown.end-shown.start)
+			got := study.FinishedFill(voice, at, shown.start, shown.end)
+			if got < voice || got < last || got > 1 {
+				t.Fatalf("line %v-%v at %v: fill %v after %v, the voice at %v", shown.start, shown.end, at, got, last, voice)
+			}
+			last = got
+		}
+		if last != 1 {
+			t.Errorf("line %v-%v: %v painted when it goes", shown.start, shown.end, last)
+		}
+	}
+	for _, c := range []struct {
+		fill           float64
+		at, start, end time.Duration
+		want           float64
+	}{
+		{0.3, s(21), s(20), s(23), 0.3},    // well before its end: the voice's own
+		{0.2, s(22.48), s(20), s(23), 0.2}, // the catch-up begins
+		{0.2, s(22.68), s(20), s(23), 0.6}, // halfway through it
+		{0, s(22.88), s(20), s(23), 1},     // 120 ms before the line goes
+		{0.4, s(1.11), s(1), s(1.3), 0.4},  // a quick line's catch-up begins
+		{0, s(1.2), s(1), s(1.3), 1},       // and ends 100 ms before it goes
+		{0, s(0.9), s(1), s(1.3), 0},       // before the line
+		{0.7, s(1.2), s(1.3), s(1.3), 0.7}, // a line of no length
+	} {
+		if got := study.FinishedFill(c.fill, c.at, c.start, c.end); math.Abs(got-c.want) > 1e-9 {
+			t.Errorf("fill %v at %v of %v-%v: %v, want %v", c.fill, c.at, c.start, c.end, got, c.want)
+		}
+	}
+}

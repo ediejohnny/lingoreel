@@ -10,6 +10,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
@@ -75,6 +76,12 @@ type Remote interface {
 	CanUndo() bool
 	CanRedo() bool
 	Tracks() Tracks
+
+	// What the seek bar shows above the pointer: the still that stands for
+	// the moment under it, which the pointer asks to have first. Neither
+	// waits for a still.
+	Thumbnail(at time.Duration) thumbnail.View
+	WantThumbnail(at time.Duration)
 }
 
 // Window is the app's own window a player draws its video into. It shows
@@ -143,7 +150,17 @@ type Ports struct {
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
 	// the video; nil, or a nil answer, hears the player instead.
 	FindDecoder func(ctx context.Context, chosen string) voice.Decoder
-	Now         func() time.Time
+	// OpenStills prepares a film for the seek bar's stills with the user's
+	// FFmpeg (chosen, else one found), or reports thumbnail.ErrNoStills; nil
+	// shows the time alone. StillsStopped hears why a film's stills stopped.
+	OpenStills    func(ctx context.Context, chosen, file string) (thumbnail.Film, error)
+	StillsStopped func(err error)
+	// KeepStills keeps a film's stills between openings, in the app's own
+	// folder; nil keeps them in memory only. StillsUnkept hears a problem
+	// keeping them.
+	KeepStills   thumbnail.Store
+	StillsUnkept func(err error)
+	Now          func() time.Time
 }
 
 // Request is what to watch and how.
@@ -169,6 +186,8 @@ type Request struct {
 	Saved map[session.Line]project.Track
 	// Voice is how the actors' voice is followed for the karaoke mode's fill.
 	Voice VoiceSetup
+	// Thumbnails is how the seek bar's stills are taken.
+	Thumbnails ThumbnailSetup
 	// Karaoke is the karaoke mode to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke

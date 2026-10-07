@@ -36,10 +36,46 @@ func WriteFile(path string, events []subtitle.Event) (string, error) {
 	if err := write(&body, events); err != nil {
 		return path, fmt.Errorf("writing %s: %w", filepath.Base(path), err)
 	}
-	if err := os.WriteFile(path, body.Bytes(), exportMode); err != nil {
+	if err := replace(path, body.Bytes()); err != nil {
 		return path, fmt.Errorf("saving the subtitle: %w", err)
 	}
 	return path, nil
+}
+
+// replace writes body whole beside path and only then puts it in its place,
+// so a full disk or a crash never spoils a file that was there (the film's
+// own subtitle, say).
+func replace(path string, body []byte) error {
+	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	done := false
+	defer func() {
+		if !done {
+			temporary.Close()
+			os.Remove(temporary.Name())
+		}
+	}()
+	if _, err := temporary.Write(body); err != nil {
+		return err
+	}
+	if err := temporary.Chmod(exportMode); err != nil {
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(temporary.Name(), path); err != nil {
+		os.Remove(temporary.Name())
+		done = true
+		return err
+	}
+	done = true
+	return nil
 }
 
 // The exported files start with utf8BOM: older Windows players need it to

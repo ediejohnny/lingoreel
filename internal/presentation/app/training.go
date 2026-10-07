@@ -60,7 +60,7 @@ func (a *API) SetLineRepeats(times int) error {
 func (a *API) keep(change func(*settings.KaraokePreferences)) error {
 	if err := a.updateProfile(func(profile *settings.Profile) { change(&profile.Study.Karaoke) }); err != nil {
 		a.logger.Warn("the karaoke mode choice was not saved", "error", err)
-		return errBadSettings
+		return a.because(errBadSettings, err)
 	}
 	return nil
 }

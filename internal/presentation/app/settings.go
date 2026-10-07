@@ -101,7 +101,7 @@ func (a *API) Settings() (SettingsView, error) {
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
-		Folder: a.deps.SettingsDir,
+		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir,
 	}
 	return view, nil
 }
@@ -253,12 +253,12 @@ func (a *API) restyle(profile settings.Profile) {
 func (a *API) commitProfiles(next settings.Profiles) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused profiles", "error", err)
-		return errors.New(ptbr.T("error.profile.notSaved"))
+		return errProfilesNotSaved
 	}
 	if a.deps.Settings != nil {
 		if err := a.deps.Settings.SaveProfiles(next); err != nil {
 			a.logger.Warn("profiles could not be saved", "error", err)
-			return errors.New(ptbr.T("error.profile.notSaved"))
+			return a.because(errProfilesNotSaved, err)
 		}
 	}
 	a.profiles = next
@@ -270,12 +270,12 @@ func (a *API) commitProfiles(next settings.Profiles) error {
 func (a *API) commitConfig(next settings.Config) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused settings", "error", err)
-		return errors.New(ptbr.T("error.settings.notSaved"))
+		return errSettingsNotSaved
 	}
 	if a.deps.Settings != nil {
 		if err := a.deps.Settings.SaveConfig(next); err != nil {
 			a.logger.Warn("settings could not be saved", "error", err)
-			return errors.New(ptbr.T("error.settings.notSaved"))
+			return a.because(errSettingsNotSaved, err)
 		}
 	}
 	a.config = next

@@ -61,6 +61,9 @@ var (
 	procSetPenLineCap            = dll.NewProc("GdipSetPenLineCap197819")
 	procSetClipRect              = dll.NewProc("GdipSetClipRect")
 	procResetClip                = dll.NewProc("GdipResetClip")
+	procDrawImageRectI           = dll.NewProc("GdipDrawImageRectI")
+	procSetInterpolationMode     = dll.NewProc("GdipSetInterpolationMode")
+	procSetPixelOffsetMode       = dll.NewProc("GdipSetPixelOffsetMode")
 )
 
 const (
@@ -73,6 +76,10 @@ const (
 	dashCapFlat           = 0
 	combineModeReplace    = 0
 	matrixOrderAppend     = 1
+
+	interpolationHighQualityBilinear = 6
+	interpolationHighQualityBicubic  = 7
+	pixelOffsetHalf                  = 4
 
 	fontStyleBold   = 1
 	fontStyleItalic = 2

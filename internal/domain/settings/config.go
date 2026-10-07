@@ -63,6 +63,9 @@ type Config struct {
 	// Voice is how the karaoke mode follows the actors' voice on this
 	// computer.
 	Voice VoicePreferences `json:"voice"`
+	// Thumbnails are the seek bar's stills on this computer, apart from the
+	// bar so restoring the bar's look leaves them as they are.
+	Thumbnails ThumbnailPreferences `json:"thumbnails"`
 }
 
 // Ranges of how long the bar stays after the mouse leaves it.
@@ -141,6 +144,7 @@ func DefaultConfig() Config {
 		Edit:          appearance.DefaultEditStyle(),
 		Interface:     appearance.DefaultInterfaceStyle(),
 		Voice:         DefaultVoice(),
+		Thumbnails:    DefaultThumbnails(),
 	}
 }
 

@@ -208,14 +208,15 @@ func (s *Subtitles) At(position time.Duration) Visible {
 			return visible // only a sound's description, or music: never painted
 		}
 		visible.Filling = true
+		// Whatever paints the line, it is all painted before the line goes.
+		start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
 		if s.voice != nil {
-			start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
 			if fill, found := s.voice(line.Text(), start, end, position); found {
-				visible.Fill = fill
+				visible.Fill = study.FinishedFill(fill, position, start, end)
 				return visible
 			}
 		}
-		visible.Fill = study.SpokenFraction(line, primary.Offset.TrackTime(position))
+		visible.Fill = study.FinishedFill(study.SpokenFraction(line, primary.Offset.TrackTime(position)), position, start, end)
 	}
 	return visible
 }

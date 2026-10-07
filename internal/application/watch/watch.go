@@ -18,6 +18,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -90,6 +91,14 @@ type Session struct {
 	// voice follows the actor's voice for the karaoke mode's fill.
 	voice     *voicing
 	showPanel func()
+	// stills are the seek bar's, for a video in the app's window; nil shows
+	// the time alone. newStills starts them in a setup (nil: none can be
+	// taken, or the session ended); onBattery is the computer's power.
+	stillsMu    sync.Mutex
+	stills      *thumbnail.Service
+	stillsSetup ThumbnailSetup
+	newStills   func(ThumbnailSetup) *thumbnail.Service
+	onBattery   atomic.Bool
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -236,6 +245,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 		go s.listenShortcuts(s.shortcuts)
 	}
 
+	if window != nil {
+		s.startStills(ports, request, info)
+	}
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	if ports.Power != nil {
@@ -295,6 +307,7 @@ func (s *Session) endWhenClosed(closed <-chan struct{}) {
 func (s *Session) run(ctx context.Context, runner *session.Runner) {
 	err := runner.Run(ctx, s.running.Samples())
 	s.endVoice()
+	s.endStills()
 	if errors.Is(err, context.Canceled) {
 		err = nil
 	}
