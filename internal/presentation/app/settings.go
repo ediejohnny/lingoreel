@@ -101,7 +101,7 @@ func (a *API) Settings() (SettingsView, error) {
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
-		Folder: a.deps.SettingsDir,
+		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir,
 	}
 	return view, nil
 }

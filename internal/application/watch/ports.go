@@ -186,6 +186,8 @@ type Request struct {
 	Saved map[session.Line]project.Track
 	// Voice is how the actors' voice is followed for the karaoke mode's fill.
 	Voice VoiceSetup
+	// Thumbnails is how the seek bar's stills are taken.
+	Thumbnails ThumbnailSetup
 	// Karaoke is the karaoke mode to start with, its indicator and how many
 	// times each line plays again (0 is off).
 	Karaoke     session.Karaoke

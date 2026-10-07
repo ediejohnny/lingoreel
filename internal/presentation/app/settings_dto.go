@@ -16,8 +16,10 @@ type SettingsView struct {
 	Players    []PlayerSetting    `json:"players"`
 	// Voice is how the karaoke mode follows the actors' voice on this
 	// computer.
-	Voice   VoiceSettings   `json:"voice"`
-	Options SettingsOptions `json:"options"`
+	Voice VoiceSettings `json:"voice"`
+	// Thumbnails are the seek bar's stills on this computer.
+	Thumbnails ThumbnailSettings `json:"thumbnails"`
+	Options    SettingsOptions   `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
 }
@@ -57,6 +59,18 @@ type VoiceSettings struct {
 	FFmpegPath  string `json:"ffmpegPath"`
 	FFmpegFound string `json:"ffmpegFound"`
 	CanInstall  bool   `json:"canInstall"`
+}
+
+// ThumbnailSettings are the seek bar's stills on this computer: taken at
+// all, in the background on the battery too, and kept on the disk. Battery
+// tells the computer has one and KeptBytes how much the kept stills take
+// (both read only).
+type ThumbnailSettings struct {
+	On        bool  `json:"on"`
+	OnBattery bool  `json:"onBattery"`
+	OnDisk    bool  `json:"onDisk"`
+	Battery   bool  `json:"battery"`
+	KeptBytes int64 `json:"keptBytes"`
 }
 
 // ProfileSettings are the active profile's choices.

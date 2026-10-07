@@ -110,6 +110,7 @@ func run() error {
 		return err
 	}
 	files := settingsfile.Open(dir)
+	stills := stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)}
 	// The interface speaks its language from the first text on; a
 	// configuration that does not load is reported by the app later.
 	config, _ := files.LoadConfig()
@@ -172,7 +173,7 @@ func run() error {
 				logger.Info("the seek bar's stills stopped", "reason", err)
 			},
 			// The stills stay in the app's own folder, never beside the film.
-			KeepStills: stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)},
+			KeepStills: stills,
 			StillsUnkept: func(err error) {
 				logger.Warn("keeping the seek bar's stills", "err", err)
 			},
@@ -181,6 +182,7 @@ func run() error {
 		Settings:      files,
 		Installer:     install.Winget{},
 		FFmpeg:        userFFmpeg{},
+		Stills:        stills,
 		Window:        placement.ForVideo,
 		Logger:        logger,
 		KeyChar:       keyboard.Char,

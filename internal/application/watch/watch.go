@@ -92,8 +92,13 @@ type Session struct {
 	voice     *voicing
 	showPanel func()
 	// stills are the seek bar's, for a video in the app's window; nil shows
-	// the time alone.
-	stills *thumbnail.Service
+	// the time alone. newStills starts them in a setup (nil: none can be
+	// taken, or the session ended); onBattery is the computer's power.
+	stillsMu    sync.Mutex
+	stills      *thumbnail.Service
+	stillsSetup ThumbnailSetup
+	newStills   func(ThumbnailSetup) *thumbnail.Service
+	onBattery   atomic.Bool
 
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -302,7 +307,7 @@ func (s *Session) endWhenClosed(closed <-chan struct{}) {
 func (s *Session) run(ctx context.Context, runner *session.Runner) {
 	err := runner.Run(ctx, s.running.Samples())
 	s.endVoice()
-	s.stills.Close()
+	s.endStills()
 	if errors.Is(err, context.Canceled) {
 		err = nil
 	}

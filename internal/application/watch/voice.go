@@ -219,7 +219,7 @@ func (s *Session) ModelRest() ModelRest {
 // bar's stills take, on the battery, only the pointer's.
 func (s *Session) watchPower(ctx context.Context, power voice.Power) {
 	power.Watch(ctx, func(onBattery bool) {
-		s.stills.Rest(onBattery)
+		s.restStills(onBattery)
 		v := s.voice
 		v.mu.Lock()
 		changed := v.setup.Rest(v.onBattery) != v.setup.Rest(onBattery)

@@ -99,6 +99,7 @@ func (a *API) Watch(request WatchRequest) error {
 	profile := a.profile()
 	syncNotice := a.config.SyncNotice
 	voicePreferences := a.config.Voice
+	thumbnails := a.config.Thumbnails
 	var saved map[session.Line]project.Track
 	var last project.Last
 	var passages []project.Passage
@@ -124,7 +125,7 @@ func (a *API) Watch(request WatchRequest) error {
 		Speed: profile.Speed, Shortcuts: profile.Shortcuts, Reveal: profile.Study.Reveal, NoSyncNotice: !syncNotice,
 		TranslationOwnTiming: profile.Sync.TranslationOwnTiming, VolumeTouch: profile.VolumeTouch,
 		Mode: mode, PrecisionStep: profile.Sync.PrecisionSeekStep.Std(), Saved: saved,
-		Voice: voiceSetup(voicePreferences),
+		Voice: voiceSetup(voicePreferences), Thumbnails: thumbnailSetup(thumbnails),
 	}
 	// What the user changed on this video comes back over the profile.
 	if last.Speed != 0 {

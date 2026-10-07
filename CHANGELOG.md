@@ -30,6 +30,11 @@ All notable changes to this project are listed here. The format follows
   room, and a disk still too full keeps the stills in memory for the session. A damaged package is refused within bounds
   and the film starts over. Each save at least doubles what is kept, so a long film is written some twice its size in
   all.
+- The settings' Appearance page has a card for the seek bar's stills: showing them or not, taking them in the
+  background on a battery too, keeping them on the disk or taking them again at each opening (in memory only, the disk
+  never read or written), how much the kept stills take with a button that clears them, and the FFmpeg that takes them,
+  the same as the voice's. Each choice applies at once, to the video playing too, and a configuration from before keeps
+  the stills on and on the disk. The settings folder's note says the projects and the stills live there.
 - `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
   or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
   loses, and held to a few processors as a smaller computer, printing the film's key and never its name.

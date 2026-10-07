@@ -134,10 +134,11 @@ interface SegmentedProps {
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
   help?: ReactNode;
+  disabled?: boolean;
 }
 
 /** Segmented is a small set of buttons where one is chosen. */
-export function Segmented({ label, value, options, onChange, help }: SegmentedProps) {
+export function Segmented({ label, value, options, onChange, help, disabled }: SegmentedProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-1">
@@ -155,8 +156,9 @@ export function Segmented({ label, value, options, onChange, help }: SegmentedPr
             type="button"
             role="radio"
             aria-checked={option.value === value}
+            disabled={disabled}
             onClick={() => onChange(option.value)}
-            className={`h-8 rounded-control px-3 text-sm transition-colors duration-[var(--duration-fast)] ${
+            className={`h-8 rounded-control px-3 text-sm transition-colors duration-[var(--duration-fast)] disabled:cursor-not-allowed disabled:opacity-55 ${
               option.value === value ? "bg-accent text-on-accent" : "text-fg-secondary hover:bg-sunken hover:text-fg"
             }`}
           >

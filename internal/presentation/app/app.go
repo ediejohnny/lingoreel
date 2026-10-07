@@ -131,8 +131,11 @@ type Deps struct {
 	Settings  Settings
 	Installer Installer
 	// FFmpeg finds the user's FFmpeg, for the karaoke mode to decode the
-	// actors' voice ahead; nil offers none.
+	// actors' voice ahead and for the seek bar's stills; nil offers none.
 	FFmpeg FFmpeg
+	// Stills are the seek bar's stills kept on the disk, for the settings to
+	// tell their size and clear them; nil tells nothing.
+	Stills StillsCache
 	// Window places the player's window for a video; nil leaves it to the player.
 	Window func(info media.Info) player.Placement
 	// InitialVideo is the file the app was opened with, if any.
