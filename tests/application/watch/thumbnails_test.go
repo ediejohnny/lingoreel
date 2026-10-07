@@ -85,3 +85,47 @@ func TestStillsComeOnlyWithTheAppsWindowAndEndWithTheSession(t *testing.T) {
 		t.Fatalf("a player with its own window shows %+v", view)
 	}
 }
+
+// quickFilm takes every still at once, telling each as it begins.
+type quickFilm struct{ began chan thumbnail.Shot }
+
+func (f *quickFilm) Grab(_ context.Context, shot thumbnail.Shot) (thumbnail.Picture, error) {
+	f.began <- shot
+	return thumbnail.Picture{At: shot.At, Width: 16, Height: 9, JPEG: []byte{1}}, nil
+}
+
+// On the battery a video's stills wait for the pointer: only the moment it
+// rests on gets one. Plugged in, the background goes on.
+func TestOnTheBatteryOnlyThePointersStillIsTaken(t *testing.T) {
+	t.Parallel()
+	r, window, _ := hostedRig(t)
+	battery := newPower(true)
+	r.ports.Power = battery
+	film := &quickFilm{began: make(chan thumbnail.Shot, 64)}
+	r.ports.OpenStills = func(context.Context, string, string) (thumbnail.Film, error) { return film, nil }
+	r.start(t)
+	remote, _ := window.state()
+	remote.WantThumbnail(30 * time.Second)
+	select {
+	case shot := <-film.began:
+		if shot.At != 30*time.Second || !shot.Waited {
+			t.Fatalf("on the battery the first still is %+v, want the pointer's 30 s", shot)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("on the battery the pointer's still never began")
+	}
+	select {
+	case shot := <-film.began:
+		t.Fatalf("on the battery a still nobody waits for began: %+v", shot)
+	case <-time.After(300 * time.Millisecond):
+	}
+	battery.changes <- false
+	select {
+	case shot := <-film.began:
+		if shot.Waited {
+			t.Fatalf("plugged in, the next still is %+v, want the background's", shot)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("plugged in, the background never went on")
+	}
+}

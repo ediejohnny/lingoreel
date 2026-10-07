@@ -15,9 +15,16 @@ All notable changes to this project are listed here. The format follows
 - While a film plays in the app's window, stills for its seek bar are taken in the background, one at a time: about
   10 s after it starts (at once when the pointer reaches the bar), one each 10 s of film (further apart past 1000
   stills), from coarse to fine so that the first hundred already cover the whole film, and the moment under the
-  pointer before any other. Past those first hundred the background works a quarter of the time and rests the rest.
-  Ending the film never waits for a still, and a film with no stills to take, or whose stills keep failing, leaves
-  them off.
+  pointer before any other. Past those first hundred, with nobody at the bar, the system holds the background to a
+  quarter of one processor, and on a battery only the moment under the pointer gets a still. Ending the film never
+  waits for a still, and a film with no stills to take, or whose stills keep failing, leaves them off.
+- The stills are bounded: each FFmpeg that takes one may commit at most 384 MB, a still that reads more than 24 MB of
+  the film (or in more than 500 reads) is ended, and a film where that happens twice, or whose index (an MKV's Cues,
+  an AVI's idx1 or OpenDML index) leaves out its video, gives no stills, since a seek there reads the film from its
+  start. One of the app's FFmpeg runs at a time, the voice's or a still's; the still the pointer waits for never
+  queues.
+- `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
+  or not, printing the film's key and never its name.
 - Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
   just before a moment (about 1 MB read and 150–240 ms here), scaled into a 384×216 box keeping the picture's shape
   (anamorphic DVDs included) as a JPEG. An HD film with no colour tags keeps the BT.709 colours players show,

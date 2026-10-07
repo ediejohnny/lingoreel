@@ -215,9 +215,11 @@ func (s *Session) ModelRest() ModelRest {
 }
 
 // watchPower follows the computer going on and off its battery: the voice
-// starts again when that wakes the model or puts it to rest.
+// starts again when that wakes the model or puts it to rest, and the seek
+// bar's stills take, on the battery, only the pointer's.
 func (s *Session) watchPower(ctx context.Context, power voice.Power) {
 	power.Watch(ctx, func(onBattery bool) {
+		s.stills.Rest(onBattery)
 		v := s.voice
 		v.mu.Lock()
 		changed := v.setup.Rest(v.onBattery) != v.setup.Rest(onBattery)

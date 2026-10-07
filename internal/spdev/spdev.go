@@ -40,6 +40,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return tapProbe(ctx, args[1:], stdout)
 	case "voice-check":
 		return voiceCheck(ctx, args[1:], stdout)
+	case "stills":
+		return stills(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -76,6 +78,13 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --length <duration>             measures only the film's start (10m)")
 	fmt.Fprintln(w, "      --clips <n> --out <folder>      cuts n lines into clips to mark by hand where the voice begins")
 	fmt.Fprintln(w, "      --labels <file>                 measures the start against the lines marked by hand")
+	fmt.Fprintln(w, "  stills <video> [options]        measures the seek bar's stills: time, processor and reads of each")
+	fmt.Fprintln(w, "      --ffmpeg <path>                 the FFmpeg to take them with")
+	fmt.Fprintln(w, "      --count <n>                     how many, spread over the film (20)")
+	fmt.Fprintln(w, "      --duration <d>                  the film's length, for a video whose length the app cannot read")
+	fmt.Fprintln(w, "      --paced                         as the background takes them, held to a share of a processor")
+	fmt.Fprintln(w, "      --rough                         has the decoder skip the deblocking")
+	fmt.Fprintln(w, "      --parallel <n>                  how many at a time (1)")
 	fmt.Fprintln(w, "  help                            shows this help")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Sync (play and overlay, with the player in front):")

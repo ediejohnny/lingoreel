@@ -3,12 +3,80 @@
 package job_test
 
 import (
+	"io"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
+
+// childMode makes the test binary a child that waits for a byte on its
+// standard input, then allocates or spins and ends.
+const childMode = "LINGOREEL_JOB_CHILD"
+
+func TestMain(m *testing.M) {
+	switch os.Getenv(childMode) {
+	case "":
+		os.Exit(m.Run())
+	case "allocate":
+		_, _ = io.ReadFull(os.Stdin, make([]byte, 1))
+		memory := make([]byte, 256<<20)
+		for i := 0; i < len(memory); i += 4096 {
+			memory[i] = 1
+		}
+	case "spin":
+		_, _ = io.ReadFull(os.Stdin, make([]byte, 1))
+		for spent() < 250*time.Millisecond {
+			for i := 0; i < 1_000_000; i++ {
+				_ = i * i
+			}
+		}
+	}
+	os.Exit(0)
+}
+
+// spent is the processor time this process took.
+func spent() time.Duration {
+	var created, exited, kernel, user windows.Filetime
+	if windows.GetProcessTimes(windows.CurrentProcess(), &created, &exited, &kernel, &user) != nil {
+		return time.Hour
+	}
+	// A FILETIME here counts hundreds of nanoseconds, not a date.
+	ticks := func(f windows.Filetime) int64 { return int64(f.HighDateTime)<<32 | int64(f.LowDateTime) }
+	return time.Duration(ticks(kernel)+ticks(user)) * 100
+}
+
+// runChild runs a child in the job (nil: in none), lets it go, and tells
+// how long it took from then and how it ended.
+func runChild(t *testing.T, mode string, in *job.Job) (time.Duration, error) {
+	t.Helper()
+	child := exec.Command(os.Args[0], "-test.run=^$")
+	child.Env = append(os.Environ(), childMode+"="+mode)
+	ahead, err := child.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := child.Start(); err != nil {
+		t.Fatalf("starting the child: %v", err)
+	}
+	t.Cleanup(func() { _ = child.Process.Kill() })
+	if in != nil {
+		if err := in.Assign(child.Process.Pid); err != nil {
+			t.Fatalf("Assign: %v", err)
+		}
+	}
+	began := time.Now()
+	if _, err := ahead.Write([]byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	err = child.Wait()
+	return time.Since(began), err
+}
 
 // startLongProcess starts a harmless command that would run for a minute.
 func startLongProcess(t *testing.T) (*exec.Cmd, chan error) {
@@ -64,5 +132,42 @@ func TestAssignFailsForAMissingProcess(t *testing.T) {
 	<-exited
 	if err := killer.Assign(cmd.Process.Pid); err == nil {
 		t.Fatal("Assign accepted a process that already ended")
+	}
+}
+
+// A job's limits hold its processes: past its memory a process's
+// allocations fail, and together they take no more than their share of a
+// processor.
+func TestAJobHoldsItsProcessesToItsLimits(t *testing.T) {
+	testkit.Slow(t)
+	held, err := job.New(job.Limits{Memory: 64 << 20})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer held.Close()
+	if _, err := runChild(t, "allocate", nil); err != nil {
+		t.Fatalf("free, the child could not allocate 256 MB: %v", err)
+	}
+	if _, err := runChild(t, "allocate", held); err == nil {
+		t.Fatal("held to 64 MB, the child allocated 256 MB")
+	}
+
+	capped, err := job.New(job.Limits{CPU: 0.1})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer capped.Close()
+	free, err := runChild(t, "spin", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slow, err := runChild(t, "spin", capped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("250 ms of work: %v free, %v at a tenth of a processor", free, slow)
+	// 250 ms of a processor at a tenth of one takes some 2.5 s.
+	if slow < 1200*time.Millisecond || slow < 2*free {
+		t.Fatalf("at a tenth of a processor 250 ms of work took %v (free: %v)", slow, free)
 	}
 }

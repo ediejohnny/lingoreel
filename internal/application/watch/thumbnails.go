@@ -29,6 +29,7 @@ func (s *Session) startStills(ports Ports, request Request, info media.Info) {
 		return s.State().Duration // MP4, AVI: the player tells
 	}
 	s.stills = thumbnail.Start(request.Analysis.Path, open, duration, thumbnail.Options{OnStop: ports.StillsStopped})
+	s.stills.Rest(ports.Power != nil && ports.Power.OnBattery())
 }
 
 // Thumbnail is what the seek bar shows for a moment under the pointer.

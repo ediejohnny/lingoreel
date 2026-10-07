@@ -3,6 +3,8 @@ package matroska_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -259,4 +261,32 @@ func TestIndexPointingAtAnotherWantedTrackIsRejected(t *testing.T) {
 		t.Fatalf("progress total = %d, want the file size (full scan)", total)
 	}
 	assertSameAsScan(t, got, 2)
+}
+
+// A seek lands through the Cues only when they index the video: an index of
+// the subtitles alone, or none, leaves a seek reading the file from its
+// start.
+func TestTheIndexIsKnownToHoldTheVideo(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, c := range []struct {
+		name string
+		data []byte
+		want bool
+	}{
+		{"video.mkv", indexedFile(sampleClusters, completeIndex), true},
+		{"subtitles.mkv", indexedFile(sampleClusters, []cueEntry{{track: 2, cluster: 0, block: 1}, {track: 3, cluster: 1, block: 2}}), false},
+		{"none.mkv", plainFile(sampleClusters), false},
+	} {
+		path := filepath.Join(dir, c.name)
+		if err := os.WriteFile(path, c.data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := (matroska.FileReader{}).IndexesVideo(path); err != nil || got != c.want {
+			t.Errorf("%s: indexes the video %v (%v), want %v", c.name, got, err, c.want)
+		}
+	}
+	if _, err := (matroska.FileReader{}).IndexesVideo(filepath.Join(dir, "missing.mkv")); err == nil {
+		t.Error("a missing file has an index")
+	}
 }

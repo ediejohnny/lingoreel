@@ -36,11 +36,12 @@ type Options struct {
 	// Delay is how long the film plays before the first still, so the
 	// player's opening is not disturbed; the pointer on the bar ends it.
 	Delay time.Duration
-	// Duty is the share of the time the background stills work, resting the
-	// rest; the first Overview stills and those the pointer waits for do not
-	// rest.
-	Duty     float64
+	// Overview is how many stills come at full speed before the background
+	// is paced: the first ones already cover the film.
 	Overview int
+	// Hover is how long the pointer counts as at the bar after it last asked
+	// for a moment: meanwhile no still is paced.
+	Hover time.Duration
 	// GiveUp is how many stills in a row may fail before the film's stills
 	// stop.
 	GiveUp int
@@ -55,8 +56,8 @@ var ErrGaveUp = errors.New("the stills kept failing")
 
 const (
 	defaultDelay    = 10 * time.Second
-	defaultDuty     = 0.25
 	defaultOverview = 100
+	defaultHover    = 2 * time.Second
 	defaultGiveUp   = 3
 	// durationPoll is how often a film with no duration yet is asked again.
 	durationPoll = 250 * time.Millisecond
@@ -78,9 +79,13 @@ type Service struct {
 	// plan is nil until the film is opened and its duration known.
 	plan     *storyboard.Plan
 	pictures map[time.Duration]Picture
-	// wanted is the moment the pointer is on; pointed, a want not yet served.
+	// wanted is the moment the pointer is on, asked last at lastWant;
+	// pointed, a want not yet served.
 	wanted   time.Duration
+	lastWant time.Time
 	pointed  bool
+	// resting takes only the stills the pointer waits for.
+	resting  bool
 	finished bool
 	off      bool
 }
@@ -91,8 +96,8 @@ func Start(file string, open Opener, duration func() time.Duration, options Opti
 	if options.Delay <= 0 {
 		options.Delay = defaultDelay
 	}
-	if !(options.Duty > 0 && options.Duty <= 1) {
-		options.Duty = defaultDuty
+	if options.Hover <= 0 {
+		options.Hover = defaultHover
 	}
 	options.Overview = cmpOr(options.Overview, defaultOverview)
 	options.GiveUp = cmpOr(options.GiveUp, defaultGiveUp)
@@ -142,9 +147,24 @@ func (s *Service) Want(at time.Duration) {
 		return
 	}
 	s.mu.Lock()
-	s.wanted, s.pointed = at, true
+	s.wanted, s.pointed, s.lastWant = at, true, s.options.Now()
 	s.mu.Unlock()
 	s.poke()
+}
+
+// Rest takes, while resting, only the stills the pointer waits for: the
+// background waits (on a battery, by default).
+func (s *Service) Rest(resting bool) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	woken := s.resting && !resting
+	s.resting = resting
+	s.mu.Unlock()
+	if woken {
+		s.poke()
+	}
 }
 
 // Close stops taking stills, without waiting for the one being taken.
@@ -166,6 +186,17 @@ func (s *Service) poke() {
 func (s *Service) pause(d time.Duration) bool {
 	select {
 	case <-s.options.After(d):
+	case <-s.wake:
+	case <-s.ctx.Done():
+		return false
+	}
+	return true
+}
+
+// idle waits for the pointer or the end of a rest; false once the service
+// is closed.
+func (s *Service) idle() bool {
+	select {
 	case <-s.wake:
 	case <-s.ctx.Done():
 		return false
@@ -201,12 +232,20 @@ func (s *Service) run() {
 		slot, waited, ok := plan.Next(s.pointed, s.wanted)
 		s.pointed = false
 		s.finished = !ok
+		resting := s.resting && !waited
+		hovering := s.options.Now().Sub(s.lastWant) < s.options.Hover
 		s.mu.Unlock()
 		if !ok {
 			return
 		}
-		began := s.options.Now()
-		picture, err := film.Grab(s.ctx, Shot{At: plan.Board().At(slot), Waited: waited})
+		if resting {
+			if !s.idle() {
+				return
+			}
+			continue
+		}
+		shot := Shot{At: plan.Board().At(slot), Waited: waited, Paced: !waited && !hovering && taken >= s.options.Overview}
+		picture, err := film.Grab(s.ctx, shot)
 		if s.ctx.Err() != nil {
 			return
 		}
@@ -220,15 +259,13 @@ func (s *Service) run() {
 			failures, taken = 0, taken+1
 		}
 		s.mu.Unlock()
-		if failures >= s.options.GiveUp {
+		switch {
+		case errors.Is(err, ErrNoStills):
+			s.stop(err)
+			return
+		case failures >= s.options.GiveUp:
 			s.stop(errors.Join(ErrGaveUp, err))
 			return
-		}
-		if !waited && taken > s.options.Overview {
-			work := s.options.Now().Sub(began)
-			if !s.pause(time.Duration(float64(work) * (1 - s.options.Duty) / s.options.Duty)) {
-				return
-			}
 		}
 	}
 }

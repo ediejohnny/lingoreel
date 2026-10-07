@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 
@@ -20,20 +22,92 @@ func background() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW | windows.IDLE_PRIORITY_CLASS}
 }
 
-// reaper is the job every FFmpeg joins: its handle lives as long as the app,
-// and Windows ends what is in it when the app ends.
-var reaper struct {
+// jobs are where every FFmpeg runs, one per kind of run; their handles live
+// as long as the app, and Windows ends what is in them when the app ends.
+var jobs struct {
 	once sync.Once
-	job  *job.Job
+	of   [runKinds]*job.Job
 }
 
-// contain puts a running FFmpeg in the reaper. One that ended at once is
-// already gone, and a job that could not be made leaves it to its context.
-func contain(process *os.Process) {
-	reaper.once.Do(func() { reaper.job, _ = job.NewKillOnClose() })
-	if reaper.job != nil {
-		_ = reaper.job.Assign(process.Pid)
+// limits are what each kind of run may take.
+var limits = [runKinds]job.Limits{
+	plainRun: {},
+	stillRun: {Memory: stillMemory},
+	pacedRun: {Memory: stillMemory, CPU: pacedShare},
+}
+
+// contain puts a running FFmpeg in the job of its kind, and tells whether
+// it is there. One that ended at once is already gone, and a job that could
+// not be made leaves it to its context.
+func contain(process *os.Process, kind runKind) bool {
+	jobs.once.Do(func() {
+		for kind := range jobs.of {
+			jobs.of[kind], _ = job.New(limits[kind])
+		}
+	})
+	return jobs.of[kind] != nil && jobs.of[kind].Assign(process.Pid) == nil
+}
+
+var procGetProcessIoCounters = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetProcessIoCounters")
+
+// readPoll is how often a still's reads are looked at: a still reading
+// from the cache reads 24 MB in about as long.
+const readPoll = 20 * time.Millisecond
+
+// readWatch looks at what a running FFmpeg reads.
+type readWatch struct {
+	process windows.Handle
+	done    chan struct{}
+	ended   sync.WaitGroup
+	over    bool
+	last    windows.IO_COUNTERS
+}
+
+// watchReads looks at what a running FFmpeg reads until stop, calling over
+// (once) when it reads past its bounds.
+func watchReads(process *os.Process, over func()) *readWatch {
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(process.Pid))
+	if err != nil {
+		return &readWatch{}
 	}
+	w := &readWatch{process: handle, done: make(chan struct{})}
+	w.ended.Add(1)
+	go func() {
+		defer w.ended.Done()
+		ticker := time.NewTicker(readPoll)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-w.done:
+				return
+			case <-ticker.C:
+				if w.read() && !w.over && tooMuch(w.last.ReadTransferCount, w.last.ReadOperationCount) {
+					w.over = true
+					over()
+				}
+			}
+		}
+	}()
+	return w
+}
+
+func (w *readWatch) read() bool {
+	ok, _, _ := procGetProcessIoCounters.Call(uintptr(w.process), uintptr(unsafe.Pointer(&w.last)))
+	return ok != 0
+}
+
+// stop ends the watch and tells what the process read, in bytes and in
+// reads, and whether that went past its bounds.
+func (w *readWatch) stop() reads {
+	if w.process == 0 {
+		return reads{}
+	}
+	close(w.done)
+	w.ended.Wait()
+	w.read()
+	windows.CloseHandle(w.process)
+	w.process = 0
+	return reads{bytes: w.last.ReadTransferCount, count: w.last.ReadOperationCount, over: w.over}
 }
 
 // candidates are the places FFmpeg is usually installed on Windows: next to

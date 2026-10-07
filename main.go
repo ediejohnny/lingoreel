@@ -33,6 +33,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/seekable"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/settingsfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
@@ -383,5 +384,5 @@ func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
 	}
-	return ffmpeg.Stills{Path: path}.Open(ctx, file)
+	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)
 }

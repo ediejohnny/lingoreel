@@ -2,6 +2,7 @@ package ffmpeg
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -33,9 +34,45 @@ const (
 	// maxDescription is how much of the description is kept: the video's
 	// line comes after the chapters and the tags, well within it.
 	maxDescription = 64 << 10
-	// maxStill bounds the JPEG handed back; a still takes 5 to 25 KB.
+	// maxStill bounds the JPEG handed back; a still takes 20 to 35 KB.
 	maxStill = 512 << 10
+	// stillMemory is the most a still's FFmpeg may commit: decoding one 4K
+	// frame on one thread takes well under it.
+	stillMemory = 384 << 20
+	// pacedShare is the share of one processor the stills nobody waits for
+	// take, together.
+	pacedShare = 0.25
+	// maxRead and maxReads bound what one still reads: a still reads 0.6 to
+	// 1.5 MB in some 50 reads; one that reads far more is in a film that
+	// seeks slowly (no index, keyframes far apart).
+	maxRead  = 24 << 20
+	maxReads = 500
+	// slowAfter is how many stills that read too much stop a film's stills.
+	slowAfter = 2
 )
+
+// errReadTooMuch reports a still ended for reading past its bounds.
+var errReadTooMuch = errors.New("ffmpeg: the still read too much of the film")
+
+// reads is what one FFmpeg read, and whether that went past its bounds.
+type reads struct {
+	bytes, count uint64
+	over         bool
+}
+
+func tooMuch(bytes, count uint64) bool { return bytes > maxRead || count > maxReads }
+
+// Run is what one still cost, for measuring.
+type Run struct {
+	At time.Duration
+	// Paced tells a still nobody waited for; Capped, one the system held to
+	// its share of the processor (one not held rests by itself after).
+	Paced, Capped bool
+	Wall, CPU     time.Duration
+	// Read is how much of the film it read, in bytes, and Reads in how many.
+	Read, Reads uint64
+	Err         error
+}
 
 // The HDR curves a still is tone-mapped from.
 const (
@@ -193,13 +230,17 @@ func StillFilter(look Look) string {
 // on it and nothing after it is decoded ("passthrough" keeps the frame
 // before the moment, which FFmpeg would otherwise drop and decode on to the
 // moment itself). withTime also has FFmpeg tell, on its error output, how
-// far before the moment that frame is.
-func StillArguments(file, format string, at time.Duration, look Look, withTime bool) []string {
+// far before the moment that frame is; rough has the decoder skip the
+// deblocking, which a still this small does not show.
+func StillArguments(file, format string, at time.Duration, look Look, withTime, rough bool) []string {
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-filter_threads", "1",
-		"-threads", "1", "-noaccurate_seek", "-ss", seconds(at),
-		"-protocol_whitelist", "file", "-f", format, "-i", "file:" + file,
+		"-threads", "1", "-noaccurate_seek", "-ss", seconds(at)}
+	if rough {
+		args = append(args, "-skip_loop_filter", "all", "-flags2", "+fast")
+	}
+	args = append(args, "-protocol_whitelist", "file", "-f", format, "-i", "file:"+file,
 		"-map", "0:V:0", "-an", "-sn", "-dn", "-frames:v", "1", "-fps_mode", "passthrough",
-		"-vf", StillFilter(look), "-c:v", "mjpeg", "-q:v", "4"}
+		"-vf", StillFilter(look), "-c:v", "mjpeg", "-q:v", "4")
 	if withTime {
 		args = append(args, "-stats_enc_pre", "pipe:2", "-stats_enc_pre_fmt", "{t}")
 	}
@@ -207,13 +248,27 @@ func StillArguments(file, format string, at time.Duration, look Look, withTime b
 }
 
 // Stills takes a film's stills with an FFmpeg.
-type Stills struct{ Path string }
+type Stills struct {
+	Path string
+	// Indexed tells whether a film has the index a seek lands through
+	// (false: no stills); nil, or an error, leaves it to the bounds on reads.
+	Indexed func(file string) (bool, error)
+	// Rough has the decoder skip the deblocking.
+	Rough bool
+	// Report hears what each still cost; nil hears nothing.
+	Report func(Run)
+}
 
 // Open looks at a film once, to know how its stills must be taken.
 func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 	format, known := formats[strings.ToLower(filepath.Ext(file))]
 	if !known {
 		return nil, fmt.Errorf("%w: %s is not a video the app opens", thumbnail.ErrNoStills, filepath.Ext(file))
+	}
+	if s.Indexed != nil {
+		if indexed, err := s.Indexed(file); err == nil && !indexed {
+			return nil, fmt.Errorf("%w: the film has no index to seek in", thumbnail.ErrNoStills)
+		}
 	}
 	description, err := s.describe(ctx, file, format)
 	if err != nil {
@@ -228,7 +283,7 @@ func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 	if look.DolbyVision == 5 {
 		return nil, fmt.Errorf("%w: Dolby Vision profile 5", thumbnail.ErrNoStills)
 	}
-	return &film{path: s.Path, file: file, format: format, look: look}, nil
+	return &film{path: s.Path, file: file, format: format, look: look, rough: s.Rough, report: s.Report}, nil
 }
 
 // describe has FFmpeg describe the file: given no output, it describes its
@@ -240,7 +295,12 @@ func (s Stills) describe(ctx context.Context, file, format string) (string, erro
 	command.SysProcAttr = background()
 	var description bytes.Buffer
 	command.Stderr = &limitedWriter{buffer: &description, room: maxDescription}
-	if err := start(command); err != nil {
+	release, err := takeTurn(ctx)
+	if err != nil {
+		return "", fmt.Errorf("ffmpeg: describing the film: %w", err)
+	}
+	defer release()
+	if _, err := start(command, plainRun); err != nil {
 		return "", err
 	}
 	_ = command.Wait() // it always fails: there is no output
@@ -254,56 +314,115 @@ func (s Stills) describe(ctx context.Context, file, format string) (string, erro
 type film struct {
 	path, file, format string
 	look               Look
+	rough              bool
+	report             func(Run)
 	// untimed is an FFmpeg older than 6.1, which cannot tell the frame's
 	// time: its stills stand for the moment asked.
 	untimed atomic.Bool
+	// slow counts the stills that read too much.
+	slow atomic.Int32
 }
 
+// cost is what one run of FFmpeg took.
+type cost struct {
+	wall, cpu time.Duration
+	reads     reads
+	capped    bool
+}
+
+// Grab takes a still: the pointer's at once, the others in their turn after
+// any other FFmpeg of the app; a paced one the system could not hold to its
+// share rests after, in proportion to the processor it took.
 func (f *film) Grab(ctx context.Context, shot thumbnail.Shot) (thumbnail.Picture, error) {
-	picture, problems, err := f.grab(ctx, shot, !f.untimed.Load())
+	if f.slow.Load() >= slowAfter {
+		return thumbnail.Picture{}, fmt.Errorf("%w: the film seeks too slowly", thumbnail.ErrNoStills)
+	}
+	release := func() {}
+	if !shot.Waited {
+		var err error
+		if release, err = takeTurn(ctx); err != nil {
+			return thumbnail.Picture{}, err
+		}
+	}
+	picture, spent, problems, err := f.grab(ctx, shot, !f.untimed.Load())
 	if err != nil && !f.untimed.Load() && strings.Contains(problems, "stats_enc_pre") {
 		f.untimed.Store(true)
-		picture, _, err = f.grab(ctx, shot, false)
+		picture, spent, _, err = f.grab(ctx, shot, false)
+	}
+	release()
+	if errors.Is(err, errReadTooMuch) && f.slow.Add(1) >= slowAfter {
+		err = fmt.Errorf("%w: the film seeks too slowly: %w", thumbnail.ErrNoStills, err)
+	}
+	if f.report != nil {
+		f.report(Run{At: shot.At, Paced: shot.Paced, Capped: spent.capped, Wall: spent.wall, CPU: spent.cpu,
+			Read: spent.reads.bytes, Reads: spent.reads.count, Err: err})
+	}
+	if shot.Paced && !spent.capped {
+		rest(ctx, cmp.Or(spent.cpu, spent.wall))
 	}
 	return picture, err
 }
 
-// grab runs one still, and returns what FFmpeg complained about.
-func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (thumbnail.Picture, string, error) {
+// rest waits as long as a paced still's share asks after work, or until ctx
+// ends.
+func rest(ctx context.Context, work time.Duration) {
+	select {
+	case <-time.After(time.Duration(float64(work) * (1 - pacedShare) / pacedShare)):
+	case <-ctx.Done():
+	}
+}
+
+// grab runs one still, and tells what it cost and what FFmpeg complained
+// about.
+func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (thumbnail.Picture, cost, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, stillTimeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, f.path, StillArguments(f.file, f.format, shot.At, f.look, withTime)...)
+	command := exec.CommandContext(ctx, f.path, StillArguments(f.file, f.format, shot.At, f.look, withTime, f.rough)...)
 	command.SysProcAttr = background()
 	var told bytes.Buffer
 	command.Stderr = &limitedWriter{buffer: &told, room: 4096}
 	out, err := command.StdoutPipe()
 	if err != nil {
-		return thumbnail.Picture{}, "", fmt.Errorf("ffmpeg: %w", err)
+		return thumbnail.Picture{}, cost{}, "", fmt.Errorf("ffmpeg: %w", err)
 	}
-	if err := start(command); err != nil {
-		return thumbnail.Picture{}, "", err
+	kind := stillRun
+	if shot.Paced {
+		kind = pacedRun
 	}
+	began := time.Now()
+	capped, err := start(command, kind)
+	if err != nil {
+		return thumbnail.Picture{}, cost{}, "", err
+	}
+	watch := watchReads(command.Process, cancel)
 	still, readErr := io.ReadAll(io.LimitReader(out, maxStill+1))
 	if len(still) > maxStill {
 		cancel()
-		_ = command.Wait()
-		return thumbnail.Picture{}, "", errors.New("ffmpeg: the still is larger than any still")
 	}
 	waitErr := command.Wait()
+	spent := cost{wall: time.Since(began), reads: watch.stop(), capped: capped && kind == pacedRun}
+	if state := command.ProcessState; state != nil {
+		spent.cpu = state.UserTime() + state.SystemTime()
+	}
 	switch {
+	case spent.reads.over:
+		return thumbnail.Picture{}, spent, "", fmt.Errorf("%w at %v (%d KB in %d reads)", errReadTooMuch, shot.At,
+			spent.reads.bytes>>10, spent.reads.count)
+	case len(still) > maxStill:
+		return thumbnail.Picture{}, spent, "", errors.New("ffmpeg: the still is larger than any still")
 	case ctx.Err() != nil:
-		return thumbnail.Picture{}, "", fmt.Errorf("ffmpeg: taking the still at %v: %w", shot.At, ctx.Err())
+		return thumbnail.Picture{}, spent, "", fmt.Errorf("ffmpeg: taking the still at %v: %w", shot.At, ctx.Err())
 	case waitErr != nil:
 		problems := strings.TrimSpace(told.String())
-		return thumbnail.Picture{}, problems, fmt.Errorf("ffmpeg: %w: %s", waitErr, problems)
+		return thumbnail.Picture{}, spent, problems, fmt.Errorf("ffmpeg: %w: %s", waitErr, problems)
 	case readErr != nil:
-		return thumbnail.Picture{}, "", fmt.Errorf("ffmpeg: reading the still: %w", readErr)
+		return thumbnail.Picture{}, spent, "", fmt.Errorf("ffmpeg: reading the still: %w", readErr)
 	}
 	config, err := jpeg.DecodeConfig(bytes.NewReader(still))
 	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > StillWidth || config.Height > StillHeight {
-		return thumbnail.Picture{}, "", fmt.Errorf("ffmpeg: what came back is not a still (%v)", err)
+		return thumbnail.Picture{}, spent, "", fmt.Errorf("ffmpeg: what came back is not a still (%v)", err)
 	}
-	return thumbnail.Picture{At: frameTime(shot.At, told.String()), Width: config.Width, Height: config.Height, JPEG: still}, "", nil
+	return thumbnail.Picture{At: frameTime(shot.At, told.String()), Width: config.Width, Height: config.Height, JPEG: still}, spent, "", nil
 }
 
 var offsetRule = regexp.MustCompile(`^-?\d+(\.\d+)?$`)

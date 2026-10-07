@@ -88,6 +88,50 @@ func (container Container) subtitleRefs(c *cursor, wanted map[uint64]bool) ([]cu
 	return refs, nil
 }
 
+// maxIndexProbe bounds the cue points read looking for the video in the
+// index: muxers index its keyframes from the first cluster on.
+const maxIndexProbe = 256
+
+// errVideoIndexed ends the walk through the Cues at the video's first entry.
+var errVideoIndexed = errors.New("the index has the video")
+
+// indexesVideo tells whether the Cues index the first video track: a seek
+// lands through them, where without them it reads the file from its start.
+func (container Container) indexesVideo(c *cursor) bool {
+	video := uint64(0)
+	for _, entry := range container.Tracks {
+		if entry.Type == trackTypeVideo {
+			video = entry.Number
+			break
+		}
+	}
+	if video == 0 || container.cuesOffset == 0 || c.seek(container.cuesOffset) != nil {
+		return false
+	}
+	cues, err := c.readElement()
+	if err != nil || cues.id != idCues || cues.unknownSize {
+		return false
+	}
+	points := 0
+	err = c.forEachChild(cues, func(point element) error {
+		if point.id != idCuePoint {
+			return nil
+		}
+		if points++; points > maxIndexProbe {
+			return errIndexUnusable
+		}
+		return c.forEachChild(point, func(positions element) error {
+			if positions.id != idCueTrackPositions {
+				return nil
+			}
+			if ref, err := readCuePositions(c, positions); err == nil && ref.track == video {
+				return errVideoIndexed
+			}
+			return nil
+		})
+	})
+	return errors.Is(err, errVideoIndexed)
+}
 func readCuePositions(c *cursor, positions element) (cueRef, error) {
 	ref := cueRef{cluster: -1, relative: unknownRelative}
 	err := c.forEachChild(positions, func(field element) error {

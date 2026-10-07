@@ -25,9 +25,13 @@ type Picture struct {
 // Shot asks a film for its still at, or just before, a moment.
 type Shot struct {
 	At time.Duration
-	// Waited says the pointer is on the bar, waiting for this still; the
-	// others are the background's.
+	// Waited says the pointer rests on this moment, waiting for its still:
+	// it is taken at once, queueing behind nothing.
 	Waited bool
+	// Paced says nobody is at the bar and the overview is done: the still
+	// may take its time, holding the film's stills to a small share of the
+	// processor.
+	Paced bool
 }
 
 // Film takes the stills of one video.

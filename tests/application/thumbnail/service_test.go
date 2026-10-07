@@ -3,6 +3,7 @@ package thumbnail_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -20,7 +21,7 @@ import (
 type fakeFilm struct {
 	gate    chan struct{}
 	started chan thumbnail.Shot
-	fail    bool
+	fail    error
 
 	mu    sync.Mutex
 	shots []thumbnail.Shot
@@ -47,8 +48,8 @@ func (f *fakeFilm) Grab(ctx context.Context, shot thumbnail.Shot) (thumbnail.Pic
 			return thumbnail.Picture{}, ctx.Err()
 		}
 	}
-	if f.fail {
-		return thumbnail.Picture{}, errors.New("the still failed")
+	if f.fail != nil {
+		return thumbnail.Picture{}, f.fail
 	}
 	return thumbnail.Picture{At: shot.At, Width: 16, Height: 9, JPEG: []byte{byte(shot.At / time.Second)}}, nil
 }
@@ -83,7 +84,7 @@ func next(t *testing.T, film *fakeFilm) thumbnail.Shot {
 func TestTheStillsComeCoarseFirstAndThePointerGoesFirst(t *testing.T) {
 	t.Parallel()
 	film := newFakeFilm(true)
-	s := thumbnail.Start("film.mkv", opener(film), lasting(100*time.Second), thumbnail.Options{Delay: time.Millisecond, Duty: 1})
+	s := thumbnail.Start("film.mkv", opener(film), lasting(100*time.Second), thumbnail.Options{Delay: time.Millisecond})
 	t.Cleanup(s.Close)
 	if first := next(t, film); first.At != 0 || first.Waited {
 		t.Fatalf("first still %+v, want 0 s from the background", first)
@@ -114,7 +115,7 @@ func TestAThumbnailIsOffThenPendingThenReady(t *testing.T) {
 	opened := make(chan struct{})
 	open := func(context.Context, string) (thumbnail.Film, error) { <-opened; return film, nil }
 	// 20 min: a still each 10 s, standing for moments up to 12 s away.
-	s := thumbnail.Start("film.mkv", open, lasting(20*time.Minute), thumbnail.Options{Delay: time.Hour, Duty: 1})
+	s := thumbnail.Start("film.mkv", open, lasting(20*time.Minute), thumbnail.Options{Delay: time.Hour})
 	t.Cleanup(s.Close)
 	if view := s.Thumbnail(time.Minute); view.Status != thumbnail.Off {
 		t.Fatalf("before the film was opened: %+v, want the time alone", view)
@@ -168,7 +169,7 @@ func TestAThumbnailIsOffThenPendingThenReady(t *testing.T) {
 func TestClosingNeverWaitsForAStill(t *testing.T) {
 	t.Parallel()
 	film := newFakeFilm(true)
-	s := thumbnail.Start("film.mkv", opener(film), lasting(time.Minute), thumbnail.Options{Delay: time.Millisecond, Duty: 1})
+	s := thumbnail.Start("film.mkv", opener(film), lasting(time.Minute), thumbnail.Options{Delay: time.Millisecond})
 	next(t, film)
 	start := time.Now()
 	s.Close()
@@ -193,78 +194,124 @@ func TestClosingNeverWaitsForAStill(t *testing.T) {
 }
 
 // Three stills failing in a row stop the film's stills, which then show the
-// time alone, and say why.
+// time alone, and say why; a still that finds the film gives none (it seeks
+// too slowly) stops them at once.
 func TestTheStillsGiveUpOnAFilmThatKeepsFailing(t *testing.T) {
 	t.Parallel()
-	film := newFakeFilm(false)
-	film.fail = true
-	stopped := make(chan error, 1)
-	s := thumbnail.Start("film.mkv", opener(film), lasting(time.Hour), thumbnail.Options{
-		Delay: time.Millisecond, Duty: 1, OnStop: func(err error) { stopped <- err },
-	})
-	t.Cleanup(s.Close)
-	select {
-	case err := <-stopped:
-		if !errors.Is(err, thumbnail.ErrGaveUp) {
-			t.Fatalf("told %v, want ErrGaveUp", err)
+	for _, c := range []struct {
+		fail  error
+		want  error
+		tries int
+	}{
+		{errors.New("the still failed"), thumbnail.ErrGaveUp, 3},
+		{fmt.Errorf("%w: the film seeks too slowly", thumbnail.ErrNoStills), thumbnail.ErrNoStills, 1},
+	} {
+		film := newFakeFilm(false)
+		film.fail = c.fail
+		stopped := make(chan error, 1)
+		s := thumbnail.Start("film.mkv", opener(film), lasting(time.Hour), thumbnail.Options{
+			Delay: time.Millisecond, OnStop: func(err error) { stopped <- err },
+		})
+		t.Cleanup(s.Close)
+		select {
+		case err := <-stopped:
+			if !errors.Is(err, c.want) {
+				t.Fatalf("told %v, want %v", err, c.want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("the stills failing with %q never stopped", c.fail)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the stills never gave up")
-	}
-	time.Sleep(50 * time.Millisecond)
-	if taken := len(film.taken()); taken != 3 {
-		t.Fatalf("%d stills tried, want 3", taken)
-	}
-	if view := s.Thumbnail(0); view.Status != thumbnail.Off {
-		t.Fatalf("after giving up: %+v", view)
+		time.Sleep(50 * time.Millisecond)
+		if taken := len(film.taken()); taken != c.tries {
+			t.Fatalf("failing with %q: %d stills tried, want %d", c.fail, taken, c.tries)
+		}
+		if view := s.Thumbnail(0); view.Status != thumbnail.Off {
+			t.Fatalf("after giving up: %+v", view)
+		}
 	}
 }
 
-// Past the overview's stills, the background rests three times its work at
-// a quarter of the time; the stills the pointer waits for do not rest.
-func TestTheBackgroundRestsInProportionToItsWork(t *testing.T) {
+// clock is a time a test moves on by hand.
+type clock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *clock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *clock) move(d time.Duration) {
+	c.mu.Lock()
+	c.now = c.now.Add(d)
+	c.mu.Unlock()
+}
+
+// The overview's stills and those taken while the pointer is at the bar come
+// at full speed; past the overview, with nobody at the bar, the background
+// is paced. The still the pointer rests on is the one it waits for.
+func TestTheBackgroundIsPacedOnlyWhenNobodyIsAtTheBar(t *testing.T) {
 	t.Parallel()
 	film := newFakeFilm(true)
-	var mu sync.Mutex
-	now := time.Unix(0, 0)
-	var rests []time.Duration
+	time0 := &clock{now: time.Unix(1000, 0)}
 	s := thumbnail.Start("film.mkv", opener(film), lasting(time.Hour), thumbnail.Options{
-		Delay: time.Hour, Duty: 0.25, Overview: 1,
-		Now: func() time.Time {
-			mu.Lock()
-			defer mu.Unlock()
-			now = now.Add(100 * time.Millisecond) // each still "takes" 100 ms
-			return now
-		},
-		After: func(d time.Duration) <-chan time.Time {
-			if d >= time.Second {
-				return time.After(d) // the hour before the first still
-			}
-			mu.Lock()
-			rests = append(rests, d)
-			mu.Unlock()
-			ready := make(chan time.Time, 1)
-			ready <- time.Time{}
-			return ready
-		},
+		Delay: time.Millisecond, Overview: 2, Hover: time.Second, Now: time0.Now,
 	})
 	t.Cleanup(s.Close)
-	s.Want(0) // ends the hour at once
-	if first := next(t, film); !first.Waited {
-		t.Fatalf("the first still %+v, want the pointer's", first)
+	step := func(what string, waited, paced bool) {
+		t.Helper()
+		if shot := next(t, film); shot.Waited != waited || shot.Paced != paced {
+			t.Fatalf("%s: %+v, want waited %v, paced %v", what, shot, waited, paced)
+		}
 	}
-	film.gate <- struct{}{} // the pointer's: no rest
-	next(t, film)
+	step("the overview's first", false, false)
+	film.gate <- struct{}{}
+	step("the overview's second", false, false)
+	film.gate <- struct{}{}
+	step("past the overview, nobody at the bar", false, true)
 	s.Want(30 * time.Minute)
-	film.gate <- struct{}{} // past the overview's one still: rests 300 ms
-	if pointed := next(t, film); !pointed.Waited {
-		t.Fatalf("the third still %+v, want the pointer's", pointed)
+	film.gate <- struct{}{}
+	step("the pointer's", true, false)
+	film.gate <- struct{}{}
+	step("the pointer still at the bar", false, false)
+	time0.move(2 * time.Second)
+	film.gate <- struct{}{}
+	step("the pointer gone two seconds ago", false, true)
+}
+
+// Resting (on a battery) the background waits: only the still the pointer
+// rests on is taken, once; the background goes on when the rest ends.
+func TestRestingTakesOnlyThePointersStill(t *testing.T) {
+	t.Parallel()
+	film := newFakeFilm(true)
+	s := thumbnail.Start("film.mkv", opener(film), lasting(time.Hour), thumbnail.Options{Delay: time.Hour})
+	t.Cleanup(s.Close)
+	s.Rest(true)
+	s.Want(50 * time.Second) // ends the hour
+	if shot := next(t, film); shot.At != 50*time.Second || !shot.Waited {
+		t.Fatalf("resting, the still taken is %+v, want the pointer's 50 s", shot)
 	}
-	film.gate <- struct{}{} // the pointer's: no rest
-	next(t, film)
-	mu.Lock()
-	defer mu.Unlock()
-	if !slices.Equal(rests, []time.Duration{300 * time.Millisecond}) {
-		t.Fatalf("rests %v, want one of 300 ms", rests)
+	film.gate <- struct{}{}
+	s.Want(52 * time.Second) // the same still: nothing more to take
+	select {
+	case shot := <-film.started:
+		t.Fatalf("resting, a still began that nobody waits for: %+v", shot)
+	case <-time.After(200 * time.Millisecond):
+	}
+	s.Want(20 * time.Minute)
+	if shot := next(t, film); shot.At != 20*time.Minute || !shot.Waited {
+		t.Fatalf("resting, the pointer's next still is %+v", shot)
+	}
+	film.gate <- struct{}{}
+	select {
+	case shot := <-film.started:
+		t.Fatalf("resting, a still began after the pointer's: %+v", shot)
+	case <-time.After(200 * time.Millisecond):
+	}
+	s.Rest(false) // the background, waiting, goes on
+	if shot := next(t, film); shot.Waited {
+		t.Fatalf("after the rest the background did not go on: %+v", shot)
 	}
 }

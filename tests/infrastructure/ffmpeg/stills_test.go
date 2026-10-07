@@ -23,7 +23,7 @@ import (
 // and the frame before the moment is kept, never dropped.
 func TestTheStillArgumentsTakeTheKeyframeOfTheLocalFile(t *testing.T) {
 	t.Parallel()
-	args := ffmpeg.StillArguments(`D:\film.mkv`, "matroska", 90*time.Second, ffmpeg.Look{}, true)
+	args := ffmpeg.StillArguments(`D:\film.mkv`, "matroska", 90*time.Second, ffmpeg.Look{}, true, false)
 	input := slices.Index(args, "-i")
 	before := func(flag string) bool { i := slices.Index(args, flag); return i >= 0 && i < input }
 	switch {
@@ -39,8 +39,15 @@ func TestTheStillArgumentsTakeTheKeyframeOfTheLocalFile(t *testing.T) {
 	case value(args, "-c:v") != "mjpeg" || args[len(args)-1] != "pipe:1" || value(args, "-stats_enc_pre") != "pipe:2":
 		t.Fatalf("not a JPEG on the standard output with its time on the error output: %q", args)
 	}
-	if untimed := ffmpeg.StillArguments(`D:\film.mkv`, "matroska", 0, ffmpeg.Look{}, false); slices.Contains(untimed, "-stats_enc_pre") {
+	if untimed := ffmpeg.StillArguments(`D:\film.mkv`, "matroska", 0, ffmpeg.Look{}, false, false); slices.Contains(untimed, "-stats_enc_pre") {
 		t.Fatalf("an FFmpeg that cannot tell the time is asked for it: %q", untimed)
+	}
+	if slices.Contains(args, "-skip_loop_filter") {
+		t.Fatalf("the deblocking skipped unasked: %q", args)
+	}
+	rough := ffmpeg.StillArguments(`D:\film.mkv`, "matroska", 0, ffmpeg.Look{}, true, true)
+	if i := slices.Index(rough, "-skip_loop_filter"); i < 0 || i > slices.Index(rough, "-i") || value(rough, "-skip_loop_filter") != "all" {
+		t.Fatalf("a rough still does not have the decoder skip the deblocking: %q", rough)
 	}
 
 	for _, c := range []struct {
