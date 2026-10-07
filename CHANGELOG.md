@@ -39,6 +39,10 @@ All notable changes to this project are listed here. The format follows
   interlaced pictures are deinterlaced, and HDR (PQ, HLG) is made small first and tone-mapped after; Dolby Vision
   profile 5 gives no stills. The film is read only as the local file of the container the app opened.
 
+### Changed
+
+- Following the actors' voice is no longer marked experimental in the settings.
+
 ### Fixed
 
 - The karaoke mode's fill always ends while its line shows: a line that went before the actor stopped speaking (the
