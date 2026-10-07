@@ -63,14 +63,15 @@ type VoiceSettings struct {
 
 // ThumbnailSettings are the seek bar's stills on this computer: taken at
 // all, in the background on the battery too, and kept on the disk. Battery
-// tells the computer has one and KeptBytes how much the kept stills take
-// (both read only).
+// tells the computer has one, KeptBytes how much the kept stills take and
+// Crowded that their disk is nearly full (all read only).
 type ThumbnailSettings struct {
 	On        bool  `json:"on"`
 	OnBattery bool  `json:"onBattery"`
 	OnDisk    bool  `json:"onDisk"`
 	Battery   bool  `json:"battery"`
 	KeptBytes int64 `json:"keptBytes"`
+	Crowded   bool  `json:"crowded"`
 }
 
 // ProfileSettings are the active profile's choices.

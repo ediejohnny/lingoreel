@@ -246,3 +246,31 @@ func TestKeptStillsLeaveRoomOnTheDisk(t *testing.T) {
 		t.Fatalf("the folder holds %d files after a full disk, want only c's package", len(entries))
 	}
 }
+
+// The disk is told crowded below the room the stills leave free, also
+// before their folder is there (its disk is the folder above), and never
+// when its room cannot be told.
+func TestACrowdedDiskIsTold(t *testing.T) {
+	t.Parallel()
+	room, err := int64(1<<30), error(nil)
+	cache := stillcache.Cache{Dir: t.TempDir(), MinFree: 10_000, Free: func(string) (int64, error) { return room, err }}
+	if cache.Crowded() {
+		t.Fatal("a disk with room is crowded")
+	}
+	room = 9_999
+	if !cache.Crowded() {
+		t.Fatal("a disk below the room left free is not crowded")
+	}
+	err = errors.New("no answer")
+	if cache.Crowded() {
+		t.Fatal("a disk whose room is unknown is crowded")
+	}
+	// The real disk, through a folder not made yet: this computer's has room.
+	fresh := stillcache.Cache{Dir: filepath.Join(t.TempDir(), "thumbnails"), MinFree: 1}
+	if fresh.Crowded() {
+		t.Fatal("a disk with room, under a folder not made yet, is crowded")
+	}
+	if full := (stillcache.Cache{Dir: filepath.Join(t.TempDir(), "thumbnails"), MinFree: 1 << 62}); !full.Crowded() {
+		t.Fatal("the real disk's room was not read through the folder above")
+	}
+}

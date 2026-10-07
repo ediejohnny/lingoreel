@@ -12,6 +12,8 @@ type StillsCache interface {
 	Size() (int64, error)
 	// Clear takes them all off the disk and tells how much it freed.
 	Clear() (int64, error)
+	// Crowded tells their disk is nearly full: new stills stay in memory.
+	Crowded() bool
 }
 
 var errStillsNotCleared = worded(func() string { return ptbr.T("error.thumbnails.notCleared") })
@@ -33,6 +35,7 @@ func (a *API) thumbnailsView(t settings.ThumbnailPreferences) ThumbnailSettings 
 		if size, err := a.deps.Stills.Size(); err == nil {
 			view.KeptBytes = size
 		}
+		view.Crowded = a.deps.Stills.Crowded()
 	}
 	return view
 }
@@ -61,7 +64,7 @@ func (a *API) ClearThumbnails() error {
 	freed, err := a.deps.Stills.Clear()
 	if err != nil {
 		a.logger.Warn("the seek bar's stills were not cleared", "error", err)
-		return errStillsNotCleared
+		return a.because(errStillsNotCleared, err)
 	}
 	a.logger.Info("the seek bar's stills were cleared", "bytes", freed)
 	return nil

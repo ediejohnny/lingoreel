@@ -5,7 +5,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/fault"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
@@ -136,6 +136,9 @@ type Deps struct {
 	// Stills are the seek bar's stills kept on the disk, for the settings to
 	// tell their size and clear them; nil tells nothing.
 	Stills StillsCache
+	// Faults tells why writing, renaming or removing a file failed, so the
+	// message can say it and what to do; nil leaves the messages without it.
+	Faults func(error) fault.Kind
 	// Window places the player's window for a video; nil leaves it to the player.
 	Window func(info media.Info) player.Placement
 	// InitialVideo is the file the app was opened with, if any.
@@ -238,6 +241,11 @@ type Lifecycle struct {
 // ErrNotReady reports a call before the window started.
 var ErrNotReady = worded(func() string { return ptbr.T("error.notReady") })
 
+var (
+	errSettingsNotSaved = worded(func() string { return ptbr.T("error.settings.notSaved") })
+	errProfilesNotSaved = worded(func() string { return ptbr.T("error.profile.notSaved") })
+)
+
 // message is an error the user reads, worded each time it is shown so it is
 // in the interface's language; each one is a value of its own for errors.Is.
 type message struct{ text func() string }
@@ -246,6 +254,31 @@ func (m *message) Error() string { return m.text() }
 
 // worded makes an error of a catalog text.
 func worded(text func() string) error { return &message{text: text} }
+
+// reasoned is a failed write's message followed by why it failed and what
+// to do; errors.Is still finds the message, and the cause for another
+// message that wraps this one.
+type reasoned struct {
+	message, cause error
+	kind           fault.Kind
+}
+
+func (r *reasoned) Error() string { return r.message.Error() + " " + ptbr.FaultReason(r.kind) }
+
+func (r *reasoned) Unwrap() []error { return []error{r.message, r.cause} }
+
+// because adds to message, a failed write's, why err happened when the
+// system told something that helps; otherwise message stands alone.
+func (a *API) because(message, err error) error {
+	if a.deps.Faults == nil {
+		return message
+	}
+	kind := a.deps.Faults(err)
+	if ptbr.FaultReason(kind) == "" {
+		return message
+	}
+	return &reasoned{message: message, cause: err, kind: kind}
+}
 
 // New creates the API and its lifecycle.
 func New(deps Deps) (*API, Lifecycle) {
@@ -352,6 +385,7 @@ func (l Lifecycle) Shutdown() {
 	l.api.mu.Unlock()
 	// The window is closing: a failure to end the session has no one to tell.
 	_ = l.api.StopWatching()
+	l.api.flushProjectAtExit()
 }
 
 // EndBeforeClosing ends a running session before the window closes, so a
@@ -445,7 +479,7 @@ func (a *API) saveConfig() error {
 	}
 	if err := a.deps.Settings.SaveConfig(a.config); err != nil {
 		a.logger.Warn("settings could not be saved", "error", err)
-		return errors.New(ptbr.T("error.settings.notSaved"))
+		return a.because(errSettingsNotSaved, err)
 	}
 	return nil
 }
@@ -456,7 +490,7 @@ func (a *API) saveProfiles() error {
 	}
 	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil {
 		a.logger.Warn("profiles could not be saved", "error", err)
-		return errors.New(ptbr.T("error.profile.notSaved"))
+		return a.because(errProfilesNotSaved, err)
 	}
 	return nil
 }

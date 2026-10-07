@@ -20,7 +20,9 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
+	"github.com/ediejohnny/lingoreel/internal/domain/fault"
 	"github.com/ediejohnny/lingoreel/internal/domain/storyboard"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/filmkey"
 )
 
@@ -76,6 +78,18 @@ func (c Cache) free() (int64, error) {
 		return c.Free(c.Dir)
 	}
 	return freeRoom(c.Dir)
+}
+
+// Crowded tells the disk of the stills has less room left than they always
+// leave free: the oldest kept films leave first, and new stills stay in
+// memory until there is room. Before the first still the folder may not be
+// there yet: its disk is the folder above.
+func (c Cache) Crowded() bool {
+	room, err := c.free()
+	if err != nil && c.Free == nil {
+		room, err = freeRoom(filepath.Dir(c.Dir))
+	}
+	return err == nil && room < c.minFree()
 }
 
 func (c Cache) maxFilm() int64 {
@@ -211,7 +225,7 @@ func (c Cache) Save(file string, stills []thumbnail.Kept) error {
 	temporary := path + partial + hex.EncodeToString(suffix)
 	if err := os.WriteFile(temporary, data.Bytes(), 0o644); err != nil {
 		_ = os.Remove(temporary)
-		if diskFull(err) {
+		if diskfault.Of(err) == fault.DiskFull {
 			return fmt.Errorf("%w: %w", thumbnail.ErrNoRoom, err)
 		}
 		return fmt.Errorf("keeping the stills: %w", err)

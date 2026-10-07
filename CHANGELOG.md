@@ -35,6 +35,12 @@ All notable changes to this project are listed here. The format follows
   never read or written), how much the kept stills take with a button that clears them, and the FFmpeg that takes them,
   the same as the voice's. Each choice applies at once, to the video playing too, and a configuration from before keeps
   the stills on and on the disk. The settings folder's note says the projects and the stills live there.
+- When the app cannot keep something on the disk, its message says why and what to do: a full disk, Windows refusing
+  the folder (its rights, an antivirus, a read-only file), a file another program holds, a write-protected disk, a disk
+  or network share that is gone, or a path too long. It shows when saving the settings and profiles, a video's
+  corrections and passages, forgetting a video, exporting a subtitle, clearing the kept stills, changing the file
+  association or a karaoke mode choice, and when a session cannot start because the disk is full (no longer blamed on a
+  slow player). The seek bar's card says when their disk is nearly full and new stills stay in memory.
 - `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
   or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
   loses, and held to a few processors as a smaller computer, printing the film's key and never its name.
@@ -57,6 +63,14 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- Exporting over a subtitle that was there (the film's own, say) no longer spoils it when the disk fills up or the app
+  stops halfway: the new file is written whole beside it and only then takes its place.
+- A video's project that could not be saved is no longer lost quietly: the save stays due and runs again with the next
+  one, as the session ends and as the app closes; the panel says why until a save works (the saves that wait a moment,
+  such as the sync and the position, included), and one that fails as the session ends is told with its end.
+- "Forget everything" that could not remove a video's project no longer left that opening's next changes unsaved.
+- With "always use this player" ticked, profiles that could not be saved no longer kept the video from playing.
+- Choosing a theme or the app's look now says so when it could not be kept.
 - The karaoke mode's fill always ends while its line shows: a line that went before the actor stopped speaking (the
   voice found runs on past it), or a quick one, was left half painted, half in the fill's color and half in the line's.
   Over a line's last 400 ms (never more than 30% of it) what is left is painted, all of it 120 ms before the line goes.

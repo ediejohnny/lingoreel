@@ -1346,6 +1346,7 @@ export namespace app {
 	    onDisk: boolean;
 	    battery: boolean;
 	    keptBytes: number;
+	    crowded: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ThumbnailSettings(source);
@@ -1358,6 +1359,7 @@ export namespace app {
 	        this.onDisk = source["onDisk"];
 	        this.battery = source["battery"];
 	        this.keptBytes = source["keptBytes"];
+	        this.crowded = source["crowded"];
 	    }
 	}
 	export class VoiceSettings {

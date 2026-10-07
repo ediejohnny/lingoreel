@@ -147,17 +147,22 @@ export function App() {
 
   const chooseTheme = (next: Theme) => {
     setTheme(next);
-    // The theme still changes when saving fails; it is only not remembered.
-    backend.setTheme(next).catch(() => undefined);
+    // The theme still changes when saving fails; it is only not remembered,
+    // and the screen says why.
+    backend.setTheme(next).catch((failure: unknown) => setError(messageOf(failure)));
   };
 
   const lookTimer = useRef<number | undefined>(undefined);
   const chooseLook = (next: InterfaceSettings) => {
     setLook(next);
     // A slider sends many sizes: the last one is kept. The look still
-    // changes when saving fails; it is only not remembered.
+    // changes when saving fails; it is only not remembered, and the screen
+    // says why.
     window.clearTimeout(lookTimer.current);
-    lookTimer.current = window.setTimeout(() => backend.setInterface(next).catch(() => undefined), waitBeforeKeeping);
+    lookTimer.current = window.setTimeout(
+      () => backend.setInterface(next).catch((failure: unknown) => setError(messageOf(failure))),
+      waitBeforeKeeping,
+    );
   };
 
   const chooseVideo = useCallback(async () => {
@@ -254,6 +259,8 @@ export function App() {
   const keepPanel = (next: PanelState) => {
     setPanel(next);
     // The panel still changes when saving fails; it is only not remembered.
+    // Dragged often, it stays quiet: a full disk is told by what the user
+    // saves on purpose.
     backend.setPanel(next).catch(() => undefined);
   };
 

@@ -350,6 +350,8 @@ type memorySettings struct {
 	loadErr   error
 	saves     int
 	saveError error
+	// profilesError fails saving the profiles alone.
+	profilesError error
 }
 
 func newMemorySettings() *memorySettings {
@@ -379,6 +381,9 @@ func (m *memorySettings) SaveProfiles(p settings.Profiles) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.saves++
+	if m.profilesError != nil {
+		return m.profilesError
+	}
 	m.profiles = p
 	return nil
 }

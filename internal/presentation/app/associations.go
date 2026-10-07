@@ -33,7 +33,7 @@ func (a *API) SetFileAssociation(on bool) error {
 	}
 	if err := change(); err != nil {
 		a.logger.Warn("the file association did not change", "on", on, "error", err)
-		return errAssociation
+		return a.because(errAssociation, err)
 	}
 	a.logger.Info("file association changed", "on", on)
 	return nil

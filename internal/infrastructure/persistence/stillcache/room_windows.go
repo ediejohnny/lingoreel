@@ -2,12 +2,7 @@
 
 package stillcache
 
-import (
-	"errors"
-	"syscall"
-
-	"golang.org/x/sys/windows"
-)
+import "golang.org/x/sys/windows"
 
 // freeRoom is how much room the disk holding dir has for the app.
 func freeRoom(dir string) (int64, error) {
@@ -20,9 +15,4 @@ func freeRoom(dir string) (int64, error) {
 		return 0, err
 	}
 	return int64(min(available, 1<<62)), nil
-}
-
-// diskFull tells an error of a disk with no room left.
-func diskFull(err error) bool {
-	return errors.Is(err, windows.ERROR_DISK_FULL) || errors.Is(err, windows.ERROR_HANDLE_DISK_FULL) || errors.Is(err, syscall.ENOSPC)
 }

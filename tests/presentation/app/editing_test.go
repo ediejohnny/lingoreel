@@ -10,7 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -336,10 +339,23 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 	}
 }
 
+// A save that fails is shown on the panel with why, also when it waited a
+// moment (the sync, the position); the next save that works takes the note
+// away, and one that fails as the session ends is told with its end.
 func TestAFailedSaveIsShown(t *testing.T) {
 	t.Parallel()
-	r := newRig(t)
-	r.projects.saveErr = errors.New("disk full")
+	timers := &testkit.Timers{}
+	r := newRigWith(t, func(d *app.Deps) {
+		d.Later = timers.Later
+		d.Faults = diskfault.Of
+	})
+	full := failed(windows.ERROR_DISK_FULL)
+	failing := func(err error) {
+		r.projects.mu.Lock()
+		r.projects.saveErr = err
+		r.projects.mu.Unlock()
+	}
+	failing(full)
 	r.attach(t)
 	if _, err := r.api.OpenVideo(movie); err != nil {
 		t.Fatal(err)
@@ -349,8 +365,31 @@ func TestAFailedSaveIsShown(t *testing.T) {
 	}
 	t.Cleanup(func() { r.api.StopWatching() })
 	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
-	if note := r.api.PlaybackState().ProjectNote; !strings.Contains(note, "Não foi possível gravar") {
+	why := ptbr.T("error.disk.full")
+	if note := r.api.PlaybackState().ProjectNote; !strings.Contains(note, "Não foi possível gravar") || !strings.Contains(note, why) {
 		t.Fatalf("note = %q", note)
+	}
+
+	failing(nil)
+	if err := r.api.Nudge("translation", true); err != nil {
+		t.Fatal(err)
+	}
+	timers.Fire()
+	testkit.Eventually(t, "the note gone once a save works", func() bool { return r.api.PlaybackState().ProjectNote == "" })
+
+	failing(full)
+	if err := r.api.Nudge("translation", true); err != nil {
+		t.Fatal(err)
+	}
+	timers.Fire()
+	testkit.Eventually(t, "a delayed save that failed on the panel", func() bool {
+		return strings.Contains(r.api.PlaybackState().ProjectNote, why)
+	})
+
+	r.api.StopWatching()
+	ended, _ := r.ui.last(app.EventEnded)
+	if end, ok := ended.(app.Ended); !ok || !strings.Contains(end.Error, why) {
+		t.Fatalf("the end of a session whose save failed = %+v", ended)
 	}
 }
 

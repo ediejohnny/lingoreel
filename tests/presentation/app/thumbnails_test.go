@@ -15,12 +15,19 @@ import (
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
-// keptStills is the stills kept on the disk: how much they take, and
-// clearing them, which fails while fail is set.
+// keptStills is the stills kept on the disk: how much they take, clearing
+// them, which fails while fail is set, and whether their disk is crowded.
 type keptStills struct {
-	mu   sync.Mutex
-	size int64
-	fail error
+	mu      sync.Mutex
+	size    int64
+	fail    error
+	crowded bool
+}
+
+func (s *keptStills) Crowded() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.crowded
 }
 
 func (s *keptStills) Size() (int64, error) {
@@ -49,8 +56,14 @@ func TestTheThumbnailSettings(t *testing.T) {
 	r := newRigWith(t, func(deps *app.Deps) { deps.Stills = stills })
 	r.attach(t)
 	view := settingsOf(t, r).Thumbnails
-	if !view.On || view.OnBattery || !view.OnDisk || view.KeptBytes != 12_345_678 {
+	if !view.On || view.OnBattery || !view.OnDisk || view.KeptBytes != 12_345_678 || view.Crowded {
 		t.Fatalf("first thumbnail settings = %+v", view)
+	}
+	stills.mu.Lock()
+	stills.crowded = true
+	stills.mu.Unlock()
+	if !settingsOf(t, r).Thumbnails.Crowded {
+		t.Fatal("a crowded disk was not told")
 	}
 	view.OnBattery, view.OnDisk = true, false
 	if err := r.api.SetThumbnails(view); err != nil {

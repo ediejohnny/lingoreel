@@ -12,6 +12,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
+	"github.com/ediejohnny/lingoreel/internal/domain/fault"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
@@ -90,8 +91,10 @@ func (a *API) Watch(request WatchRequest) error {
 	// A new video replaces the one playing; the window is not told it ended.
 	a.stop(false)
 	if request.AlwaysUse {
+		// Not kept, the preferred player waits for the next time; the video
+		// plays anyway.
 		if err := a.preferPlayer(request.Player); err != nil {
-			return err
+			a.logger.Warn("the preferred player was not kept", "player", request.Player, "error", err)
 		}
 	}
 	tracks := media.Selection{Audio: request.Audio, Primary: request.Primary, Translation: request.Translation}
@@ -203,6 +206,10 @@ func (a *API) startFailure(err error, installation player.Installation) error {
 		name = plugin.Descriptor().Name
 	}
 	switch {
+	// The players' small files in the temporary folder: a full disk is no
+	// slow player.
+	case a.deps.Faults != nil && a.deps.Faults(err) == fault.DiskFull:
+		return a.because(errors.New(ptbr.T("error.start.failed")), err)
 	case errors.Is(err, os.ErrNotExist) || errors.Is(err, exec.ErrNotFound):
 		return errors.New(ptbr.T("error.start.notFound", "player", name, "path", installation.Path))
 	case errors.Is(err, watch.ErrSubtitles):
@@ -285,7 +292,7 @@ func (a *API) report(current *watching) {
 			if !byPlayer {
 				return
 			}
-			a.flushSession(current)
+			unsaved := a.flushSession(current)
 			a.setTitle(ptbr.WindowTitle(""))
 			ended := Ended{}
 			switch err := current.session.Err(); {
@@ -306,6 +313,9 @@ func (a *API) report(current *watching) {
 				return
 			default:
 				a.logger.Info("session ended")
+			}
+			if ended.Error == "" && unsaved != nil {
+				ended.Error = unsaved.Error()
 			}
 			a.emit(EventPlayback, Playback{})
 			a.emit(EventEnded, ended)
@@ -498,11 +508,15 @@ func (a *API) stop(tell bool) bool {
 		a.logger.Warn("the session did not end cleanly", "error", err)
 	}
 	a.logger.Info("session ended", "by", "the app")
-	a.flushSession(current)
+	unsaved := a.flushSession(current)
 	a.setTitle(ptbr.WindowTitle(""))
 	if tell {
+		ended := Ended{}
+		if unsaved != nil {
+			ended.Error = unsaved.Error()
+		}
 		a.emit(EventPlayback, Playback{})
-		a.emit(EventEnded, Ended{})
+		a.emit(EventEnded, ended)
 	}
 	return true
 }

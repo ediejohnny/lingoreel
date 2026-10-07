@@ -30,6 +30,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
@@ -183,6 +184,7 @@ func run() error {
 		Installer:     install.Winget{},
 		FFmpeg:        userFFmpeg{},
 		Stills:        stills,
+		Faults:        diskfault.Of,
 		Window:        placement.ForVideo,
 		Logger:        logger,
 		KeyChar:       keyboard.Char,

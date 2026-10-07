@@ -172,17 +172,31 @@ func (p *videoProject) track(key string) project.Track {
 }
 
 // saveProject writes the project; a read-only one is kept in memory only.
-// Called with a.mu held.
+// A failed save stays due, so the next one (at the latest as the session
+// ends) tries again, and the panel of the video's session tells why until a
+// save works. Called with a.mu held.
 func (a *API) saveProject() error {
 	p := a.project
 	if p == nil || p.readOnly || a.deps.Projects == nil {
 		return nil
 	}
+	var watching *watching
+	if a.watching != nil && a.watching.video == p.video {
+		watching = a.watching
+	}
 	if err := a.deps.Projects.Save(p.video, p.value); err != nil {
 		a.logger.Warn("the video's project was not saved", "video", p.video, "error", err)
-		return errNotKept
+		p.dirty = true
+		failed := a.because(errNotKept, err)
+		if watching != nil {
+			watching.problem.Store(failed.Error())
+		}
+		return failed
 	}
 	p.dirty = false
+	if watching != nil {
+		watching.problem.Store("")
+	}
 	return nil
 }
 
@@ -347,16 +361,29 @@ func (a *API) keepSession(current *watching, final bool) {
 }
 
 // flushSession keeps how the session ended (the last position included)
-// and saves at once what waits, as the session ends.
-func (a *API) flushSession(current *watching) {
+// and saves at once what waits, as the session ends; a failure stays due
+// and is told with the session's end.
+func (a *API) flushSession(current *watching) error {
 	a.keepSession(current, true)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if p := a.projectOf(current); p != nil {
 		p.cancelFlush()
 		if p.dirty {
-			_ = a.saveProject() // logged; the session is over
+			return a.saveProject()
 		}
+	}
+	return nil
+}
+
+// flushProjectAtExit tries once more a save that failed, as the app closes:
+// the disk may have room again. Nobody is left to tell.
+func (a *API) flushProjectAtExit() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if p := a.project; p != nil && p.dirty {
+		p.cancelFlush()
+		_ = a.saveProject()
 	}
 }
 
@@ -592,17 +619,28 @@ func (a *API) ResetProject() (Video, error) {
 		a.mu.Unlock()
 		return Video{}, errNoVideo
 	}
+	wasReadOnly := false
 	if p != nil {
 		// Nothing pending may write the old project back after it is gone.
 		p.cancelFlush()
-		p.readOnly = true
+		wasReadOnly, p.readOnly = p.readOnly, true
 	}
 	a.resume = nil
 	a.mu.Unlock()
 	if a.deps.Projects != nil {
 		if err := a.deps.Projects.Remove(video.Path); err != nil {
 			a.logger.Warn("the video's project was not removed", "video", video.Path, "error", err)
-			return Video{}, errResetFailed
+			// Still there, the project keeps being kept: what changes next is
+			// saved as before, and what waited is saved again.
+			if p != nil {
+				a.mu.Lock()
+				p.readOnly = wasReadOnly
+				if p.dirty {
+					a.markDirty(p)
+				}
+				a.mu.Unlock()
+			}
+			return Video{}, a.because(errResetFailed, err)
 		}
 	}
 	a.logger.Info("video's project forgotten", "name", filepath.Base(video.Path))

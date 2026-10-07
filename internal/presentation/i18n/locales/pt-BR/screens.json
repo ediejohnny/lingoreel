@@ -539,6 +539,7 @@
   "ui.settings.thumbnails.battery.topic": "Bateria",
   "ui.settings.thumbnails.clear": "Limpar",
   "ui.settings.thumbnails.cleared": "Miniaturas guardadas apagadas.",
+  "ui.settings.thumbnails.crowded": "O disco está quase cheio (menos de 1 GB livre). As miniaturas guardadas há mais tempo saem primeiro, e as novas ficam só na memória até você liberar espaço.",
   "ui.settings.thumbnails.ffmpeg.found": "Usando o FFmpeg de {path}.",
   "ui.settings.thumbnails.ffmpeg.help": "O FFmpeg é um programa livre que não vem com o app, o mesmo da voz dos atores. Se ele já estiver no computador, o app o encontra; senão, escolha o ffmpeg.exe ou instale a versão LGPL pelo winget, direto dos autores. Sem ele, a barra mostra só o tempo sob o mouse.",
   "ui.settings.thumbnails.ffmpeg.missing": "FFmpeg não encontrado: a barra mostra só o tempo sob o mouse.",
