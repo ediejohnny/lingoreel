@@ -565,8 +565,8 @@ func TestClosingTheVideoLeavesTheAppWindowAsItWas(t *testing.T) {
 	if top := win32.TopChild(app.hwnd); top != app.screen {
 		t.Fatalf("the app's top child is %x, want its own screen", top)
 	}
-	if ownedWindow(app.hwnd, "LingoReelOverlay") != 0 || controlBar(app.hwnd) != 0 {
-		t.Fatal("the subtitles or the bar stayed with the app's window")
+	if ownedWindow(app.hwnd, "LingoReelOverlay") != 0 || controlBar(app.hwnd) != 0 || ownedWindow(app.hwnd, "LingoReelPreview") != 0 {
+		t.Fatal("the subtitles, the bar or the seek preview stayed with the app's window")
 	}
 	// The stage outlives the window: asking it things now does nothing.
 	stage.SetLayout(playerwindow.StageLayout{Visible: true})

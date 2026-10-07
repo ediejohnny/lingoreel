@@ -76,6 +76,9 @@ type Labels struct {
 	Entry func(entry controlbar.Entry, state controlbar.State, keys shortcut.Map) controlbar.EntryText
 	// Status is the study text on the bar: "Start: 10:38".
 	Status func(state controlbar.StudyState) string
+	// Moment is the time under the pointer over the track, shown with its
+	// still; nil shows the track's tip instead.
+	Moment func(at time.Duration) string
 	// EditHint shows under the box that corrects a line; EditEmpty is told
 	// when Enter would save an empty line.
 	EditHint, EditEmpty string
@@ -188,6 +191,17 @@ type Window struct {
 	menuOpen  bool
 	icons     map[iconKey]windows.Handle
 	iconsLeft bool
+	// preview is the seek preview's window and previewDIB its picture;
+	// hoverX is where the pointer last moved over the bar; aspect the last
+	// still's shape; stills the latest stills decoded, oldest first in
+	// stillOrder.
+	preview      windows.HWND
+	previewDIB   *win32.DIB
+	previewShown bool
+	hoverX       float64
+	aspect       float64
+	stills       map[time.Duration]*gdiplus.Still
+	stillOrder   []time.Duration
 
 	remoteMu sync.Mutex
 	remote   watch.Remote
@@ -307,6 +321,9 @@ func (w *Window) setup() error {
 	}
 	w.bar = bar
 	remember(bar, w)
+	if err := w.createPreview(); err != nil {
+		return fmt.Errorf("creating the seek preview: %w", err)
+	}
 
 	if w.options.Stage != nil {
 		// The stage shows it where its layout says; the app's window keeps the keys.
@@ -337,6 +354,9 @@ func registerClasses() {
 	if _, registerErr = win32.RegisterClass(&win32.WndClassEx{
 		WndProc: barProc, Instance: win32.ModuleHandle(), Cursor: win32.ArrowCursor(), ClassName: barClassName,
 	}); registerErr != nil {
+		return
+	}
+	if registerErr = registerPreview(); registerErr != nil {
 		return
 	}
 	registerErr = registerEditor()
@@ -549,15 +569,17 @@ func (w *Window) teardown() {
 			win32.SetFocus(w.parent)
 		}
 	}
-	for _, hwnd := range []windows.HWND{w.bar, w.host} {
+	for _, hwnd := range []windows.HWND{w.preview, w.bar, w.host} {
 		forget(hwnd)
 		if hwnd != 0 && windows.IsWindow(hwnd) {
 			_ = win32.DestroyWindow(hwnd)
 		}
 	}
-	w.bar, w.host = 0, 0
+	w.preview, w.bar, w.host, w.previewShown = 0, 0, 0, false
 	w.dib.Close()
 	w.dib = nil
+	w.previewDIB.Close()
+	w.previewDIB = nil
 	if w.renderer != nil {
 		w.renderer.Close()
 		w.renderer = nil

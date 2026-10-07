@@ -150,7 +150,7 @@ func dispatchBar(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uint
 		w.trackLeave(1, hwnd)
 		w.showCursor()
 		x, y := w.inClient(win32.PointOf(lparam))
-		w.hover = w.layout.HitTest(x, y)
+		w.hover, w.hoverX = w.layout.HitTest(x, y), x
 		if w.drag != controlbar.ActionNone {
 			w.dragTo(x)
 		}
@@ -386,6 +386,8 @@ func (w *Window) setFullscreen(on bool) {
 	if on == w.fullscreen || w.host == 0 || frame == 0 || !windows.IsWindow(frame) {
 		return
 	}
+	// Shown again by the refresh at the end, on top of what the frame brings.
+	w.hidePreview()
 	if on {
 		placement, err := win32.Placement(frame)
 		if err != nil {
@@ -491,6 +493,7 @@ func (w *Window) refreshBar() {
 		return
 	}
 	win32.KillTimer(w.host, timerRefresh)
+	w.hidePreview()
 	win32.ShowWindow(w.bar, win32.SW_HIDE)
 	w.hover = controlbar.Item{}
 	if w.overlay != nil {
@@ -541,6 +544,7 @@ func (w *Window) drawBar(remote watch.Remote) bool {
 	if w.overlay != nil {
 		_ = w.overlay.ReserveBottom(int(math.Ceil(bar.Panel.H)))
 	}
+	w.drawPreview(remote, state, bar)
 	return true
 }
 
@@ -553,7 +557,9 @@ func (w *Window) look(bar controlbar.Bar, state controlbar.State) gdiplus.BarLoo
 	if labels.Time != nil && bar.Time.Valid() {
 		look.Time = labels.Time(state.Position, state.Duration)
 	}
-	if labels.Tip != nil && w.hover.Action != controlbar.ActionNone && w.drag == controlbar.ActionNone {
+	// Over a track that seeks, the preview shows the moment instead of a tip.
+	previewed := w.hover.Action == controlbar.ActionTrack && w.hover.Enabled && labels.Moment != nil
+	if labels.Tip != nil && w.hover.Action != controlbar.ActionNone && w.drag == controlbar.ActionNone && !previewed {
 		look.Tip = labels.Tip(w.hover, state, w.shortcuts())
 	}
 	look.Thumb = w.drag == controlbar.ActionTrack || w.hover.Action == controlbar.ActionTrack

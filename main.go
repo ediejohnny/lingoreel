@@ -138,7 +138,7 @@ func run() error {
 			Service: service, Registry: registry,
 			OpenWindow: stage.Opener(look, playerwindow.Labels{
 				Tip: ptbr.BarTips(keyboard.Char), Item: ptbr.BarItem, Time: ptbr.BarTime,
-				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus,
+				Entry: ptbr.BarEntries(keyboard.Char), Status: ptbr.BarStatus, Moment: ptbr.Clock,
 				EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty, Menu: ptbr.MenuTexts(keyboard.Char),
 			}, ptbr.WindowTitle, logger),
 			WindowHearsKeys: true,

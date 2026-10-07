@@ -103,6 +103,7 @@ func (w *Window) openContextMenu(at win32.Point) {
 		return
 	}
 	w.menuOpen = true
+	w.hidePreview()
 	id := w.track(menu, at)
 	w.menuOpen = false
 	win32.DestroyMenu(menu)

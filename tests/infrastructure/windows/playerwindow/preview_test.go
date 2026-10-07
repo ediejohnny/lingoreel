@@ -1,0 +1,136 @@
+//go:build windows && amd64
+
+package playerwindow_test
+
+import (
+	"bytes"
+	"image"
+	"image/jpeg"
+	"slices"
+	"testing"
+	"time"
+
+	"golang.org/x/sys/windows"
+
+	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
+	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
+	"github.com/ediejohnny/lingoreel/tests/testkit"
+)
+
+// The seek preview over the track, in a 640x360 window at 100%: the panel
+// from client y 302, the band (where the bar's window starts) from 268, the
+// track's hit zone the panel's top 16 pixels (bar y 34..50) and its line
+// from x 12 to 628. A 100 s film: x 320 is (320-12)/616 of it, 50 s.
+
+// openPreviewing opens a window whose bar shows the seek preview, with the
+// bar on screen.
+func openPreviewing(t *testing.T) (host windows.HWND, remote *fakeRemote) {
+	t.Helper()
+	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Moment: ptbr.Clock},
+		NoActivate: true,
+		Choose:     func(uintptr, int32, int32) uint32 { return 0 },
+	})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { w.Close() })
+	remote = newRemote(&recordingPlayer{})
+	remote.clock.Observe(playback.Sample{Position: 10 * time.Second, Duration: 100 * time.Second, Speed: 1, Status: playback.StatusPaused, ObservedAt: time.Now()})
+	w.Attach(remote)
+	host = windows.HWND(w.Handle())
+	post(t, host, win32.WM_MOUSEMOVE, 0, at(320, 340))
+	testkit.Eventually(t, "the bar to show", func() bool { return windows.IsWindowVisible(controlBar(host)) })
+	return host, remote
+}
+
+func (r *fakeRemote) asked() []time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.wanted)
+}
+
+func (r *fakeRemote) show(view thumbnail.View) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.thumbnail = view
+}
+
+// grey is a still as the session hands it: a 240x135 JPEG.
+func grey(t *testing.T) thumbnail.Picture {
+	t.Helper()
+	picture := image.NewGray(image.Rect(0, 0, 240, 135))
+	for i := range picture.Pix {
+		picture.Pix[i] = 0x80
+	}
+	var encoded bytes.Buffer
+	if err := jpeg.Encode(&encoded, picture, nil); err != nil {
+		t.Fatal(err)
+	}
+	return thumbnail.Picture{At: 50 * time.Second, Width: 240, Height: 135, JPEG: encoded.Bytes()}
+}
+
+// The pointer over the track asks the session for the moment under it,
+// which is what starts the film's stills at once.
+func TestTheHoverAsksForTheMomentUnderIt(t *testing.T) {
+	testkit.Slow(t)
+	host, remote := openPreviewing(t)
+	post(t, controlBar(host), win32.WM_MOUSEMOVE, 0, at(320, 42))
+	testkit.Eventually(t, "the moment under the pointer asked for", func() bool {
+		for _, at := range remote.asked() {
+			if at > 49500*time.Millisecond && at < 50500*time.Millisecond {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// Dragging along the track, the preview stands above the pointer, over the
+// subtitles' window and the video, with the still over the time; with no
+// still to show the time stands alone. (Showing the preview already puts it
+// on top here; the window also places it there itself, so a mutant leaving
+// that out survives.)
+func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
+	testkit.Slow(t)
+	host, remote := openPreviewing(t)
+	remote.show(thumbnail.View{Status: thumbnail.Ready, Sharp: true, Picture: grey(t)})
+	bar, preview := controlBar(host), ownedWindow(host, "LingoReelPreview")
+	if preview == 0 {
+		t.Fatal("no seek preview window")
+	}
+	origin, err := win32.ClientRectOnScreen(host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	placed := func(x int32) func() bool {
+		return func() bool {
+			r, err := win32.WindowRect(preview)
+			centre := (r.Left+r.Right)/2 - origin.Left
+			return err == nil && windows.IsWindowVisible(preview) && centre >= x-2 && centre <= x+2
+		}
+	}
+	post(t, bar, win32.WM_LBUTTONDOWN, 1, at(200, 42))
+	testkit.Eventually(t, "the preview above x 200", placed(200))
+	r, _ := win32.WindowRect(preview)
+	if r.Bottom > origin.Top+308 || r.Bottom-r.Top < 68 {
+		t.Fatalf("preview at %+v: want the still and the time above the track (client y 308)", r)
+	}
+	if subtitles := ownedWindow(host, "LingoReelOverlay"); zOrder(preview) > zOrder(subtitles) || zOrder(preview) > zOrder(host) {
+		t.Fatalf("the preview (place %d) is behind the subtitles (%d) or the video (%d)", zOrder(preview), zOrder(subtitles), zOrder(host))
+	}
+	post(t, bar, win32.WM_MOUSEMOVE, 1, at(400, 42))
+	testkit.Eventually(t, "the preview to follow to x 400", placed(400))
+
+	remote.show(thumbnail.View{}) // no stills for this film
+	post(t, bar, win32.WM_MOUSEMOVE, 1, at(410, 42))
+	testkit.Eventually(t, "the time alone", func() bool {
+		r, err := win32.WindowRect(preview)
+		return err == nil && placed(410)() && r.Bottom-r.Top < 40
+	})
+	post(t, bar, 0x0202, 0, at(410, 42)) // WM_LBUTTONUP
+}
