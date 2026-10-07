@@ -537,7 +537,7 @@
   "ui.settings.thumbnails.battery.help": "Na bateria, a miniatura é feita só para o ponto sob o mouse, para a bateria durar mais. Ligue para fazer as miniaturas do filme todo também na bateria, como na tomada.",
   "ui.settings.thumbnails.battery.label": "Também na bateria",
   "ui.settings.thumbnails.battery.topic": "Bateria",
-  "ui.settings.thumbnails.clear": "Limpar",
+  "ui.settings.thumbnails.clear": "Limpar miniaturas",
   "ui.settings.thumbnails.cleared": "Miniaturas guardadas apagadas.",
   "ui.settings.thumbnails.crowded": "O disco está quase cheio (menos de 1 GB livre). As miniaturas guardadas há mais tempo saem primeiro, e as novas ficam só na memória até você liberar espaço.",
   "ui.settings.thumbnails.ffmpeg.found": "Usando o FFmpeg de {path}.",
