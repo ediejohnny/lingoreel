@@ -6,6 +6,12 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-07
+
+The seek bar shows a still of the moment under the pointer, as video sites do: taken in the background without
+crowding the film, and kept in the app's own folder, where each video's project now lives too, following a film that
+is renamed or moved. When the app cannot keep something on the disk it says why and what to do, and loses nothing.
+
 ### Added
 
 - The seek bar shows, above the pointer (and along a drag), the time under it and a still of that moment (240×135 at
@@ -661,7 +667,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
 [0.23.1]: https://github.com/ediejohnny/lingoreel/compare/v0.23.0...v0.23.1
