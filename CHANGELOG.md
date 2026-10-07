@@ -6,6 +6,19 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
+  just before a moment (about 1 MB read and 150–240 ms here), scaled into a 240×135 box keeping the picture's shape
+  (anamorphic DVDs included) as a JPEG. An HD film with no colour tags keeps the BT.709 colours players show,
+  interlaced pictures are deinterlaced, and HDR (PQ, HLG) is made small first and tone-mapped after; Dolby Vision
+  profile 5 gives no stills. The film is read only as the local file of the container the app opened.
+
+### Fixed
+
+- An FFmpeg the app started (the voice's too) could outlive the app if it crashed: every FFmpeg now joins a job that
+  ends with the app.
+
 ## [0.25.0] - 2026-10-06
 
 The karaoke mode follows the actors' voice with a speech model inside the app, and a video with no subtitle of its

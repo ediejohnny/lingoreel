@@ -83,6 +83,16 @@ func Arguments(stretch voice.Stretch) ([]string, int) {
 
 func seconds(d time.Duration) string { return strconv.FormatFloat(d.Seconds(), 'f', 3, 64) }
 
+// start runs an FFmpeg tied to the app: when the app ends, even by a crash,
+// the system ends it too.
+func start(command *exec.Cmd) error {
+	if err := command.Start(); err != nil {
+		return fmt.Errorf("ffmpeg: starting: %w", err)
+	}
+	contain(command.Process)
+	return nil
+}
+
 // Decoder decodes with an FFmpeg, implementing voice.Decoder.
 type Decoder struct{ Path string }
 
@@ -103,8 +113,8 @@ func (d Decoder) Decode(ctx context.Context, stretch voice.Stretch, hear func([]
 	if err != nil {
 		return fmt.Errorf("ffmpeg: %w", err)
 	}
-	if err := command.Start(); err != nil {
-		return fmt.Errorf("ffmpeg: starting: %w", err)
+	if err := start(command); err != nil {
+		return err
 	}
 	readErr := deliver(out, channels, hear)
 	waitErr := command.Wait()
