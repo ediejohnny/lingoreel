@@ -230,3 +230,27 @@ func TestKaraokeFillFollowsTheVoice(t *testing.T) {
 		t.Fatalf("a line with nothing said: %+v", got)
 	}
 }
+
+// A line's fill always ends while it shows (half a line was seen painted
+// as it went): a voice still at half when the line goes, the line moved by
+// its offset, is caught up and all painted by the line's last pictures,
+// with nothing left to draw; a quick line painted by the estimate too.
+func TestKaraokeFillAlwaysEndsWhileTheLineShows(t *testing.T) {
+	t.Parallel()
+	subtitles := karaokeSubtitles(t)
+	subtitles.ShiftOffset(session.LinePrimary, 500*time.Millisecond) // B shows from 20.5 s to 23.5 s
+	subtitles.SetVoice(func(string, time.Duration, time.Duration, time.Duration) (float64, bool) { return 0.5, true })
+	if got := subtitles.At(ms(22_000)); got.Fill != 0.5 {
+		t.Fatalf("well before the line goes: fill %v, want the voice's 0.5", got.Fill)
+	}
+	if got := subtitles.At(ms(23_400)); got.Fill != 1 || got.Animating() {
+		t.Fatalf("the line's last pictures: %+v, want it all painted, nothing left to draw", got)
+	}
+	quick := session.NewSubtitles(&session.Track{Timeline: timeline(t, subtitle.Event{ID: "Q", Start: ms(1000), End: ms(1300),
+		OriginalText: "Well, I really do not think that is what happened here."})}, nil)
+	quick.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true})
+	// The estimate alone is still on "happened" 100 ms before the line goes.
+	if got := quick.At(ms(1_200)); got.Fill != 1 {
+		t.Fatalf("a quick line's last pictures: fill %v, want it all painted", got.Fill)
+	}
+}

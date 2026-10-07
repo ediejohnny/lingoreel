@@ -34,6 +34,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- The karaoke mode's fill always ends while its line shows: a line that went before the actor stopped speaking (the
+  voice found runs on past it), or a quick one, was left half painted, half in the fill's color and half in the line's.
+  Over a line's last 400 ms (never more than 30% of it) what is left is painted, all of it 120 ms before the line goes.
 - An FFmpeg the app started (the voice's too) could outlive the app if it crashed: every FFmpeg now joins a job that
   ends with the app.
 
