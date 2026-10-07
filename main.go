@@ -36,6 +36,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/seekable"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/settingsfile"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/stillcache"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/discovery"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
@@ -83,6 +84,9 @@ const singleInstanceID = "lingoreel-edie-johnny"
 // logFolder holds the daily logs next to the settings, for problem reports;
 // they never hold subtitle text.
 const logFolder = "logs"
+
+// thumbnailsFolder holds the films' seek-bar stills, next to the settings.
+const thumbnailsFolder = "thumbnails"
 
 func main() {
 	if err := run(); err != nil {
@@ -165,7 +169,12 @@ func run() error {
 			FindDecoder: findFFmpeg,
 			OpenStills:  openStills,
 			StillsStopped: func(err error) {
-				logger.Info("the seek bar shows the time alone", "reason", err)
+				logger.Info("the seek bar's stills stopped", "reason", err)
+			},
+			// The stills stay in the app's own folder, never beside the film.
+			KeepStills: stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)},
+			StillsUnkept: func(err error) {
+				logger.Warn("keeping the seek bar's stills", "err", err)
 			},
 		},
 		Stage:         stagePort{stage},

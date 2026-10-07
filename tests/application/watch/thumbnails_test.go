@@ -129,3 +129,27 @@ func TestOnTheBatteryOnlyThePointersStillIsTaken(t *testing.T) {
 		t.Fatal("plugged in, the background never went on")
 	}
 }
+
+// keptStore holds one film's stills, as the app's folder would.
+type keptStore struct{ kept []thumbnail.Kept }
+
+func (s keptStore) Load(string) ([]thumbnail.Kept, error) { return s.kept, nil }
+func (keptStore) Save(string, []thumbnail.Kept) error     { return nil }
+
+// A video's stills kept from an earlier opening show on the seek bar at
+// once, through the window's remote.
+func TestKeptStillsShowWhenTheVideoOpensAgain(t *testing.T) {
+	t.Parallel()
+	r, window, _ := hostedRig(t)
+	still := thumbnail.Picture{At: 30 * time.Second, Width: 16, Height: 9, JPEG: []byte{30}}
+	r.ports.KeepStills = keptStore{kept: []thumbnail.Kept{{Asked: 30 * time.Second, Picture: still}}}
+	r.ports.OpenStills = func(context.Context, string, string) (thumbnail.Film, error) {
+		return &heldFilm{began: make(chan thumbnail.Shot, 8)}, nil
+	}
+	r.start(t)
+	remote, _ := window.state()
+	testkit.Eventually(t, "the kept still on the bar", func() bool {
+		view := remote.Thumbnail(31 * time.Second)
+		return view.Status == thumbnail.Ready && view.Sharp && view.Picture.JPEG[0] == 30
+	})
+}

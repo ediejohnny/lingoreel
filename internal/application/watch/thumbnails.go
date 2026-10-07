@@ -28,7 +28,9 @@ func (s *Session) startStills(ports Ports, request Request, info media.Info) {
 		}
 		return s.State().Duration // MP4, AVI: the player tells
 	}
-	s.stills = thumbnail.Start(request.Analysis.Path, open, duration, thumbnail.Options{OnStop: ports.StillsStopped})
+	s.stills = thumbnail.Start(request.Analysis.Path, open, duration, thumbnail.Options{
+		OnStop: ports.StillsStopped, Store: ports.KeepStills, Warn: ports.StillsUnkept,
+	})
 	s.stills.Rest(ports.Power != nil && ports.Power.OnBattery())
 }
 

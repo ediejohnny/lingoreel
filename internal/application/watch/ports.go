@@ -155,7 +155,12 @@ type Ports struct {
 	// shows the time alone. StillsStopped hears why a film's stills stopped.
 	OpenStills    func(ctx context.Context, chosen, file string) (thumbnail.Film, error)
 	StillsStopped func(err error)
-	Now           func() time.Time
+	// KeepStills keeps a film's stills between openings, in the app's own
+	// folder; nil keeps them in memory only. StillsUnkept hears a problem
+	// keeping them.
+	KeepStills   thumbnail.Store
+	StillsUnkept func(err error)
+	Now          func() time.Time
 }
 
 // Request is what to watch and how.

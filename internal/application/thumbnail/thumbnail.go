@@ -13,6 +13,10 @@ import (
 // the app cannot show right (the bar then shows the time alone).
 var ErrNoStills = errors.New("the film gives no stills")
 
+// ErrNoRoom reports a disk without the room to keep a film's stills: they
+// stay in memory for the rest of the session.
+var ErrNoRoom = errors.New("no room on the disk to keep the stills")
+
 // Picture is one still of a film: a small JPEG the window decodes.
 type Picture struct {
 	// At is when the still really is: the keyframe at or just before the
@@ -42,3 +46,19 @@ type Film interface {
 // Opener prepares a video for its stills, looking at it once, or reports
 // ErrNoStills.
 type Opener func(ctx context.Context, file string) (Film, error)
+
+// Kept is a still as kept between openings: the moment it was asked for,
+// which puts it back on the film's grid, and the still.
+type Kept struct {
+	Asked   time.Duration
+	Picture Picture
+}
+
+// Store keeps a film's stills between openings, so they show at once when
+// it opens again.
+type Store interface {
+	// Load gives the stills kept for a film; none when there are none.
+	Load(file string) ([]Kept, error)
+	// Save keeps a film's stills, all of them, in place of what was kept.
+	Save(file string, stills []Kept) error
+}

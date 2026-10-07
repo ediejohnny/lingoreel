@@ -315,3 +315,196 @@ func TestRestingTakesOnlyThePointersStill(t *testing.T) {
 		t.Fatalf("after the rest the background did not go on: %+v", shot)
 	}
 }
+
+// fakeStore keeps a film's stills in memory and tells each save.
+type fakeStore struct {
+	mu    sync.Mutex
+	kept  []thumbnail.Kept
+	saves [][]thumbnail.Kept
+	fail  error
+}
+
+func (s *fakeStore) Load(string) ([]thumbnail.Kept, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.kept), nil
+}
+
+func (s *fakeStore) Save(_ string, stills []thumbnail.Kept) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saves = append(s.saves, slices.Clone(stills))
+	return s.fail
+}
+
+func (s *fakeStore) saved() [][]thumbnail.Kept {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.saves)
+}
+
+func keptAt(seconds ...int) []thumbnail.Kept {
+	var out []thumbnail.Kept
+	for _, second := range seconds {
+		at := time.Duration(second) * time.Second
+		out = append(out, thumbnail.Kept{Asked: at, Picture: thumbnail.Picture{At: at, Width: 16, Height: 9, JPEG: []byte{byte(second)}}})
+	}
+	return out
+}
+
+// A film's kept stills show as soon as it opens, long before the first
+// still would be taken: a film kept whole never opens FFmpeg, and one kept
+// in part takes only the stills it lacks. A still kept off this film's grid
+// (another length) is left out.
+func TestKeptStillsShowAtOnce(t *testing.T) {
+	t.Parallel()
+	opens := make(chan struct{}, 4)
+	opening := func(film thumbnail.Film) thumbnail.Opener {
+		return func(context.Context, string) (thumbnail.Film, error) { opens <- struct{}{}; return film, nil }
+	}
+	whole := &fakeStore{kept: keptAt(0, 10, 20, 30, 40)}
+	s := thumbnail.Start("film.mkv", opening(newFakeFilm(true)), lasting(50*time.Second), thumbnail.Options{Delay: time.Hour, Store: whole})
+	t.Cleanup(s.Close)
+	testkit.Eventually(t, "the kept still to show", func() bool {
+		view := s.Thumbnail(21 * time.Second)
+		return view.Status == thumbnail.Ready && view.Sharp && view.Picture.JPEG[0] == 20
+	})
+	s.Want(45 * time.Second)
+	select {
+	case <-opens:
+		t.Fatal("a film kept whole opened FFmpeg")
+	case <-time.After(150 * time.Millisecond):
+	}
+	s.Close()
+	time.Sleep(50 * time.Millisecond)
+	if saves := whole.saved(); len(saves) != 0 {
+		t.Fatalf("a film with nothing new was saved again %d times", len(saves))
+	}
+
+	film := newFakeFilm(false)
+	part := &fakeStore{kept: append(keptAt(0, 40), keptAt(15)...)}
+	p := thumbnail.Start("film.mkv", opening(film), lasting(50*time.Second), thumbnail.Options{Delay: time.Hour, Store: part})
+	t.Cleanup(p.Close)
+	testkit.Eventually(t, "the kept still to show", func() bool { return p.Thumbnail(40*time.Second).Status == thumbnail.Ready })
+	if view := p.Thumbnail(15 * time.Second); view.Status == thumbnail.Ready && view.Sharp {
+		t.Fatalf("a still off the grid shows: %+v", view)
+	}
+	p.Want(20 * time.Second) // ends the hour
+	testkit.Eventually(t, "the lacking stills", func() bool { return len(film.taken()) == 3 })
+	var taken []time.Duration
+	for _, shot := range film.taken() {
+		taken = append(taken, shot.At/time.Second)
+	}
+	slices.Sort(taken)
+	if !slices.Equal(taken, []time.Duration{10, 20, 30}) {
+		t.Fatalf("stills taken at %v s, want only the lacking 10, 20, 30", taken)
+	}
+}
+
+// The stills are kept as they come, each save at least doubling what is
+// kept, and when the service ends (without Close waiting): the kept ones
+// from the store first, in the order taken; nothing new, no save. A store
+// that fails is told about.
+func TestStillsAreKeptAsTheyCome(t *testing.T) {
+	t.Parallel()
+	film := newFakeFilm(true)
+	store := &fakeStore{kept: keptAt(0)}
+	warned := make(chan error, 4)
+	s := thumbnail.Start("film.mkv", opener(film), lasting(100*time.Second), thumbnail.Options{
+		Delay: time.Millisecond, Store: store, SaveEvery: 2, Warn: func(err error) { warned <- err },
+	})
+	for range 3 {
+		next(t, film)
+		film.gate <- struct{}{}
+	}
+	next(t, film) // the fourth is being taken
+	testkit.Eventually(t, "a save after two new stills", func() bool { return len(store.saved()) == 1 })
+	s.Close()
+	testkit.Eventually(t, "the save at the end", func() bool { return len(store.saved()) == 2 })
+	saves := store.saved()
+	var asked []time.Duration
+	for _, kept := range saves[1] {
+		asked = append(asked, kept.Asked/time.Second)
+	}
+	if len(saves[0]) != 3 || !slices.Equal(asked, []time.Duration{0, 80, 40, 20}) {
+		t.Fatalf("saved %d then %v, want 3 (the kept one and two new) then 0, 80, 40, 20", len(saves[0]), asked)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if len(store.saved()) != 2 {
+		t.Fatal("saved again with nothing new")
+	}
+
+	doubling := &fakeStore{}
+	d := thumbnail.Start("film.mkv", opener(newFakeFilm(false)), lasting(100*time.Second), thumbnail.Options{
+		Delay: time.Millisecond, Store: doubling, SaveEvery: 1,
+	})
+	t.Cleanup(d.Close)
+	testkit.Eventually(t, "the save of the whole film", func() bool {
+		saves := doubling.saved()
+		return len(saves) > 0 && len(saves[len(saves)-1]) == 10
+	})
+	var sizes []int
+	for _, save := range doubling.saved() {
+		sizes = append(sizes, len(save))
+	}
+	if !slices.Equal(sizes, []int{1, 2, 4, 8, 10}) {
+		t.Fatalf("saves of %v stills, want each at least doubling: 1, 2, 4, 8, then the 10 at the end", sizes)
+	}
+
+	failing := &fakeStore{fail: errors.New("disk full")}
+	f := thumbnail.Start("film.mkv", opener(newFakeFilm(false)), lasting(20*time.Second), thumbnail.Options{
+		Delay: time.Millisecond, Store: failing, Warn: func(err error) { warned <- err },
+	})
+	t.Cleanup(f.Close)
+	select {
+	case err := <-warned:
+		if err.Error() != "disk full" {
+			t.Fatalf("warned %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a store that failed was never told about")
+	}
+}
+
+// A film that gives no stills now still shows those it kept before; the
+// moments they do not reach show the time alone.
+func TestKeptStillsOutliveAFilmThatGivesNone(t *testing.T) {
+	t.Parallel()
+	stopped := make(chan error, 1)
+	s := thumbnail.Start("film.mkv", func(context.Context, string) (thumbnail.Film, error) {
+		return nil, thumbnail.ErrNoStills
+	}, lasting(20*time.Minute), thumbnail.Options{Store: &fakeStore{kept: keptAt(60)}, OnStop: func(err error) { stopped <- err }})
+	t.Cleanup(s.Close)
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("never told the film gives no stills")
+	}
+	if view := s.Thumbnail(61 * time.Second); view.Status != thumbnail.Ready {
+		t.Fatalf("the kept still: %+v", view)
+	}
+	if view := s.Thumbnail(10 * time.Minute); view.Status != thumbnail.Off {
+		t.Fatalf("a moment no kept still reaches: %+v, want the time alone", view)
+	}
+}
+
+// A disk with no room keeps no more of the film's stills this session (it
+// would only fail again), says so once, and the stills go on in memory.
+func TestAFullDiskStopsKeepingTheStills(t *testing.T) {
+	t.Parallel()
+	full := &fakeStore{fail: fmt.Errorf("%w: 10 MB free", thumbnail.ErrNoRoom)}
+	warned := make(chan error, 8)
+	film := newFakeFilm(false)
+	s := thumbnail.Start("film.mkv", opener(film), lasting(100*time.Second), thumbnail.Options{
+		Delay: time.Millisecond, Store: full, SaveEvery: 1, Warn: func(err error) { warned <- err },
+	})
+	t.Cleanup(s.Close)
+	testkit.Eventually(t, "every still taken", func() bool { return len(film.taken()) == 10 })
+	time.Sleep(50 * time.Millisecond)
+	if saves := full.saved(); len(saves) != 1 || len(warned) != 1 {
+		t.Fatalf("%d saves and %d warnings on a full disk, want one of each", len(saves), len(warned))
+	}
+	if view := s.Thumbnail(90 * time.Second); view.Status != thumbnail.Ready || !view.Sharp {
+		t.Fatalf("the stills in memory: %+v", view)
+	}
+}

@@ -23,6 +23,13 @@ All notable changes to this project are listed here. The format follows
   an AVI's idx1 or OpenDML index) leaves out its video, gives no stills, since a seek there reads the film from its
   start. One of the app's FFmpeg runs at a time, the voice's or a still's; the still the pointer waits for never
   queues.
+- A film's seek-bar stills are kept in the app's own folder (`%APPDATA%\LingoReel\thumbnails`), never beside the
+  film: opened again, even renamed or moved (it is known by its size and its first and last 64 KiB), its stills show at
+  once, and a film kept whole runs no FFmpeg at all. One film's stills take up to 64 MB and all of them up to 4 GB, the
+  films opened longest ago leaving first. They never leave the disk with less than 1 GB free: older films leave to make
+  room, and a disk still too full keeps the stills in memory for the session. A damaged package is refused within bounds
+  and the film starts over. Each save at least doubles what is kept, so a long film is written some twice its size in
+  all.
 - `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
   or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
   loses, and held to a few processors as a smaller computer, printing the film's key and never its name.

@@ -45,6 +45,13 @@ type Options struct {
 	// GiveUp is how many stills in a row may fail before the film's stills
 	// stop.
 	GiveUp int
+	// Store keeps the film's stills between openings; nil keeps them in
+	// memory only. They are saved once SaveEvery new stills, and as many as
+	// those already kept, are there, and when the stills end; a problem
+	// keeping them goes to Warn.
+	Store     Store
+	SaveEvery int
+	Warn      func(err error)
 	// OnStop hears, once, why the stills stopped before the film was covered.
 	OnStop func(err error)
 	Now    func() time.Time
@@ -55,10 +62,11 @@ type Options struct {
 var ErrGaveUp = errors.New("the stills kept failing")
 
 const (
-	defaultDelay    = 10 * time.Second
-	defaultOverview = 100
-	defaultHover    = 2 * time.Second
-	defaultGiveUp   = 3
+	defaultDelay     = 10 * time.Second
+	defaultOverview  = 100
+	defaultHover     = 2 * time.Second
+	defaultGiveUp    = 3
+	defaultSaveEvery = 25
 	// durationPoll is how often a film with no duration yet is asked again.
 	durationPoll = 250 * time.Millisecond
 )
@@ -79,6 +87,14 @@ type Service struct {
 	// plan is nil until the film is opened and its duration known.
 	plan     *storyboard.Plan
 	pictures map[time.Duration]Picture
+	// kept are the stills in the order taken, as the store keeps them;
+	// loaded, those the store gave until the plan places them; unsaved, how
+	// many were taken since the last save.
+	kept    []Kept
+	loaded  []Kept
+	unsaved int
+	// unkept: the disk had no room, the stills stay in memory.
+	unkept bool
 	// wanted is the moment the pointer is on, asked last at lastWant;
 	// pointed, a want not yet served.
 	wanted   time.Duration
@@ -101,6 +117,7 @@ func Start(file string, open Opener, duration func() time.Duration, options Opti
 	}
 	options.Overview = cmpOr(options.Overview, defaultOverview)
 	options.GiveUp = cmpOr(options.GiveUp, defaultGiveUp)
+	options.SaveEvery = cmpOr(options.SaveEvery, defaultSaveEvery)
 	if options.Now == nil {
 		options.Now = time.Now
 	}
@@ -205,27 +222,23 @@ func (s *Service) idle() bool {
 }
 
 func (s *Service) run() {
+	// What was taken is kept, also when the service is closed: on this
+	// goroutine, so Close never waits for it.
+	defer s.save()
+	// Kept stills show as soon as the film's length is known; a film kept
+	// whole needs no FFmpeg at all.
+	if s.load() && (!s.ensurePlan() || s.complete()) {
+		return
+	}
 	film, err := s.open(s.ctx, s.file)
 	if err != nil {
 		s.stop(err)
 		return
 	}
-	if !s.pause(s.options.Delay) {
+	if !s.pause(s.options.Delay) || !s.ensurePlan() {
 		return
 	}
-	duration := s.duration()
-	for duration <= 0 {
-		select {
-		case <-s.options.After(durationPoll):
-		case <-s.ctx.Done():
-			return
-		}
-		duration = s.duration()
-	}
-	plan := storyboard.NewPlan(storyboard.For(duration))
-	s.mu.Lock()
-	s.plan = plan
-	s.mu.Unlock()
+	plan := s.plan
 	failures, taken := 0, 0
 	for {
 		s.mu.Lock()
@@ -244,7 +257,8 @@ func (s *Service) run() {
 			}
 			continue
 		}
-		shot := Shot{At: plan.Board().At(slot), Waited: waited, Paced: !waited && !hovering && taken >= s.options.Overview}
+		asked := plan.Board().At(slot)
+		shot := Shot{At: asked, Waited: waited, Paced: !waited && !hovering && taken >= s.options.Overview}
 		picture, err := film.Grab(s.ctx, shot)
 		if s.ctx.Err() != nil {
 			return
@@ -256,8 +270,13 @@ func (s *Service) run() {
 		} else {
 			plan.Done(slot, picture.At)
 			s.pictures[picture.At] = picture
+			s.kept = append(s.kept, Kept{Asked: asked, Picture: picture})
+			s.unsaved++
 			failures, taken = 0, taken+1
 		}
+		// Each save at least doubles what is kept: a long film is written
+		// some 2 times its size in all, not once per batch.
+		due := s.unsaved >= s.options.SaveEvery && s.unsaved >= len(s.kept)-s.unsaved
 		s.mu.Unlock()
 		switch {
 		case errors.Is(err, ErrNoStills):
@@ -266,14 +285,103 @@ func (s *Service) run() {
 		case failures >= s.options.GiveUp:
 			s.stop(errors.Join(ErrGaveUp, err))
 			return
+		case due:
+			s.save()
 		}
 	}
 }
 
-// stop turns the film's stills off for good and tells why.
+// load takes the film's kept stills from the store, and tells whether there
+// were any.
+func (s *Service) load() bool {
+	if s.options.Store == nil {
+		return false
+	}
+	kept, err := s.options.Store.Load(s.file)
+	if err != nil {
+		s.warn(err)
+		return false
+	}
+	s.loaded = kept
+	return len(kept) > 0
+}
+
+// ensurePlan lays the film's grid once its length is known, with the kept
+// stills on it; false once the service is closed.
+func (s *Service) ensurePlan() bool {
+	if s.plan != nil {
+		return true
+	}
+	duration := s.duration()
+	for duration <= 0 {
+		select {
+		case <-s.options.After(durationPoll):
+		case <-s.ctx.Done():
+			return false
+		}
+		duration = s.duration()
+	}
+	plan := storyboard.NewPlan(storyboard.For(duration))
+	board := plan.Board()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, kept := range s.loaded {
+		// A still asked for off this grid (another length) is left out.
+		if slot := board.Slot(kept.Asked); board.At(slot) == kept.Asked {
+			plan.Done(slot, kept.Picture.At)
+			s.pictures[kept.Picture.At] = kept.Picture
+			s.kept = append(s.kept, kept)
+		}
+	}
+	s.loaded = nil
+	s.plan = plan
+	return true
+}
+
+// complete tells whether every still of the film is there.
+func (s *Service) complete() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, _, open := s.plan.Next(false, 0)
+	s.finished = !open
+	return !open
+}
+
+// save hands the store the film's stills when some are new.
+func (s *Service) save() {
+	if s.options.Store == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.unsaved == 0 || s.unkept {
+		s.mu.Unlock()
+		return
+	}
+	stills := append([]Kept(nil), s.kept...)
+	s.unsaved = 0
+	s.mu.Unlock()
+	if err := s.options.Store.Save(s.file, stills); err != nil {
+		if errors.Is(err, ErrNoRoom) {
+			s.mu.Lock()
+			s.unkept = true // asked again it would only fail again
+			s.mu.Unlock()
+		}
+		s.warn(err)
+	}
+}
+
+func (s *Service) warn(err error) {
+	if s.options.Warn != nil {
+		s.options.Warn(err)
+	}
+}
+
+// stop ends the film's stills for good and tells why: those already there
+// still show, and a film with none shows the time alone.
 func (s *Service) stop(err error) {
 	s.mu.Lock()
-	s.off = true
+	s.finished = true
+	s.off = len(s.pictures) == 0
 	s.mu.Unlock()
 	if s.ctx.Err() == nil && s.options.OnStop != nil {
 		s.options.OnStop(err)
