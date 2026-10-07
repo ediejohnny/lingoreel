@@ -41,6 +41,13 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- A video's project (its corrections, sync, chosen tracks and mode, saved passages and where it was left) is kept in
+  the app's own folder (`%APPDATA%\LingoReel\projects`), named by the film's content, so renaming or moving the
+  film keeps it; nothing is written beside the film any more. A project an older version left beside the film, or in
+  the app's folder by the film's path, moves in the first time the film opens: written, read back and compared before
+  the old file goes, and one that cannot be removed (in use, in a folder without rights) stays, no longer read. A film
+  written over in place (a download that ended, a better copy) keeps the project its path last kept. "Forget
+  everything" leaves the film with nothing, old files included.
 - Following the actors' voice is no longer marked experimental in the settings.
 
 ### Fixed
