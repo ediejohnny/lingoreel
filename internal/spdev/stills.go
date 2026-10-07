@@ -37,9 +37,9 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 	count := flags.Int("count", 20, "how many stills, spread over the film")
 	length := flags.Duration("duration", 0, "the film's length (1h32m), for a video whose length the app cannot read")
 	paced := flags.Bool("paced", false, "takes them as the background does, held to a share of one processor")
-	rough := flags.Bool("rough", false, "has the decoder skip the deblocking")
 	parallel := flags.Int("parallel", 1, "how many at a time; more than one skips the app's one-at-a-time turn")
 	watching := flags.Bool("watch", false, "plays the film in VLC beside the stills, counting the pictures it loses, against as long without them")
+	software := flags.Bool("software", false, "with --watch, VLC decodes on the processor, as on a computer without a graphics card")
 	affinity := flags.String("affinity", "", "holds VLC, this tool and its FFmpeg to these processors (0xF: the first four), as a smaller computer")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
@@ -76,7 +76,7 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 	indexed, indexErr := seekable.Indexed(path)
 	out.line("Film:     %s, %s", key, formatClock(duration))
 	out.line("Index:    %v%s", indexed, errorNote(indexErr, path))
-	out.line("Stills:   %d, paced %v, rough %v, %d at a time, processors %s", *count, *paced, *rough, *parallel,
+	out.line("Stills:   %d, paced %v, %d at a time, processors %s", *count, *paced, *parallel,
 		cmp.Or(*affinity, "all"))
 	if mask != 0 {
 		if err := pinSelf(mask); err != nil {
@@ -85,7 +85,7 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 	}
 	var mu sync.Mutex
 	var seen []ffmpeg.Run
-	film, err := ffmpeg.Stills{Path: found, Rough: *rough, Report: func(run ffmpeg.Run) {
+	film, err := ffmpeg.Stills{Path: found, Report: func(run ffmpeg.Run) {
 		mu.Lock()
 		seen = append(seen, run)
 		mu.Unlock()
@@ -98,11 +98,12 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 
 	var vlc *vlcWatch
 	if *watching {
-		if vlc, err = startVLC(ctx, path, duration/10, mask); err != nil {
+		if vlc, err = startVLC(ctx, path, duration/10, mask, *software); err != nil {
 			return err
 		}
 		defer vlc.close()
-		out.line("VLC:      playing from %s, muted; the stills begin in %v", formatClock(duration/10), watchWarmUp)
+		out.line("VLC:      playing from %s, muted, decoding on the processor %v; the stills begin in %v",
+			formatClock(duration/10), *software, watchWarmUp)
 		select {
 		case <-time.After(watchWarmUp):
 		case <-ctx.Done():

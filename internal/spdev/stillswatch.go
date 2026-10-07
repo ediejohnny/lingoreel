@@ -65,8 +65,9 @@ func pin(process windows.Handle, mask uint64) error {
 func pinSelf(mask uint64) error { return pin(windows.CurrentProcess(), mask) }
 
 // startVLC plays the film in the installed VLC from a moment, muted, held to
-// the processors in mask (0: all).
-func startVLC(ctx context.Context, film string, from time.Duration, mask uint64) (*vlcWatch, error) {
+// the processors in mask (0: all); software has it decode on the processor,
+// as on a computer without a graphics card.
+func startVLC(ctx context.Context, film string, from time.Duration, mask uint64, software bool) (*vlcWatch, error) {
 	registry, hints, err := plugins.Registry(stderrLogger())
 	if err != nil {
 		return nil, err
@@ -90,10 +91,14 @@ func startVLC(ctx context.Context, film string, from time.Duration, mask uint64)
 		return nil, err
 	}
 	w := &vlcWatch{address: "127.0.0.1:" + strconv.Itoa(port), password: hex.EncodeToString(secret)}
-	w.command = exec.CommandContext(ctx, choice.Installation.Path, "--extraintf", "http", "--http-host", "127.0.0.1",
+	args := []string{"--extraintf", "http", "--http-host", "127.0.0.1",
 		"--http-port", strconv.Itoa(port), "--http-password", w.password, "--no-one-instance", "--stats",
 		"--gain=0", "--no-volume-save", "--no-video-title-show", "--no-metadata-network-access",
-		"--start-time", strconv.FormatFloat(from.Seconds(), 'f', 3, 64), absolute)
+		"--start-time", strconv.FormatFloat(from.Seconds(), 'f', 3, 64)}
+	if software {
+		args = append(args, "--avcodec-hw=none")
+	}
+	w.command = exec.CommandContext(ctx, choice.Installation.Path, append(args, absolute)...)
 	if err := w.command.Start(); err != nil {
 		return nil, fmt.Errorf("stills: starting VLC: %w", err)
 	}

@@ -24,7 +24,8 @@ All notable changes to this project are listed here. The format follows
   start. One of the app's FFmpeg runs at a time, the voice's or a still's; the still the pointer waits for never
   queues.
 - `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
-  or not, printing the film's key and never its name.
+  or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
+  loses, and held to a few processors as a smaller computer, printing the film's key and never its name.
 - Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
   just before a moment (about 1 MB read and 150–240 ms here), scaled into a 384×216 box keeping the picture's shape
   (anamorphic DVDs included) as a JPEG. An HD film with no colour tags keeps the BT.709 colours players show,

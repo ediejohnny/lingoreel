@@ -230,17 +230,14 @@ func StillFilter(look Look) string {
 // on it and nothing after it is decoded ("passthrough" keeps the frame
 // before the moment, which FFmpeg would otherwise drop and decode on to the
 // moment itself). withTime also has FFmpeg tell, on its error output, how
-// far before the moment that frame is; rough has the decoder skip the
-// deblocking, which a still this small does not show.
-func StillArguments(file, format string, at time.Duration, look Look, withTime, rough bool) []string {
+// far before the moment that frame is. (Skipping the decoder's deblocking
+// saves only some 6% of a still: not worth the rougher picture.)
+func StillArguments(file, format string, at time.Duration, look Look, withTime bool) []string {
 	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error", "-filter_threads", "1",
-		"-threads", "1", "-noaccurate_seek", "-ss", seconds(at)}
-	if rough {
-		args = append(args, "-skip_loop_filter", "all", "-flags2", "+fast")
-	}
-	args = append(args, "-protocol_whitelist", "file", "-f", format, "-i", "file:"+file,
+		"-threads", "1", "-noaccurate_seek", "-ss", seconds(at),
+		"-protocol_whitelist", "file", "-f", format, "-i", "file:" + file,
 		"-map", "0:V:0", "-an", "-sn", "-dn", "-frames:v", "1", "-fps_mode", "passthrough",
-		"-vf", StillFilter(look), "-c:v", "mjpeg", "-q:v", "4")
+		"-vf", StillFilter(look), "-c:v", "mjpeg", "-q:v", "4"}
 	if withTime {
 		args = append(args, "-stats_enc_pre", "pipe:2", "-stats_enc_pre_fmt", "{t}")
 	}
@@ -253,8 +250,6 @@ type Stills struct {
 	// Indexed tells whether a film has the index a seek lands through
 	// (false: no stills); nil, or an error, leaves it to the bounds on reads.
 	Indexed func(file string) (bool, error)
-	// Rough has the decoder skip the deblocking.
-	Rough bool
 	// Report hears what each still cost; nil hears nothing.
 	Report func(Run)
 }
@@ -283,7 +278,7 @@ func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 	if look.DolbyVision == 5 {
 		return nil, fmt.Errorf("%w: Dolby Vision profile 5", thumbnail.ErrNoStills)
 	}
-	return &film{path: s.Path, file: file, format: format, look: look, rough: s.Rough, report: s.Report}, nil
+	return &film{path: s.Path, file: file, format: format, look: look, report: s.Report}, nil
 }
 
 // describe has FFmpeg describe the file: given no output, it describes its
@@ -314,7 +309,6 @@ func (s Stills) describe(ctx context.Context, file, format string) (string, erro
 type film struct {
 	path, file, format string
 	look               Look
-	rough              bool
 	report             func(Run)
 	// untimed is an FFmpeg older than 6.1, which cannot tell the frame's
 	// time: its stills stand for the moment asked.
@@ -377,7 +371,7 @@ func rest(ctx context.Context, work time.Duration) {
 func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (thumbnail.Picture, cost, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, stillTimeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, f.path, StillArguments(f.file, f.format, shot.At, f.look, withTime, f.rough)...)
+	command := exec.CommandContext(ctx, f.path, StillArguments(f.file, f.format, shot.At, f.look, withTime)...)
 	command.SysProcAttr = background()
 	var told bytes.Buffer
 	command.Stderr = &limitedWriter{buffer: &told, room: 4096}
