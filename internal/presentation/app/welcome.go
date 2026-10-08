@@ -19,18 +19,20 @@ var (
 // first run, what Windows tells; opened again from the settings, what the
 // active profile holds.
 func (a *API) Welcome() WelcomeView {
+	weak := a.machine().Weak()
 	a.mu.Lock()
-	pending, language := a.welcoming, a.config.Language
+	pending, language, model := a.welcoming, a.config.Language, a.config.Voice.Model
 	profile := a.profile()
 	a.mu.Unlock()
 	languages, mode := profile.Languages, profile.Study.Mode
 	if pending {
 		languages = settings.SuggestedLanguages(a.systemLanguage())
+		model = !weak
 	}
 	view := WelcomeView{
 		Pending: pending, AppLanguage: language, AppLanguages: interfaceLanguages(),
 		Spoken: languages.Translation, Studied: languages.Primary, Mode: string(mode), Modes: modeOptions(),
-		PreferredPlayer: profile.PreferredPlayer, Languages: []Option{},
+		PreferredPlayer: profile.PreferredPlayer, Languages: []Option{}, VoiceModel: model, Weak: weak,
 	}
 	listed := map[string]bool{}
 	add := func(tag string) {
@@ -68,23 +70,25 @@ func (a *API) FinishWelcome(choices WelcomeChoices) error {
 	languages := settings.LanguagePreferences{Audio: choices.Studied, Primary: choices.Studied, Translation: choices.Spoken}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.answerWelcome(languages, study.Mode(choices.Mode), choices.PreferredPlayer)
+	return a.answerWelcome(languages, study.Mode(choices.Mode), choices.PreferredPlayer, choices.VoiceModel)
 }
 
-// SkipWelcome answers the first run's welcome with what Windows tells; once
-// answered, it does nothing.
+// SkipWelcome answers the first run's welcome with what Windows tells, and
+// with the voice AI off on a weak computer; once answered, it does nothing.
 func (a *API) SkipWelcome() error {
+	weak := a.machine().Weak()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.welcoming {
 		return nil
 	}
 	profile := a.profile()
-	return a.answerWelcome(settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer)
+	return a.answerWelcome(settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer, !weak)
 }
 
-// answerWelcome keeps a welcome's answers. Called with a.mu held.
-func (a *API) answerWelcome(languages settings.LanguagePreferences, mode study.Mode, preferred string) error {
+// answerWelcome keeps a welcome's answers; model lets the voice AI work on
+// this computer. Called with a.mu held.
+func (a *API) answerWelcome(languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
 	name := ptbr.Capitalized(ptbr.LanguageName(media.LanguageTag(languages.Primary)))
 	target := a.profile()
 	profiles := a.profiles
@@ -117,11 +121,12 @@ func (a *API) answerWelcome(languages settings.LanguagePreferences, mode study.M
 	}
 	config := a.config
 	config.ActiveProfile = target.Name
+	config.Voice.Model = model
 	if err := a.commitConfig(config); err != nil {
 		return err
 	}
 	a.welcoming = false
-	a.logger.Info("welcome answered", "studies", languages.Primary, "speaks", languages.Translation, "mode", mode)
+	a.logger.Info("welcome answered", "studies", languages.Primary, "speaks", languages.Translation, "mode", mode, "voiceAI", model)
 	return nil
 }
 

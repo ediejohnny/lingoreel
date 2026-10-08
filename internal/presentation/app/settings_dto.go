@@ -59,6 +59,8 @@ type VoiceSettings struct {
 	FFmpegPath  string `json:"ffmpegPath"`
 	FFmpegFound string `json:"ffmpegFound"`
 	CanInstall  bool   `json:"canInstall"`
+	// Weak tells the computer seems too weak for the voice AI (read only).
+	Weak bool `json:"weak"`
 }
 
 // ThumbnailSettings are the seek bar's stills on this computer: taken at
@@ -396,6 +398,10 @@ type WelcomeView struct {
 	// PreferredPlayer is the player to watch with, empty for the first one
 	// found.
 	PreferredPlayer string `json:"preferredPlayer"`
+	// VoiceModel lets the voice AI work on this computer; Weak tells the
+	// computer seems too weak for it, so it starts off and the screen warns.
+	VoiceModel bool `json:"voiceModel"`
+	Weak       bool `json:"weak"`
 }
 
 // WelcomeChoices are the welcome's answers.
@@ -404,4 +410,5 @@ type WelcomeChoices struct {
 	Studied         string `json:"studied"`
 	Mode            string `json:"mode"`
 	PreferredPlayer string `json:"preferredPlayer"`
+	VoiceModel      bool   `json:"voiceModel"`
 }

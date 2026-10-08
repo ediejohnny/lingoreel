@@ -583,6 +583,7 @@
   "ui.settings.voice.sensitivity.topic": "Sensibilidade",
   "ui.settings.voice.title": "Voz dos atores",
   "ui.settings.voice.topic": "Voz dos atores",
+  "ui.settings.voice.weak": "Este computador parece fraco para a IA de voz, por isso ela começa desligada. Dá para ligar mesmo assim, por sua conta e risco: o app pode ficar pesado e os vídeos podem demorar para abrir. Desligada, o Modo Karaokê segue a estimativa.",
   "ui.settings.welcome.help": "As perguntas da primeira abertura: a linguagem do aplicativo, a língua que você fala e a que estuda, o modo de estudo, o player e o FFmpeg. Se você escolher outra língua para estudar, o app cria um perfil novo com o nome dela e deixa o atual como está.",
   "ui.settings.welcome.open": "Abrir o assistente",
   "ui.settings.welcome.title": "Assistente de configuração",

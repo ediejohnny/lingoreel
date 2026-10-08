@@ -583,6 +583,7 @@
   "ui.settings.voice.sensitivity.topic": "Sensitivity",
   "ui.settings.voice.title": "Actors' voice",
   "ui.settings.voice.topic": "Actors' voice",
+  "ui.settings.voice.weak": "This computer seems too weak for the voice AI, so it starts off. You can turn it on anyway, at your own risk: the app may get heavy and videos may take longer to open. With it off, the karaoke mode follows the estimate.",
   "ui.settings.welcome.help": "The questions of the first opening: the app language, the language you speak and the one you study, the study mode, the player and FFmpeg. If you choose another language to study, the app creates a new profile named after it and leaves the current one as it is.",
   "ui.settings.welcome.open": "Open the setup",
   "ui.settings.welcome.title": "Setup assistant",

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 )
@@ -136,6 +137,58 @@ func TestTheWelcomeOpenedAgainChangesTheActiveProfile(t *testing.T) {
 	watching := startWatching(t)
 	if err := watching.api.FinishWelcome(app.WelcomeChoices{Spoken: "pt-BR", Studied: "de", Mode: "dual"}); err == nil {
 		t.Fatal("the welcome changed the profile of a video being watched")
+	}
+}
+
+// On a weak computer the first run starts with the voice AI off, and the
+// welcome and the voice settings say why; the person may turn it on anyway.
+// A strong one, or someone who already uses the app, keeps it as it is.
+func TestAWeakComputerStartsWithTheVoiceAIOff(t *testing.T) {
+	t.Parallel()
+	weak := capacity.Machine{Processors: 2, Memory: 2 << 30, ModelSpeed: 12}
+	strong := capacity.Machine{Processors: 8, Memory: 24 << 30, ModelSpeed: 90}
+	rigOn := func(machine capacity.Machine, firstRun bool) *rig {
+		r := newRigWith(t, func(deps *app.Deps) {
+			deps.FirstRun = firstRun
+			deps.SystemLanguage = func() string { return "pt-BR" }
+			deps.Machine = func() capacity.Machine { return machine }
+		})
+		r.attach(t)
+		return r
+	}
+	voiceOn := func(r *rig) bool {
+		r.settings.mu.Lock()
+		defer r.settings.mu.Unlock()
+		return r.settings.config.Voice.Model
+	}
+
+	skipped := rigOn(weak, true)
+	if view := skipped.api.Welcome(); !view.Weak || view.VoiceModel {
+		t.Fatalf("the welcome on a weak computer = weak %v, voice AI %v", view.Weak, view.VoiceModel)
+	}
+	if err := skipped.api.SkipWelcome(); err != nil || voiceOn(skipped) {
+		t.Fatalf("skipping on a weak computer: %v, voice AI on %v", err, voiceOn(skipped))
+	}
+	if view := settingsOf(t, skipped); !view.Voice.Weak {
+		t.Error("the voice settings do not warn about the weak computer")
+	}
+
+	risked := rigOn(weak, true)
+	if err := risked.api.FinishWelcome(app.WelcomeChoices{Spoken: "pt-BR", Studied: "en", Mode: "on-demand", VoiceModel: true}); err != nil || !voiceOn(risked) {
+		t.Fatalf("turning it on at one's own risk: %v, voice AI on %v", err, voiceOn(risked))
+	}
+
+	fine := rigOn(strong, true)
+	if view := fine.api.Welcome(); view.Weak || !view.VoiceModel {
+		t.Fatalf("the welcome on a strong computer = weak %v, voice AI %v", view.Weak, view.VoiceModel)
+	}
+	if err := fine.api.SkipWelcome(); err != nil || !voiceOn(fine) {
+		t.Fatalf("skipping on a strong computer: %v, voice AI on %v", err, voiceOn(fine))
+	}
+
+	using := rigOn(weak, false)
+	if err := using.api.SkipWelcome(); err != nil || !voiceOn(using) {
+		t.Fatalf("someone already using the app had the voice AI changed: %v, on %v", err, voiceOn(using))
 	}
 }
 

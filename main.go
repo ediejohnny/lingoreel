@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
+	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -49,6 +51,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/audiotap"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/hotkeys"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/keyboard"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/memory"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/overlay"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/placement"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
@@ -197,6 +200,7 @@ func run() error {
 		SystemLanguage: systemLanguage,
 		// Read before anything is saved: the first run opens the welcome.
 		FirstRun: firstRun,
+		Machine:  func() capacity.Machine { return measureMachine(logger) },
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{
@@ -349,6 +353,20 @@ func speakLanguage(configured string, logger *slog.Logger) {
 		return
 	}
 	logger.Info("interface language", "language", spoken, "windows", system)
+}
+
+// measureMachine measures what the computer offers the voice AI: its
+// processors, its memory and how fast the embedded model judges sound.
+func measureMachine(logger *slog.Logger) capacity.Machine {
+	machine := capacity.Machine{Processors: goruntime.NumCPU(), Memory: memory.Total()}
+	speed, err := voice.ModelSpeed(silero.Embedded{})
+	if err != nil {
+		logger.Warn("the voice model's speed was not measured", "error", err)
+	}
+	machine.ModelSpeed = speed
+	logger.Info("computer", "processors", machine.Processors, "memoryGB", machine.Memory>>30,
+		"modelSpeed", fmt.Sprintf("%.0fx", speed), "weak", machine.Weak())
+	return machine
 }
 
 // activeProfile is the profile the user studies with, or the default one.

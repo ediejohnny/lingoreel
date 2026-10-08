@@ -17,6 +17,10 @@ All notable changes to this project are listed here. The format follows
   you speak and the one you study, the study mode, and the player and FFmpeg (found, chosen or installed there). Each
   step can be skipped; skipping, or closing the app, keeps what Windows tells: you speak its language and study English,
   or Brazilian Portuguese on an English Windows. A video the app was opened with waits for it.
+- On a weak computer (two logical processors or fewer, under 4 GB of memory, or a voice model under 25× real time,
+  measured once in the background on made-up sound), the first opening starts with the voice AI off and says why, in
+  the setup assistant and in Settings › Study › Actors' voice; it can still be turned on, at the user's own risk.
+  Someone who already uses the app keeps their choice.
 - Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
   language studied gets a profile of its own, named after it, while the old one stays.
 

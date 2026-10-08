@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FFmpegRow } from "../components/settings/FFmpegRow";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
+import { Toggle } from "../components/ui/Field";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
 import { setLanguage, t } from "../i18n";
@@ -39,6 +40,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
   const [studied, setStudied] = useState("");
   const [mode, setMode] = useState("");
   const [preferred, setPreferred] = useState("");
+  const [voiceModel, setVoiceModel] = useState(true);
   const [players, setPlayers] = useState<Players | null>(null);
   const [voice, setVoice] = useState<VoiceSettings | null>(null);
   const [installing, setInstalling] = useState("");
@@ -61,6 +63,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
         setStudied(next.studied);
         setMode(next.mode);
         setPreferred(next.preferredPlayer);
+        setVoiceModel(next.voiceModel);
       })
       .catch((failure) => setError(messageOf(failure)));
   }, []);
@@ -127,7 +130,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
     setFinishing(true);
     setError("");
     try {
-      await backend.finishWelcome({ spoken, studied, mode, preferredPlayer: preferred });
+      await backend.finishWelcome({ spoken, studied, mode, preferredPlayer: preferred, voiceModel });
       onDone();
     } catch (failure) {
       setError(messageOf(failure));
@@ -313,6 +316,15 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
                     ))}
                   </>
                 )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Toggle
+                  label={t("ui.settings.voice.model.label")}
+                  checked={voiceModel}
+                  onChange={setVoiceModel}
+                  help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
+                />
+                {view.weak && <Banner tone="warning">{t("ui.settings.voice.weak")}</Banner>}
               </div>
               {voice && (
                 <FFmpegRow

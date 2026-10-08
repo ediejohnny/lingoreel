@@ -1375,6 +1375,7 @@ export namespace app {
 	    ffmpegPath: string;
 	    ffmpegFound: string;
 	    canInstall: boolean;
+	    weak: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new VoiceSettings(source);
@@ -1392,6 +1393,7 @@ export namespace app {
 	        this.ffmpegPath = source["ffmpegPath"];
 	        this.ffmpegFound = source["ffmpegFound"];
 	        this.canInstall = source["canInstall"];
+	        this.weak = source["weak"];
 	    }
 	}
 	export class SettingsView {
@@ -1566,6 +1568,7 @@ export namespace app {
 	    studied: string;
 	    mode: string;
 	    preferredPlayer: string;
+	    voiceModel: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WelcomeChoices(source);
@@ -1577,6 +1580,7 @@ export namespace app {
 	        this.studied = source["studied"];
 	        this.mode = source["mode"];
 	        this.preferredPlayer = source["preferredPlayer"];
+	        this.voiceModel = source["voiceModel"];
 	    }
 	}
 	export class WelcomeView {
@@ -1589,6 +1593,8 @@ export namespace app {
 	    mode: string;
 	    modes: Option[];
 	    preferredPlayer: string;
+	    voiceModel: boolean;
+	    weak: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WelcomeView(source);
@@ -1605,6 +1611,8 @@ export namespace app {
 	        this.mode = source["mode"];
 	        this.modes = this.convertValues(source["modes"], Option);
 	        this.preferredPlayer = source["preferredPlayer"];
+	        this.voiceModel = source["voiceModel"];
+	        this.weak = source["weak"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
