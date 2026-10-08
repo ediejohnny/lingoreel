@@ -43,6 +43,8 @@ describe("settingsSections", () => {
       "Avançado",
       "Ajuda",
     ]);
+    // Ajuda opens on the documentation, with the notices beside it.
+    expect(sections.find((item) => item.id === "help")?.children?.map((item) => item.label)).toEqual(["Documentação", "Sobre"]);
   });
 
   it("tells the line each page edits", () => {

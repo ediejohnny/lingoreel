@@ -27,7 +27,9 @@ export type SectionId =
   | "players"
   | "appearance"
   | "advanced"
-  | "help";
+  | "help"
+  | "help-docs"
+  | "help-about";
 
 /** SectionItem is an entry of the settings menu; detail is a second, smaller line. */
 export interface SectionItem {
@@ -59,7 +61,14 @@ export function settingsSections(languages: Record<SubtitleLine, string>): Secti
     { id: "players", label: t("ui.settings.sections.players") },
     { id: "appearance", label: t("ui.settings.sections.appearance") },
     { id: "advanced", label: t("ui.settings.sections.advanced") },
-    { id: "help", label: t("ui.settings.sections.help") },
+    {
+      id: "help",
+      label: t("ui.settings.sections.help"),
+      children: [
+        { id: "help-docs", label: t("ui.help.title") },
+        { id: "help-about", label: t("ui.settings.about.title") },
+      ],
+    },
   ];
 }
 

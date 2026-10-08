@@ -1,14 +1,94 @@
-import { ScrollText } from "lucide-react";
+import { ArrowRight, ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
+import { searchTopics, topics, type Keys } from "../../help/topics";
 import { t } from "../../i18n";
 import { backend, messageOf } from "../../services/backend";
-import { noticesOf, type NoticeSection } from "../../settings";
+import { noticesOf, type NoticeSection, type SectionId } from "../../settings";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
+import { TextField } from "../ui/Field";
+import { Select } from "../ui/Select";
 
-/** HelpSection tells what the app is and whose code it carries; the guide to using the app will join it here. */
+/** HelpSection tells what the app is and whose code it carries (Ajuda › Sobre). */
 export function HelpSection() {
   return <AboutCard />;
+}
+
+interface HelpDocsProps {
+  /** keys are the profile's shortcuts, which the texts name. */
+  keys: Keys;
+  /** narrow lays the topics out as a list to pick from, for the panel beside the video. */
+  narrow: boolean;
+  onOpen: (section: SectionId) => void;
+}
+
+/** HelpDocs is the documentation (Ajuda › Documentação): every topic, a search, and a way to the settings each one is about. */
+export function HelpDocs({ keys, narrow, onOpen }: HelpDocsProps) {
+  const [query, setQuery] = useState("");
+  const [chosen, setChosen] = useState("start");
+  const found = searchTopics(topics(keys), query);
+  const topic = found.find((item) => item.id === chosen) ?? found[0];
+
+  return (
+    <Card title={t("ui.help.title")}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-fg-secondary">{t("ui.help.intro")}</p>
+        <TextField label={t("ui.help.search")} value={query} onChange={setQuery} placeholder={t("ui.help.searchPlaceholder")} />
+        {topic === undefined ? (
+          <p role="status" className="text-sm text-fg-muted">
+            {t("ui.help.noResults", { query: query.trim() })}
+          </p>
+        ) : (
+          <div className={narrow ? "flex flex-col gap-4" : "flex gap-6"}>
+            {narrow ? (
+              <Select
+                label={t("ui.help.topics")}
+                value={topic.id}
+                options={found.map((item) => ({ value: item.id, label: item.title }))}
+                onChange={setChosen}
+              />
+            ) : (
+              <nav aria-label={t("ui.help.topics")} className="w-52 shrink-0">
+                <ul className="flex flex-col gap-0.5">
+                  {found.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        aria-current={item.id === topic.id ? "true" : undefined}
+                        onClick={() => setChosen(item.id)}
+                        className={`w-full rounded-control px-3 py-1.5 text-left text-sm transition-colors duration-[var(--duration-fast)] ${
+                          item.id === topic.id
+                            ? "bg-accent-soft font-medium text-accent"
+                            : "text-fg-secondary hover:bg-sunken hover:text-fg"
+                        }`}
+                      >
+                        {item.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+            <article className="flex min-w-0 flex-1 flex-col gap-3 select-text">
+              <h3 className="text-base font-semibold text-fg">{topic.title}</h3>
+              {topic.paragraphs.map((paragraph, index) => (
+                <p key={index} className="text-sm leading-relaxed text-fg-secondary">
+                  {paragraph}
+                </p>
+              ))}
+              {topic.open && (
+                <div>
+                  <Button icon={ArrowRight} onClick={() => topic.open && onOpen(topic.open)}>
+                    {t("ui.help.open")}
+                  </Button>
+                </div>
+              )}
+            </article>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 /**

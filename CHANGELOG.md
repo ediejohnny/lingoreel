@@ -21,6 +21,11 @@ All notable changes to this project are listed here. The format follows
   measured once in the background on made-up sound), the first opening starts with the voice AI off and says why, in
   the setup assistant and in Settings › Study › Actors' voice; it can still be turned on, at the user's own risk.
   Someone who already uses the app keeps their choice.
+- Settings › Help › Documentation teaches everything the app can do, in 14 topics (getting started, watching,
+  subtitles, sync, study modes, karaoke mode, passages, correcting and exporting, shortcuts, profiles and appearance,
+  the voice AI, players, where the app keeps everything, problems and solutions), in both languages. It names the
+  profile's own keys, finds topics by any word with or without accents, opens the settings each topic is about, and
+  shows the topics as a list in the panel beside the video. Help now has two pages: Documentation and About.
 - Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
   language studied gets a profile of its own, named after it, while the old one stays.
 

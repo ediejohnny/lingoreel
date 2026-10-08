@@ -3,7 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { AppearanceSection } from "../components/settings/AppearanceSection";
 import { AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
 import { GeneralSection } from "../components/settings/GeneralSection";
-import { HelpSection } from "../components/settings/HelpSection";
+import { HelpDocs, HelpSection } from "../components/settings/HelpSection";
 import { PlayersSection } from "../components/settings/PlayersSection";
 import { ShortcutsSection } from "../components/settings/ShortcutsSection";
 import { StudySection } from "../components/settings/StudySection";
@@ -360,7 +360,8 @@ export function SettingsPage({
               <AppearanceSection view={view} draft={draft} run={props.run} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
             )}
             {section === "advanced" && <AdvancedSection {...props} />}
-            {section === "help" && <HelpSection />}
+            {(section === "help" || section === "help-docs") && <HelpDocs keys={draft.shortcuts} narrow={narrow} onOpen={setSection} />}
+            {section === "help-about" && <HelpSection />}
           </div>
         </main>
         {!narrow && saveBar}
