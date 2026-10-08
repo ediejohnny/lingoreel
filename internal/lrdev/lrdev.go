@@ -42,6 +42,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return voiceCheck(ctx, args[1:], stdout)
 	case "stills":
 		return stills(ctx, args[1:], stdout)
+	case "drift-check":
+		return driftCheck(ctx, args[1:], stdout)
 	case "align-check":
 		return alignCheck(ctx, args[1:], stdout)
 	case "seek-probe":
@@ -91,6 +93,9 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --watch [--software]            beside VLC playing the film (decoding on the processor), counting what it loses")
 	fmt.Fprintln(w, "      --affinity <mask>               held to these processors (0xF: the first four), as a smaller computer")
 	fmt.Fprintln(w, "      --probesize <bytes>             what FFmpeg reads to learn the streams before each still (5 MB by default)")
+	fmt.Fprintln(w, "  drift-check <video> [options]   plays a film without the screen and follows its line by the voice (numbers only)")
+	fmt.Fprintln(w, "      --cut <d> --shift <d>           every line from the cut on shown that much off (45m, 800ms)")
+	fmt.Fprintln(w, "      --subtitle, --ffmpeg, --cache   as in voice-check")
 	fmt.Fprintln(w, "  align-check <video> [options]   places each line's words in its sound with a CTC model (wav2vec2, ONNX)")
 	fmt.Fprintln(w, "      --runtime <dll> --model <dir> the onnxruntime.dll, and the folder with the model, vocab.json and meta.json")
 	fmt.Fprintln(w, "      --file <name> --threads <n>     the model's file (model.onnx) and its processors (2)")
