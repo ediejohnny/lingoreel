@@ -45,6 +45,9 @@ All notable changes to this project are listed here. The format follows
 - The first profile is named after the language studied, in the app language, instead of always "Inglês".
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
+- The README presents the app as it is today: highlights, features by area, the default shortcuts, requirements,
+  privacy and building from source. The guide to translating covers the documentation's file, the two catalogs and
+  English as the language of a Windows the app does not speak.
 
 ### Fixed
 
