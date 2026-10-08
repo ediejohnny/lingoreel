@@ -450,7 +450,7 @@ func (a *API) flushProjectAtExit() {
 	}
 	for {
 		err := a.writeDue(p)
-		if err == nil || a.deps.AskRetry == nil || !a.deps.AskRetry(ptbr.T("ui.app.name"), ptbr.T("dialog.exitNotSaved", "reason", err.Error())) {
+		if err == nil || a.deps.AskRetry == nil || !a.deps.AskRetry(ptbr.T("app.title"), ptbr.T("dialog.exitNotSaved", "reason", err.Error())) {
 			return
 		}
 	}

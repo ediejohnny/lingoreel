@@ -93,8 +93,9 @@ type Service struct {
 	kept    []Kept
 	loaded  []Kept
 	unsaved int
-	// unkept: the disk had no room, the stills stay in memory.
-	unkept bool
+	// unkept: the disk had no room, the stills stay in memory; discarded:
+	// they are now taken anew at each opening, never kept.
+	unkept, discarded bool
 	// wanted is the moment the pointer is on, asked last at lastWant;
 	// pointed, a want not yet served.
 	wanted   time.Duration
@@ -184,11 +185,25 @@ func (s *Service) Rest(resting bool) {
 	}
 }
 
-// Close stops taking stills, without waiting for the one being taken.
+// Close stops taking stills, without waiting for the one being taken; those
+// taken since the last save are kept.
 func (s *Service) Close() {
 	if s != nil {
 		s.cancel()
 	}
+}
+
+// Discard stops taking stills, as Close does, and keeps none of those not
+// kept yet: the stills are to be taken anew at each opening, the disk never
+// written.
+func (s *Service) Discard() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.discarded = true
+	s.mu.Unlock()
+	s.cancel()
 }
 
 func (s *Service) poke() {
@@ -353,7 +368,7 @@ func (s *Service) save() {
 		return
 	}
 	s.mu.Lock()
-	if s.unsaved == 0 || s.unkept {
+	if s.unsaved == 0 || s.unkept || s.discarded {
 		s.mu.Unlock()
 		return
 	}

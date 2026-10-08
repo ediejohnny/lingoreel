@@ -213,3 +213,25 @@ func TestNothingToExport(t *testing.T) {
 		}
 	}
 }
+
+// An export the app could not end leaves no temporary file for good: the
+// next export to the same file takes out one an hour old or more, whatever
+// characters the name holds.
+func TestAnExportSweepsWhatAnEndedOneLeft(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	left := filepath.Join(dir, ".Movie [1080p].srt.123.tmp")
+	if err := os.WriteFile(left, []byte("1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(left, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := subtitleformat.WriteFile(filepath.Join(dir, "Movie [1080p].srt"), exportSample()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(left); !os.IsNotExist(err) {
+		t.Fatalf("the temporary left behind is still there: %v", err)
+	}
+}

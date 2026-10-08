@@ -194,6 +194,7 @@
   "error.start.launch": "O {player} não abriu a tempo. Clique em Assistir para tentar de novo; se continuar, feche outras janelas do {player}.",
   "error.start.notFound": "O {player} não foi encontrado em {path}. Confira o caminho em Configurações › Player, ou instale-o de novo.",
   "error.start.subtitles": "Não foi possível ler as legendas escolhidas. Escolha outra legenda ou confira o arquivo dela.",
+  "error.startup": "O LingoReel não conseguiu abrir. Para pedir ajuda, envie este detalhe:\n\n{reason}",
   "error.subtitleFile.dialog": "Não foi possível abrir a janela de escolha de arquivo.",
   "error.subtitleFile.tooMany": "Este vídeo já tem {max} arquivos de legenda adicionados, o máximo.",
   "error.subtitleFile.unreadable": "Esse arquivo não é uma legenda que o app consiga ler (.srt, .ass, .ssa ou .vtt).",

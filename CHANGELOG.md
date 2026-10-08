@@ -66,6 +66,15 @@ All notable changes to this project are listed here. The format follows
   the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
 - A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
   (after making room on the disk, say) or to close without them; they used to be lost quietly.
+- Temporary files an app that stopped while saving left behind (beside the settings, the profiles, a video's project
+  or an exported subtitle) are taken out the next time that file is read or exported, once they are an hour old. A
+  package of seek-bar stills left half written is taken out as the app opens, and counts in the size the settings
+  show until then.
+- Switching the seek bar's stills to "taken again at each opening" no longer writes the stills taken until then to
+  the disk.
+- When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
+  folder, and the diagnostics name the folder really used.
+- An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
 
 ## [0.26.0] - 2026-10-07
 

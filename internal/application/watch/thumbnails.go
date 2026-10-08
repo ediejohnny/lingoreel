@@ -72,7 +72,12 @@ func (s *Session) SetThumbnailSetup(setup ThumbnailSetup) {
 	if setup.Off != before.Off || setup.InMemory != before.InMemory {
 		s.stills = s.newStills(setup)
 		s.stillsMu.Unlock()
-		stills.Close()
+		// Taken anew at each opening, the stills leave the disk as it is.
+		if setup.InMemory && !before.InMemory {
+			stills.Discard()
+		} else {
+			stills.Close()
+		}
 		return
 	}
 	s.stillsMu.Unlock()

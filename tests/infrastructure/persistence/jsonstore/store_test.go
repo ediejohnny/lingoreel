@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
@@ -278,5 +279,32 @@ func TestSaveRejectsNonObjectValues(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("a rejected Save still wrote the document")
+	}
+}
+
+// A temporary file an app that stopped while writing left beside the
+// document is taken out when the document is read, an hour old or more; one
+// younger may be a write on its way, and another document's stays.
+func TestLeftTemporariesAreSweptOnLoad(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	old := time.Now().Add(-2 * time.Hour)
+	files := map[string]time.Time{".doc.json.123.tmp": old, ".doc.json.456.tmp": time.Now(), ".other.json.789.tmp": old}
+	for name, at := range files {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := jsonstore.New(filepath.Join(dir, "doc.json"), 1, defaultSample, nil).Load(); err != nil {
+		t.Fatal(err)
+	}
+	for name, kept := range map[string]bool{".doc.json.123.tmp": false, ".doc.json.456.tmp": true, ".other.json.789.tmp": true} {
+		if _, err := os.Stat(filepath.Join(dir, name)); (err == nil) != kept {
+			t.Errorf("%s: kept %v, want %v", name, err == nil, kept)
+		}
 	}
 }

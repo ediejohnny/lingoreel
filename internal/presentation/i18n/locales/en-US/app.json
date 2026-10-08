@@ -194,6 +194,7 @@
   "error.start.launch": "{player} did not open in time. Click Watch to try again; if it keeps happening, close other {player} windows.",
   "error.start.notFound": "{player} was not found at {path}. Check the path in Settings › Player, or install it again.",
   "error.start.subtitles": "Could not read the chosen subtitles. Choose another subtitle or check its file.",
+  "error.startup": "LingoReel could not open. To ask for help, send this detail:\n\n{reason}",
   "error.subtitleFile.dialog": "Could not open the window to choose a file.",
   "error.subtitleFile.tooMany": "This video already has {max} subtitle files added, the most it can have.",
   "error.subtitleFile.unreadable": "That file is not a subtitle the app can read (.srt, .ass, .ssa or .vtt).",

@@ -24,3 +24,9 @@ func WebViewMessages() WebViewTexts {
 		Crashed:              T("webview.crashed"),
 	}
 }
+
+// StartupError is the title and text of Windows' own box when the app cannot
+// open, with the error as a detail for whoever helps.
+func StartupError(err error) (title, text string) {
+	return T("app.title"), T("error.startup", "reason", err.Error())
+}

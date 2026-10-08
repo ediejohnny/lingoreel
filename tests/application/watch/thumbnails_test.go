@@ -321,3 +321,67 @@ func TestKeptStillsShowWhenTheVideoOpensAgain(t *testing.T) {
 		return view.Status == thumbnail.Ready && view.Sharp && view.Picture.JPEG[0] == 30
 	})
 }
+
+// firstFilm gives its first still at once and holds every other one until
+// its context ends.
+type firstFilm struct {
+	mu    sync.Mutex
+	given bool
+	held  chan context.Context
+}
+
+func (f *firstFilm) Grab(ctx context.Context, shot thumbnail.Shot) (thumbnail.Picture, error) {
+	f.mu.Lock()
+	first := !f.given
+	f.given = true
+	f.mu.Unlock()
+	if first {
+		return thumbnail.Picture{At: shot.At, Width: 16, Height: 9, JPEG: []byte{1}}, nil
+	}
+	f.held <- ctx
+	<-ctx.Done()
+	return thumbnail.Picture{}, ctx.Err()
+}
+
+// countingStore keeps nothing and counts the saves.
+type countingStore struct{ saves atomic.Int32 }
+
+func (*countingStore) Load(string) ([]thumbnail.Kept, error) { return nil, nil }
+func (s *countingStore) Save(string, []thumbnail.Kept) error {
+	s.saves.Add(1)
+	return nil
+}
+
+// Moving the stills to "taken anew at each opening" leaves the disk as it
+// is: the stills taken on the disk until then are not written as the old
+// stills end; turned off, they are.
+func TestStillsTakenAnewNeverWriteTheDisk(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name  string
+		setup watch.ThumbnailSetup
+		saves int32
+	}{
+		{"taken anew", watch.ThumbnailSetup{InMemory: true}, 0},
+		{"turned off", watch.ThumbnailSetup{Off: true}, 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			r, window, _ := hostedRig(t)
+			store := &countingStore{}
+			r.ports.KeepStills = store
+			film := &firstFilm{held: make(chan context.Context, 8)}
+			r.ports.OpenStills = func(context.Context, string, string) (thumbnail.Film, error) { return film, nil }
+			s := r.start(t)
+			remote, _ := window.state()
+			remote.WantThumbnail(30 * time.Second)
+			held := <-film.held // the first still was taken; the next one waits
+			s.SetThumbnailSetup(c.setup)
+			<-held.Done()
+			time.Sleep(200 * time.Millisecond) // the old stills' end runs its last save, if any
+			if got := store.saves.Load(); got != c.saves {
+				t.Fatalf("%d saves, want %d", got, c.saves)
+			}
+		})
+	}
+}
