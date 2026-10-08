@@ -51,6 +51,7 @@ func (p framePlayer) Capabilities() playback.Capabilities {
 func newMenuRigFor(t *testing.T, p session.Player) *menuRig {
 	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
+		Modifiers: noModifiers,
 		// Tall enough for the longest menu with its saved passages.
 		Title: ptbr.WindowTitle("v.mkv"), Placement: player.Placement{X: -3000, Y: 100, Width: 1280, Height: 720}, VideoWidth: 1280, VideoHeight: 720,
 		Labels: playerwindow.Labels{

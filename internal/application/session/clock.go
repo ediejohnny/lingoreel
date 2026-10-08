@@ -48,6 +48,9 @@ type Clock struct {
 	reportedSince time.Time
 	stalled       bool
 	graceUntil    time.Time
+	// commandAt is when the session's own last command (a play, a pause, a
+	// seek, a speed) moved the anchor: a sample observed before it is stale.
+	commandAt time.Time
 	// slewFactor scales the speed from the anchor until slewUntil.
 	slewFactor float64
 	slewUntil  time.Time
@@ -72,6 +75,11 @@ func (c *Clock) Observe(sample playback.Sample) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Observed before the session's own last command, the sample tells what
+	// that command changed: it would undo it until the next one.
+	if c.anchored && sample.ObservedAt.Before(c.commandAt) {
+		return
+	}
 	sample.Speed = usableSpeed(sample.Speed)
 	stateChanged := !c.anchored || sample.Status != c.anchor.Status || sample.Speed != c.anchor.Speed
 	c.anchor.Duration = sample.Duration
@@ -217,7 +225,7 @@ func (c *Clock) reanchor(change func(*playback.Sample)) {
 	c.anchor = sample
 	c.anchored = true
 	c.slewUntil = time.Time{}
-	c.graceUntil = now.Add(seekGracePeriod)
+	c.graceUntil, c.commandAt = now.Add(seekGracePeriod), now
 	c.reportedSince, c.stalled = now, false
 	c.signal()
 }

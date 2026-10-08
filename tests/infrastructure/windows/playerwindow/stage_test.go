@@ -167,7 +167,8 @@ var panelOpen = layout.Insets{Top: 56, Right: 380}
 func openOn(t *testing.T, stage *playerwindow.Stage) *playerwindow.Window {
 	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, EditHint: ptbr.EditHint, EditEmpty: ptbr.EditEmpty},
 		NoActivate: true, Stage: stage,

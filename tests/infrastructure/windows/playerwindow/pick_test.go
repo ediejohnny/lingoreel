@@ -32,7 +32,8 @@ func clickDown(t *testing.T, host windows.HWND) {
 func TestAClickPicksTheLineOnlyWhilePaused(t *testing.T) {
 	testkit.Slow(t)
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime},
 		NoActivate: true,

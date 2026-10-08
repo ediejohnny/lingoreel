@@ -80,6 +80,8 @@ All notable changes to this project are listed here. The format follows
   folder, and the diagnostics name the folder really used.
 - An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
 - A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
+- Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
+  command, arrives after it on a busy computer.
 
 ## [0.26.0] - 2026-10-07
 

@@ -11,6 +11,7 @@ package plugintest
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -226,9 +227,11 @@ drain:
 	}
 }
 
-// countProcesses counts the running processes with the executable's name.
+// countProcesses counts the running processes with the executable's name
+// that this test started: the user's own player, opened or closed meanwhile,
+// is not counted.
 func countProcesses(executable string) int {
-	name := strings.ToLower(filepath.Base(executable))
+	name, parent := strings.ToLower(filepath.Base(executable)), uint32(os.Getpid())
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return 0
@@ -237,7 +240,7 @@ func countProcesses(executable string) int {
 	entry := windows.ProcessEntry32{Size: uint32(unsafe.Sizeof(windows.ProcessEntry32{}))}
 	count := 0
 	for err = windows.Process32First(snapshot, &entry); err == nil; err = windows.Process32Next(snapshot, &entry) {
-		if strings.ToLower(windows.UTF16ToString(entry.ExeFile[:])) == name {
+		if entry.ParentProcessID == parent && strings.ToLower(windows.UTF16ToString(entry.ExeFile[:])) == name {
 			count++
 		}
 	}

@@ -251,7 +251,8 @@ var _ watch.Remote = (*fakeRemote)(nil)
 func open(t *testing.T) *playerwindow.Window {
 	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime},
 		NoActivate: true,
 		// No menu ever shows on screen in the tests.
@@ -292,6 +293,10 @@ const (
 
 // key is a key message's lParam: the scan code, the extended flag and
 // whether the key was already down (a repeat).
+// noModifiers stands for a keyboard with Ctrl, Alt and Shift up, whatever the
+// user beside the tests holds.
+func noModifiers() shortcut.Modifiers { return 0 }
+
 func key(scan uintptr, extended, repeat bool) uintptr {
 	lparam := 1 | scan<<16
 	if extended {

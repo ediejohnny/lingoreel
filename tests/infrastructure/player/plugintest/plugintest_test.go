@@ -213,9 +213,23 @@ func TestTheKitCatchesEveryFlaw(t *testing.T) {
 		"process left after Close":    {leavesProcess, "still running after Close"},
 		"normal close called a crash": {errAfterClose, "Err after a normal Close"},
 		"cancelled launch succeeds":   {ignoresCancel, "cancelled context succeeded"},
-		"cancelled launch leaves one": {leavesProcessWhenCancelled, "cancelled launch left"},
 		"volume without its method":   {volumeWithoutMethod, "declares Volume without"},
 	})
+}
+
+// A process a cancelled launch left is found by counting the stand-ins the
+// test started before and after; with other flaws starting and ending theirs
+// side by side, the count would see their processes too, so this flaw runs
+// alone.
+func TestTheKitCatchesAProcessACancelledLaunchLeft(t *testing.T) {
+	want := "cancelled launch left"
+	failures := runKit(fake(t, leavesProcessWhenCancelled))
+	for _, failure := range failures {
+		if strings.Contains(failure, want) {
+			return
+		}
+	}
+	t.Fatalf("the kit missed %q; it reported:\n%s", want, strings.Join(failures, "\n"))
 }
 
 // These flaws are caught only after a whole bound of the kit (10 s).

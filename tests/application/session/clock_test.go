@@ -45,6 +45,28 @@ func TestClockSessionCommandBeforeAnySampleMakesTheStateKnown(t *testing.T) {
 	}
 }
 
+// A sample read before the session's own play arrives after it (a slow
+// computer, a busy player): it tells the pause the play ended, and must not
+// put the video back to paused until the next sample.
+func TestClockASampleOlderThanACommandIsStale(t *testing.T) {
+	t.Parallel()
+	now := newFakeTime()
+	clock := session.NewClock(playback.PrecisionExact, now.Now)
+	clock.Observe(playback.Sample{Position: ms(1_000), Speed: 1, Status: playback.StatusPaused, ObservedAt: now.Now()})
+	read := now.Now()
+	now.Advance(100 * time.Millisecond)
+	clock.SetStatus(playback.StatusPlaying)
+	clock.Observe(playback.Sample{Position: ms(1_000), Speed: 1, Status: playback.StatusPaused, ObservedAt: read})
+	if state := clock.State(); state.Status != playback.StatusPlaying {
+		t.Fatalf("a stale sample undid the play: %+v", state)
+	}
+	now.Advance(100 * time.Millisecond)
+	clock.Observe(playback.Sample{Position: ms(1_100), Speed: 1, Status: playback.StatusPaused, ObservedAt: now.Now()})
+	if state := clock.State(); state.Status != playback.StatusPaused {
+		t.Fatalf("a sample after the play was ignored: %+v", state)
+	}
+}
+
 // The sound heard at an instant belongs to the position the video had then,
 // even an instant before the player's last report: sound arrives late.
 func TestClockPositionAtAnInstant(t *testing.T) {
