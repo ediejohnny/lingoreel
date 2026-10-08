@@ -84,6 +84,8 @@ All notable changes to this project are listed here. The format follows
   command, arrives after it on a busy computer.
 - The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
   the earlier one is all painted and the fill goes on in the next.
+- Going back to a passage's start with VLC (each lap after its gap, or Play at its end) sends the seek and the play
+  as one order, so the picture and the sound start together; the sound used to start first, the picture catching up.
 
 ## [0.26.0] - 2026-10-07
 

@@ -28,10 +28,21 @@ type practiceRig struct {
 
 func newPracticeRig(t *testing.T, subtitles *session.Subtitles) *practiceRig {
 	t.Helper()
+	return newPracticeRigOn(t, subtitles, false)
+}
+
+// newPracticeRigOn is newPracticeRig with a player that seeks and plays in
+// one order (together), as VLC does, or not.
+func newPracticeRigOn(t *testing.T, subtitles *session.Subtitles, together bool) *practiceRig {
+	t.Helper()
 	r := &practiceRig{player: &fakePlayer{capabilities: allCapabilities(playback.PrecisionExact)}, time: newFakeTime()}
 	r.clock = session.NewClock(playback.PrecisionExact, r.time.Now)
 	r.clock.Observe(playback.Sample{Position: 0, Duration: time.Minute, Speed: 1, Status: playback.StatusPaused, ObservedAt: r.time.Now()})
-	r.controls = session.NewControls(r.player, r.clock, 25)
+	var player session.Player = r.player
+	if together {
+		player = lapPlayer{r.player}
+	}
+	r.controls = session.NewControls(player, r.clock, 25)
 	if subtitles == nil {
 		subtitles = karaokeSubtitles(t)
 	}
@@ -158,6 +169,47 @@ func TestPauseAtTheEndThenPlayStartsOver(t *testing.T) {
 	}
 	if r.practice.Status().Suspended {
 		t.Fatal("going back to the start suspended the passage")
+	}
+}
+
+// lapPlayer seeks and plays in one order, as VLC does.
+type lapPlayer struct{ *fakePlayer }
+
+func (p lapPlayer) SeekAndPlay(position time.Duration) error {
+	p.seekTarget = position
+	return p.record("lap")
+}
+
+// A lap that starts with the video paused (the first one, the one after the
+// gap) seeks and plays in one order to a player that takes it, so its picture
+// and sound start together; another player gets the seek, then the play. A
+// lap that starts while the video plays only seeks.
+func TestALapSeeksAndPlaysTogether(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		together bool
+		want     []string
+	}{{true, []string{"lap"}}, {false, []string{"seek", "play"}}} {
+		r := newPracticeRigOn(t, nil, c.together)
+		_ = r.practice.Start(passage, study.PracticePlan{Mode: study.EndLoop, Gap: 2 * time.Second})
+		if !slices.Equal(r.calls(), c.want) || r.player.seekTarget != passage.Start {
+			t.Fatalf("together %v, start: calls %v seek %v; want %v", c.together, r.calls(), r.player.seekTarget, c.want)
+		}
+		r.at(ms(23_000), true)
+		r.reset()
+		r.time.Advance(2 * time.Second)
+		r.practice.Tick(r.clock.State())
+		if !slices.Equal(r.calls(), c.want) || r.practice.Status().Lap != 2 || r.clock.State().Status != playback.StatusPlaying {
+			t.Fatalf("together %v, after the gap: calls %v lap %d status %v", c.together, r.calls(), r.practice.Status().Lap, r.clock.State().Status)
+		}
+		r.reset()
+		r.at(ms(23_100), true)
+		r.time.Advance(2 * time.Second)
+		r.practice.Tick(r.clock.State())
+		r.reset()
+		if err := r.practice.Resume(); err != nil || !slices.Equal(r.calls(), []string{"seek"}) {
+			t.Fatalf("together %v, a lap while playing: calls %v (%v)", c.together, r.calls(), err)
+		}
 	}
 }
 

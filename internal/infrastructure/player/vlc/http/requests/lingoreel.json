@@ -29,6 +29,16 @@ else
       if microseconds and microseconds >= 0 then
         vlc.var.set(input, "time", math.floor(microseconds))
       end
+    elseif command == "lap" then
+      -- A seek and a play in one request, for a passage's lap: VLC's input
+      -- takes them together and waits for the picture before the sound
+      -- starts. A seek while paused and a play after start the sound first,
+      -- the picture catching up once the video decoded to it.
+      local microseconds = number("us")
+      if microseconds and microseconds >= 0 then
+        vlc.var.set(input, "time", math.floor(microseconds))
+        if vlc.playlist.status() == "paused" then vlc.playlist.pause() end
+      end
     elseif command == "pause" then
       if vlc.playlist.status() == "playing" then vlc.playlist.pause() end
     elseif command == "play" then

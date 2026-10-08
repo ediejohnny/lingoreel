@@ -203,9 +203,12 @@ func (p *Practice) startLap(n int) error {
 	if look.Speed > 0 && p.controls.Capabilities().Speed {
 		errs = append(errs, p.controls.SetSpeed(look.Speed))
 	}
-	errs = append(errs, p.seek(segment.Start))
+	// Paused (the gap, the end of the last lap), the seek and the play go
+	// together, so the lap's picture and sound start together.
 	if p.controls.clock.State().Status != playback.StatusPlaying {
-		errs = append(errs, p.controls.Play())
+		errs = append(errs, p.seekAndPlay(segment.Start))
+	} else {
+		errs = append(errs, p.seek(segment.Start))
 	}
 	p.tell(PracticeLap, status)
 	return errors.Join(errs...)
@@ -215,6 +218,12 @@ func (p *Practice) seek(position time.Duration) error {
 	p.ownSeek.Store(true)
 	defer p.ownSeek.Store(false)
 	return p.controls.SeekTo(position)
+}
+
+func (p *Practice) seekAndPlay(position time.Duration) error {
+	p.ownSeek.Store(true)
+	defer p.ownSeek.Store(false)
+	return p.controls.SeekAndPlay(position)
 }
 
 func (p *Practice) tell(event PracticeEvent, status PracticeStatus) {

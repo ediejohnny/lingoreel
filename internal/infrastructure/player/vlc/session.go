@@ -170,6 +170,12 @@ func (s *Session) SeekTo(position time.Duration) error {
 	return s.send(command("seek", "us", strconv.FormatInt(position.Microseconds(), 10)))
 }
 
+// SeekAndPlay goes to a position and plays from there in one request, so
+// VLC starts the picture and the sound together (session.LapPlayer).
+func (s *Session) SeekAndPlay(position time.Duration) error {
+	return s.send(command("lap", "us", strconv.FormatInt(position.Microseconds(), 10)))
+}
+
 // SetSpeed changes the playback rate.
 func (s *Session) SetSpeed(speed playback.Speed) error {
 	return s.send(command("rate", "value", strconv.FormatFloat(float64(speed), 'f', 4, 64)))
