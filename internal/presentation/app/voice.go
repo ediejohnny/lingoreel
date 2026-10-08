@@ -129,7 +129,7 @@ func (a *API) InstallFFmpeg() error {
 		return err
 	}
 	if a.deps.FFmpeg == nil || a.deps.Installer == nil || !a.deps.Installer.Available() {
-		return errors.New(ptbr.T("error.install.unavailable"))
+		return errors.New(ptbr.T("error.install.ffmpegUnavailable"))
 	}
 	go func() {
 		progress := InstallProgress{ID: ffmpegInstallID, Done: true}

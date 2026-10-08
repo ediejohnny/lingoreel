@@ -687,8 +687,13 @@ func TestTheInterfaceLanguage(t *testing.T) {
 	r := newRig(t)
 	r.attach(t)
 	view := settingsOf(t, r)
-	if view.General.Language != "" || len(view.General.Languages) == 0 || view.General.Languages[0].Value != "pt-BR" ||
-		view.General.Languages[0].Label != "Português (Brasil)" {
+	languages := map[string]string{}
+	for _, option := range view.General.Languages {
+		languages[option.Value] = option.Label
+	}
+	// Each language is named in itself.
+	if view.General.Language != "" || len(languages) != 2 || languages["pt-BR"] != "Português (Brasil)" ||
+		languages["en-US"] != "English (United States)" {
 		t.Fatalf("languages = %q / %+v", view.General.Language, view.General.Languages)
 	}
 	if got := r.api.Preferences().Language; got != "pt-BR" {

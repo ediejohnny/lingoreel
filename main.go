@@ -199,6 +199,10 @@ func run() error {
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{
 			Base: `Software\Classes`, Executable: executable, Extensions: analysis.VideoExtensions(),
+			Names: func() association.Names {
+				kind, menu := ptbr.AssociationNames()
+				return association.Names{Type: kind, Menu: menu}
+			},
 		}
 	}
 	if workingDir, err := os.Getwd(); err == nil {
@@ -260,8 +264,22 @@ func run() error {
 			Theme: windows.SystemDefault, WindowClassName: windowClass,
 			// The screen measures the video's place in its own pixels.
 			DisablePinchZoom: true,
+			Messages:         webViewMessages(),
 		},
 	})
+}
+
+// webViewMessages word, in the interface's language, what Windows shows
+// when the WebView2 runtime the window needs is missing or fails.
+func webViewMessages() *windows.Messages {
+	texts := ptbr.WebViewMessages()
+	return &windows.Messages{
+		InstallationRequired: texts.InstallationRequired, UpdateRequired: texts.UpdateRequired,
+		MissingRequirements: texts.MissingRequirements, Webview2NotInstalled: texts.NotInstalled,
+		Error: texts.Error, FailedToInstall: texts.FailedToInstall, DownloadPage: texts.DownloadPage,
+		PressOKToInstall: texts.PressOKToInstall, ContactAdmin: texts.ContactAdmin,
+		InvalidFixedWebview2: texts.InvalidFixed, WebView2ProcessCrash: texts.Crashed,
+	}
 }
 
 // stagePort places the video on the stage for the app.

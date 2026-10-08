@@ -27,7 +27,7 @@ func (Plugin) Descriptor() player.Descriptor {
 		Install: player.Install{
 			WingetID:    "Daum.PotPlayer",
 			DownloadURL: "https://potplayer.tv/",
-			Benefit:     "Rápido e muito usado no Windows, com boa aceleração por hardware.",
+			Benefit:     "Fast and widely used on Windows, with good hardware acceleration.",
 		},
 		// Embedding another process's window is not safe: PotPlayer keeps
 		// its own, and the subtitles follow it.

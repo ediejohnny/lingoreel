@@ -1,10 +1,10 @@
 //go:build windows
 
 // Package association lets Windows open videos with the app, when the user
-// asks for it: the app appears in "Abrir com" and the videos'
-// context menu gets "Assistir com o LingoReel". Everything is written
-// for the current user only, and no other program loses its place as the
-// default.
+// asks for it: the app appears in "Open with" and the videos' context menu
+// gets an entry to watch them with it, worded in the interface's language.
+// Everything is written for the current user only, and no other program
+// loses its place as the default.
 package association
 
 import (
@@ -21,10 +21,15 @@ const (
 	ProgID = "LingoReel.Video"
 	// verb is the context menu entry's key.
 	verb = "LingoReel"
-
-	progIDName = "Vídeo (LingoReel)"
-	menuName   = "Assistir com o LingoReel"
 )
+
+// Names word what the Explorer shows: the kind of file ("Video (LingoReel)") and the context menu entry ("Watch with LingoReel").
+type Names struct {
+	Type, Menu string
+}
+
+// defaultNames are used when the registrar is given no words.
+var defaultNames = Names{Type: "Video (LingoReel)", Menu: "Watch with LingoReel"}
 
 // Registrar writes and removes the association under Base, a key of the
 // current user: `Software\Classes` for the app, another one in tests.
@@ -33,6 +38,24 @@ type Registrar struct {
 	Executable string
 	// Extensions are the files to offer, such as ".mkv".
 	Extensions []string
+	// Names words the entries in the interface's language, read on each
+	// Enable; nil, or an empty word, keeps the English default.
+	Names func() Names
+}
+
+// names are the words to write now.
+func (r Registrar) names() Names {
+	names := defaultNames
+	if r.Names != nil {
+		given := r.Names()
+		if given.Type != "" {
+			names.Type = given.Type
+		}
+		if given.Menu != "" {
+			names.Menu = given.Menu
+		}
+	}
+	return names
 }
 
 // command is how Windows starts the app with a file.
@@ -62,19 +85,20 @@ func (r Registrar) Enable() error {
 	if r.Executable == "" || len(r.Extensions) == 0 {
 		return errors.New("association: no program or no extensions")
 	}
+	names := r.names()
 	values := []struct {
 		path, name, value string
 	}{
-		{ProgID, "", progIDName},
+		{ProgID, "", names.Type},
 		{ProgID + `\DefaultIcon`, "", fmt.Sprintf(`"%s",0`, r.Executable)},
-		{ProgID + `\shell\open`, "", menuName},
+		{ProgID + `\shell\open`, "", names.Menu},
 		{ProgID + `\shell\open\command`, "", r.command()},
 	}
 	for _, extension := range r.Extensions {
 		menu := `SystemFileAssociations\` + extension + `\shell\` + verb
 		values = append(values,
 			struct{ path, name, value string }{extension + `\OpenWithProgids`, ProgID, ""},
-			struct{ path, name, value string }{menu, "", menuName},
+			struct{ path, name, value string }{menu, "", names.Menu},
 			struct{ path, name, value string }{menu, "Icon", fmt.Sprintf(`"%s",0`, r.Executable)},
 			struct{ path, name, value string }{menu + `\command`, "", r.command()},
 		)

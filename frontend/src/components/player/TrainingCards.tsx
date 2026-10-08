@@ -59,9 +59,10 @@ const voiceStates: Record<string, () => string> = {
   off: () => t("ui.karaoke.voice.off"),
 };
 
-function KaraokeCard({ state, onCommand }: TrainingCardsProps) {
+function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
   const { karaoke } = state;
   const voice = voiceStates[karaoke.voice];
+  const replayKey = label("replay-line");
   return (
     <Card title={t("ui.karaoke.title")} aside={<HelpTip topic={t("ui.karaoke.topic")}>{t("ui.karaoke.help")}</HelpTip>}>
       <div className="flex flex-col gap-4">
@@ -85,10 +86,16 @@ function KaraokeCard({ state, onCommand }: TrainingCardsProps) {
           help={<HelpTip topic={t("ui.karaoke.repeat.topic")}>{t("ui.karaoke.repeat.help")}</HelpTip>}
         />
         <div className="flex items-center gap-1">
-          <Button icon={RotateCcw} onClick={() => onCommand(backend.replayLine)} title={t("ui.karaoke.replay.tip")}>
+          <Button
+            icon={RotateCcw}
+            onClick={() => onCommand(backend.replayLine)}
+            title={replayKey ? t("ui.karaoke.replay.tip", { key: replayKey }) : t("ui.karaoke.replay.label")}
+          >
             {t("ui.karaoke.replay.label")}
           </Button>
-          <HelpTip topic={t("ui.karaoke.replay.topic")}>{t("ui.karaoke.replay.help")}</HelpTip>
+          <HelpTip topic={t("ui.karaoke.replay.topic")}>
+            {replayKey ? t("ui.karaoke.replay.helpKey", { key: replayKey }) : t("ui.karaoke.replay.help")}
+          </HelpTip>
         </div>
       </div>
     </Card>
@@ -114,6 +121,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
   const [options, setOptions] = useState<PassageOptionsState>({ snap: state.passageOptions.snap, ...state.passageOptions.plan });
   const startKey = label("passage-mark-start");
   const endKey = label("passage-mark-end");
+  const playKey = label("play-pause");
 
   // A changed option is also the next marked passage's.
   const change = (patch: Partial<PassageOptionsState>) => {
@@ -141,7 +149,10 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
     });
 
   return (
-    <Card title={t("ui.passage.title")} aside={<HelpTip topic={t("ui.passage.topic")}>{t("ui.passage.help")}</HelpTip>}>
+    <Card
+      title={t("ui.passage.title")}
+      aside={<HelpTip topic={t("ui.passage.topic")}>{playKey ? t("ui.passage.helpKey", { key: playKey }) : t("ui.passage.help")}</HelpTip>}
+    >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-muted">
           <Rich
@@ -179,7 +190,9 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
                 : t("ui.passage.progress", { start: passage.start, end: passage.end, lap: passage.lap })}
             </p>
             {passage.suspended && <p className="mt-1 text-warning">{t("ui.passage.suspended")}</p>}
-            {passage.atEnd && <p className="mt-1 text-fg-muted">{t("ui.passage.atEnd")}</p>}
+            {passage.atEnd && (
+              <p className="mt-1 text-fg-muted">{playKey ? t("ui.passage.atEndKey", { key: playKey }) : t("ui.passage.atEnd")}</p>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
               {passage.suspended && (
                 <Button icon={Undo2} onClick={() => onCommand(backend.resumePassage)}>

@@ -37,6 +37,11 @@ export function language(): string {
   return current;
 }
 
+/** decimal is the interface's decimal separator: "," in Brazilian Portuguese, "." in English. */
+export function decimal(): string {
+  return new Intl.NumberFormat(current).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".";
+}
+
 export type Params = Record<string, string | number>;
 
 /**

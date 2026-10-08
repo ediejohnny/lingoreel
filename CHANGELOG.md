@@ -6,6 +6,23 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
+  has its English catalog (`internal/presentation/i18n/locales/en-US`), with English plurals and a decimal point.
+
+### Changed
+
+- Texts that named a fixed key ("Space", "Backspace", the arrows) now show the key the profile gives the command, or
+  none when it has no shortcut; the karaoke help no longer quotes the default times, which can be changed.
+- The players' reasons to choose them, the Explorer's names for the app, and the messages Windows shows when WebView2
+  is missing are worded in the interface's language.
+- Numbers on the screens (speeds, passage and editor times) carry the interface's decimal separator; the times are read
+  back with either a comma or a point.
+- The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
+  install message for FFmpeg points to the official site and the "Browse…" button.
+- The language setting is called "Linguagem do aplicativo" ("App language").
+
 ## [0.26.0] - 2026-10-07
 
 The seek bar shows a still of the moment under the pointer, as video sites do: taken in the background without

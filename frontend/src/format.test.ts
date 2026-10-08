@@ -1,6 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { durationLabel, progress, speedLabel } from "./format";
 import { editClock, passageClock } from "./format";
+import { fallback, setLanguage } from "./i18n";
+
+describe("numbers in English", () => {
+  afterEach(() => setLanguage(fallback));
+  it("carry a decimal point, which the Go side also reads", () => {
+    setLanguage("en-US");
+    expect(speedLabel(1.25)).toBe("1.25×");
+    expect(speedLabel(0)).toBe("1.00×");
+    expect(passageClock(623.5)).toBe("10:23.5");
+    expect(editClock(3723.456)).toBe("1:02:03.456");
+    expect(durationLabel(89 * 60 + 32)).toBe("1h 30m");
+  });
+});
 
 describe("speedLabel", () => {
   it("shows two decimals with a comma", () => {

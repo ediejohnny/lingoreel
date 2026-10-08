@@ -162,6 +162,29 @@ func TestTheLanguageAndItsTexts(t *testing.T) {
 	}
 }
 
+// The English catalog speaks with its own plurals and decimal point, and an
+// English system that is not American gets it too.
+func TestTheAppSpeaksEnglish(t *testing.T) {
+	t.Parallel()
+	for _, tag := range []string{"en-US", "en-GB", "en"} {
+		if got, found := i18n.Match(tag); !found || got != "en-US" {
+			t.Errorf("Match(%q) = %q, %v", tag, got, found)
+		}
+	}
+	catalog, err := i18n.Load("en-US")
+	if err != nil || catalog.Tag() != "en-US" {
+		t.Fatalf("Load(en-US) = %v, %v", catalog, err)
+	}
+	for count, want := range map[int]string{0: "0 laps", 1: "1 lap", 2: "2 laps"} {
+		if got := catalog.Text("bar.stepper.goalValue", "count", count); got != want {
+			t.Errorf("%d laps = %q, want %q", count, got, want)
+		}
+	}
+	if got := catalog.Text("number.decimal"); got != "." {
+		t.Errorf("the decimal separator = %q", got)
+	}
+}
+
 // Plural categories of whole numbers, as CLDR has them.
 func TestPluralCategories(t *testing.T) {
 	t.Parallel()
