@@ -283,6 +283,20 @@ func (a *API) changeSettings(writes int, change func(config *settings.Config, pr
 	if err != nil {
 		return err
 	}
+	// Both are checked before either is written, so a refused configuration
+	// never leaves the profiles written alone.
+	if writes&writeConfig != 0 {
+		if err := config.Validate(); err != nil {
+			a.logger.Warn("refused settings", "error", err)
+			return errSettingsNotSaved
+		}
+	}
+	if writes&writeProfiles != 0 {
+		if err := profiles.Validate(); err != nil {
+			a.logger.Warn("refused profiles", "error", err)
+			return errProfilesNotSaved
+		}
+	}
 	if writes&writeProfiles != 0 {
 		if err := a.writeProfiles(profiles); err != nil {
 			return err

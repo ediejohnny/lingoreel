@@ -94,21 +94,31 @@ var errAnswered = errors.New("the welcome was answered meanwhile")
 // held) they are wanted; model lets the voice AI work on this computer.
 // Called without a.mu.
 func (a *API) answerWelcome(still func() bool, languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
+	// It is answered as the answers are taken, so another answer waiting
+	// (a skip as the app closes) finds it answered; a failed write takes
+	// that back.
+	answered, before := false, false
 	err := a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
 		if !still() {
 			return errAnswered
 		}
-		return a.welcomeAnswers(config, profiles, languages, mode, preferred, model)
+		if err := a.welcomeAnswers(config, profiles, languages, mode, preferred, model); err != nil {
+			return err
+		}
+		answered, before, a.welcoming = true, a.welcoming, false
+		return nil
 	})
 	if errors.Is(err, errAnswered) {
 		return nil
 	}
 	if err != nil {
+		if answered {
+			a.mu.Lock()
+			a.welcoming = before
+			a.mu.Unlock()
+		}
 		return err
 	}
-	a.mu.Lock()
-	a.welcoming = false
-	a.mu.Unlock()
 	a.logger.Info("welcome answered", "studies", languages.Primary, "speaks", languages.Translation, "mode", mode, "voiceAI", model)
 	return nil
 }

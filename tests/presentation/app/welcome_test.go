@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -110,6 +111,36 @@ func TestTheWelcomesAnswersMakeTheFirstProfile(t *testing.T) {
 // Opened again from the settings, the welcome shows the active profile and
 // changes it; another language studied makes a profile of its own, and the
 // old one stays. A video being watched keeps its profile.
+// A skip that comes while the answers are being written (closing the app
+// right after Concluir) finds the welcome answered and changes nothing; an
+// answer that could not be written leaves the welcome pending.
+func TestASkipNeverWritesOverTheAnswers(t *testing.T) {
+	t.Parallel()
+	r := welcomeRig(t, "pt-BR", true)
+	entered, release := r.settings.hold()
+	finished, skipped := make(chan error, 1), make(chan error, 1)
+	go func() {
+		finished <- r.api.FinishWelcome(app.WelcomeChoices{Spoken: "pt-BR", Studied: "fr", Mode: "dual"})
+	}()
+	<-entered
+	go func() { skipped <- r.api.SkipWelcome() }()
+	release()
+	if err := errors.Join(<-finished, <-skipped); err != nil {
+		t.Fatal(err)
+	}
+	if profile := activeStored(t, r); profileNames(r) != "Francês" || profile.Languages.Primary != "fr" || profile.Study.Mode != "dual" {
+		t.Fatalf("profiles %q, active %+v", profileNames(r), profile.Languages)
+	}
+
+	failing := welcomeRig(t, "pt-BR", true)
+	failing.settings.mu.Lock()
+	failing.settings.saveError = errors.New("disk full")
+	failing.settings.mu.Unlock()
+	if err := failing.api.FinishWelcome(app.WelcomeChoices{Spoken: "pt-BR", Studied: "fr", Mode: "dual"}); err == nil || !failing.api.Welcome().Pending {
+		t.Fatalf("a failed answer: %v, pending %v", err, failing.api.Welcome().Pending)
+	}
+}
+
 func TestTheWelcomeOpenedAgainChangesTheActiveProfile(t *testing.T) {
 	t.Parallel()
 	r := welcomeRig(t, "es-ES", false)

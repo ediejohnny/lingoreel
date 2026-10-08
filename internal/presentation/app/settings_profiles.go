@@ -70,19 +70,18 @@ func (a *API) CreateProfile(name string) error {
 
 // RenameProfile renames a profile; the active one stays active.
 func (a *API) RenameProfile(from, to string) error {
-	a.mu.Lock()
-	wasActive := strings.EqualFold(a.profile().Name, from)
-	a.mu.Unlock()
-	writes := writeProfiles
-	if wasActive {
-		writes |= writeConfig
-	}
-	return a.changeSettings(writes, func(config *settings.Config, profiles *settings.Profiles) error {
+	// Whether it is the active one is told with the change, so a switch made
+	// meanwhile is not lost; the configuration is written either way.
+	return a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
+		wasActive := strings.EqualFold(a.profile().Name, from)
 		next, err := profiles.Rename(from, to)
 		if err != nil {
 			return profileError(err)
 		}
-		*profiles, config.ActiveProfile = next, to
+		*profiles = next
+		if wasActive {
+			config.ActiveProfile = to
+		}
 		return nil
 	})
 }
@@ -93,19 +92,16 @@ func (a *API) DeleteProfile(name string) error {
 	if current := a.current(); current != nil && current.session != nil && strings.EqualFold(a.activeName(), name) {
 		return errSwitchWhileOpen
 	}
-	a.mu.Lock()
-	wasActive := strings.EqualFold(a.profile().Name, name)
-	a.mu.Unlock()
-	writes := writeProfiles
-	if wasActive {
-		writes |= writeConfig
-	}
-	return a.changeSettings(writes, func(config *settings.Config, profiles *settings.Profiles) error {
+	return a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
+		wasActive := strings.EqualFold(a.profile().Name, name)
 		next, err := profiles.Remove(name)
 		if err != nil {
 			return profileError(err)
 		}
-		*profiles, config.ActiveProfile = next, next.Items[0].Name
+		*profiles = next
+		if wasActive {
+			config.ActiveProfile = next.Items[0].Name
+		}
 		return nil
 	})
 }
