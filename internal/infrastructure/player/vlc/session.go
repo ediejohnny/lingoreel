@@ -176,6 +176,12 @@ func (s *Session) SeekAndPlay(position time.Duration) error {
 	return s.send(command("lap", "us", strconv.FormatInt(position.Microseconds(), 10)))
 }
 
+// Prepare pauses at a position and shows its picture, so a Play after
+// starts at once; spdev seek-probe measures it against SeekAndPlay.
+func (s *Session) Prepare(position time.Duration) error {
+	return s.send(command("prepare", "us", strconv.FormatInt(position.Microseconds(), 10)))
+}
+
 // SetSpeed changes the playback rate.
 func (s *Session) SetSpeed(speed playback.Speed) error {
 	return s.send(command("rate", "value", strconv.FormatFloat(float64(speed), 'f', 4, 64)))
