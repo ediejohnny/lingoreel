@@ -53,6 +53,9 @@ What the user sees about the player:
     where 1 is the player's 100%.
   - A command the player does not have **returns an error**. Never pretend it worked: the app shows the button
     disabled.
+  - Seeking and playing in one order is optional: a player that implements `SeekAndPlay` (`session.LapPlayer`) gets
+    it when a passage's lap starts from a pause, so its picture and its sound start together. VLC needs it: seeking
+    while paused and playing after, it starts the sound before the picture. Without it, the app seeks, then plays.
 - **`Samples()`:** delivers observations (position, duration, speed, state). It is closed when the player ends.
 - **`ProcessID()`:** the player's process. The overlay follows its window.
 - **`Err()`:** once `Samples()` is closed, tells whether the player **crashed** (`playback.ErrPlayerLost`) or the user
