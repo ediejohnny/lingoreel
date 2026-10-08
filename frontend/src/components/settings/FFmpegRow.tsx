@@ -1,7 +1,7 @@
 import { Download, FolderOpen, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { t } from "../../i18n";
-import { backend, type VoiceSettings } from "../../services/backend";
+import { backend, messageOf, type VoiceSettings } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { HelpTip } from "../ui/HelpTip";
 import type { SectionProps } from "./section";
@@ -45,7 +45,7 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
     setInstallError("");
     backend.installFFmpeg().catch((failure: unknown) => {
       setInstalling(false);
-      setInstallError(String(failure));
+      setInstallError(messageOf(failure));
     });
   };
 

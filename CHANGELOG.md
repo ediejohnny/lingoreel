@@ -45,6 +45,10 @@ All notable changes to this project are listed here. The format follows
 - The first profile is named after the language studied, in the app language, instead of always "Inglês".
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
+- The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
+- The executable's details in Windows (its description and copyright) are in English.
+- The zip's read-me tells of the setup assistant, the free and optional FFmpeg, and where the projects, the seek
+  bar's stills and the logs are kept.
 - The README presents the app as it is today, with pictures of it: highlights, features by area, the default
   shortcuts, requirements, privacy and building from source. The guide to translating covers the documentation's
   file, the two catalogs and English as the language of a Windows the app does not speak.
@@ -75,6 +79,7 @@ All notable changes to this project are listed here. The format follows
 - When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
   folder, and the diagnostics name the folder really used.
 - An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
+- A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
 
 ## [0.26.0] - 2026-10-07
 
@@ -430,6 +435,7 @@ The volume goes up to 200% on VLC, gradually while a key is held.
 
 - PotPlayer opened at its own kept level while the bar showed 100%.
 - VLC no longer changes the level of the user's own VLC: it keeps no volume between sessions.
+
 ## [0.16.3] - 2026-10-05
 
 The karaoke mode's fill color on the page of the line on top, and three fixes.
@@ -462,7 +468,8 @@ Each subtitle line has its settings page, with the preview beside the fields.
 
 ### Fixed
 
-- The settings give each subtitle line its page, with the preview beside
+- The settings give each subtitle line its own page (Subtitles › Top and Bottom in the menu), with the preview beside
+  the fields marking the line being edited.
 
 ## [0.16.1] - 2026-10-03
 

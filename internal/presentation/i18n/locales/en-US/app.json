@@ -109,7 +109,7 @@
   "error.association.unavailable": "This computer does not allow videos to be associated with LingoReel.",
   "error.choiceNotSaved": "Could not keep the choice.",
   "error.copy": "Could not copy the line.",
-  "error.disk.denied": "Windows did not let the app write there. Check that the folder allows writing and that an antivirus is not blocking LingoReel.",
+  "error.disk.denied": "Windows did not let the app write there. Check that the file is not marked \"Read-only\" (in the file's Properties), that the folder allows writing and that an antivirus is not blocking LingoReel.",
   "error.disk.full": "The disk is full. Free some space, deleting files you do not use or emptying the Recycle Bin, and try again.",
   "error.disk.inUse": "Another program is using the file. Close that program and try again.",
   "error.disk.readOnly": "The disk is write-protected. Unlock it or choose another disk.",

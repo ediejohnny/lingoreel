@@ -109,7 +109,7 @@
   "error.association.unavailable": "Este computador não permite associar vídeos ao LingoReel.",
   "error.choiceNotSaved": "Não foi possível guardar a escolha.",
   "error.copy": "Não foi possível copiar a fala.",
-  "error.disk.denied": "O Windows não deixou o app gravar ali. Confira se a pasta permite gravar e se um antivírus não está bloqueando o LingoReel.",
+  "error.disk.denied": "O Windows não deixou o app gravar ali. Confira se o arquivo não está marcado como \"Somente leitura\" (nas Propriedades do arquivo), se a pasta permite gravar e se um antivírus não está bloqueando o LingoReel.",
   "error.disk.full": "O disco está cheio. Libere espaço, apagando arquivos que não usa ou esvaziando a Lixeira, e tente de novo.",
   "error.disk.inUse": "Outro programa está usando o arquivo. Feche esse programa e tente de novo.",
   "error.disk.readOnly": "O disco está protegido contra gravação. Destrave-o ou escolha outro disco.",
