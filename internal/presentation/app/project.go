@@ -23,9 +23,10 @@ type videoProject struct {
 	// keys name the video's tracks by number, as the project knows them.
 	keys map[uint64]string
 	// readOnly keeps a file the app could not read whole (written by a
-	// newer version, or damaged) from being overwritten; note tells why.
+	// newer version, or damaged) from being overwritten; note tells why, in
+	// the language of the moment.
 	readOnly bool
-	note     string
+	note     func() string
 	// inherited are the lines whose file was chosen in an earlier opening
 	// and not chosen again in this one: chosen before anyone knew whether it
 	// fits, so a hearing may still replace it (correctInherited).
@@ -75,11 +76,11 @@ func (a *API) loadProject(video string, info media.Info) *videoProject {
 	switch {
 	case errors.Is(err, project.ErrNewerVersion):
 		p.readOnly = true
-		p.note = ptbr.T("project.newerVersion")
+		p.note = func() string { return ptbr.T("project.newerVersion") }
 	case err != nil:
 		a.logger.Warn("the video's project could not be read", "video", video, "error", err)
 		p.readOnly = true
-		p.note = ptbr.T("project.unreadable")
+		p.note = func() string { return ptbr.T("project.unreadable") }
 	default:
 		p.value = loaded
 		p.inherited = map[session.Line]bool{
@@ -567,7 +568,15 @@ func (a *API) savedPassages(current *watching) ([]SavedPassage, string) {
 	if p == nil {
 		return []SavedPassage{}, ""
 	}
-	return passagesOf(p, current.duration), p.note
+	return passagesOf(p, current.duration), p.noteText()
+}
+
+// noteText is why the project is only read, empty when it is not.
+func (p *videoProject) noteText() string {
+	if p.note == nil {
+		return ""
+	}
+	return p.note()
 }
 
 // tellPassages gives the session the video's saved passages, for the player

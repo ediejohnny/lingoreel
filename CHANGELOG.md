@@ -10,6 +10,9 @@ All notable changes to this project are listed here. The format follows
 
 - The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
   has its English catalog (`internal/presentation/i18n/locales/en-US`), with English plurals and a decimal point.
+- Choosing the app language applies it at once, even with a video playing: the screens, the bar and the menu over the
+  video, the subtitle line names, the correction box and the Explorer's names for the app all switch without
+  reopening the app, and a settings draft not yet saved is kept.
 
 ### Changed
 
@@ -22,6 +25,13 @@ All notable changes to this project are listed here. The format follows
 - The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
   install message for FFmpeg points to the official site and the "Browse…" button.
 - The language setting is called "Linguagem do aplicativo" ("App language").
+- A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
+  (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
+
+### Fixed
+
+- Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
+  changes to the profile not yet saved on the same settings screen.
 
 ## [0.26.0] - 2026-10-07
 

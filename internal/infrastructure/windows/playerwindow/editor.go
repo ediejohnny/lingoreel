@@ -181,7 +181,7 @@ func (w *Window) openEditor(line session.Line, text string, spot overlay.Spot) {
 	win32.SendMessage(e.edit, win32.WM_SETFONT, uintptr(e.font), 0)
 	win32.SendMessage(e.hint, win32.WM_SETFONT, uintptr(e.hintFont), 0)
 	_ = win32.SetText(e.edit, strings.ReplaceAll(text, "\n", "\r\n"))
-	_ = win32.SetText(e.hint, w.options.Labels.EditHint)
+	_ = win32.SetText(e.hint, worded(w.options.Labels.EditHint))
 	// The caret after the text: a fix is usually a word, not a new line.
 	end := win32.SendMessage(e.edit, win32.WM_GETTEXTLENGTH, 0, 0)
 	win32.SendMessage(e.edit, win32.EM_SETSEL, end, end)
@@ -215,7 +215,7 @@ func (w *Window) finishEdit(keep, stayIfEmpty bool) {
 		case text == e.original:
 		case strings.TrimSpace(text) == "":
 			if stayIfEmpty {
-				_ = w.overlay.Notify(w.options.Labels.EditEmpty)
+				_ = w.overlay.Notify(worded(w.options.Labels.EditEmpty))
 				return
 			}
 		default:

@@ -299,7 +299,7 @@
   "ui.settings.folder.title": "Pasta das configurações",
   "ui.settings.language.help": "A linguagem dos menus, botões e avisos do app. O mesmo do Windows usa a linguagem de exibição do Windows quando o app fala essa linguagem; senão, o inglês. Os idiomas que você estuda ficam no perfil, em Legendas.",
   "ui.settings.language.label": "Linguagem do aplicativo",
-  "ui.settings.language.saved": "Linguagem salva. Ela vale na próxima vez que você abrir o app.",
+  "ui.settings.language.saved": "Linguagem salva. O app já fala essa linguagem.",
   "ui.settings.language.title": "Linguagem",
   "ui.settings.language.topic": "Linguagem do aplicativo",
   "ui.settings.language.windows": "O mesmo do Windows",

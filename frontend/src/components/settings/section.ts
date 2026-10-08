@@ -11,7 +11,7 @@ export interface SectionProps {
   /** dirty tells the draft has unsaved changes. */
   dirty: boolean;
   /** run carries out an action that applies at once, then reloads; done is said when it worked. */
-  run: (action: () => Promise<unknown>, done?: string) => Promise<void>;
+  run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<void>;
   /** open shows another page of the settings. */
   open?: (section: SectionId) => void;
 }

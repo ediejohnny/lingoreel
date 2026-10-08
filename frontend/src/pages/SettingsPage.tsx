@@ -13,7 +13,7 @@ import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { t } from "../i18n";
 import { backend, messageOf, type InterfaceSettings, type ProfileSettings, type SettingsView } from "../services/backend";
-import { lineLanguage, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
+import { lineLanguage, relabeled, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
 import type { Theme } from "../stores/theme";
 
 interface MenuEntryProps {
@@ -112,10 +112,25 @@ export function SettingsPage({
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // latest is the draft and the settings of the last drawing, for what runs later.
+  const latest = useRef({ draft, view });
+  useEffect(() => {
+    latest.current = { draft, view };
+  });
+
+  // Reading the settings again keeps a draft of the same saved profile (the
+  // language, the window or the notices changed meanwhile), in the language
+  // of the moment; another saved profile starts a new draft.
   const reload = useCallback(async () => {
     const next = await backend.settings();
+    const { draft, view } = latest.current;
+    const same =
+      draft !== null &&
+      view !== null &&
+      view.general.activeProfile === next.general.activeProfile &&
+      sameSettings(relabeled(view.profile, next.profile), next.profile);
     setView(next);
-    setDraft(next.profile);
+    setDraft(same ? relabeled(draft, next.profile) : next.profile);
   }, []);
 
   useEffect(() => {
@@ -141,7 +156,7 @@ export function SettingsPage({
   }, [section]);
 
   const run = useCallback(
-    async (action: () => Promise<unknown>, done?: string) => {
+    async (action: () => Promise<unknown>, done?: string | (() => string)) => {
       setError("");
       setNotice("");
       try {
@@ -149,7 +164,8 @@ export function SettingsPage({
         await reload();
         onSaved?.();
         if (done) {
-          setNotice(done);
+          // Worded after the action, which may have changed the language.
+          setNotice(typeof done === "function" ? done() : done);
         }
       } catch (failure) {
         setError(messageOf(failure));
@@ -193,11 +209,6 @@ export function SettingsPage({
     [],
   );
 
-  // Before closing, the screen around asks what to do with the draft.
-  const latest = useRef({ draft, view });
-  useEffect(() => {
-    latest.current = { draft, view };
-  });
   // Shown again with nothing unsaved, the page reads what may have changed meanwhile.
   useEffect(() => {
     const { draft, view } = latest.current;

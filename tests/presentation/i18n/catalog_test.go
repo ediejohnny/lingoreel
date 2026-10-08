@@ -139,9 +139,10 @@ func TestTheLanguageAndItsTexts(t *testing.T) {
 		}
 	}
 	// The configured language comes first, then the system's, each only with
-	// a catalog; else the fallback.
+	// a catalog; else English, the default.
 	for _, c := range []struct{ configured, system, want string }{
-		{"", "pt-BR", "pt-BR"}, {"pt-PT", "en-US", "pt-BR"}, {"xx", "yy", i18n.Fallback}, {"", "", i18n.Fallback},
+		{"", "pt-BR", "pt-BR"}, {"pt-PT", "en-US", "pt-BR"}, {"", "pt-PT", "pt-BR"}, {"", "en-GB", "en-US"},
+		{"", "es-ES", i18n.Default}, {"xx", "yy", i18n.Default}, {"", "", i18n.Default}, {"en-US", "pt-BR", "en-US"},
 	} {
 		if got := i18n.Choose(c.configured, c.system); got != c.want {
 			t.Errorf("Choose(%q, %q) = %q, want %q", c.configured, c.system, got, c.want)

@@ -22,7 +22,7 @@ import {
 import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
-import { t, setLanguage } from "./i18n";
+import { t, setLanguage, useLanguage } from "./i18n";
 import { useVideoKeys } from "./videoKeys";
 
 type Screen = "home" | "session" | "playing" | "settings";
@@ -61,6 +61,10 @@ export function App() {
   const [panelTab, setPanelTab] = useState<PanelTab>("playback");
   const [settingsSection, setSettingsSection] = useState<SectionId>("general");
   const [fullscreen, setFullscreen] = useState(false);
+
+  // Another language draws every screen again in it; what the app worded
+  // (the video, its players and the session) the app sends again.
+  useLanguage();
 
   const open = useCallback(async (path: string) => {
     if (!path) {
@@ -111,7 +115,11 @@ export function App() {
     });
     const offFullscreen = backend.onFullscreen(setFullscreen);
     // A subtitle file added from the menu over the video: the session screen lists it afterwards.
-    const offVideo = backend.onVideo(setVideo);
+    // The same video comes again in another language.
+    const offVideo = backend.onVideo((next) => {
+      setVideo(next);
+      setPlayers(next.players);
+    });
     const offOpening = backend.onOpening((opening) => setOpened(opening.percent));
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));

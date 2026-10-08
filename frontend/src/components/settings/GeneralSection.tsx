@@ -1,6 +1,6 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { t } from "../../i18n";
+import { setLanguage, t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
@@ -104,7 +104,12 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
               { value: "", label: t("ui.settings.language.windows") },
               ...view.general.languages.map((language) => ({ value: language.value, label: language.label })),
             ]}
-            onChange={(language) => void run(() => backend.setLanguage(language), t("ui.settings.language.saved"))}
+            onChange={(language) =>
+              void run(
+                async () => setLanguage(await backend.setLanguage(language)),
+                () => t("ui.settings.language.saved"),
+              )
+            }
             help={<HelpTip topic={t("ui.settings.language.topic")}>{t("ui.settings.language.help")}</HelpTip>}
           />
         </Card>

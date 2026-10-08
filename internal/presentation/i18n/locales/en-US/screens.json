@@ -299,7 +299,7 @@
   "ui.settings.folder.title": "Settings folder",
   "ui.settings.language.help": "The language of the app's menus, buttons and notices. Same as Windows uses Windows' display language when the app speaks it; otherwise, English. The languages you study are in the profile, under Subtitles.",
   "ui.settings.language.label": "App language",
-  "ui.settings.language.saved": "Language saved. It applies the next time you open the app.",
+  "ui.settings.language.saved": "Language saved. The app speaks it now.",
   "ui.settings.language.title": "Language",
   "ui.settings.language.topic": "App language",
   "ui.settings.language.windows": "Same as Windows",

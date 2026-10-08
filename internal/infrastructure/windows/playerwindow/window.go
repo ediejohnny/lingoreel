@@ -80,11 +80,19 @@ type Labels struct {
 	// still; nil shows the track's tip instead.
 	Moment func(at time.Duration) string
 	// EditHint shows under the box that corrects a line; EditEmpty is told
-	// when Enter would save an empty line.
-	EditHint, EditEmpty string
+	// when Enter would save an empty line. Nil shows nothing.
+	EditHint, EditEmpty func() string
 	// Menu words an item of the menu the right button opens: its text and
 	// the key of its command in keys.
 	Menu func(item contextmenu.Item, keys shortcut.Map) contextmenu.Text
+}
+
+// worded is a label's text, empty without one.
+func worded(label func() string) string {
+	if label == nil {
+		return ""
+	}
+	return label()
 }
 
 // Options configures a window.

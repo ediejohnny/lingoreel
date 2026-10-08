@@ -679,9 +679,8 @@ func TestOpenSettingsFolder(t *testing.T) {
 	}
 }
 
-// The interface's language: the app lists the ones it speaks, keeps the
-// one chosen for the next start, or none for Windows', and refuses one it
-// does not speak.
+// The interface's languages: the app lists the ones it speaks, each named in
+// itself; choosing one is TestTheLanguageChangesAtOnce.
 func TestTheInterfaceLanguage(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -698,14 +697,5 @@ func TestTheInterfaceLanguage(t *testing.T) {
 	}
 	if got := r.api.Preferences().Language; got != "pt-BR" {
 		t.Fatalf("the interface speaks %q", got)
-	}
-	if err := r.api.SetLanguage("pt-BR"); err != nil || r.settings.config.Language != "pt-BR" {
-		t.Fatalf("SetLanguage(pt-BR) = %v, kept %q", err, r.settings.config.Language)
-	}
-	if err := r.api.SetLanguage("xx"); err == nil || r.settings.config.Language != "pt-BR" {
-		t.Fatalf("SetLanguage(xx) = %v, kept %q", err, r.settings.config.Language)
-	}
-	if err := r.api.SetLanguage(""); err != nil || r.settings.config.Language != "" {
-		t.Fatalf("SetLanguage(\"\") = %v, kept %q", err, r.settings.config.Language)
 	}
 }

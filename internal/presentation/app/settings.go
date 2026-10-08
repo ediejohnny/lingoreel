@@ -136,7 +136,7 @@ func (a *API) settingsOptions() SettingsOptions {
 			VolumeStepMin: playback.MinVolumeTouch.Percent(), VolumeStepMax: playback.MaxVolumeTouch.Percent(),
 		},
 		AppearanceDefaults: appearanceView(settings.DefaultBar(), appearance.DefaultEditStyle()),
-		EditHint:           ptbr.EditHint,
+		EditHint:           ptbr.EditHint(),
 		InterfaceDefaults:  interfaceView(appearance.DefaultInterfaceStyle()),
 	}
 	if a.deps.Preview != nil {

@@ -101,7 +101,7 @@ func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, sugg
 	video.SavedPassages, video.Resume = passagesOf(opened, result.Info.Duration), resumeOf(opened, result.Info.Duration)
 	video.Listening = a.listeningTo(result.Path)
 	if opened != nil {
-		video.ProjectNote = opened.note
+		video.ProjectNote = opened.noteText()
 	}
 	a.mu.Unlock()
 	video.LanguageNote = languageNote(result.Info, suggested, preferences)

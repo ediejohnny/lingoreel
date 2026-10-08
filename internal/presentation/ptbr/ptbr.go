@@ -30,12 +30,21 @@ var (
 	})
 )
 
-// Use makes a catalog the interface's language. The app calls it once, at
-// start, before any text is shown (and before it reads EditHint and
-// EditEmpty, worded again here).
+// Use makes a catalog the interface's language, at once: every text is
+// worded when it is shown, so the next one comes in the new language.
 func Use(c *i18n.Catalog) {
 	catalog.Store(c)
-	EditHint, EditEmpty = T("edit.hint"), T("edit.empty")
+}
+
+// UseLanguage makes the interface speak the language configured, else the
+// system's, each when the app speaks it, else the default; it tells which.
+func UseLanguage(configured, system string) (string, error) {
+	c, err := i18n.Load(i18n.Choose(configured, system))
+	if err != nil {
+		return "", err
+	}
+	Use(c)
+	return c.Tag(), nil
 }
 
 // Language is the interface's language, the tag of its catalog.

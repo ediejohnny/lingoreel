@@ -56,7 +56,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
-	"github.com/ediejohnny/lingoreel/internal/presentation/i18n"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
@@ -115,9 +114,7 @@ func run() error {
 	// The interface speaks its language from the first text on; a
 	// configuration that does not load is reported by the app later.
 	config, _ := files.LoadConfig()
-	if catalog := interfaceCatalog(config.Language, logger); catalog != nil {
-		ptbr.Use(catalog)
-	}
+	speakLanguage(config.Language, logger)
 	look := func() overlay.Look { return watch.LookOf(activeProfile(files)) }
 	service := analysis.NewService(matroska.FileReader{}, subtitlefile.Files{})
 	// started is the window's context, for a second launch and the player
@@ -195,6 +192,8 @@ func run() error {
 		About:         app.About{Version: buildinfo.Version, Windows: windowsVersion()},
 		Monitors:      monitors,
 		LogDir:        filepath.Join(dir, logFolder),
+		// The interface speaks Windows' language when none is chosen.
+		SystemLanguage: systemLanguage,
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{
@@ -329,24 +328,27 @@ func openFolder(path string) error {
 	return exec.Command("explorer.exe", path).Start()
 }
 
-// activeProfile is the profile the user studies with, or the default one.
-// interfaceCatalog is the catalog of the interface's language: the one
-// configured, else the Windows display language, each when the app speaks
-// it, else Brazilian Portuguese.
-func interfaceCatalog(configured string, logger *slog.Logger) *i18n.Catalog {
-	var system string
+// systemLanguage is the Windows display language, empty when unknown.
+func systemLanguage() string {
 	if languages, err := sys.GetUserPreferredUILanguages(sys.MUI_LANGUAGE_NAME); err == nil && len(languages) > 0 {
-		system = languages[0]
+		return languages[0]
 	}
-	catalog, err := i18n.Load(i18n.Choose(configured, system))
-	if err != nil {
-		logger.Warn("the interface's catalog did not load", "error", err)
-		return nil
-	}
-	logger.Info("interface language", "language", catalog.Tag(), "windows", system)
-	return catalog
+	return ""
 }
 
+// speakLanguage makes the interface speak the language configured, else the
+// Windows display language, each when the app speaks it, else English.
+func speakLanguage(configured string, logger *slog.Logger) {
+	system := systemLanguage()
+	spoken, err := ptbr.UseLanguage(configured, system)
+	if err != nil {
+		logger.Warn("the interface's catalog did not load", "error", err)
+		return
+	}
+	logger.Info("interface language", "language", spoken, "windows", system)
+}
+
+// activeProfile is the profile the user studies with, or the default one.
 func activeProfile(files *settingsfile.Files) settings.Profile {
 	config, configErr := files.LoadConfig()
 	profiles, profilesErr := files.LoadProfiles()

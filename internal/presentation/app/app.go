@@ -171,6 +171,9 @@ type Deps struct {
 	LogDir   string
 	// Associations lets Windows open videos with the app; nil offers none.
 	Associations Associations
+	// SystemLanguage is the Windows display language, for the interface to
+	// speak when none is chosen; nil speaks the default.
+	SystemLanguage func() string
 	// Stage puts the video inside the app's window, for players that draw
 	// into one (it opens Ports.OpenWindow's windows); nil leaves each video
 	// in a window of its own.
