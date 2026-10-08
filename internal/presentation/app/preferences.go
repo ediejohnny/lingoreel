@@ -33,14 +33,14 @@ func (a *API) SetTheme(theme string) error {
 	default:
 		return errors.New(ptbr.T("error.unknownTheme"))
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.config.Theme = settings.Theme(theme)
-	// The menu over the video follows the theme, even when it is not kept.
-	if a.deps.Stage != nil {
-		a.deps.Stage.SetChrome(a.config.Bar, a.config.Edit, a.config.Theme)
-	}
-	return a.saveConfig()
+	return a.changeConfig(func(next *settings.Config) error {
+		next.Theme = settings.Theme(theme)
+		// The menu over the video follows the theme, even when it is not kept.
+		if a.deps.Stage != nil {
+			a.deps.Stage.SetChrome(next.Bar, next.Edit, next.Theme)
+		}
+		return nil
+	})
 }
 
 // interfaceLanguages are the languages the app speaks, by tag, each named in
@@ -67,12 +67,10 @@ func (a *API) SetLanguage(tag string) (string, error) {
 	if _, speaks := ptbr.Languages()[tag]; tag != "" && !speaks {
 		return "", errors.New(ptbr.T("error.unknownLanguage"))
 	}
-	a.mu.Lock()
-	next := a.config
-	next.Language = tag
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Language = tag
+		return nil
+	}); err != nil {
 		return "", err
 	}
 	spoken, err := ptbr.UseLanguage(tag, a.systemLanguage())

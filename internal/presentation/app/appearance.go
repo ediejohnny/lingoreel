@@ -29,15 +29,17 @@ func (a *API) SetAppearance(view AppearanceSettings) error {
 	if err != nil {
 		return err
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	next := a.config
-	next.Bar, next.Edit = bar, edit
-	if err := a.commitConfig(next); err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Bar, next.Edit = bar, edit
+		return nil
+	}); err != nil {
 		return err
 	}
 	if a.deps.Stage != nil {
-		a.deps.Stage.SetChrome(bar, edit, next.Theme)
+		a.mu.Lock()
+		theme := a.config.Theme
+		a.mu.Unlock()
+		a.deps.Stage.SetChrome(bar, edit, theme)
 	}
 	return nil
 }
@@ -49,11 +51,10 @@ func (a *API) SetInterface(view InterfaceSettings) error {
 	if err != nil {
 		return err
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	next := a.config
-	next.Interface = look
-	return a.commitConfig(next)
+	return a.changeConfig(func(next *settings.Config) error {
+		next.Interface = look
+		return nil
+	})
 }
 
 // PreviewBar draws the control bar in a style, as a PNG data address for an

@@ -184,6 +184,9 @@ type Deps struct {
 	// background: on a weak one the first run starts with the AI off. Nil
 	// measures nothing, and no computer is weak.
 	Machine func() capacity.Machine
+	// AskRetry asks, with Windows' own box, whether to try again a save that
+	// failed as the app closes; nil never asks.
+	AskRetry func(title, text string) bool
 	// Stage puts the video inside the app's window, for players that draw
 	// into one (it opens Ports.OpenWindow's windows); nil leaves each video
 	// in a window of its own.
@@ -238,6 +241,10 @@ type API struct {
 	// adding lets one subtitle file be added at a time, so two never replace
 	// each other's analysis.
 	adding sync.Mutex
+	// projectWrites lets one project write run at a time, outside a.mu, and
+	// settingsWrites one settings change (changeSettings); neither is ever
+	// taken with a.mu held.
+	projectWrites, settingsWrites sync.Mutex
 	// welcoming tells the first run's welcome is not answered yet.
 	welcoming bool
 	// machine is the computer as measured, once.
@@ -412,13 +419,15 @@ func (l Lifecycle) WindowBounds() settings.WindowBounds {
 func (l Lifecycle) SaveWindow(bounds settings.WindowBounds) {
 	a := l.api
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.config.Window == bounds {
+	same := a.config.Window == bounds
+	a.mu.Unlock()
+	if same {
 		return
 	}
-	next := a.config
-	next.Window = bounds
-	if err := a.commitConfig(next); err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Window = bounds
+		return nil
+	}); err != nil {
 		a.logger.Warn("the window's place was not saved", "error", err)
 	}
 }
@@ -520,27 +529,4 @@ func (a *API) profile() settings.Profile {
 		return profile
 	}
 	return settings.DefaultProfile()
-}
-
-// saveConfig writes the configuration; a failure is logged and reported.
-func (a *API) saveConfig() error {
-	if a.deps.Settings == nil {
-		return nil
-	}
-	if err := a.deps.Settings.SaveConfig(a.config); err != nil && !errors.Is(err, settings.ErrReadOnly) {
-		a.logger.Warn("settings could not be saved", "error", err)
-		return a.because(errSettingsNotSaved, err)
-	}
-	return nil
-}
-
-func (a *API) saveProfiles() error {
-	if a.deps.Settings == nil {
-		return nil
-	}
-	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil && !errors.Is(err, settings.ErrReadOnly) {
-		a.logger.Warn("profiles could not be saved", "error", err)
-		return a.because(errProfilesNotSaved, err)
-	}
-	return nil
 }

@@ -61,6 +61,11 @@ All notable changes to this project are listed here. The format follows
   project the app cannot write is refused, with why, instead of seeming to work.
 - Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
   saved, so the app never opens on a profile that is gone.
+- A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
+  the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
+  the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
+- A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
+  (after making room on the disk, say) or to close without them; they used to be lost quietly.
 
 ## [0.26.0] - 2026-10-07
 

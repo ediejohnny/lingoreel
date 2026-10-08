@@ -180,6 +180,7 @@ func run() error {
 				logger.Warn("keeping the seek bar's stills", "err", err)
 			},
 		},
+		AskRetry:      win32.AskRetry,
 		Stage:         stagePort{stage},
 		Settings:      files,
 		Installer:     install.Winget{},

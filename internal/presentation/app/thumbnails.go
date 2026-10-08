@@ -43,12 +43,10 @@ func (a *API) thumbnailsView(t settings.ThumbnailPreferences) ThumbnailSettings 
 // SetThumbnails changes how the seek bar's stills are taken, at once and
 // from then on.
 func (a *API) SetThumbnails(view ThumbnailSettings) error {
-	a.mu.Lock()
-	next := a.config
-	next.Thumbnails = settings.ThumbnailPreferences{On: view.On, OnBattery: view.OnBattery, OnDisk: view.OnDisk}
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Thumbnails = settings.ThumbnailPreferences{On: view.On, OnBattery: view.OnBattery, OnDisk: view.OnDisk}
+		return nil
+	}); err != nil {
 		return err
 	}
 	a.applyThumbnails()

@@ -42,15 +42,14 @@ func (a *API) SwitchProfile(name string) error {
 	if current := a.current(); current != nil && current.session != nil {
 		return errSwitchWhileOpen
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	profile, found := a.profiles.Find(name)
-	if !found {
-		return errProfileMissing
-	}
-	next := a.config
-	next.ActiveProfile = profile.Name
-	return a.commitConfig(next)
+	return a.changeConfig(func(next *settings.Config) error {
+		profile, found := a.profiles.Find(name)
+		if !found {
+			return errProfileMissing
+		}
+		next.ActiveProfile = profile.Name
+		return nil
+	})
 }
 
 // CreateProfile adds a profile, a copy of the active one, and makes it the
@@ -59,28 +58,33 @@ func (a *API) CreateProfile(name string) error {
 	if current := a.current(); current != nil && current.session != nil {
 		return errSwitchWhileOpen
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	next, err := a.profiles.Add(name, a.profile())
-	if err != nil {
-		return profileError(err)
-	}
-	return a.commitWithActive(next, name)
+	return a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
+		next, err := profiles.Add(name, a.profile())
+		if err != nil {
+			return profileError(err)
+		}
+		*profiles, config.ActiveProfile = next, name
+		return nil
+	})
 }
 
 // RenameProfile renames a profile; the active one stays active.
 func (a *API) RenameProfile(from, to string) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	wasActive := strings.EqualFold(a.profile().Name, from)
-	next, err := a.profiles.Rename(from, to)
-	if err != nil {
-		return profileError(err)
+	a.mu.Unlock()
+	writes := writeProfiles
+	if wasActive {
+		writes |= writeConfig
 	}
-	if !wasActive {
-		return a.commitProfiles(next)
-	}
-	return a.commitWithActive(next, to)
+	return a.changeSettings(writes, func(config *settings.Config, profiles *settings.Profiles) error {
+		next, err := profiles.Rename(from, to)
+		if err != nil {
+			return profileError(err)
+		}
+		*profiles, config.ActiveProfile = next, to
+		return nil
+	})
 }
 
 // DeleteProfile removes a profile; when it was the active one, the first
@@ -90,36 +94,20 @@ func (a *API) DeleteProfile(name string) error {
 		return errSwitchWhileOpen
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	wasActive := strings.EqualFold(a.profile().Name, name)
-	next, err := a.profiles.Remove(name)
-	if err != nil {
-		return profileError(err)
+	a.mu.Unlock()
+	writes := writeProfiles
+	if wasActive {
+		writes |= writeConfig
 	}
-	if !wasActive {
-		return a.commitProfiles(next)
-	}
-	return a.commitWithActive(next, next.Items[0].Name)
-}
-
-// commitWithActive saves the profiles, then makes active the one named. When
-// the second save fails the first is undone, so the configuration never
-// names a profile the profiles file lacks, nor keeps one the user removed.
-// Called with a.mu held.
-func (a *API) commitWithActive(next settings.Profiles, active string) error {
-	previous := a.profiles
-	if err := a.commitProfiles(next); err != nil {
-		return err
-	}
-	config := a.config
-	config.ActiveProfile = active
-	if err := a.commitConfig(config); err != nil {
-		if undo := a.commitProfiles(previous); undo != nil {
-			a.logger.Warn("the profiles could not be put back", "error", undo)
+	return a.changeSettings(writes, func(config *settings.Config, profiles *settings.Profiles) error {
+		next, err := profiles.Remove(name)
+		if err != nil {
+			return profileError(err)
 		}
-		return err
-	}
-	return nil
+		*profiles, config.ActiveProfile = next, next.Items[0].Name
+		return nil
+	})
 }
 
 func (a *API) activeName() string {
@@ -131,15 +119,15 @@ func (a *API) activeName() string {
 // ResetProfile puts the active profile back to the defaults, keeping its
 // name, and applies them to the video being watched.
 func (a *API) ResetProfile() error {
-	a.mu.Lock()
-	previous := a.profile()
-	profile := settings.DefaultProfile()
-	profile.Name = previous.Name
-	next, err := a.profiles.Replace(profile)
-	if err == nil {
-		err = a.commitProfiles(next)
-	}
-	a.mu.Unlock()
+	var previous, profile settings.Profile
+	err := a.changeProfiles(func(next *settings.Profiles) error {
+		previous = a.profile()
+		profile = settings.DefaultProfile()
+		profile.Name = previous.Name
+		var err error
+		*next, err = next.Replace(profile)
+		return err
+	})
 	if err != nil {
 		return profileError(err)
 	}
@@ -193,15 +181,14 @@ func (a *API) SetPlayerPath(id, path string) error {
 	if !filepath.IsAbs(path) || !strings.EqualFold(filepath.Ext(path), ".exe") {
 		return errBadPlayerPath
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	next := a.config
-	next.PlayerPaths = maps.Clone(a.config.PlayerPaths)
-	if next.PlayerPaths == nil {
-		next.PlayerPaths = map[string]string{}
-	}
-	next.PlayerPaths[id] = path
-	return a.commitConfig(next)
+	return a.changeConfig(func(next *settings.Config) error {
+		next.PlayerPaths = maps.Clone(next.PlayerPaths)
+		if next.PlayerPaths == nil {
+			next.PlayerPaths = map[string]string{}
+		}
+		next.PlayerPaths[id] = path
+		return nil
+	})
 }
 
 // ChoosePlayerProgram asks for a player's program and keeps it; it returns
@@ -230,12 +217,14 @@ func (a *API) ChoosePlayerProgram(id string) (string, error) {
 // again where players usually are.
 func (a *API) ClearPlayerPath(id string) error {
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if _, set := a.config.PlayerPaths[id]; !set {
+	_, set := a.config.PlayerPaths[id]
+	a.mu.Unlock()
+	if !set {
 		return nil
 	}
-	next := a.config
-	next.PlayerPaths = maps.Clone(a.config.PlayerPaths)
-	delete(next.PlayerPaths, id)
-	return a.commitConfig(next)
+	return a.changeConfig(func(next *settings.Config) error {
+		next.PlayerPaths = maps.Clone(next.PlayerPaths)
+		delete(next.PlayerPaths, id)
+		return nil
+	})
 }

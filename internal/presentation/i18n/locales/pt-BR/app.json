@@ -93,6 +93,7 @@
   "diagnostics.unknownWindows": "desconhecido",
   "diagnostics.video": "Vídeo",
   "dialog.assFiles": "Advanced SubStation Subtitle (*.ass)",
+  "dialog.exitNotSaved": "{reason}\n\nO que mudou neste vídeo desde a última gravação (correções, sincronia, trechos, onde você parou) ainda não está no disco. Tentar de novo? Se cancelar, o app fecha sem essas mudanças.",
   "dialog.exportSubtitle": "Exportar legenda",
   "dialog.ffmpeg": "Onde está o FFmpeg?",
   "dialog.openSubtitle": "Adicionar arquivo de legenda",

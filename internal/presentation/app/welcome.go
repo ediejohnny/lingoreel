@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
@@ -68,9 +69,7 @@ func (a *API) FinishWelcome(choices WelcomeChoices) error {
 		return ErrUnknownPlayer
 	}
 	languages := settings.LanguagePreferences{Audio: choices.Studied, Primary: choices.Studied, Translation: choices.Spoken}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.answerWelcome(languages, study.Mode(choices.Mode), choices.PreferredPlayer, choices.VoiceModel)
+	return a.answerWelcome(func() bool { return true }, languages, study.Mode(choices.Mode), choices.PreferredPlayer, choices.VoiceModel)
 }
 
 // SkipWelcome answers the first run's welcome with what Windows tells, and
@@ -78,20 +77,48 @@ func (a *API) FinishWelcome(choices WelcomeChoices) error {
 func (a *API) SkipWelcome() error {
 	weak := a.machine().Weak()
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if !a.welcoming {
+	pending, profile := a.welcoming, a.profile()
+	a.mu.Unlock()
+	if !pending {
 		return nil
 	}
-	profile := a.profile()
-	return a.answerWelcome(settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer, !weak)
+	// Answered meanwhile, it stays as answered.
+	still := func() bool { return a.welcoming }
+	return a.answerWelcome(still, settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer, !weak)
 }
 
-// answerWelcome keeps a welcome's answers; model lets the voice AI work on
-// this computer. Called with a.mu held.
-func (a *API) answerWelcome(languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
+// errAnswered stops a welcome answered meanwhile.
+var errAnswered = errors.New("the welcome was answered meanwhile")
+
+// answerWelcome keeps a welcome's answers, while still tells (with a.mu
+// held) they are wanted; model lets the voice AI work on this computer.
+// Called without a.mu.
+func (a *API) answerWelcome(still func() bool, languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
+	err := a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
+		if !still() {
+			return errAnswered
+		}
+		return a.welcomeAnswers(config, profiles, languages, mode, preferred, model)
+	})
+	if errors.Is(err, errAnswered) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	a.mu.Lock()
+	a.welcoming = false
+	a.mu.Unlock()
+	a.logger.Info("welcome answered", "studies", languages.Primary, "speaks", languages.Translation, "mode", mode, "voiceAI", model)
+	return nil
+}
+
+// welcomeAnswers puts a welcome's answers in copies of the configuration
+// and the profiles. Called with a.mu held.
+func (a *API) welcomeAnswers(config *settings.Config, kept *settings.Profiles, languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
 	name := ptbr.Capitalized(ptbr.LanguageName(media.LanguageTag(languages.Primary)))
 	target := a.profile()
-	profiles := a.profiles
+	profiles := *kept
 	switch {
 	case a.welcoming && untouched(profiles):
 		// The first profile is the person's own, not the defaults' "Inglês".
@@ -116,17 +143,9 @@ func (a *API) answerWelcome(languages settings.LanguagePreferences, mode study.M
 	if err != nil {
 		return profileError(err)
 	}
-	if err := a.commitProfiles(profiles); err != nil {
-		return err
-	}
-	config := a.config
+	*kept = profiles
 	config.ActiveProfile = target.Name
 	config.Voice.Model = model
-	if err := a.commitConfig(config); err != nil {
-		return err
-	}
-	a.welcoming = false
-	a.logger.Info("welcome answered", "studies", languages.Primary, "speaks", languages.Translation, "mode", mode, "voiceAI", model)
 	return nil
 }
 

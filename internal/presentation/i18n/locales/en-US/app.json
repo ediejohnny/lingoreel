@@ -93,6 +93,7 @@
   "diagnostics.unknownWindows": "unknown",
   "diagnostics.video": "Video",
   "dialog.assFiles": "Advanced SubStation Subtitle (*.ass)",
+  "dialog.exitNotSaved": "{reason}\n\nWhat changed in this video since the last save (corrections, sync, passages, where you stopped) is not on the disk yet. Try again? If you cancel, the app closes without those changes.",
   "dialog.exportSubtitle": "Export subtitle",
   "dialog.ffmpeg": "Where is FFmpeg?",
   "dialog.openSubtitle": "Add a subtitle file",

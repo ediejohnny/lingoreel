@@ -352,6 +352,19 @@ type memorySettings struct {
 	saveError error
 	// profilesError fails saving the profiles alone.
 	profilesError error
+	// held, while set, keeps the configuration's saves waiting until it is
+	// closed, as a slow disk would; entered tells each save that reached it.
+	held, entered chan struct{}
+}
+
+// hold makes the configuration's saves wait until release, as on a slow
+// disk; a save that reaches the disk is told on entered.
+func (m *memorySettings) hold() (entered <-chan struct{}, release func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.held, m.entered = make(chan struct{}), make(chan struct{}, 8)
+	held := m.held
+	return m.entered, func() { close(held) }
 }
 
 func newMemorySettings() *memorySettings {
@@ -363,6 +376,13 @@ func (m *memorySettings) LoadConfig() (settings.Config, error) {
 	return m.config, m.loadErr
 }
 func (m *memorySettings) SaveConfig(c settings.Config) error {
+	m.mu.Lock()
+	held, entered := m.held, m.entered
+	m.mu.Unlock()
+	if held != nil {
+		entered <- struct{}{}
+		<-held
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.saves++
@@ -414,6 +434,19 @@ type memoryProjects struct {
 	// removed lists the videos forgotten; removeErr fails the removal.
 	removed   []string
 	removeErr error
+	// held, while set, keeps every save waiting until it is closed, as a slow
+	// disk would; entered tells each save that reached it.
+	held, entered chan struct{}
+}
+
+// hold makes the saves wait, as on a slow disk, until the returned function
+// lets them go; a save that reaches the disk is told on entered.
+func (m *memoryProjects) hold() (entered <-chan struct{}, release func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.held, m.entered = make(chan struct{}), make(chan struct{}, 8)
+	held := m.held
+	return m.entered, func() { close(held) }
 }
 
 func (m *memoryProjects) Load(video string) (project.Project, error) {
@@ -432,6 +465,13 @@ func (m *memoryProjects) Load(video string) (project.Project, error) {
 }
 
 func (m *memoryProjects) Save(video string, p project.Project) error {
+	m.mu.Lock()
+	held, entered := m.held, m.entered
+	m.mu.Unlock()
+	if held != nil {
+		entered <- struct{}{}
+		<-held
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.saves++

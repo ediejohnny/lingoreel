@@ -148,24 +148,24 @@ func (a *API) OpenDownloadPage(id string) error {
 // DismissRecommendation hides the installation card of one player for good;
 // an empty id hides all of them.
 func (a *API) DismissRecommendation(id string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	recommendations := &a.config.InstallRecommendations
-	switch {
-	case id == "":
-		recommendations.DismissAll = true
-	case !player.ID(id).Valid():
-		return ErrUnknownPlayer
-	case !slices.Contains(recommendations.Dismissed, id):
-		recommendations.Dismissed = append(recommendations.Dismissed, id)
-	}
-	return a.saveConfig()
+	return a.changeConfig(func(next *settings.Config) error {
+		recommendations := &next.InstallRecommendations
+		switch {
+		case id == "":
+			recommendations.DismissAll = true
+		case !player.ID(id).Valid():
+			return ErrUnknownPlayer
+		case !slices.Contains(recommendations.Dismissed, id):
+			recommendations.Dismissed = append(slices.Clip(recommendations.Dismissed), id)
+		}
+		return nil
+	})
 }
 
 // ShowRecommendations shows the installation cards again.
 func (a *API) ShowRecommendations() error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.config.InstallRecommendations = settings.InstallRecommendations{}
-	return a.saveConfig()
+	return a.changeConfig(func(next *settings.Config) error {
+		next.InstallRecommendations = settings.InstallRecommendations{}
+		return nil
+	})
 }
