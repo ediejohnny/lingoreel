@@ -1406,6 +1406,7 @@ export namespace app {
 	    thumbnails: ThumbnailSettings;
 	    options: SettingsOptions;
 	    folder: string;
+	    notes: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
@@ -1422,6 +1423,7 @@ export namespace app {
 	        this.thumbnails = this.convertValues(source["thumbnails"], ThumbnailSettings);
 	        this.options = this.convertValues(source["options"], SettingsOptions);
 	        this.folder = source["folder"];
+	        this.notes = source["notes"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -348,14 +349,38 @@ func TestPreferencesAndTheme(t *testing.T) {
 	}
 }
 
-func TestDamagedSettingsFallBackToTheDefaults(t *testing.T) {
+// A settings file the app could not read leaves the defaults on, and the
+// settings screen tells why; one kept as it is (a newer version's, one
+// Windows would not open) takes the changes in memory, until the app closes.
+func TestASettingsFileTheAppCannotReadIsTold(t *testing.T) {
 	t.Parallel()
-	r := newRig(t)
-	r.settings.config.Theme = settings.ThemeDark
-	r.settings.loadErr = errors.New("corrupt")
-	r.attach(t)
-	if theme := r.api.Preferences().Theme; theme != "system" {
-		t.Fatalf("theme = %q, want the default after a load error", theme)
+	for _, c := range []struct {
+		name      string
+		loadErr   error
+		saveError error
+		note      string
+	}{
+		{"newer version", fmt.Errorf("%w: version 9", settings.ErrNewerVersion), fmt.Errorf("%w: newer", settings.ErrReadOnly), "versão mais nova"},
+		{"unreadable", fmt.Errorf("%w: access denied", settings.ErrUnreadable), fmt.Errorf("%w: unreadable", settings.ErrReadOnly), "não deixou"},
+		{"damaged", fmt.Errorf("%w: not JSON", settings.ErrDamaged), nil, "estragado"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			r := newRig(t)
+			r.settings.config.Theme = settings.ThemeDark
+			r.settings.loadErr, r.settings.saveError = c.loadErr, c.saveError
+			r.attach(t)
+			if theme := r.api.Preferences().Theme; theme != "system" {
+				t.Fatalf("theme = %q, want the default after a load error", theme)
+			}
+			notes := settingsOf(t, r).Notes
+			if len(notes) != 2 || !strings.Contains(notes[0], "config.json") || !strings.Contains(notes[0], c.note) || !strings.Contains(notes[1], "profiles.json") {
+				t.Fatalf("notes = %q", notes)
+			}
+			if err := r.api.SetTheme("light"); err != nil || r.api.Preferences().Theme != "light" {
+				t.Fatalf("SetTheme = %v, theme %q", err, r.api.Preferences().Theme)
+			}
+		})
 	}
 }
 

@@ -65,12 +65,7 @@ func (a *API) CreateProfile(name string) error {
 	if err != nil {
 		return profileError(err)
 	}
-	if err := a.commitProfiles(next); err != nil {
-		return err
-	}
-	config := a.config
-	config.ActiveProfile = name
-	return a.commitConfig(config)
+	return a.commitWithActive(next, name)
 }
 
 // RenameProfile renames a profile; the active one stays active.
@@ -82,15 +77,10 @@ func (a *API) RenameProfile(from, to string) error {
 	if err != nil {
 		return profileError(err)
 	}
-	if err := a.commitProfiles(next); err != nil {
-		return err
-	}
 	if !wasActive {
-		return nil
+		return a.commitProfiles(next)
 	}
-	config := a.config
-	config.ActiveProfile = to
-	return a.commitConfig(config)
+	return a.commitWithActive(next, to)
 }
 
 // DeleteProfile removes a profile; when it was the active one, the first
@@ -106,15 +96,30 @@ func (a *API) DeleteProfile(name string) error {
 	if err != nil {
 		return profileError(err)
 	}
+	if !wasActive {
+		return a.commitProfiles(next)
+	}
+	return a.commitWithActive(next, next.Items[0].Name)
+}
+
+// commitWithActive saves the profiles, then makes active the one named. When
+// the second save fails the first is undone, so the configuration never
+// names a profile the profiles file lacks, nor keeps one the user removed.
+// Called with a.mu held.
+func (a *API) commitWithActive(next settings.Profiles, active string) error {
+	previous := a.profiles
 	if err := a.commitProfiles(next); err != nil {
 		return err
 	}
-	if !wasActive {
-		return nil
-	}
 	config := a.config
-	config.ActiveProfile = next.Items[0].Name
-	return a.commitConfig(config)
+	config.ActiveProfile = active
+	if err := a.commitConfig(config); err != nil {
+		if undo := a.commitProfiles(previous); undo != nil {
+			a.logger.Warn("the profiles could not be put back", "error", undo)
+		}
+		return err
+	}
+	return nil
 }
 
 func (a *API) activeName() string {

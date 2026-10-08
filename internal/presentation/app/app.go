@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -241,6 +242,9 @@ type API struct {
 	welcoming bool
 	// machine is the computer as measured, once.
 	machine func() capacity.Machine
+	// settingsNotes tell, in the language of the moment, why a settings file
+	// could not be read and what becomes of it.
+	settingsNotes []func() string
 }
 
 type resumePoint struct {
@@ -339,6 +343,7 @@ func (l Lifecycle) Attach(ctx context.Context, ui UI) {
 	}
 	if config, err := a.deps.Settings.LoadConfig(); err != nil {
 		a.logger.Warn("settings could not be read; using the defaults", "error", err)
+		a.settingsNotes = append(a.settingsNotes, unreadNote("config.json", err))
 	} else {
 		a.config = config
 	}
@@ -347,8 +352,24 @@ func (l Lifecycle) Attach(ctx context.Context, ui UI) {
 	}
 	if profiles, err := a.deps.Settings.LoadProfiles(); err != nil {
 		a.logger.Warn("profiles could not be read; using the defaults", "error", err)
+		a.settingsNotes = append(a.settingsNotes, unreadNote("profiles.json", err))
 	} else {
 		a.profiles = profiles
+	}
+}
+
+// unreadNote tells why a settings file could not be read: one written by a
+// newer version or one Windows would not open is left as it is, and the
+// changes last until the app closes; a damaged one is copied aside before
+// the first save over it.
+func unreadNote(file string, err error) func() string {
+	switch {
+	case errors.Is(err, settings.ErrNewerVersion):
+		return func() string { return ptbr.T("settings.file.newer", "file", file) }
+	case errors.Is(err, settings.ErrUnreadable):
+		return func() string { return ptbr.T("settings.file.unreadable", "file", file) }
+	default:
+		return func() string { return ptbr.T("settings.file.damaged", "file", file) }
 	}
 }
 
@@ -506,7 +527,7 @@ func (a *API) saveConfig() error {
 	if a.deps.Settings == nil {
 		return nil
 	}
-	if err := a.deps.Settings.SaveConfig(a.config); err != nil {
+	if err := a.deps.Settings.SaveConfig(a.config); err != nil && !errors.Is(err, settings.ErrReadOnly) {
 		a.logger.Warn("settings could not be saved", "error", err)
 		return a.because(errSettingsNotSaved, err)
 	}
@@ -517,7 +538,7 @@ func (a *API) saveProfiles() error {
 	if a.deps.Settings == nil {
 		return nil
 	}
-	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil {
+	if err := a.deps.Settings.SaveProfiles(a.profiles); err != nil && !errors.Is(err, settings.ErrReadOnly) {
 		a.logger.Warn("profiles could not be saved", "error", err)
 		return a.because(errProfilesNotSaved, err)
 	}

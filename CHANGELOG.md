@@ -53,6 +53,14 @@ All notable changes to this project are listed here. The format follows
 
 - Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
   changes to the profile not yet saved on the same settings screen.
+- A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
+  One written by a newer version, or one Windows would not open, stays as it is, and the changes last until the app
+  closes; a damaged one is copied aside, whole (`config.damaged-<date>-<time>.json`), before the first save over it.
+  Settings tells which file and why, on every page.
+- A video's project written by a newer version says that nothing changed now is kept, and saving a passage into a
+  project the app cannot write is refused, with why, instead of seeming to work.
+- Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
+  saved, so the app never opens on a profile that is gone.
 
 ## [0.26.0] - 2026-10-07
 

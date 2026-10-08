@@ -88,6 +88,10 @@ func (a *API) Settings() (SettingsView, error) {
 	for i, item := range a.profiles.Items {
 		names[i] = item.Name
 	}
+	notes := make([]string, len(a.settingsNotes))
+	for i, note := range a.settingsNotes {
+		notes[i] = note()
+	}
 	a.mu.Unlock()
 	view := SettingsView{
 		General: GeneralSettings{
@@ -97,7 +101,7 @@ func (a *API) Settings() (SettingsView, error) {
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
-		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir,
+		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir, Notes: notes,
 	}
 	return view, nil
 }
@@ -252,7 +256,9 @@ func (a *API) commitProfiles(next settings.Profiles) error {
 		return errProfilesNotSaved
 	}
 	if a.deps.Settings != nil {
-		if err := a.deps.Settings.SaveProfiles(next); err != nil {
+		// A file kept as it is takes the profiles in memory only, until the
+		// app closes; the settings screen says why.
+		if err := a.deps.Settings.SaveProfiles(next); err != nil && !errors.Is(err, settings.ErrReadOnly) {
 			a.logger.Warn("profiles could not be saved", "error", err)
 			return a.because(errProfilesNotSaved, err)
 		}
@@ -269,7 +275,7 @@ func (a *API) commitConfig(next settings.Config) error {
 		return errSettingsNotSaved
 	}
 	if a.deps.Settings != nil {
-		if err := a.deps.Settings.SaveConfig(next); err != nil {
+		if err := a.deps.Settings.SaveConfig(next); err != nil && !errors.Is(err, settings.ErrReadOnly) {
 			a.logger.Warn("settings could not be saved", "error", err)
 			return a.because(errSettingsNotSaved, err)
 		}

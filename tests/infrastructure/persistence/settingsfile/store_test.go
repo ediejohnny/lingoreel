@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
@@ -489,4 +490,93 @@ func TestSettingsRefuseBadValues(t *testing.T) {
 	if !errors.Is(err, jsonstore.ErrCorrupt) || len(profiles.Items) != 1 {
 		t.Fatalf("LoadProfiles of a corrupt file = %+v, %v; want the defaults and ErrCorrupt", profiles, err)
 	}
+}
+
+// A settings file the app could not read is never written over with the
+// defaults: a newer version's and an unreadable one stay as they are, and a
+// damaged one is copied aside, whole, before the first save over it.
+func TestASettingsFileTheAppCannotReadIsKept(t *testing.T) {
+	t.Parallel()
+	at := func() time.Time { return time.Date(2026, 10, 8, 4, 30, 0, 0, time.Local) }
+	write := func(t *testing.T, path, body string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read := func(t *testing.T, path string) string {
+		t.Helper()
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+
+	t.Run("newer version", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		newer := `{"version": 99, "profiles": [], "future": true}`
+		write(t, filepath.Join(dir, "profiles.json"), newer)
+		files := settingsfile.OpenAt(dir, at)
+		profiles, err := files.LoadProfiles()
+		if !errors.Is(err, settings.ErrNewerVersion) || len(profiles.Items) != 1 {
+			t.Fatalf("LoadProfiles = %d profiles, %v; want the defaults and ErrNewerVersion", len(profiles.Items), err)
+		}
+		if err := files.SaveProfiles(profiles); !errors.Is(err, settings.ErrReadOnly) {
+			t.Fatalf("SaveProfiles = %v, want ErrReadOnly", err)
+		}
+		if got := read(t, filepath.Join(dir, "profiles.json")); got != newer {
+			t.Fatalf("the newer file became %s", got)
+		}
+	})
+
+	t.Run("unreadable", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		// A folder where the file should be cannot be read as one.
+		if err := os.Mkdir(filepath.Join(dir, "config.json"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		files := settingsfile.OpenAt(dir, at)
+		if _, err := files.LoadConfig(); !errors.Is(err, settings.ErrUnreadable) {
+			t.Fatalf("LoadConfig = %v, want ErrUnreadable", err)
+		}
+		if err := files.SaveConfig(settings.DefaultConfig()); !errors.Is(err, settings.ErrReadOnly) {
+			t.Fatalf("SaveConfig = %v, want ErrReadOnly", err)
+		}
+	})
+
+	t.Run("damaged", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		damaged := `{"version": 1, "theme": "dark", "activeProfile": `
+		write(t, filepath.Join(dir, "config.json"), damaged)
+		// Saving before reading still finds the damage first.
+		files := settingsfile.OpenAt(dir, at)
+		config := settings.DefaultConfig()
+		config.Theme = settings.ThemeLight
+		if err := errors.Join(files.SaveConfig(config), files.SaveConfig(config)); err != nil {
+			t.Fatal(err)
+		}
+		copies, _ := filepath.Glob(filepath.Join(dir, "config.damaged-*.json"))
+		if len(copies) != 1 || filepath.Base(copies[0]) != "config.damaged-20261008-043000.json" || read(t, copies[0]) != damaged {
+			t.Fatalf("copies %v", copies)
+		}
+		if got, err := settingsfile.Open(dir).LoadConfig(); err != nil || got.Theme != settings.ThemeLight {
+			t.Fatalf("after the save = %q, %v", got.Theme, err)
+		}
+		// A hand-edited value out of bounds is damage too.
+		write(t, filepath.Join(dir, "config.json"), `{"version":1,"theme":"purple"}`)
+		files = settingsfile.OpenAt(dir, func() time.Time { return at().Add(time.Minute) })
+		if _, err := files.LoadConfig(); !errors.Is(err, settings.ErrDamaged) {
+			t.Fatalf("LoadConfig of a bad value = %v, want ErrDamaged", err)
+		}
+		if err := files.SaveConfig(config); err != nil {
+			t.Fatal(err)
+		}
+		if copies, _ := filepath.Glob(filepath.Join(dir, "config.damaged-*.json")); len(copies) != 2 {
+			t.Fatalf("copies %v", copies)
+		}
+	})
 }

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"encoding/base64"
+	"errors"
 	"math"
 	"slices"
 	"strings"
@@ -343,6 +344,33 @@ func TestProfilesCanBeCreatedSwitchedRenamedAndRemoved(t *testing.T) {
 	}
 	if err := r.api.DeleteProfile("Francês"); err == nil || !strings.Contains(err.Error(), "pelo menos um perfil") {
 		t.Fatalf("deleting the last = %v", err)
+	}
+}
+
+// Renaming, removing or creating the active profile writes the profiles and
+// then the configuration: when the second write fails, the first is undone,
+// so the configuration never names a profile the file lacks.
+func TestAProfileChangeHalfSavedIsUndone(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	r.attach(t)
+	if err := r.api.CreateProfile("Francês"); err != nil {
+		t.Fatal(err)
+	}
+	r.settings.saveError = errors.New("disk full")
+	for name, change := range map[string]func() error{
+		"rename": func() error { return r.api.RenameProfile("Francês", "French") },
+		"delete": func() error { return r.api.DeleteProfile("Francês") },
+		"create": func() error { return r.api.CreateProfile("Alemão") },
+	} {
+		if err := change(); err == nil {
+			t.Fatalf("%s: the failed save was not reported", name)
+		}
+		got := settingsOf(t, r)
+		if !slices.Equal(got.Profiles, []string{"Inglês", "Francês"}) || got.General.ActiveProfile != "Francês" ||
+			len(r.settings.profiles.Items) != 2 || r.settings.profiles.Items[1].Name != "Francês" || r.settings.config.ActiveProfile != "Francês" {
+			t.Fatalf("%s: profiles %v active %q, saved %+v %q", name, got.Profiles, got.General.ActiveProfile, r.settings.profiles.Items, r.settings.config.ActiveProfile)
+		}
 	}
 }
 

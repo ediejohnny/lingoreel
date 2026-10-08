@@ -58,6 +58,7 @@ var (
 	errDuplicatePassage = worded(func() string { return ptbr.T("error.passage.duplicate") })
 	errPassageOutside   = worded(func() string { return ptbr.T("error.passage.outside") })
 	errNotKept          = worded(func() string { return ptbr.T("error.project.notSaved") })
+	errPassageReadOnly  = worded(func() string { return ptbr.T("error.passage.readOnly") })
 	errResetWatching    = worded(func() string { return ptbr.T("error.project.resetWhileWatching") })
 	errResetFailed      = worded(func() string { return ptbr.T("error.project.resetFailed") })
 )
@@ -439,6 +440,11 @@ func (a *API) SavePassage(name string) error {
 		a.mu.Unlock()
 		return errPassageName
 	}
+	// A project kept as it is would only seem to save the passage.
+	if p.readOnly {
+		a.mu.Unlock()
+		return errPassageReadOnly
+	}
 	passages := p.value.Passages
 	if i := project.IndexOf(passages, passage.Name); i >= 0 {
 		passages[i] = passage
@@ -465,9 +471,13 @@ func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan s
 		a.mu.Unlock()
 		return
 	}
-	if len(p.value.Passages) >= project.MaxPassages {
+	if len(p.value.Passages) >= project.MaxPassages || p.readOnly {
+		refusal := errTooManySaved
+		if p.readOnly {
+			refusal = errPassageReadOnly
+		}
 		a.mu.Unlock()
-		current.session.Notify(errTooManySaved.Error())
+		current.session.Notify(refusal.Error())
 		return
 	}
 	practice := project.PlanOf(plan)

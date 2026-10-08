@@ -16,6 +16,17 @@ import (
 // ErrInvalidSettings reports a preference outside its allowed values.
 var ErrInvalidSettings = errors.New("invalid settings")
 
+// What can keep a settings document from being read. Whatever it is, the
+// user's file is never written over with the defaults: a newer version's or
+// an unreadable one stays as it is (ErrReadOnly on a save), and a damaged one
+// is copied aside before the first save.
+var (
+	ErrNewerVersion = errors.New("settings written by a newer version of the app")
+	ErrUnreadable   = errors.New("settings file could not be read")
+	ErrDamaged      = errors.New("settings file is damaged")
+	ErrReadOnly     = errors.New("settings file is kept as it is")
+)
+
 // Theme is the application color theme.
 type Theme string
 
