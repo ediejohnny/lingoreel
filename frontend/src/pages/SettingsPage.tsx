@@ -71,6 +71,8 @@ interface SettingsPageProps {
   shown?: boolean;
   /** onSaved is told once the profile changed: saved, reset or switched. */
   onSaved?: () => void;
+  /** onWelcome opens the welcome again; without it (a video plays) the settings do not offer it. */
+  onWelcome?: () => void;
   ref?: Ref<SettingsHandle>;
 }
 
@@ -97,6 +99,7 @@ export function SettingsPage({
   narrow = false,
   shown = true,
   onSaved,
+  onWelcome,
   ref,
 }: SettingsPageProps) {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -269,7 +272,7 @@ export function SettingsPage({
     }
   };
   const discard = () => setDraft(view.profile);
-  const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection };
+  const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection, welcome: onWelcome };
   const languages = view.options.languages;
   const sections = settingsSections({
     primary: lineLanguage("primary", draft.languages.primary, languages),

@@ -4,6 +4,7 @@ import {
   backend,
   messageOf,
   type KaraokeSettings,
+  type LanguageSettings,
   type LayoutSettings,
   type MarkSettings,
   type StyleSettings,
@@ -26,13 +27,15 @@ interface SubtitlePreviewProps {
   view?: PreviewView;
   karaoke: KaraokeSettings;
   marks: MarkSettings;
+  /** languages are the profile's: each sample line speaks its line's. */
+  languages: LanguageSettings;
 }
 
 /**
  * SubtitlePreview shows the two lines as the video will, drawn by the same
  * renderer as the overlay, at the picture's real size on screen.
  */
-export function SubtitlePreview({ primary, translation, layout, highlight, view = "", karaoke, marks }: SubtitlePreviewProps) {
+export function SubtitlePreview({ primary, translation, layout, highlight, view = "", karaoke, marks, languages }: SubtitlePreviewProps) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [picture, setPicture] = useState("");
@@ -48,6 +51,8 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
     return () => observer.disconnect();
   }, []);
 
+  // The languages as plain values: another draft of the same languages draws nothing again.
+  const { audio: audioLanguage, primary: primaryLanguage, translation: translationLanguage } = languages;
   useEffect(() => {
     if (width < 16) {
       return;
@@ -68,6 +73,7 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
           view,
           karaoke,
           marks,
+          languages: { audio: audioLanguage, primary: primaryLanguage, translation: translationLanguage },
         })
         .then((next) => {
           if (current) {
@@ -81,7 +87,7 @@ export function SubtitlePreview({ primary, translation, layout, highlight, view 
       current = false;
       window.clearTimeout(timer);
     };
-  }, [primary, translation, layout, highlight, view, karaoke, marks, width]);
+  }, [primary, translation, layout, highlight, view, karaoke, marks, audioLanguage, primaryLanguage, translationLanguage, width]);
 
   const marked =
     highlight === "primary" ? t("ui.settings.preview.markedTop") : highlight === "translation" ? t("ui.settings.preview.markedBottom") : "";

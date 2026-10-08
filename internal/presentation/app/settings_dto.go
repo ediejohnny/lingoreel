@@ -373,4 +373,35 @@ type PreviewRequest struct {
 	View    string          `json:"view"`
 	Karaoke KaraokeSettings `json:"karaoke"`
 	Marks   MarkSettings    `json:"marks"`
+	// Languages are the profile's: each sample line speaks its line's.
+	Languages LanguageSettings `json:"languages"`
+}
+
+// WelcomeView is what the welcome asks, with the answers it suggests.
+type WelcomeView struct {
+	// Pending tells it is the first run, not answered yet: skipping it keeps
+	// what Windows tells.
+	Pending bool `json:"pending"`
+	// AppLanguage is the app's language as chosen, empty for the Windows
+	// one; AppLanguages are the ones the app speaks.
+	AppLanguage  string   `json:"appLanguage"`
+	AppLanguages []Option `json:"appLanguages"`
+	// Spoken is the person's language, on the translation line; Studied is
+	// the one studied, on the study line and in the audio.
+	Spoken    string   `json:"spoken"`
+	Studied   string   `json:"studied"`
+	Languages []Option `json:"languages"`
+	Mode      string   `json:"mode"`
+	Modes     []Option `json:"modes"`
+	// PreferredPlayer is the player to watch with, empty for the first one
+	// found.
+	PreferredPlayer string `json:"preferredPlayer"`
+}
+
+// WelcomeChoices are the welcome's answers.
+type WelcomeChoices struct {
+	Spoken          string `json:"spoken"`
+	Studied         string `json:"studied"`
+	Mode            string `json:"mode"`
+	PreferredPlayer string `json:"preferredPlayer"`
 }

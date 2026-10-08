@@ -1,7 +1,9 @@
 package settingsfile
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -43,6 +45,13 @@ func Open(dir string) *Files {
 		config:   jsonstore.New(filepath.Join(dir, "config.json"), configVersion, settings.DefaultConfig, nil),
 		profiles: jsonstore.New(filepath.Join(dir, "profiles.json"), profilesVersion, settings.DefaultProfiles, profilesMigrations),
 	}
+}
+
+// FirstRun tells the app has never kept its configuration here: the first
+// time it opens on this account.
+func (f *Files) FirstRun() bool {
+	_, err := os.Stat(f.config.Path())
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // LoadConfig reads the configuration, or the defaults on the first run.

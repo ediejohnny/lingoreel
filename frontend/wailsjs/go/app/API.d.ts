@@ -44,6 +44,8 @@ export function ExportSubtitle(arg1:string):Promise<void>;
 
 export function FileAssociation():Promise<boolean>;
 
+export function FinishWelcome(arg1:app.WelcomeChoices):Promise<void>;
+
 export function InitialVideo():Promise<string>;
 
 export function InstallFFmpeg():Promise<void>;
@@ -152,6 +154,8 @@ export function Shortcuts():Promise<Array<app.ShortcutSetting>>;
 
 export function ShowRecommendations():Promise<void>;
 
+export function SkipWelcome():Promise<void>;
+
 export function StopPassage():Promise<void>;
 
 export function StopWatching():Promise<void>;
@@ -173,3 +177,5 @@ export function TogglePause():Promise<void>;
 export function UndoEdit():Promise<void>;
 
 export function Watch(arg1:app.WatchRequest):Promise<void>;
+
+export function Welcome():Promise<app.WelcomeView>;

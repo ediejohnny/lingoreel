@@ -14,6 +14,8 @@ export interface SectionProps {
   run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<void>;
   /** open shows another page of the settings. */
   open?: (section: SectionId) => void;
+  /** welcome opens the first run's welcome again; absent while a video plays. */
+  welcome?: () => void;
 }
 
 /** change returns a setter of one part of the draft. */

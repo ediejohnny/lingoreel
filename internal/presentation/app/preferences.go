@@ -75,11 +75,7 @@ func (a *API) SetLanguage(tag string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var system string
-	if a.deps.SystemLanguage != nil {
-		system = a.deps.SystemLanguage()
-	}
-	spoken, err := ptbr.UseLanguage(tag, system)
+	spoken, err := ptbr.UseLanguage(tag, a.systemLanguage())
 	if err != nil {
 		a.logger.Warn("the interface's catalog did not load", "language", tag, "error", err)
 		return ptbr.Language(), nil // kept for the next opening; the screens stay as they are

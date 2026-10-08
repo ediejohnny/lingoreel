@@ -86,6 +86,10 @@ export function FileAssociation() {
   return window['go']['app']['API']['FileAssociation']();
 }
 
+export function FinishWelcome(arg1) {
+  return window['go']['app']['API']['FinishWelcome'](arg1);
+}
+
 export function InitialVideo() {
   return window['go']['app']['API']['InitialVideo']();
 }
@@ -302,6 +306,10 @@ export function ShowRecommendations() {
   return window['go']['app']['API']['ShowRecommendations']();
 }
 
+export function SkipWelcome() {
+  return window['go']['app']['API']['SkipWelcome']();
+}
+
 export function StopPassage() {
   return window['go']['app']['API']['StopPassage']();
 }
@@ -344,4 +352,8 @@ export function UndoEdit() {
 
 export function Watch(arg1) {
   return window['go']['app']['API']['Watch'](arg1);
+}
+
+export function Welcome() {
+  return window['go']['app']['API']['Welcome']();
 }

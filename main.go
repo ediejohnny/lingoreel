@@ -110,6 +110,7 @@ func run() error {
 		return err
 	}
 	files := settingsfile.Open(dir)
+	firstRun := files.FirstRun()
 	stills := stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)}
 	// The interface speaks its language from the first text on; a
 	// configuration that does not load is reported by the app later.
@@ -194,6 +195,8 @@ func run() error {
 		LogDir:        filepath.Join(dir, logFolder),
 		// The interface speaks Windows' language when none is chosen.
 		SystemLanguage: systemLanguage,
+		// Read before anything is saved: the first run opens the welcome.
+		FirstRun: firstRun,
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{

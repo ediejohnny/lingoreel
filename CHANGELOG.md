@@ -13,6 +13,12 @@ All notable changes to this project are listed here. The format follows
 - Choosing the app language applies it at once, even with a video playing: the screens, the bar and the menu over the
   video, the subtitle line names, the correction box and the Explorer's names for the app all switch without
   reopening the app, and a settings draft not yet saved is kept.
+- A setup assistant on the first opening asks four quick questions: the app language (applied at once), the language
+  you speak and the one you study, the study mode, and the player and FFmpeg (found, chosen or installed there). Each
+  step can be skipped; skipping, or closing the app, keeps what Windows tells: you speak its language and study English,
+  or Brazilian Portuguese on an English Windows. A video the app was opened with waits for it.
+- Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
+  language studied gets a profile of its own, named after it, while the old one stays.
 
 ### Changed
 
@@ -27,6 +33,9 @@ All notable changes to this project are listed here. The format follows
 - The language setting is called "Linguagem do aplicativo" ("App language").
 - A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
   (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
+- The first profile is named after the language studied, in the app language, instead of always "Inglês".
+- The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
+  below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
 
 ### Fixed
 

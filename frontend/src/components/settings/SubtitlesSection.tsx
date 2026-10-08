@@ -62,6 +62,7 @@ function SubtitlesLayout({
             view={view}
             karaoke={karaoke}
             marks={draft.marks}
+            languages={draft.languages}
           />
         </aside>
         <div className="flex min-w-0 flex-col gap-5 @container @2xl:order-1">{children}</div>

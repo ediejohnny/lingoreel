@@ -172,8 +172,12 @@ type Deps struct {
 	// Associations lets Windows open videos with the app; nil offers none.
 	Associations Associations
 	// SystemLanguage is the Windows display language, for the interface to
-	// speak when none is chosen; nil speaks the default.
+	// speak when none is chosen and for the first profile; nil speaks the
+	// default.
 	SystemLanguage func() string
+	// FirstRun tells the app opens for the first time: the welcome asks what
+	// the person studies before anything else.
+	FirstRun bool
 	// Stage puts the video inside the app's window, for players that draw
 	// into one (it opens Ports.OpenWindow's windows); nil leaves each video
 	// in a window of its own.
@@ -228,6 +232,8 @@ type API struct {
 	// adding lets one subtitle file be added at a time, so two never replace
 	// each other's analysis.
 	adding sync.Mutex
+	// welcoming tells the first run's welcome is not answered yet.
+	welcoming bool
 }
 
 type resumePoint struct {
@@ -290,7 +296,7 @@ func New(deps Deps) (*API, Lifecycle) {
 		logger = slog.New(slog.DiscardHandler)
 	}
 	api := &API{
-		deps: deps, logger: logger, initial: deps.InitialVideo,
+		deps: deps, logger: logger, initial: deps.InitialVideo, welcoming: deps.FirstRun,
 		config: settings.DefaultConfig(), profiles: settings.DefaultProfiles(),
 	}
 	return api, Lifecycle{api: api}
@@ -383,6 +389,11 @@ func (l Lifecycle) SaveWindow(bounds settings.WindowBounds) {
 
 // Shutdown ends a running session when the window closes.
 func (l Lifecycle) Shutdown() {
+	// Closing the app during the welcome skips it: the next opening starts
+	// with what Windows tells.
+	if err := l.api.SkipWelcome(); err != nil {
+		l.api.logger.Warn("the welcome was not skipped", "error", err)
+	}
 	l.api.mu.Lock()
 	l.api.shutDown = true
 	l.api.mu.Unlock()

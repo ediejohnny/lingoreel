@@ -1052,6 +1052,7 @@ export namespace app {
 	    view: string;
 	    karaoke: KaraokeSettings;
 	    marks: MarkSettings;
+	    languages: LanguageSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new PreviewRequest(source);
@@ -1069,6 +1070,7 @@ export namespace app {
 	        this.view = source["view"];
 	        this.karaoke = this.convertValues(source["karaoke"], KaraokeSettings);
 	        this.marks = this.convertValues(source["marks"], MarkSettings);
+	        this.languages = this.convertValues(source["languages"], LanguageSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1558,6 +1560,70 @@ export namespace app {
 	        this.resume = source["resume"];
 	        this.passage = source["passage"];
 	    }
+	}
+	export class WelcomeChoices {
+	    spoken: string;
+	    studied: string;
+	    mode: string;
+	    preferredPlayer: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WelcomeChoices(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.spoken = source["spoken"];
+	        this.studied = source["studied"];
+	        this.mode = source["mode"];
+	        this.preferredPlayer = source["preferredPlayer"];
+	    }
+	}
+	export class WelcomeView {
+	    pending: boolean;
+	    appLanguage: string;
+	    appLanguages: Option[];
+	    spoken: string;
+	    studied: string;
+	    languages: Option[];
+	    mode: string;
+	    modes: Option[];
+	    preferredPlayer: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WelcomeView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pending = source["pending"];
+	        this.appLanguage = source["appLanguage"];
+	        this.appLanguages = this.convertValues(source["appLanguages"], Option);
+	        this.spoken = source["spoken"];
+	        this.studied = source["studied"];
+	        this.languages = this.convertValues(source["languages"], Option);
+	        this.mode = source["mode"];
+	        this.modes = this.convertValues(source["modes"], Option);
+	        this.preferredPlayer = source["preferredPlayer"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

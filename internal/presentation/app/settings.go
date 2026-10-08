@@ -21,10 +21,6 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
 
-// previewPrimary is the preview's sample line on top, in the language
-// studied; the one below is in the interface's.
-const previewPrimary = "This is a preview."
-
 // minPreviewScale and maxPreviewScale bound the display scaling a preview is
 // drawn at; outside them it is drawn at 100%.
 const (
@@ -422,7 +418,15 @@ func (a *API) PreviewSubtitles(request PreviewRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	screen := session.Screen{Primary: previewPrimary, Translation: ptbr.T("preview.translation"), TranslationVisible: true}
+	// Without a translation line, the one below speaks the interface's language.
+	below := media.LanguageTag(request.Languages.Translation)
+	if below == "" {
+		below = media.LanguageTag(ptbr.Language())
+	}
+	screen := session.Screen{
+		Primary: media.SamplePhrase(media.LanguageTag(request.Languages.Primary)), Translation: media.SamplePhrase(below),
+		TranslationVisible: true,
+	}
 	look := session.Look{Layout: margins, Primary: primary, Translation: translation}
 	if request.Highlight != "" {
 		line, err := lineOf(request.Highlight)
