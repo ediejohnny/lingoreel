@@ -88,6 +88,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --parallel <n>                  how many at a time (1)")
 	fmt.Fprintln(w, "      --watch [--software]            beside VLC playing the film (decoding on the processor), counting what it loses")
 	fmt.Fprintln(w, "      --affinity <mask>               held to these processors (0xF: the first four), as a smaller computer")
+	fmt.Fprintln(w, "      --probesize <bytes>             what FFmpeg reads to learn the streams before each still (5 MB by default)")
 	fmt.Fprintln(w, "  seek-probe <clip> [options]     measures, lap after lap, a passage's start in VLC: order to picture and to sound")
 	fmt.Fprintln(w, "      --mode <together|apart>         one order (seek and play) or a seek, then a play")
 	fmt.Fprintln(w, "      --laps <n>                      how many laps (20)")

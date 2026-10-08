@@ -29,6 +29,7 @@ All notable changes to this project are listed here. The format follows
 - `spdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
   first picture on the screen and to its first sound, sent as one order or as a seek and a play, also held to fewer
   processors.
+- `spdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
 - Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
   language studied gets a profile of its own, named after it, while the old one stays.
 

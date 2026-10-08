@@ -41,6 +41,7 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 	watching := flags.Bool("watch", false, "plays the film in VLC beside the stills, counting the pictures it loses, against as long without them")
 	software := flags.Bool("software", false, "with --watch, VLC decodes on the processor, as on a computer without a graphics card")
 	affinity := flags.String("affinity", "", "holds VLC, this tool and its FFmpeg to these processors (0xF: the first four), as a smaller computer")
+	probe := flags.Int64("probesize", 0, "bytes FFmpeg reads to learn the streams before each still (its -probesize); 0 keeps its own 5 MB")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 		mu.Unlock()
 		out.line("  %s  %4d ms  cpu %4d ms  %6d KB in %3d reads%s%s", formatClock(run.At), run.Wall.Milliseconds(),
 			run.CPU.Milliseconds(), run.Read>>10, run.Reads, capped(run), errorNote(run.Err, path))
-	}}.Open(ctx, path)
+	}, ProbeSize: *probe}.Open(ctx, path)
 	if err != nil {
 		return err
 	}
