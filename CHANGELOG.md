@@ -24,6 +24,8 @@ All notable changes to this project are listed here. The format follows
   computer", once confirmed, puts every setting the level decides to the level's own, also the ones chosen by hand. The
   setup assistant tells the computer's level, the question of a changed computer shows at the top of the window
   outside a film, and the documentation has a topic on the levels.
+- `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
+  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was.
 
 ### Changed
 
