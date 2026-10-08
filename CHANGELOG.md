@@ -82,6 +82,8 @@ All notable changes to this project are listed here. The format follows
 - A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
 - Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
   command, arrives after it on a busy computer.
+- The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
+  the earlier one is all painted and the fill goes on in the next.
 
 ## [0.26.0] - 2026-10-07
 

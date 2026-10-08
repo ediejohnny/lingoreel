@@ -254,3 +254,24 @@ func TestKaraokeFillAlwaysEndsWhileTheLineShows(t *testing.T) {
 		t.Fatalf("a quick line's last pictures: fill %v, want it all painted", got.Fill)
 	}
 }
+
+// A line the next one overlaps (it comes before the line goes) is all
+// painted while both show, and the fill goes on in the next one: the line
+// was seen dropping its fill halfway as the next came. The share counts the
+// visible characters, so the drawing paints the first line to its end.
+func TestKaraokeFillOfALineTheNextOverlaps(t *testing.T) {
+	t.Parallel()
+	first := subtitle.Event{ID: "A", Start: ms(1000), End: ms(4000), OriginalText: "This line is first."}
+	second := subtitle.Event{ID: "B", Start: ms(3000), End: ms(6000), OriginalText: "And this one next."}
+	overlapping := session.NewSubtitles(&session.Track{Timeline: timeline(t, first, second)}, nil)
+	overlapping.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true})
+	overlapping.SetVoice(func(string, time.Duration, time.Duration, time.Duration) (float64, bool) { return 0.5, true })
+	if got := overlapping.At(ms(2_000)); len(got.Primary) != 1 || got.Fill != 0.5 {
+		t.Fatalf("the first line alone: %d lines, fill %v; want 0.5", len(got.Primary), got.Fill)
+	}
+	got := overlapping.At(ms(3_200))
+	// 16 visible characters in the first line, whole, and half of the next's 15.
+	if want := (16 + 0.5*15) / 31.0; len(got.Primary) != 2 || !got.Filling || math.Abs(got.Fill-want) > 1e-9 {
+		t.Fatalf("both lines: %d lines, filling %v, fill %v; want %v", len(got.Primary), got.Filling, got.Fill, want)
+	}
+}
