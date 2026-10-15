@@ -100,17 +100,19 @@ func (r *Runtime) start() error {
 	if base == 0 {
 		return ErrRuntime
 	}
-	functions := at[[2]uintptr](base) // OrtApiBase: GetApi, GetVersionString
+	functions := pointer[[2]uintptr](base) // OrtApiBase: GetApi, GetVersionString
 	api, _, _ := syscall.SyscallN(functions[0], apiVersion)
 	if api == 0 {
 		return fmt.Errorf("%w: it does not offer C API %d", ErrRuntime, apiVersion)
 	}
-	r.api = at[[apiFunctions]uintptr](api)
+	r.api = pointer[[apiFunctions]uintptr](api)
 	if version, _, _ := syscall.SyscallN(functions[1]); version != 0 {
-		r.version = windows.BytePtrToString(at[byte](version))
+		r.version = windows.BytePtrToString(pointer[byte](version))
 	}
 	logID, _ := windows.BytePtrFromString("lingoreel")
-	if err := r.call(fnCreateEnv, loggingError, uintptr(unsafe.Pointer(logID)), uintptr(unsafe.Pointer(&r.env))); err != nil {
+	err = r.call(fnCreateEnv, loggingError, uintptr(unsafe.Pointer(logID)), uintptr(unsafe.Pointer(&r.env)))
+	runtime.KeepAlive(logID)
+	if err != nil {
 		return err
 	}
 	if err := r.call(fnDisableTelemetryEvents, r.env); err != nil {
@@ -146,7 +148,7 @@ func (r *Runtime) call(fn int, args ...uintptr) error {
 		return nil
 	}
 	message, _, _ := syscall.SyscallN(r.api[fnGetErrorMessage], status)
-	text := windows.BytePtrToString(at[byte](message))
+	text := windows.BytePtrToString(pointer[byte](message))
 	r.release(fnReleaseStatus, status)
 	return fmt.Errorf("onnx: %s", text)
 }
@@ -167,11 +169,13 @@ type Session struct {
 
 // Open loads the model at path to run on threads of the CPU.
 func (r *Runtime) Open(path, input, output string, threads int) (*Session, error) {
-	var options uintptr
-	if err := r.call(fnCreateSessionOptions, uintptr(unsafe.Pointer(&options))); err != nil {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	options := onHeap[uintptr](&pinner)
+	if err := r.call(fnCreateSessionOptions, uintptr(unsafe.Pointer(options))); err != nil {
 		return nil, err
 	}
-	defer r.release(fnReleaseSessionOptions, options)
+	defer r.release(fnReleaseSessionOptions, *options)
 	for _, set := range []struct {
 		fn    int
 		value uintptr
@@ -181,7 +185,7 @@ func (r *Runtime) Open(path, input, output string, threads int) (*Session, error
 		{fnSetSessionExecutionMode, sequential},
 		{fnSetSessionGraphOptimizationLevel, optimizeAll},
 	} {
-		if err := r.call(set.fn, options, set.value); err != nil {
+		if err := r.call(set.fn, *options, set.value); err != nil {
 			return nil, err
 		}
 	}
@@ -196,7 +200,10 @@ func (r *Runtime) Open(path, input, output string, threads int) (*Session, error
 	if s.output, err = windows.BytePtrFromString(output); err != nil {
 		return nil, err
 	}
-	if err := r.call(fnCreateSession, r.env, uintptr(unsafe.Pointer(model)), options, uintptr(unsafe.Pointer(&s.handle))); err != nil {
+	pinner.Pin(model)
+	err = r.call(fnCreateSession, r.env, uintptr(unsafe.Pointer(model)), *options, uintptr(unsafe.Pointer(&s.handle)))
+	runtime.KeepAlive(model)
+	if err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -205,6 +212,17 @@ func (r *Runtime) Open(path, input, output string, threads int) (*Session, error
 // Close releases the model.
 func (s *Session) Close() {
 	s.closing.Do(func() { s.r.release(fnReleaseSession, s.handle) })
+}
+
+// run holds what one Run hands ONNX Runtime by address and what it writes
+// back: on the heap and pinned, as the address of a variable on a
+// goroutine's stack moves when the stack grows.
+type run struct {
+	tensor, values uintptr
+	inputs         [1]uintptr
+	outputs        [1]uintptr
+	inputNames     [1]*byte
+	outputNames    [1]*byte
 }
 
 // Run feeds data, of the given shape, to the model and returns its output
@@ -221,23 +239,24 @@ func (s *Session) Run(data []float32, shape []int64) ([]float32, []int64, error)
 	pinner.Pin(&shape[0])
 	pinner.Pin(s.input)
 	pinner.Pin(s.output)
-	var tensor uintptr
+	at := onHeap[run](&pinner)
 	if err := s.r.call(fnCreateTensorWithDataAsOrtValue, s.r.memory,
 		uintptr(unsafe.Pointer(&data[0])), uintptr(len(data))*4,
 		uintptr(unsafe.Pointer(&shape[0])), uintptr(len(shape)), elementFloat,
-		uintptr(unsafe.Pointer(&tensor))); err != nil {
+		uintptr(unsafe.Pointer(&at.tensor))); err != nil {
 		return nil, nil, err
 	}
-	defer s.r.release(fnReleaseValue, tensor)
-	inputs, outputs := [1]uintptr{tensor}, [1]uintptr{}
-	inputNames, outputNames := [1]*byte{s.input}, [1]*byte{s.output}
+	defer s.r.release(fnReleaseValue, at.tensor)
+	at.inputs[0] = at.tensor
+	at.inputNames[0], at.outputNames[0] = s.input, s.output
 	if err := s.r.call(fnRun, s.handle, 0,
-		uintptr(unsafe.Pointer(&inputNames[0])), uintptr(unsafe.Pointer(&inputs[0])), 1,
-		uintptr(unsafe.Pointer(&outputNames[0])), 1, uintptr(unsafe.Pointer(&outputs[0]))); err != nil {
+		uintptr(unsafe.Pointer(&at.inputNames[0])), uintptr(unsafe.Pointer(&at.inputs[0])), 1,
+		uintptr(unsafe.Pointer(&at.outputNames[0])), 1, uintptr(unsafe.Pointer(&at.outputs[0]))); err != nil {
 		return nil, nil, err
 	}
-	defer s.r.release(fnReleaseValue, outputs[0])
-	dims, err := s.shape(outputs[0])
+	output := at.outputs[0]
+	defer s.r.release(fnReleaseValue, output)
+	dims, err := s.shape(output)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -245,39 +264,48 @@ func (s *Session) Run(data []float32, shape []int64) ([]float32, []int64, error)
 	for _, d := range dims {
 		count *= d
 	}
-	var values uintptr
-	if err := s.r.call(fnGetTensorMutableData, outputs[0], uintptr(unsafe.Pointer(&values))); err != nil {
+	if err := s.r.call(fnGetTensorMutableData, output, uintptr(unsafe.Pointer(&at.values))); err != nil {
 		return nil, nil, err
 	}
 	result := make([]float32, count)
 	if count > 0 {
-		copy(result, unsafe.Slice(at[float32](values), count))
+		copy(result, unsafe.Slice(pointer[float32](at.values), count))
 	}
 	return result, dims, nil
 }
 
 func (s *Session) shape(value uintptr) ([]int64, error) {
-	var info uintptr
-	if err := s.r.call(fnGetTensorTypeAndShape, value, uintptr(unsafe.Pointer(&info))); err != nil {
+	var pinner runtime.Pinner
+	defer pinner.Unpin()
+	info, count := onHeap[uintptr](&pinner), onHeap[uintptr](&pinner)
+	if err := s.r.call(fnGetTensorTypeAndShape, value, uintptr(unsafe.Pointer(info))); err != nil {
 		return nil, err
 	}
-	defer s.r.release(fnReleaseTensorTypeAndShapeInfo, info)
-	var count uintptr
-	if err := s.r.call(fnGetDimensionsCount, info, uintptr(unsafe.Pointer(&count))); err != nil {
+	defer s.r.release(fnReleaseTensorTypeAndShapeInfo, *info)
+	if err := s.r.call(fnGetDimensionsCount, *info, uintptr(unsafe.Pointer(count))); err != nil {
 		return nil, err
 	}
-	dims := make([]int64, count)
-	if count == 0 {
+	dims := make([]int64, *count)
+	if *count == 0 {
 		return dims, nil
 	}
-	if err := s.r.call(fnGetDimensions, info, uintptr(unsafe.Pointer(&dims[0])), count); err != nil {
+	pinner.Pin(&dims[0])
+	if err := s.r.call(fnGetDimensions, *info, uintptr(unsafe.Pointer(&dims[0])), *count); err != nil {
 		return nil, err
 	}
 	return dims, nil
 }
 
-// at turns an address ONNX Runtime handed out (memory it owns, outside Go's
-// heap) into a pointer.
-func at[T any](address uintptr) *T {
+// onHeap is a new zero T that ONNX Runtime may write to by address: pinned,
+// which also keeps it off the goroutine's stack.
+func onHeap[T any](pinner *runtime.Pinner) *T {
+	v := new(T)
+	pinner.Pin(v)
+	return v
+}
+
+// pointer turns an address ONNX Runtime handed out (memory it owns, outside
+// Go's heap) into a pointer.
+func pointer[T any](address uintptr) *T {
 	return *(**T)(unsafe.Pointer(&address))
 }
