@@ -322,7 +322,7 @@ func TestALineLeavingUnfinishedShowsWholeFirst(t *testing.T) {
 		lines    int
 		fill     float64
 	}
-	run := func(t *testing.T) (*fakeTime, chan playback.Sample, chan shown) {
+	run := func(t *testing.T) (*fakeTime, chan playback.Sample, chan shown, *session.Subtitles) {
 		quick := session.NewSubtitles(&session.Track{Timeline: timeline(t, subtitle.Event{ID: "Q", Start: ms(1000), End: ms(2000),
 			OriginalText: "Well, I really do not think that is what happened here."})}, nil)
 		quick.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true})
@@ -340,7 +340,7 @@ func TestALineLeavingUnfinishedShowsWholeFirst(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		t.Cleanup(cancel)
 		go func() { _ = runner.Run(ctx, samples) }()
-		return clock, samples, changes
+		return clock, samples, changes, quick
 	}
 	next := func(t *testing.T, changes chan shown) shown {
 		t.Helper()
@@ -353,7 +353,7 @@ func TestALineLeavingUnfinishedShowsWholeFirst(t *testing.T) {
 		}
 	}
 
-	clock, samples, changes := run(t)
+	clock, samples, changes, _ := run(t)
 	if got := next(t, changes); got.lines != 1 || got.fill <= 0 || got.fill >= 0.5 {
 		t.Fatalf("early in the line: %+v, want it partly painted", got)
 	}
@@ -368,11 +368,20 @@ func TestALineLeavingUnfinishedShowsWholeFirst(t *testing.T) {
 		t.Fatalf("after its last frame: %+v, want it gone", got)
 	}
 
-	clock, samples, changes = run(t)
+	clock, samples, changes, _ = run(t)
 	next(t, changes)
 	clock.waitForTimer(t)
 	samples <- playback.Sample{Position: ms(30_000), Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: clock.Now()}
 	if got := next(t, changes); got.lines != 0 {
 		t.Fatalf("a seek away: %+v, want the line gone at once", got)
+	}
+
+	// Moved off by a sync step while its time is not over: it just goes.
+	clock, _, changes, quick := run(t)
+	next(t, changes)
+	clock.waitForTimer(t)
+	quick.ShiftOffset(session.LinePrimary, 5*time.Second)
+	if got := next(t, changes); got.lines != 0 {
+		t.Fatalf("moved off by a sync step: %+v, want the line gone at once, not painted whole", got)
 	}
 }

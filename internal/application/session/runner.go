@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // maxIdleWait bounds how long the runner sleeps without any subtitle change
@@ -77,7 +78,7 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 		// its subtitles would flash the wrong line on a session that starts later.
 		known := state.Status != playback.StatusUnknown
 		if known && (first || !visible.Equal(last)) {
-			if whole, finish := finishing(last, lastAt, visible, state); finish {
+			if whole, finish := finishing(last, lastAt, visible, state, r.subtitles.Offset(LinePrimary)); finish {
 				// The line shows all painted for one frame, then what comes.
 				r.onChange(state.Position, whole)
 				last, lastAt = whole, state.Position
@@ -119,15 +120,21 @@ const finishReach = time.Second
 // finishing is the line last shown being painted, all painted, when the
 // video playing on took it off the screen before its fill ended: a clock
 // that jumped forward, a computer busy for a moment, the next line coming.
-// Whatever paints a line, once its time is over it shows whole.
-func finishing(last Visible, lastAt time.Duration, next Visible, state playback.Sample) (Visible, bool) {
+// Whatever paints a line, once its time is over it shows whole; a line taken
+// off for another reason (its subtitle or offset changed, the karaoke turned
+// off) just goes.
+func finishing(last Visible, lastAt time.Duration, next Visible, state playback.Sample, offset subtitle.Offset) (Visible, bool) {
 	if !last.Filling || last.Fill >= 1 || len(last.Primary) == 0 || state.Status != playback.StatusPlaying {
 		return Visible{}, false
 	}
 	if moved := state.Position - lastAt; moved < 0 || moved > finishReach {
 		return Visible{}, false
 	}
-	painted := last.Primary[len(last.Primary)-1].ID
+	line := last.Primary[len(last.Primary)-1]
+	if offset.PlaybackTime(line.End) > state.Position {
+		return Visible{}, false
+	}
+	painted := line.ID
 	for _, event := range next.Primary {
 		if event.ID == painted {
 			return Visible{}, false // still on screen: its fill goes on
