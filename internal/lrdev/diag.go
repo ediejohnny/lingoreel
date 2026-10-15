@@ -1,4 +1,4 @@
-package spdev
+package lrdev
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 // diag prints what decides where the player and the subtitles go on this
 // machine: every monitor with its size, work area and scaling, and whether
-// spdev sees physical pixels. It guides the manual check on other machines
+// lrdev sees physical pixels. It guides the manual check on other machines
 // (several monitors, 125–200% scaling).
 func diag(stdout io.Writer) error {
 	out := &printer{w: stdout}
@@ -36,7 +36,7 @@ func diag(stdout io.Writer) error {
 	out.line("Per-monitor DPI aware: %s", aware)
 	out.line("")
 	out.line("Checklist on this machine:")
-	out.line("  1. spdev overlay \"<video.mkv>\": the player's window opens whole inside the primary monitor.")
+	out.line("  1. lrdev overlay \"<video.mkv>\": the player's window opens whole inside the primary monitor.")
 	out.line("  2. Drag the player to each monitor: the subtitles follow it and keep their size in proportion.")
 	out.line("  3. Change the Windows scaling (125%%, 150%%) with the video open: the subtitles adjust without a restart.")
 	out.line("  4. Fullscreen on each monitor: the subtitles stay over the video.")

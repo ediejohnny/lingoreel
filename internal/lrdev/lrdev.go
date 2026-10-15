@@ -1,6 +1,6 @@
-// Package spdev implements the commands of the spdev developer tool, which
+// Package lrdev implements the commands of the lrdev developer tool, which
 // exercises LingoReel subsystems without the graphical application.
-package spdev
+package lrdev
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 )
 
-// ErrUnknownCommand reports a command name that spdev does not know.
+// ErrUnknownCommand reports a command name that lrdev does not know.
 var ErrUnknownCommand = errors.New("unknown command")
 
 // Run executes the command named by args[0], writing its output to stdout.
@@ -54,7 +54,7 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: spdev <command>")
+	fmt.Fprintln(w, "Usage: lrdev <command>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Commands:")
 	fmt.Fprintln(w, "  version                         shows this build's version")

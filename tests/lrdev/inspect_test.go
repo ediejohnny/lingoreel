@@ -1,4 +1,4 @@
-package spdev_test
+package lrdev_test
 
 import (
 	"bytes"
@@ -9,14 +9,14 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 )
 
 var fixture = filepath.Join("..", "testdata", "matroska", "subtitles.mkv")
 
 func TestInspectDescribesTracksAndSuggestion(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run(t.Context(), []string{"inspect", fixture}, &out); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"inspect", fixture}, &out); err != nil {
 		t.Fatalf("inspect: %v", err)
 	}
 	text := out.String()
@@ -40,7 +40,7 @@ func TestInspectDescribesTracksAndSuggestion(t *testing.T) {
 
 func TestInspectWithSubtitlesPrintsFirstLines(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run(t.Context(), []string{"inspect", fixture, "--subtitles"}, &out); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"inspect", fixture, "--subtitles"}, &out); err != nil {
 		t.Fatalf("inspect --subtitles: %v", err)
 	}
 	text := out.String()
@@ -57,14 +57,14 @@ func TestInspectWithSubtitlesPrintsFirstLines(t *testing.T) {
 }
 
 func TestInspectReportsBadInput(t *testing.T) {
-	if err := spdev.Run(t.Context(), []string{"inspect"}, &bytes.Buffer{}); !errors.Is(err, spdev.ErrMissingArgument) {
+	if err := lrdev.Run(t.Context(), []string{"inspect"}, &bytes.Buffer{}); !errors.Is(err, lrdev.ErrMissingArgument) {
 		t.Fatalf("missing path error = %v, want ErrMissingArgument", err)
 	}
-	if err := spdev.Run(t.Context(), []string{"inspect", "movie.txt"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
+	if err := lrdev.Run(t.Context(), []string{"inspect", "movie.txt"}, &bytes.Buffer{}); !errors.Is(err, analysis.ErrUnsupportedFile) {
 		t.Fatalf("txt error = %v, want ErrUnsupportedFile", err)
 	}
 	missing := filepath.Join(t.TempDir(), "missing.mkv")
-	if err := spdev.Run(t.Context(), []string{"inspect", missing}, &bytes.Buffer{}); !errors.Is(err, os.ErrNotExist) {
+	if err := lrdev.Run(t.Context(), []string{"inspect", missing}, &bytes.Buffer{}); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing file error = %v, want os.ErrNotExist", err)
 	}
 }

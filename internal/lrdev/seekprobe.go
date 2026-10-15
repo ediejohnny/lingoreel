@@ -1,4 +1,4 @@
-package spdev
+package lrdev
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 // sound, lap after lap, and whether the two still go together when the
 // white and beeping part ends. It needs the probe clip, whose picture is
 // white and whose sound is a beep for 2 s, then black and silent for 2 s
-// (spdev help prints the FFmpeg command that makes it); the passage starts
+// (lrdev help prints the FFmpeg command that makes it); the passage starts
 // in the white and beeping part, and each lap starts paused in the black and
 // silent one, as after a passage's gap.
 

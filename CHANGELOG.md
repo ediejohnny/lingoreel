@@ -26,16 +26,17 @@ All notable changes to this project are listed here. The format follows
   the voice AI, players, where the app keeps everything, problems and solutions), in both languages. It names the
   profile's own keys, finds topics by any word with or without accents, opens the settings each topic is about, and
   shows the topics as a list in the panel beside the video. Help now has two pages: Documentation and About.
-- `spdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
+- `lrdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
   first picture on the screen and to its first sound, and whether the two still go together a second later. A lap is
   sent as one order, as a seek and a play, or with its picture made ready during the gap and a play after, also held
   to fewer processors.
-- `spdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
+- `lrdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
 - Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
   language studied gets a profile of its own, named after it, while the old one stays.
 
 ### Changed
 
+- The developer tool is called `lrdev` (`lrdev.exe` beside the app in `build\bin`).
 - Texts that named a fixed key ("Space", "Backspace", the arrows) now show the key the profile gives the command, or
   none when it has no shortcut; the karaoke help no longer quotes the default times, which can be changed.
 - The players' reasons to choose them, the Explorer's names for the app, and the messages Windows shows when WebView2
@@ -138,7 +139,7 @@ is renamed or moved. When the app cannot keep something on the disk it says why 
   corrections and passages, forgetting a video, exporting a subtitle, clearing the kept stills, changing the file
   association or a karaoke mode choice, and when a session cannot start because the disk is full (no longer blamed on a
   slow player). The seek bar's card says when their disk is nearly full and new stills stay in memory.
-- `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
+- `lrdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
   or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
   loses, and held to a few processors as a smaller computer, printing the film's key and never its name.
 - Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
@@ -200,7 +201,7 @@ a bar.
   and its modules, the screens' packages, the voice model), as their authors ask. The app ships as a single file, so
   they go inside it; `scripts/update-notices.ps1` writes them, the check refuses them out of date and the build makes
   sure they name every module inside the app. The help page will also hold the guide to using the app.
-- `spdev voice-check` measures the voice found against a film's lines, printing only numbers, and `spdev inspect
+- `lrdev voice-check` measures the voice found against a film's lines, printing only numbers, and `lrdev inspect
   --hear` hears a video to tell which file fits it.
 
 ### Changed
@@ -371,7 +372,7 @@ A review of 0.20.0: the menu reaches the app, and smaller fixes.
 ### Changed
 
 - The menu's item for adding a subtitle file is named as on the session screen and the panel.
-- The developer tool `spdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
+- The developer tool `lrdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
 - The check runs staticcheck.
 
 ## [0.20.0] - 2026-10-05
@@ -624,7 +625,7 @@ The app window, player plugins and assisted installation.
 ### Changed
 
 - Move the watching session into the application layer
-- Share the Portuguese wording and the composition pieces with spdev
+- Share the Portuguese wording and the composition pieces with lrdev
 
 ### Fixed
 
@@ -643,7 +644,7 @@ Downloaded subtitles, automatic and manual sync.
 - Show short notices in a corner of the video
 - Move each subtitle line earlier or later by steps
 - Register shortcuts only while the player is in front
-- Sync shortcuts in spdev play and overlay
+- Sync shortcuts in lrdev play and overlay
 
 ### Changed
 
@@ -658,7 +659,7 @@ Fixes from the audit against the docs, risk mitigations.
 - Emulate the backward frame step with an exact seek
 - Open other videos with subtitle files and analyze with a context
 - Log VLC events that have no caller
-- Add spdev diag with monitors, scaling and a checklist
+- Add lrdev diag with monitors, scaling and a checklist
 
 ### Changed
 
@@ -723,7 +724,7 @@ Playback session, player detection and the VLC adapter.
 - Detect installed video players from registry, folders and PATH
 - Add kill-on-close job object for player processes
 - Add VLC adapter over a private HTTP control endpoint
-- Add spdev play to follow subtitles with a real player
+- Add lrdev play to follow subtitles with a real player
 
 ### Fixed
 
@@ -738,7 +739,7 @@ Matroska reader, language detection and track selection.
 - Add media tracks, language normalization and track selection
 - Add Matroska reader for tracks and text subtitle frames
 - Add analysis use cases for media and subtitle loading
-- Add spdev inspect command
+- Add lrdev inspect command
 
 ## [0.1.0] - 2026-09-29
 
@@ -746,7 +747,7 @@ Subtitle core, text subtitle parsers and settings model.
 
 ### Added
 
-- Add spdev developer tool skeleton with build version
+- Add lrdev developer tool skeleton with build version
 - Add subtitle timeline with interval lookup and offsets
 - Add SRT, ASS/SSA and WebVTT parsers with encoding fallback
 - Add appearance, study and settings domain models

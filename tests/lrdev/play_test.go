@@ -1,4 +1,4 @@
-package spdev_test
+package lrdev_test
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 )
 
 var studySample = filepath.Join("..", "testdata", "video", "study-sample.mkv")
@@ -28,42 +28,42 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 		args []string
 		want error
 	}{
-		{"no video", []string{"play"}, spdev.ErrMissingArgument},
-		{"options only", []string{"play", "--paused"}, spdev.ErrMissingArgument},
-		{"unknown option", []string{"play", missing, "--fast"}, spdev.ErrInvalidOption},
-		{"two videos", []string{"play", missing, missing}, spdev.ErrInvalidOption},
-		{"player without a value", []string{"play", missing, "--player"}, spdev.ErrInvalidOption},
-		{"start without a value", []string{"play", missing, "--start"}, spdev.ErrInvalidOption},
-		{"negative start", []string{"play", missing, "--start", "-0.001"}, spdev.ErrInvalidOption},
-		{"start past the limit", []string{"play", missing, "--start", "86400.001"}, spdev.ErrInvalidOption},
-		{"start NaN", []string{"play", missing, "--start", "NaN"}, spdev.ErrInvalidOption},
-		{"start infinite", []string{"play", missing, "--start", "Inf"}, spdev.ErrInvalidOption},
-		{"start overflowing", []string{"play", missing, "--start", "1e400"}, spdev.ErrInvalidOption},
-		{"start as text", []string{"play", missing, "--start", "abc"}, spdev.ErrInvalidOption},
-		{"empty start", []string{"play", missing, "--start", ""}, spdev.ErrInvalidOption},
-		{"start with a unit", []string{"play", missing, "--start", "5s"}, spdev.ErrInvalidOption},
+		{"no video", []string{"play"}, lrdev.ErrMissingArgument},
+		{"options only", []string{"play", "--paused"}, lrdev.ErrMissingArgument},
+		{"unknown option", []string{"play", missing, "--fast"}, lrdev.ErrInvalidOption},
+		{"two videos", []string{"play", missing, missing}, lrdev.ErrInvalidOption},
+		{"player without a value", []string{"play", missing, "--player"}, lrdev.ErrInvalidOption},
+		{"start without a value", []string{"play", missing, "--start"}, lrdev.ErrInvalidOption},
+		{"negative start", []string{"play", missing, "--start", "-0.001"}, lrdev.ErrInvalidOption},
+		{"start past the limit", []string{"play", missing, "--start", "86400.001"}, lrdev.ErrInvalidOption},
+		{"start NaN", []string{"play", missing, "--start", "NaN"}, lrdev.ErrInvalidOption},
+		{"start infinite", []string{"play", missing, "--start", "Inf"}, lrdev.ErrInvalidOption},
+		{"start overflowing", []string{"play", missing, "--start", "1e400"}, lrdev.ErrInvalidOption},
+		{"start as text", []string{"play", missing, "--start", "abc"}, lrdev.ErrInvalidOption},
+		{"empty start", []string{"play", missing, "--start", ""}, lrdev.ErrInvalidOption},
+		{"start with a unit", []string{"play", missing, "--start", "5s"}, lrdev.ErrInvalidOption},
 		{"start zero taken", []string{"play", missing, "--start", "0"}, os.ErrNotExist},
 		{"start at the limit taken", []string{"play", missing, "--start", "86400"}, os.ErrNotExist},
 		{"start with a comma taken", []string{"play", missing, "--start", "2,5"}, os.ErrNotExist},
 		{"options before the video", []string{"play", "--paused", "--player", "VLC", missing}, os.ErrNotExist},
 		{"an unknown player does not stop the analysis", []string{"play", missing, "--player", "xyz"}, os.ErrNotExist},
-		{"step without a value", []string{"play", missing, "--step"}, spdev.ErrInvalidOption},
-		{"step below 10 ms", []string{"play", missing, "--step", "9"}, spdev.ErrInvalidOption},
-		{"step above 1 s", []string{"play", missing, "--step", "1001"}, spdev.ErrInvalidOption},
-		{"negative step", []string{"play", missing, "--step", "-50"}, spdev.ErrInvalidOption},
-		{"step with a unit", []string{"play", missing, "--step", "50ms"}, spdev.ErrInvalidOption},
-		{"decimal step", []string{"play", missing, "--step", "50,5"}, spdev.ErrInvalidOption},
+		{"step without a value", []string{"play", missing, "--step"}, lrdev.ErrInvalidOption},
+		{"step below 10 ms", []string{"play", missing, "--step", "9"}, lrdev.ErrInvalidOption},
+		{"step above 1 s", []string{"play", missing, "--step", "1001"}, lrdev.ErrInvalidOption},
+		{"negative step", []string{"play", missing, "--step", "-50"}, lrdev.ErrInvalidOption},
+		{"step with a unit", []string{"play", missing, "--step", "50ms"}, lrdev.ErrInvalidOption},
+		{"decimal step", []string{"play", missing, "--step", "50,5"}, lrdev.ErrInvalidOption},
 		{"least step taken", []string{"play", missing, "--step", "10"}, os.ErrNotExist},
 		{"largest step taken", []string{"play", missing, "--step", "1000"}, os.ErrNotExist},
 		{"unsupported format", []string{"play", "movie.txt"}, analysis.ErrUnsupportedFile},
 		// The sample lasts 20.052 s: starting at or past its end is refused
 		// after the analysis and before any player is looked for.
-		{"start at the end of the video", []string{"play", studySample, "--start", "20.052"}, spdev.ErrInvalidOption},
-		{"start past the end of the video", []string{"play", studySample, "--start", "25"}, spdev.ErrInvalidOption},
+		{"start at the end of the video", []string{"play", studySample, "--start", "20.052"}, lrdev.ErrInvalidOption},
+		{"start past the end of the video", []string{"play", studySample, "--start", "25"}, lrdev.ErrInvalidOption},
 		// overlay shares play's validation.
-		{"overlay without a video", []string{"overlay"}, spdev.ErrMissingArgument},
-		{"overlay with an unknown option", []string{"overlay", missing, "--fast"}, spdev.ErrInvalidOption},
-		{"overlay with a NaN start", []string{"overlay", missing, "--start", "NaN"}, spdev.ErrInvalidOption},
+		{"overlay without a video", []string{"overlay"}, lrdev.ErrMissingArgument},
+		{"overlay with an unknown option", []string{"overlay", missing, "--fast"}, lrdev.ErrInvalidOption},
+		{"overlay with a NaN start", []string{"overlay", missing, "--start", "NaN"}, lrdev.ErrInvalidOption},
 		{"overlay takes valid options", []string{"overlay", missing, "--paused", "--start", "2"}, os.ErrNotExist},
 	}
 	for _, c := range cases {
@@ -74,7 +74,7 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			cancel()
 			var out bytes.Buffer
-			err := spdev.Run(ctx, c.args, &out)
+			err := lrdev.Run(ctx, c.args, &out)
 			if !errors.Is(err, c.want) {
 				t.Fatalf("Run(%q) = %v, want %v", c.args, err, c.want)
 			}
@@ -84,7 +84,7 @@ func TestPlayValidatesOptionsBeforeStartingAPlayer(t *testing.T) {
 
 func TestHelpListsPlay(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run(t.Context(), []string{"help"}, &out); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"help"}, &out); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"play <video>", "overlay <video>", "--player", "--start", "--paused", "--step", "Shift+, / Shift+.", "Ctrl+, / Ctrl+."} {
@@ -105,7 +105,7 @@ type change struct {
 	wall time.Time
 }
 
-// stampedWriter records the wall-clock time of every write; spdev writes one
+// stampedWriter records the wall-clock time of every write; lrdev writes one
 // line per write.
 type stampedWriter struct {
 	mu    sync.Mutex
@@ -168,7 +168,7 @@ func TestPlayFollowsSubtitlesWithRealVLC(t *testing.T) {
 	defer cancel()
 
 	out := &stampedWriter{}
-	if err := spdev.Run(ctx, []string{"play", studySample, "--player", "vlc", "--start", "3"}, out); err != nil {
+	if err := lrdev.Run(ctx, []string{"play", studySample, "--player", "vlc", "--start", "3"}, out); err != nil {
 		t.Fatalf("play: %v\n%s", err, out.String())
 	}
 	output := out.String()

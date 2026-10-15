@@ -177,7 +177,7 @@ func (s *Session) SeekAndPlay(position time.Duration) error {
 }
 
 // Prepare pauses at a position and shows its picture, so a Play after
-// starts at once; spdev seek-probe measures it against SeekAndPlay.
+// starts at once; lrdev seek-probe measures it against SeekAndPlay.
 func (s *Session) Prepare(position time.Duration) error {
 	return s.send(command("prepare", "us", strconv.FormatInt(position.Microseconds(), 10)))
 }

@@ -1,4 +1,4 @@
-package spdev
+package lrdev
 
 import (
 	"context"

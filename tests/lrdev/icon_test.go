@@ -1,4 +1,4 @@
-package spdev_test
+package lrdev_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 )
 
 // The icon file Windows reads from the executable: every picture where its
@@ -18,7 +18,7 @@ func TestTheIconIsAWellFormedWindowsIcon(t *testing.T) {
 	t.Parallel()
 	out := t.TempDir()
 	var log bytes.Buffer
-	if err := spdev.Run(t.Context(), []string{"icon", "--out", out}, &log); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"icon", "--out", out}, &log); err != nil {
 		t.Fatalf("icon: %v (%s)", err, log.String())
 	}
 	data, err := os.ReadFile(filepath.Join(out, "windows", "icon.ico"))
