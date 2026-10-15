@@ -50,7 +50,7 @@ type Request struct {
 }
 
 // Client fetches files with HTTP (the default client when nil), following
-// redirects only to HTTPS unless HTTP has its own rule.
+// redirects only to HTTPS, whatever rule HTTP has of its own.
 type Client struct {
 	HTTP *http.Client
 	// Now is the clock that tells a stale partial file; time.Now when nil.
@@ -136,13 +136,18 @@ func (c Client) client() *http.Client {
 	if c.HTTP != nil {
 		client = *c.HTTP
 	}
-	if client.CheckRedirect == nil {
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 10 {
-				return errors.New("download: too many redirects")
-			}
-			return https(req.URL.String())
+	own := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := https(req.URL.String()); err != nil {
+			return err
 		}
+		if own != nil {
+			return own(req, via)
+		}
+		if len(via) >= 10 {
+			return errors.New("download: too many redirects")
+		}
+		return nil
 	}
 	return &client
 }
@@ -153,8 +158,13 @@ func (c Client) sweep(dest string) {
 	if c.Now != nil {
 		now = c.Now
 	}
-	matches, _ := filepath.Glob(dest + partial + "*")
-	for _, path := range matches {
+	dir, base := filepath.Dir(dest), filepath.Base(dest)+partial
+	entries, _ := os.ReadDir(dir)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), base) {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
 		if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() && now().Sub(info.ModTime()) > staleAfter {
 			_ = os.Remove(path)
 		}
