@@ -94,7 +94,7 @@ type Service struct {
 	loaded  []Kept
 	unsaved int
 	// unkept: the disk had no room, the stills stay in memory; discarded:
-	// they are now taken anew at each opening, never kept.
+	// from then on they are taken anew at each opening, never kept.
 	unkept, discarded bool
 	// wanted is the moment the pointer is on, asked last at lastWant;
 	// pointed, a want not yet served.

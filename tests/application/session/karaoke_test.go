@@ -256,9 +256,9 @@ func TestKaraokeFillAlwaysEndsWhileTheLineShows(t *testing.T) {
 }
 
 // A line the next one overlaps (it comes before the line goes) is all
-// painted while both show, and the fill goes on in the next one: the line
-// was seen dropping its fill halfway as the next came. The share counts the
-// visible characters, so the drawing paints the first line to its end.
+// painted while both show, and the fill goes on in the next one: a line never
+// drops its fill halfway as the next comes. The share counts the visible
+// characters, so the drawing paints the first line to its end.
 func TestKaraokeFillOfALineTheNextOverlaps(t *testing.T) {
 	t.Parallel()
 	first := subtitle.Event{ID: "A", Start: ms(1000), End: ms(4000), OriginalText: "This line is first."}
