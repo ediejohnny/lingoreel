@@ -1,4 +1,4 @@
-// Package player models the external video players the LingoReel can
+// Package player models the external video players LingoReel can
 // drive and the rule for choosing one.
 package player
 

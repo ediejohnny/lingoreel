@@ -1,7 +1,7 @@
 //go:build windows
 
 // Package vlc drives VLC 3 through its HTTP interface, bound to the loopback
-// address with a random port and password, using the LingoReel's own
+// address with a random port and password, using LingoReel's own
 // Lua endpoint for microsecond positions.
 package vlc
 

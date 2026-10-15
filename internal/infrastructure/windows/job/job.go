@@ -1,6 +1,6 @@
 //go:build windows
 
-// Package job ties child processes to the LingoReel through a Windows
+// Package job ties child processes to LingoReel through a Windows
 // job object: when the job handle closes, including when this process
 // crashes, Windows ends every process assigned to it. A job may also hold
 // its processes to a share of the processor and to some memory each.
