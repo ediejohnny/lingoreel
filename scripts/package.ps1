@@ -22,58 +22,57 @@ $distDir = Join-Path $root "build\dist"
 $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
 
-# The read-me that goes in the zip, for whoever downloads it, in Brazilian
-# Portuguese like the app's first audience; the app itself also speaks
-# English.
+# The read-me that goes in the zip, for whoever downloads it.
 $readMe = @"
 LingoReel $fileVersion
 ==================
 
-Duas legendas sincronizadas sobre o vídeo, para estudar idiomas com filmes e séries.
+Two synced subtitles over the video, to study languages with movies and series.
 
-COMO USAR
-1. Extraia esta pasta para onde quiser (por exemplo, Documentos\LingoReel).
-2. Abra "LingoReel.exe". Na primeira vez, um assistente rápido pergunta a língua
-   que você fala, a que estuda, o modo de estudo e o player.
-3. Arraste um vídeo para a janela. Configurações > Ajuda > Documentação explica tudo
-   o que o app faz.
+HOW TO USE
+1. Extract this folder wherever you like (for example, Documents\LingoReel).
+2. Open "LingoReel.exe". The first time, a quick setup assistant asks which
+   language you speak, which one you study, the study mode and the player.
+3. Drag a video into the window. Settings > Help > Documentation explains
+   everything the app does.
 
-REQUISITOS
-- Windows 10 ou 11, 64 bits.
-- Um player de vídeo compatível: o VLC ou o PotPlayer (o app ajuda a instalar).
-- Opcional e grátis: o FFmpeg, para escolher a legenda pelo áudio, seguir a voz dos
-  atores um pouco à frente e mostrar miniaturas na barra.
+REQUIREMENTS
+- Windows 10 or 11, 64-bit.
+- A supported video player: VLC or PotPlayer (the app helps you install one).
+- Optional and free: FFmpeg, to choose the subtitle by the sound, follow the
+  actors' voice a little ahead and show thumbnails on the seek bar.
 
-ONDE FICAM SEUS DADOS
-Tudo fica em %APPDATA%\LingoReel, nunca na pasta do vídeo:
-- Configurações e perfis: config.json e profiles.json.
-- As correções, a sincronia e os trechos de cada vídeo: pasta projects.
-- As miniaturas da barra: pasta thumbnails (até 4 GB; Configurações > Aparência limpa).
-- Registros (logs) dos últimos 14 dias: pasta logs.
-Nada é enviado pela internet.
+WHERE YOUR DATA IS KEPT
+Everything stays in %APPDATA%\LingoReel, never in the video's folder:
+- Settings and profiles: config.json and profiles.json.
+- Each video's corrections, sync and passages: the projects folder.
+- The seek bar's thumbnails: the thumbnails folder (up to 4 GB; Settings >
+  Appearance clears it).
+- Logs of the last 14 days: the logs folder.
+Nothing is sent over the internet.
 
-PARA REMOVER
-- Se você ligou "Abrir vídeos pelo Windows" (Configurações > Avançado), desligue antes.
-- Apague esta pasta. Para apagar também os seus dados, apague %APPDATA%\LingoReel.
+TO REMOVE
+- If you turned on "Open videos from Windows" (Settings > Advanced), turn it
+  off first.
+- Delete this folder. To delete your data too, delete %APPDATA%\LingoReel.
 
-LICENÇA
-MIT. Veja o arquivo LICENSE. (c) Edie Johnny.
-As licenças dos programas de terceiros incluídos estão em AVISOS-DE-TERCEIROS.txt
-e no próprio app, em Configurações > Ajuda > Sobre.
+LICENSE
+MIT. See the LICENSE file. (c) Edie Johnny.
+The licenses of the third-party software included are in THIRD-PARTY-NOTICES.txt
+and in the app itself, in Settings > Help > About.
 "@
 
-# The notices' introduction, in the language of the read-me; the licenses
-# themselves stay as their authors wrote them (the app carries the same ones).
+# The notices' introduction; the licenses themselves stay as their authors
+# wrote them (the app carries the same ones).
 $noticesHeader = @"
-LingoReel - avisos de terceiros
+LingoReel - third-party notices
 ===============================
 
-O LingoReel é distribuído sob a licença MIT (veja LICENSE.txt). Ele inclui
-programas de terceiros, cada um sob a sua própria licença, reproduzida abaixo
-como os autores pedem. Nenhum deles pertence ao autor do LingoReel.
+LingoReel is distributed under the MIT license (see LICENSE.txt). It includes
+third-party software, each under its own license, reproduced below as their
+authors ask. None of it belongs to the author of LingoReel.
 
 "@
-
 foreach ($required in @($app, $license)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "File not found: $required. Run scripts\build.ps1 first."
@@ -101,8 +100,8 @@ if (-not (Test-ThirdPartyNotices -Root $root)) {
 $notices = $noticesHeader + "`n" + [IO.File]::ReadAllText((Get-NoticesPath -Root $root))
 # Notepad reads UTF-8 with a BOM correctly on every Windows version.
 $withBom = New-Object Text.UTF8Encoding($true)
-[IO.File]::WriteAllText((Join-Path $staging "AVISOS-DE-TERCEIROS.txt"), ($notices -replace "`r?`n", "`r`n"), $withBom)
-[IO.File]::WriteAllText((Join-Path $staging "LEIA-ME.txt"), ($readMe -replace "`r?`n", "`r`n"), $withBom)
+[IO.File]::WriteAllText((Join-Path $staging "THIRD-PARTY-NOTICES.txt"), ($notices -replace "`r?`n", "`r`n"), $withBom)
+[IO.File]::WriteAllText((Join-Path $staging "README.txt"), ($readMe -replace "`r?`n", "`r`n"), $withBom)
 
 Write-Host "[3/3] Compressing..."
 $zip = Join-Path $distDir "$name.zip"

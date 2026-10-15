@@ -37,6 +37,7 @@ All notable changes to this project are listed here. The format follows
 ### Changed
 
 - The developer tool is called `lrdev` (`lrdev.exe` beside the app in `build\bin`).
+- The zip's read-me and third-party notices are in English: `README.txt` and `THIRD-PARTY-NOTICES.txt`.
 - Texts that named a fixed key ("Space", "Backspace", the arrows) now show the key the profile gives the command, or
   none when it has no shortcut; the karaoke help no longer quotes the default times, which can be changed.
 - The players' reasons to choose them, the Explorer's names for the app, and the messages Windows shows when WebView2
