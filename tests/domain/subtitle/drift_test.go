@@ -59,13 +59,15 @@ type playback struct {
 	film   speech.Track
 	drift  subtitle.DriftTracker
 	start  time.Time
+	wall   time.Duration // the wall clock goes on through seeks
 	manual time.Duration
 	steps  []time.Duration // positions where the lines moved
 }
 
 func (p *playback) play(from, to time.Duration) {
 	for position := from; position < to; position += 5 * time.Second {
-		now := p.start.Add(position)
+		now := p.start.Add(p.wall)
+		p.wall += 5 * time.Second
 		heard, end := window(p.film, position)
 		reading := subtitle.ReadDrift(heard, shifted(p.file, p.manual+p.drift.Auto()))
 		p.drift.Heard(reading, position, end, now)
@@ -119,6 +121,23 @@ func TestALineThatSlipsMidFilmFollowsTheVoice(t *testing.T) {
 	}
 	if got := p.drift.Seek(30 * time.Minute); !near(got, slip, 60*time.Millisecond) {
 		t.Errorf("after the cut the lines take %v, want %v", got, slip)
+	}
+}
+
+// A part of the film not heard yet teaches the tracker even after a seek
+// back: watching the start, jumping far ahead and coming back to where the
+// line slips still brings it to the voice.
+func TestASeekBackToVoiceNotHeardStillCorrects(t *testing.T) {
+	t.Parallel()
+	const cut, slip = 20 * time.Minute, 800 * time.Millisecond
+	p := newPlayback(t, cut, slip)
+	p.play(0, 12*time.Minute)
+	p.drift.Seek(38 * time.Minute)
+	p.play(38*time.Minute, 39*time.Minute)
+	p.drift.Seek(cut)
+	p.play(cut, cut+8*time.Minute)
+	if got := p.drift.Auto(); !near(got, slip, 60*time.Millisecond) {
+		t.Errorf("auto = %v after coming back to the slip, want %v ± 60 ms", got, slip)
 	}
 }
 

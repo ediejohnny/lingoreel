@@ -127,7 +127,7 @@ type DriftTracker struct {
 	base       time.Duration
 	hasBase    bool
 	recent     []heardDrift
-	high       time.Duration
+	heard      []time.Duration // where the windows counted so far end
 	auto       time.Duration
 	target     time.Duration
 	correcting bool
@@ -149,14 +149,15 @@ func (t *DriftTracker) Stopped() bool { return t.stopped }
 func (t *DriftTracker) Anchors() []DriftAnchor { return slices.Clone(t.anchors) }
 
 // Heard takes a window read at a playhead position, ending at windowEnd in
-// the film. A window counts only when it reaches driftFreshWindow past every
-// window before it: voice heard again (a passage repeated, a seek back)
-// tells nothing new.
+// the film. A window counts only when it ends driftFreshWindow or more away
+// from every window counted before: voice heard again (a passage repeated)
+// tells nothing new, while a part of the film not heard yet does, even
+// after a seek back.
 func (t *DriftTracker) Heard(r DriftReading, position, windowEnd time.Duration, now time.Time) {
-	if t.stopped || !r.Trusted() || windowEnd < t.high+driftFreshWindow {
+	if t.stopped || !r.Trusted() || !t.fresh(windowEnd) {
 		return
 	}
-	t.high = windowEnd
+	t.heard = append(t.heard, windowEnd)
 	drift := r.Residual
 	if t.hasBase {
 		drift -= t.base
@@ -192,6 +193,16 @@ func (t *DriftTracker) Heard(r DriftReading, position, windowEnd time.Duration, 
 		t.correcting, t.target = true, t.auto+agreed
 		t.from = max(first-driftLookBack/2, 0)
 	}
+}
+
+// fresh tells a window that ends away from every window counted.
+func (t *DriftTracker) fresh(windowEnd time.Duration) bool {
+	for _, end := range t.heard {
+		if abs(windowEnd-end) < driftFreshWindow {
+			return false
+		}
+	}
+	return true
 }
 
 // settle keeps the correction reached as an anchor, replacing any after it.
