@@ -8,8 +8,8 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 )
 
-// AudioLabel names an audio track for a list: "Inglês · DTS · Comentário ·
-// padrão".
+// AudioLabel names an audio track for a list, such as "English · DTS ·
+// Commentary · default".
 func AudioLabel(track media.Track) string {
 	parts := []string{Capitalized(LanguageName(track.Language))}
 	if track.Codec != "" {
@@ -24,8 +24,8 @@ func AudioLabel(track media.Track) string {
 	return strings.Join(parts, " · ")
 }
 
-// SubtitleLabel names a subtitle track for a list: "Inglês — Completa
-// (arquivo)".
+// SubtitleLabel names a subtitle track for a list, such as "English — Full
+// (file)".
 func SubtitleLabel(track media.Track) string {
 	label := Capitalized(LanguageName(track.Language))
 	if track.Name != "" {

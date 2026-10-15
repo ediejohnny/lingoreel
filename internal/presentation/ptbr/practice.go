@@ -101,7 +101,7 @@ func EditClock(d time.Duration) string {
 }
 
 // PracticeNotice words what happens to a passage for the notice on the
-// video: "Trecho 1:10:23–1:11:04 · repetição 3".
+// video, such as "Passage 1:10:23–1:11:04 · repetition 3".
 func PracticeNotice(event session.PracticeEvent, status session.PracticeStatus) string {
 	span := PassageClock(status.Segment.Start) + "–" + PassageClock(status.Segment.End)
 	switch event {

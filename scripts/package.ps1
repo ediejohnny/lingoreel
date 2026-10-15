@@ -27,7 +27,7 @@ $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
 # English.
 $readMe = @"
 LingoReel $fileVersion
-============================
+==================
 
 Duas legendas sincronizadas sobre o vídeo, para estudar idiomas com filmes e séries.
 
@@ -66,7 +66,7 @@ e no próprio app, em Configurações > Ajuda > Sobre.
 # themselves stay as their authors wrote them (the app carries the same ones).
 $noticesHeader = @"
 LingoReel - avisos de terceiros
-======================================
+===============================
 
 O LingoReel é distribuído sob a licença MIT (veja LICENSE.txt). Ele inclui
 programas de terceiros, cada um sob a sua própria licença, reproduzida abaixo

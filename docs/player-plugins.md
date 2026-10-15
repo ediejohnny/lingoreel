@@ -31,7 +31,10 @@ What the user sees about the player:
 - **`Install.DownloadURL`:** the official download page. It must be `https`.
 - **`Install.Benefit`:** one sentence in English on why to choose this player. It shows up behind the (?) button; for the
   players the catalog knows, the screen shows the catalog's sentence in the interface's language instead
-  (`ptbr.PlayerBenefit`), so a new plugin also adds its `player.benefit.<id>` text to every catalog.
+  (`ptbr.PlayerBenefit`), so a new plugin also adds:
+  - its `player.ID` constant in `internal/domain/player`;
+  - a `case` for it in `ptbr.PlayerBenefit` (`internal/presentation/ptbr/players.go`);
+  - its `player.benefit.<id>` text to every catalog.
 - **`DrawsInHost`:** `true` when the player can draw the video inside a window of the app (`LaunchRequest.Host`). This is
   the preferred way:
   - the window belongs to LingoReel, with closing (X, Alt+F4), fullscreen, keyboard and the control bar that shows

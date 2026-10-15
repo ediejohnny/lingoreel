@@ -44,10 +44,10 @@ All notable changes to this project are listed here. The format follows
   back with either a comma or a point.
 - The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
   install message for FFmpeg points to the official site and the "Browse…" button.
-- The language setting is called "Linguagem do aplicativo" ("App language").
+- The language setting is called "App language".
 - A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
   (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
-- The first profile is named after the language studied, in the app language, instead of always "Inglês".
+- The first profile is named after the language studied, in the app language, instead of always the Portuguese name for English.
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
 - The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
@@ -70,6 +70,8 @@ All notable changes to this project are listed here. The format follows
   project the app cannot write is refused, with why, instead of seeming to work.
 - Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
   saved, so the app never opens on a profile that is gone.
+- Closing the app while the setup assistant is still open no longer writes over the answers it was given a moment
+  before.
 - A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
   the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
   the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
@@ -90,8 +92,8 @@ All notable changes to this project are listed here. The format follows
 - The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
   the earlier one is all painted and the fill goes on in the next.
 - A karaoke line whose time ends before its fill does (VLC's clock jumping forward a little, a computer busy for a
-  moment) shows all painted for one frame before it goes, instead of leaving the screen half painted; a seek away
-  takes it off at once.
+  moment) shows all painted for one frame before it goes, instead of leaving the screen half painted; a seek away, a
+  sync step, a subtitle switch or turning the karaoke mode off takes it off at once.
 - Going back to a passage's start with VLC (each lap after its gap, or Play at its end) sends the seek and the play
   as one order, so the picture and the sound start together; the sound used to start first, the picture catching up.
 
@@ -471,9 +473,6 @@ The karaoke mode's fill color on the page of the line on top, and three fixes.
 - The Go module is named after its GitHub home: `github.com/ediejohnny/lingoreel`.
 - The repository speaks English: the README, the plugin guide and the scripts' messages. The app's interface stays in
   Brazilian Portuguese for now.
-
-### Documentation
-
 - This changelog.
 
 ## [0.16.2] - 2026-10-04
@@ -494,7 +493,7 @@ The passage's save button and training a line again.
 - A field's button keeps its whole label on one line
 - Training a line again plays it again, also at a passage's end
 
-### Documentation
+### Changed
 
 - The README calls the app a beta
 
@@ -506,7 +505,7 @@ Correct a line right over the video.
 
 - Two clicks on a paused line correct it right over the video
 
-### Documentation
+### Changed
 
 - Correcting a line right over the video, in the README
 
@@ -534,7 +533,7 @@ Saved studies and the full control bar.
 
 - An edit, undo or redo could leave the old text on screen
 
-### Documentation
+### Changed
 
 - The karaoke mode, saved studies and the bar in the README
 
@@ -646,7 +645,7 @@ Downloaded subtitles, automatic and manual sync.
 - Register shortcuts only while the player is in front
 - Sync shortcuts in spdev play and overlay
 
-### Documentation
+### Changed
 
 - Explain that the VLC endpoint file is a Lua page, not JSON
 
@@ -691,7 +690,7 @@ External subtitle files and a window that fits the screen.
 
 - Open the player window inside the screen
 
-### Documentation
+### Changed
 
 - License the project under MIT and invite contributions
 

@@ -22,7 +22,7 @@ interface HelpDocsProps {
   onOpen: (section: SectionId) => void;
 }
 
-/** HelpDocs is the documentation (Ajuda › Documentação): every topic, a search, and a way to the settings each one is about. */
+/** HelpDocs is the documentation (Help › Documentation): every topic, a search, and a way to the settings each one is about. */
 export function HelpDocs({ keys, narrow, onOpen }: HelpDocsProps) {
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState("start");
