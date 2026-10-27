@@ -180,9 +180,10 @@ type Deps struct {
 	// FirstRun tells the app opens for the first time: the welcome asks what
 	// the person studies before anything else.
 	FirstRun bool
-	// Machine measures what the computer offers the voice AI, once, in the
-	// background: on a weak one the first run starts with the AI off. Nil
-	// measures nothing, and no computer is weak.
+	// Machine reads the computer's hardware, once, in the background: its
+	// level decides what the first run starts with, and a computer of
+	// another level later is asked about. Nil reads nothing: the computer is
+	// medium and never asked about.
 	Machine func() capacity.Machine
 	// AskRetry asks, with Windows' own box, whether to try again a save that
 	// failed as the app closes; nil never asks.
@@ -247,8 +248,10 @@ type API struct {
 	projectWrites, settingsWrites sync.Mutex
 	// welcoming tells the first run's welcome is not answered yet.
 	welcoming bool
-	// machine is the computer as measured, once.
-	machine func() capacity.Machine
+	// machine is the computer as read, once; computerChanged tells the
+	// question of a computer of another level waits for an answer.
+	machine         func() capacity.Machine
+	computerChanged bool
 	// settingsNotes tell, in the language of the moment, why a settings file
 	// could not be read and what becomes of it.
 	settingsNotes []func() string
@@ -339,9 +342,9 @@ func (a *API) InitialVideo() string {
 // defaults when the files are damaged (the problem is logged, never fatal).
 func (l Lifecycle) Attach(ctx context.Context, ui UI) {
 	a := l.api
-	// The computer is measured while the window starts, for the welcome and
-	// the voice settings to find the answer ready.
-	go a.machine()
+	// The computer is met in the background once the settings are loaded
+	// (the deferred calls run in turn: a.mu is let go first).
+	defer func() { go a.meetComputer() }()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.ctx, a.ui = ctx, ui

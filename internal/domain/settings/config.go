@@ -77,6 +77,9 @@ type Config struct {
 	// Thumbnails are the seek bar's stills on this computer, apart from the
 	// bar so restoring the bar's look leaves them as they are.
 	Thumbnails ThumbnailPreferences `json:"thumbnails"`
+	// Computer is the computer the settings were adjusted to, as a game
+	// adjusts its own.
+	Computer ComputerRecord `json:"computer"`
 }
 
 // Ranges of how long the bar stays after the mouse leaves it.
@@ -159,7 +162,8 @@ func DefaultConfig() Config {
 	}
 }
 
-// Validate checks the theme, the player overrides and the dismissed players.
+// Validate checks every preference: the theme, the players, the window, the
+// language, the looks, the voice and the computer recorded.
 func (c Config) Validate() error {
 	if c.Theme != ThemeSystem && c.Theme != ThemeLight && c.Theme != ThemeDark {
 		return fmt.Errorf("%w: theme %q", ErrInvalidSettings, c.Theme)
@@ -202,5 +206,8 @@ func (c Config) Validate() error {
 	if err := c.Interface.Validate(); err != nil {
 		return fmt.Errorf("%w: interface: %w", ErrInvalidSettings, err)
 	}
-	return c.Voice.validate()
+	if err := c.Voice.validate(); err != nil {
+		return err
+	}
+	return c.Computer.validate()
 }

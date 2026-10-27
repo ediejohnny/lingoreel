@@ -41,6 +41,28 @@ type GeneralSettings struct {
 	// each named in itself.
 	Language  string   `json:"language"`
 	Languages []Option `json:"languages"`
+	// Computer is the computer the app runs on, as a game shows it.
+	Computer ComputerView `json:"computer"`
+}
+
+// ComputerView is the computer as the app read it: its processor (empty when
+// unread), its logical processors, its memory in whole GiB and its level,
+// "basic", "medium" or "high"; Adjusted is the level the settings were last
+// adjusted to, empty when never.
+type ComputerView struct {
+	Processor  string `json:"processor"`
+	Processors int    `json:"processors"`
+	MemoryGiB  int    `json:"memoryGiB"`
+	Level      string `json:"level"`
+	Adjusted   string `json:"adjusted"`
+}
+
+// ComputerChange is the question asked when the app runs on a computer of
+// another level than the one the settings were adjusted to: Asked tells it
+// waits for an answer.
+type ComputerChange struct {
+	Asked    bool         `json:"asked"`
+	Computer ComputerView `json:"computer"`
 }
 
 // VoiceSettings are how the app hears the actors' voice on this computer.
@@ -407,6 +429,9 @@ type WelcomeView struct {
 	// computer seems too weak for it, so it starts off and the screen warns.
 	VoiceModel bool `json:"voiceModel"`
 	Weak       bool `json:"weak"`
+	// Computer is the computer the app runs on, with the level the welcome
+	// suggests by.
+	Computer ComputerView `json:"computer"`
 }
 
 // WelcomeChoices are the welcome's answers.

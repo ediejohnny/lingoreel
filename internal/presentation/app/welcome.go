@@ -17,10 +17,11 @@ var (
 )
 
 // Welcome is what the welcome asks, with the answers it suggests: on the
-// first run, what Windows tells; opened again from the settings, what the
-// active profile holds.
+// first run, what Windows tells and what the computer's level starts with;
+// opened again from the settings, what the active profile and the settings
+// hold.
 func (a *API) Welcome() WelcomeView {
-	weak := a.machine().Weak()
+	machine, computer := a.machine(), a.computerView()
 	a.mu.Lock()
 	pending, language, model := a.welcoming, a.config.Language, a.config.Voice.Model
 	profile := a.profile()
@@ -28,12 +29,13 @@ func (a *API) Welcome() WelcomeView {
 	languages, mode := profile.Languages, profile.Study.Mode
 	if pending {
 		languages = settings.SuggestedLanguages(a.systemLanguage())
-		model = !weak
+		model = machine.Level().VoiceAI()
 	}
 	view := WelcomeView{
 		Pending: pending, AppLanguage: language, AppLanguages: interfaceLanguages(),
 		Spoken: languages.Translation, Studied: languages.Primary, Mode: string(mode), Modes: modeOptions(),
-		PreferredPlayer: profile.PreferredPlayer, Languages: []Option{}, VoiceModel: model, Weak: weak,
+		PreferredPlayer: profile.PreferredPlayer, Languages: []Option{}, VoiceModel: model, Weak: machine.Weak(),
+		Computer: computer,
 	}
 	listed := map[string]bool{}
 	add := func(tag string) {
@@ -72,10 +74,10 @@ func (a *API) FinishWelcome(choices WelcomeChoices) error {
 	return a.answerWelcome(func() bool { return true }, languages, study.Mode(choices.Mode), choices.PreferredPlayer, choices.VoiceModel)
 }
 
-// SkipWelcome answers the first run's welcome with what Windows tells, and
-// with the voice AI off on a weak computer; once answered, it does nothing.
+// SkipWelcome answers the first run's welcome with what Windows tells and
+// what the computer's level starts with; once answered, it does nothing.
 func (a *API) SkipWelcome() error {
-	weak := a.machine().Weak()
+	model := a.machine().Level().VoiceAI()
 	a.mu.Lock()
 	pending, profile := a.welcoming, a.profile()
 	a.mu.Unlock()
@@ -84,16 +86,18 @@ func (a *API) SkipWelcome() error {
 	}
 	// Answered meanwhile, it stays as answered.
 	still := func() bool { return a.welcoming }
-	return a.answerWelcome(still, settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer, !weak)
+	return a.answerWelcome(still, settings.SuggestedLanguages(a.systemLanguage()), profile.Study.Mode, profile.PreferredPlayer, model)
 }
 
 // errAnswered stops a welcome answered meanwhile.
 var errAnswered = errors.New("the welcome was answered meanwhile")
 
 // answerWelcome keeps a welcome's answers, while still tells (with a.mu
-// held) they are wanted; model lets the voice AI work on this computer.
-// Called without a.mu.
+// held) they are wanted; model lets the voice AI work on this computer. The
+// first run's answers also record the computer, so a choice apart from its
+// level's counts as the person's. Called without a.mu.
 func (a *API) answerWelcome(still func() bool, languages settings.LanguagePreferences, mode study.Mode, preferred string, model bool) error {
+	machine := a.machine()
 	// It is answered as the answers are taken, so another answer waiting
 	// (a skip as the app closes) finds it answered; a failed write takes
 	// that back.
@@ -101,6 +105,9 @@ func (a *API) answerWelcome(still func() bool, languages settings.LanguagePrefer
 	err := a.changeSettings(writeProfiles|writeConfig, func(config *settings.Config, profiles *settings.Profiles) error {
 		if !still() {
 			return errAnswered
+		}
+		if a.welcoming {
+			config.RecordComputer(machine)
 		}
 		if err := a.welcomeAnswers(config, profiles, languages, mode, preferred, model); err != nil {
 			return err

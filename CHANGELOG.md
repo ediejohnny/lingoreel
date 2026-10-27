@@ -6,6 +6,26 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The app sets itself up for the computer it runs on, as a game does on its first run, at one of three levels read
+  from the hardware alone: basic (two logical processors or fewer, or under 4 GiB of memory), high (four logical
+  processors or more and 8 GiB or more) and medium in between. The basic level starts with the voice AI off; the medium
+  and high ones start with it on. The settings remember the computer they were adjusted to (its processor's name, its
+  logical processors and its memory) and its level; a setting apart from what that level starts with counts as chosen
+  by hand.
+- On a computer of another level than the one the settings were adjusted to, the app asks whether to adjust to it.
+  Adjusting moves to the new level only what still is as the old level had it, so what was chosen by hand stays;
+  declining keeps every setting, and that computer is not asked about again. Moving to another computer of the same
+  level, or opening for the first time a version with the levels, records the computer and changes nothing.
+- Adjusting to the computer can be asked for at any time; it puts every setting the level decides to the level's own,
+  also the ones chosen by hand.
+
+### Changed
+
+- How fast the voice model runs is no longer measured to tell a weak computer: a computer is judged by its hardware
+  alone, since how busy it is at a moment (a game on another screen, an update) passes and says nothing of it.
+
 ## [0.27.3] - 2026-10-27
 
 ### Changed
