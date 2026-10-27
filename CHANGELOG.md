@@ -6,6 +6,8 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-10-27
+
 ### Changed
 
 - The README says plainly that its screenshots' frames of Sintel stay under Creative Commons Attribution 3.0, with
@@ -805,7 +807,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...HEAD
+[0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
