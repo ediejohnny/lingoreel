@@ -844,6 +844,7 @@ export namespace app {
 	    durationText: string;
 	    primaryOffset: string;
 	    translationOffset: string;
+	    primaryVoice: string;
 	    translationVisible: boolean;
 	    mode: string;
 	    capabilities: Capabilities;
@@ -874,6 +875,7 @@ export namespace app {
 	        this.durationText = source["durationText"];
 	        this.primaryOffset = source["primaryOffset"];
 	        this.translationOffset = source["translationOffset"];
+	        this.primaryVoice = source["primaryVoice"];
 	        this.translationVisible = source["translationVisible"];
 	        this.mode = source["mode"];
 	        this.capabilities = this.convertValues(source["capabilities"], Capabilities);
@@ -1424,6 +1426,7 @@ export namespace app {
 	    modelOnBattery: boolean;
 	    battery: boolean;
 	    follow: boolean;
+	    sync: boolean;
 	    sensitivity: string;
 	    delayMs: number;
 	    evenWhenBusy: boolean;
@@ -1443,6 +1446,7 @@ export namespace app {
 	        this.modelOnBattery = source["modelOnBattery"];
 	        this.battery = source["battery"];
 	        this.follow = source["follow"];
+	        this.sync = source["sync"];
 	        this.sensitivity = source["sensitivity"];
 	        this.delayMs = source["delayMs"];
 	        this.evenWhenBusy = source["evenWhenBusy"];

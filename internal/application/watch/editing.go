@@ -155,7 +155,7 @@ func (s *Session) selectionLocked() (Selection, bool) {
 	edits := s.editor.lines[chosen.line]
 	return Selection{
 		Line: chosen.line, Event: edits.now[chosen.id], Original: edits.file[chosen.id],
-		Offset: s.subtitles.Offset(chosen.line),
+		Offset: s.subtitles.Shown(chosen.line),
 	}, true
 }
 
@@ -304,8 +304,8 @@ func (s *Session) Export(line session.Line) []subtitle.Event {
 	}
 	var events []subtitle.Event
 	for _, event := range track.Timeline.Events() {
-		event.Start = max(track.Offset.PlaybackTime(event.Start), 0)
-		event.End = track.Offset.PlaybackTime(event.End)
+		event.Start = max(track.Shown().PlaybackTime(event.Start), 0)
+		event.End = track.Shown().PlaybackTime(event.End)
 		if event.End > event.Start {
 			events = append(events, event)
 		}

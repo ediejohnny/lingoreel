@@ -53,6 +53,7 @@
   "ui.help.subtitles.title": "Subtitles",
   "ui.help.sync.p1": "If a subtitle comes early or late, move the study one with {primary} and the translation with {translation}. Holding the key takes a larger step.",
   "ui.help.sync.p2": "The video shows how much each subtitle moved; the notice can be turned off in Settings › General. The panel and the Sync menu also adjust them and go back to the file's timing. The sync is kept with the video.",
+  "ui.help.sync.p3": "With the voice AI on, the app also keeps the study subtitle on the voice when the film drifts midway (Settings › Study › Actors' voice › Keep the sync on the voice). The panel shows how far the voice moved it, under the subtitle's name; your own adjustment stays as it is, and putting the subtitle back to its file's timing leaves the voice out until the video ends.",
   "ui.help.sync.title": "Sync",
   "ui.help.title": "Documentation",
   "ui.help.topics": "Topics",

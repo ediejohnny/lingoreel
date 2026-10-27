@@ -62,6 +62,13 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           disabled={!voice.model}
           onChange={(follow) => save({ follow })}
         />
+        <Toggle
+          label={t("ui.settings.voice.sync.label")}
+          checked={voice.sync}
+          disabled={!voice.model}
+          onChange={(sync) => save({ sync })}
+          help={<HelpTip topic={t("ui.settings.voice.sync.topic")}>{t("ui.settings.voice.sync.help")}</HelpTip>}
+        />
         <Segmented
           label={t("ui.settings.voice.sensitivity.label")}
           value={voice.sensitivity}

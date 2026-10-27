@@ -269,6 +269,12 @@ func (f *Follower) Fill(line Line, position time.Duration) (float64, bool) {
 	return 0, false // not decoded yet
 }
 
+// Heard is the voice heard around a moment of the film, up to before it and
+// after it, as Memory.Around tells it; false when none was heard there.
+func (f *Follower) Heard(at, before, after time.Duration) (speech.Track, bool) {
+	return f.memory.Around(at, before, after)
+}
+
 func (f *Follower) untrustworthy() bool {
 	return f.tried >= triedEnough && float64(f.trusted) < leastTrusted*float64(f.tried)
 }

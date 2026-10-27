@@ -10,11 +10,11 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 )
 
-// While the karaoke mode paints the line, a follower finds the actor's voice
-// for it. It starts in the background (finding the user's FFmpeg takes a
-// moment, and the video must not wait for it), starts again when the audio
-// or the line on top changes, and stops when the fill is turned off or the
-// session ends.
+// While the karaoke mode paints the line, or the study line is kept on the
+// voice, a follower hears the actor's voice. It starts in the background
+// (finding the user's FFmpeg takes a moment, and the video must not wait for
+// it), starts again when the audio or the line on top changes, and stops
+// when neither wants it any more or the session ends.
 
 // findTimeout bounds the search for the user's FFmpeg.
 const findTimeout = 10 * time.Second
@@ -26,6 +26,8 @@ type VoiceSetup struct {
 	Model, ModelOnBattery bool
 	// Follow off leaves every line to the estimate from its letters.
 	Follow bool
+	// Sync keeps the study line on the voice when the film slips.
+	Sync bool
 	// FFmpegPath is the FFmpeg the user chose; empty looks for one.
 	FFmpegPath string
 	Settings   voice.Settings
@@ -66,6 +68,8 @@ type voicing struct {
 	setup     VoiceSetup
 	onBattery bool
 	follower  *voice.Follower
+	// keeper keeps the study line on the voice the follower hears.
+	keeper voice.LineKeeper
 	// starting numbers the starts; a start that finds a newer one asked for,
 	// or the fill off, closes what it started. inFlight counts those running.
 	starting int
@@ -73,21 +77,47 @@ type voicing struct {
 	ended    bool
 }
 
-// followVoice starts or stops following the voice as the karaoke mode asks.
+// followVoice starts or stops following the voice as the karaoke mode and
+// keeping the line on the voice ask.
 func (s *Session) followVoice() {
 	s.reviewVoice(false)
 }
 
-// voiceWanted tells whether the voice is to be followed: the karaoke mode
-// paints the line on top, there is one, and the user follows the voice;
+// fillWanted tells whether the karaoke mode paints the line on top by the
+// voice: its fill is on, there is a line, and the user follows the voice;
 // callers hold v.mu.
-func (s *Session) voiceWanted() bool {
+func (s *Session) fillWanted() bool {
 	karaoke := s.subtitles.Karaoke()
 	return karaoke.Enabled && karaoke.Fill && s.voice.setup.Follow && s.Tracks().Current.Primary != 0
 }
 
-// reviewVoice follows the voice when the fill is on; again (restart) when
-// what it follows changed, such as the audio track.
+// keepWanted tells whether the line on top is kept on the voice: the user
+// asks for it and there is a line (a model at rest hears nothing, so it
+// moves nothing); callers hold v.mu.
+func (s *Session) keepWanted() bool {
+	return s.voice.setup.Sync && s.Tracks().Current.Primary != 0
+}
+
+// voiceWanted tells whether the voice is to be heard at all; callers hold
+// v.mu.
+func (s *Session) voiceWanted() bool {
+	return s.fillWanted() || s.keepWanted()
+}
+
+// paintByVoice gives the karaoke mode's fill the follower's voice when the
+// fill wants it, and takes it away otherwise; callers hold v.mu.
+func (s *Session) paintByVoice(follower *voice.Follower) {
+	if follower == nil || !s.fillWanted() {
+		s.subtitles.SetVoice(nil)
+		return
+	}
+	s.subtitles.SetVoice(func(text string, start, end, position time.Duration) (float64, bool) {
+		return follower.Fill(voice.Line{Text: text, Start: start, End: end}, position)
+	})
+}
+
+// reviewVoice hears the voice while something wants it; again (restart)
+// when what it hears changed, such as the audio track.
 func (s *Session) reviewVoice(restart bool) {
 	v := s.voice
 	if v == nil || v.model == nil || (v.tap == nil && v.find == nil) {
@@ -104,6 +134,7 @@ func (s *Session) reviewVoice(restart bool) {
 		go v.follower.Close()
 		v.follower = nil
 	}
+	s.paintByVoice(v.follower)
 	if wanted && v.follower == nil && (v.inFlight == 0 || restart) {
 		v.starting++
 		v.inFlight++
@@ -139,9 +170,7 @@ func (s *Session) startVoice(attempt int) {
 		return
 	}
 	v.follower = follower
-	s.subtitles.SetVoice(func(text string, start, end, position time.Duration) (float64, bool) {
-		return follower.Fill(voice.Line{Text: text, Start: start, End: end}, position)
-	})
+	s.paintByVoice(follower)
 }
 
 // voiceSources are the ways to the voice of the line on top: its language's
@@ -231,17 +260,17 @@ func (s *Session) watchPower(ctx context.Context, power voice.Power) {
 	})
 }
 
-// VoiceMode tells how the voice is followed now; false when it is not (the
-// karaoke mode's fill is off, or following is).
+// VoiceMode tells how the karaoke mode follows the voice now; false when it
+// does not (its fill is off, or following is).
 func (s *Session) VoiceMode() (voice.Mode, bool) {
 	v := s.voice
 	if v == nil {
 		return voice.ModeEstimate, false
 	}
 	v.mu.Lock()
-	follower := v.follower
+	follower, painting := v.follower, s.fillWanted()
 	v.mu.Unlock()
-	if follower == nil {
+	if follower == nil || !painting {
 		return voice.ModeEstimate, false
 	}
 	return follower.Mode(), true

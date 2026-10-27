@@ -18,11 +18,17 @@ const (
 	LineTranslation
 )
 
-// Track is a subtitle timeline shown with an offset.
+// Track is a subtitle timeline shown with an offset: Offset is the user's
+// own, kept with the video; Voice is what following the voice adds on top of
+// it for this session, never kept. Every time on screen is Shown's.
 type Track struct {
 	Timeline *subtitle.Timeline
 	Offset   subtitle.Offset
+	Voice    time.Duration
 }
+
+// Shown is the offset the line is shown at: the user's own and the voice's.
+func (t Track) Shown() subtitle.Offset { return t.Offset.Shift(t.Voice) }
 
 // Visible holds the events on screen for both lines.
 type Visible struct {
@@ -192,7 +198,7 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if len(visible.Primary) == 0 {
-		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Offset, position, s.karaoke.Rules); upcoming {
+		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Shown(), position, s.karaoke.Rules); upcoming {
 			visible.Cue = &cue
 			visible.Primary = []subtitle.Event{cue.Event}
 			if s.ownTiming && len(visible.Translation) == 0 {
@@ -221,8 +227,8 @@ func (s *Subtitles) fill(primary *Track, shown []subtitle.Event, position time.D
 		return 0, false // only a sound's description, or music: never painted
 	}
 	// Whatever paints the line, it is all painted before the line goes.
-	start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
-	spoken := study.SpokenFraction(line, primary.Offset.TrackTime(position))
+	start, end := primary.Shown().PlaybackTime(line.Start), primary.Shown().PlaybackTime(line.End)
+	spoken := study.SpokenFraction(line, primary.Shown().TrackTime(position))
 	if s.voice != nil {
 		if fill, found := s.voice(line.Text(), start, end, position); found {
 			spoken = fill
@@ -282,8 +288,8 @@ func (s *Subtitles) translationWith(shown, own []subtitle.Event, position time.D
 		return own
 	}
 	return subtitle.Paired(shown,
-		subtitle.Placed{Timeline: primary.Timeline, Offset: primary.Offset},
-		subtitle.Placed{Timeline: translation.Timeline, Offset: translation.Offset},
+		subtitle.Placed{Timeline: primary.Timeline, Offset: primary.Shown()},
+		subtitle.Placed{Timeline: translation.Timeline, Offset: translation.Shown()},
 		position, maxVisiblePerLine)
 }
 
@@ -291,7 +297,7 @@ func activeAt(track *Track, position time.Duration) []subtitle.Event {
 	if track == nil || track.Timeline == nil {
 		return nil
 	}
-	active := track.Timeline.ActiveAt(track.Offset.TrackTime(position))
+	active := track.Timeline.ActiveAt(track.Shown().TrackTime(position))
 	// ActiveAt orders by Start, so the latest events are at the end.
 	return active[max(len(active)-maxVisiblePerLine, 0):]
 }
@@ -307,23 +313,57 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 		if track == nil || track.Timeline == nil {
 			continue
 		}
-		change, ok := track.Timeline.NextChangeAfter(track.Offset.TrackTime(position))
+		change, ok := track.Timeline.NextChangeAfter(track.Shown().TrackTime(position))
 		if !ok {
 			continue
 		}
-		if at := track.Offset.PlaybackTime(change); !found || at < next {
+		if at := track.Shown().PlaybackTime(change); !found || at < next {
 			next, found = at, true
 		}
 	}
 	if primary := s.lines[LinePrimary]; s.karaoke.Enabled && primary != nil {
-		if begin, ok := study.NextCueStartAfter(primary.Timeline, primary.Offset, position, s.karaoke.Rules); ok && (!found || begin < next) {
+		if begin, ok := study.NextCueStartAfter(primary.Timeline, primary.Shown(), position, s.karaoke.Rules); ok && (!found || begin < next) {
 			next, found = begin, true
 		}
 	}
 	return next, found
 }
 
-// Offset returns the offset of a line; zero for a missing or unknown line.
+// Shown returns the offset a line is shown at, the user's and the voice's;
+// zero for a missing or unknown line.
+func (s *Subtitles) Shown(line Line) subtitle.Offset {
+	if !line.Valid() {
+		return 0
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if track := s.lines[line]; track != nil {
+		return track.Shown()
+	}
+	return 0
+}
+
+// SetVoiceShift sets what following the voice adds to a line's own offset
+// and signals the change; it has no effect on a missing or unknown line.
+func (s *Subtitles) SetVoiceShift(line Line, shift time.Duration) {
+	if !line.Valid() {
+		return
+	}
+	s.mu.Lock()
+	track := s.lines[line]
+	if track != nil {
+		updated := *track
+		updated.Voice = shift
+		s.lines[line] = &updated
+	}
+	s.mu.Unlock()
+	if track != nil {
+		s.notify()
+	}
+}
+
+// Offset returns the user's own offset of a line, without the voice's; zero
+// for a missing or unknown line.
 func (s *Subtitles) Offset(line Line) subtitle.Offset {
 	if !line.Valid() {
 		return 0

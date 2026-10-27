@@ -24,6 +24,13 @@ All notable changes to this project are listed here. The format follows
   computer", once confirmed, puts every setting the level decides to the level's own, also the ones chosen by hand. The
   setup assistant tells the computer's level, the question of a changed computer shows at the top of the window
   outside a film, and the documentation has a topic on the levels.
+- With the voice AI on, the study subtitle is kept on the actors' voice when the film drifts midway (a version with a
+  scene more or less): every 5 s the voice heard around the playhead is read against the lines, and once several
+  readings agree the subtitle moves back in small steps. What the voice moves is never saved over your own adjustment,
+  which the panel keeps showing with "By the voice" under it; a seek takes the correction settled for that part of the
+  film. Your own sync step against the voice's move, or putting the subtitle back to its file's timing, leaves the voice
+  out for the rest of the video. Settings › Study › Actors' voice › "Keep the sync on the voice" turns it off; it starts
+  off at the Basic level.
 - `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
   with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to

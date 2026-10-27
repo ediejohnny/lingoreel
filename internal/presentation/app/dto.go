@@ -137,10 +137,13 @@ type Playback struct {
 	Duration float64 `json:"duration"`
 	Speed    float64 `json:"speed"`
 	// PositionText and DurationText are "1:02:03".
-	PositionText       string `json:"positionText"`
-	DurationText       string `json:"durationText"`
-	PrimaryOffset      string `json:"primaryOffset"`
-	TranslationOffset  string `json:"translationOffset"`
+	PositionText      string `json:"positionText"`
+	DurationText      string `json:"durationText"`
+	PrimaryOffset     string `json:"primaryOffset"`
+	TranslationOffset string `json:"translationOffset"`
+	// PrimaryVoice is what keeping the study line on the voice adds to its own
+	// offset ("+0,800 s"); empty when nothing.
+	PrimaryVoice       string `json:"primaryVoice"`
 	TranslationVisible bool   `json:"translationVisible"`
 	// Mode is the study mode; "always" keeps the translation shown.
 	Mode         string       `json:"mode"`

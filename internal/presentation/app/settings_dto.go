@@ -73,6 +73,8 @@ type VoiceSettings struct {
 	ModelOnBattery bool `json:"modelOnBattery"`
 	Battery        bool `json:"battery"`
 	Follow         bool `json:"follow"`
+	// Sync keeps the study line on the voice when the film slips.
+	Sync bool `json:"sync"`
 	// Sensitivity is "low", "normal" or "high".
 	Sensitivity string `json:"sensitivity"`
 	// DelayMs is the output's delay, in milliseconds (0 to 1000).

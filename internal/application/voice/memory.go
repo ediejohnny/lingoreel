@@ -68,6 +68,27 @@ func (m *Memory) forget() {
 	}
 }
 
+// Around returns the frames heard around a moment of the film, up to before
+// it and after it, from the latest run that holds the moment; false when no
+// run holds it.
+func (m *Memory) Around(at, before, after time.Duration) (speech.Track, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := len(m.runs) - 1; i >= 0; i-- { // the latest hearing wins
+		run := m.runs[i]
+		end := run.Start + time.Duration(len(run.Frames))*speech.FrameLength
+		if run.Start <= at && at < end {
+			first := max(int((at-before-run.Start)/speech.FrameLength), 0)
+			last := min(int((at+after-run.Start)/speech.FrameLength), len(run.Frames))
+			return speech.Track{
+				Start:  run.Start + time.Duration(first)*speech.FrameLength,
+				Frames: append([]speech.Frame(nil), run.Frames[first:last]...),
+			}, true
+		}
+	}
+	return speech.Track{}, false
+}
+
 // Track returns the frames heard for a stretch of the film and the
 // speech.LineMargin around it, as far as they were heard; false when no
 // run holds the stretch whole.

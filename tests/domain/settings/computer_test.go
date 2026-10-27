@@ -26,8 +26,9 @@ func TestAdjustingToAComputerTakesItsLevel(t *testing.T) {
 	t.Parallel()
 	config := settings.DefaultConfig()
 	config.AdjustTo(schoolPC)
-	if config.Voice.Model || config.Computer.Level != capacity.LevelBasic || config.Computer.Identity != schoolPC.Identity() {
-		t.Fatalf("adjusted to a school computer: voice AI %v, record %+v", config.Voice.Model, config.Computer)
+	if config.Voice.Model || config.Voice.Sync || config.Computer.Level != capacity.LevelBasic ||
+		config.Computer.Identity != schoolPC.Identity() {
+		t.Fatalf("adjusted to a school computer: voice AI %v, sync by the voice %v, record %+v", config.Voice.Model, config.Voice.Sync, config.Computer)
 	}
 	config.Voice.Model = true // turned on by hand, at one's own risk
 	config.AdjustTo(schoolPC)
@@ -35,8 +36,8 @@ func TestAdjustingToAComputerTakesItsLevel(t *testing.T) {
 		t.Fatal("adjusting again kept a choice made by hand")
 	}
 	config.AdjustTo(studioPC)
-	if !config.Voice.Model || config.Computer.Level != capacity.LevelHigh {
-		t.Fatalf("adjusted to a strong computer: voice AI %v, level %q", config.Voice.Model, config.Computer.Level)
+	if !config.Voice.Model || !config.Voice.Sync || config.Computer.Level != capacity.LevelHigh {
+		t.Fatalf("adjusted to a strong computer: voice AI %v, sync by the voice %v, level %q", config.Voice.Model, config.Voice.Sync, config.Computer.Level)
 	}
 }
 

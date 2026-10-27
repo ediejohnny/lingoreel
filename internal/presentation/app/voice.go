@@ -38,7 +38,7 @@ var (
 // voiceSetup is how a session follows the voice, from the settings.
 func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 	return watch.VoiceSetup{
-		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Follow: v.Follow, FFmpegPath: v.FFmpegPath,
+		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Follow: v.Follow, Sync: v.Sync, FFmpegPath: v.FFmpegPath,
 		Settings: voice.Settings{Sensitivity: v.Sensitivity, Delay: time.Duration(v.Delay), EvenWhenBusy: v.EvenWhenBusy},
 	}
 }
@@ -49,7 +49,7 @@ func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceSettings {
 	view := VoiceSettings{
 		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Battery: a.deps.Ports.Power != nil && a.deps.Ports.Power.HasBattery(),
-		Follow: v.Follow, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
+		Follow: v.Follow, Sync: v.Sync, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
 		EvenWhenBusy: v.EvenWhenBusy, FFmpegPath: v.FFmpegPath, Weak: a.machine().Weak(),
 	}
 	if a.deps.FFmpeg == nil {
@@ -72,7 +72,7 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 func (a *API) SetVoice(view VoiceSettings) error {
 	if err := a.changeConfig(func(next *settings.Config) error {
 		next.Voice.Model, next.Voice.ModelOnBattery = view.Model, view.ModelOnBattery
-		next.Voice.Follow, next.Voice.EvenWhenBusy = view.Follow, view.EvenWhenBusy
+		next.Voice.Follow, next.Voice.Sync, next.Voice.EvenWhenBusy = view.Follow, view.Sync, view.EvenWhenBusy
 		next.Voice.Sensitivity = speech.Sensitivity(view.Sensitivity)
 		next.Voice.Delay = settings.Duration(time.Duration(view.DelayMs) * time.Millisecond)
 		return nil

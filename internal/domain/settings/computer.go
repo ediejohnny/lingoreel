@@ -45,6 +45,7 @@ var levelled = []struct {
 	of      func(l capacity.Level) bool
 }{
 	{func(c *Config) *bool { return &c.Voice.Model }, capacity.Level.VoiceAI},
+	{func(c *Config) *bool { return &c.Voice.Sync }, capacity.Level.VoiceAI},
 }
 
 // AdjustTo puts every setting the computer's level decides to the level's

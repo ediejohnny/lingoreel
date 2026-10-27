@@ -253,6 +253,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	if ports.Power != nil {
 		go s.watchPower(runCtx, ports.Power)
 	}
+	if ports.Model != nil {
+		go s.keepOnVoice(runCtx)
+	}
 	runner := session.NewRunner(s.clock, s.subtitles, s.changed, session.NewRealTimer)
 	runner.Follow(s.practice)
 	go s.run(runCtx, runner)

@@ -60,6 +60,7 @@ export function topics(keys: Keys): Topic[] {
           translation: pair("sync-translation-earlier", "sync-translation-later"),
         }),
         t("ui.help.sync.p2"),
+        t("ui.help.sync.p3"),
       ],
       open: "subtitles",
     },

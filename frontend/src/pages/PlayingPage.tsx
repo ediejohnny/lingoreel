@@ -187,6 +187,7 @@ export function PlayingPage({
               <SyncRow
                 name={state.lines.primary}
                 offset={state.primaryOffset}
+                voice={state.primaryVoice}
                 shortcut={primaryKeys}
                 onEarlier={() => onCommand(() => commands.nudge("primary", false))}
                 onLater={() => onCommand(() => commands.nudge("primary", true))}

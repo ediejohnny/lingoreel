@@ -78,7 +78,7 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 		// its subtitles would flash the wrong line on a session that starts later.
 		known := state.Status != playback.StatusUnknown
 		if known && (first || !visible.Equal(last)) {
-			if whole, finish := finishing(last, lastAt, visible, state, r.subtitles.Offset(LinePrimary)); finish {
+			if whole, finish := finishing(last, lastAt, visible, state, r.subtitles.Shown(LinePrimary)); finish {
 				// The line shows all painted for one frame, then what comes.
 				r.onChange(state.Position, whole)
 				last, lastAt = whole, state.Position

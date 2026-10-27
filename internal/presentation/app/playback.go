@@ -339,7 +339,12 @@ func (a *API) describe(current *watching) Playback {
 		markedStart = ptbr.PassageClock(start)
 	}
 	plan, snap := current.session.PassageOptions()
+	voiceShift := ""
+	if shift := current.session.VoiceShift(); shift != 0 {
+		voiceShift = ptbr.Offset(subtitle.NewOffset(shift))
+	}
 	return Playback{
+		PrimaryVoice:   voiceShift,
 		MarkedStart:    markedStart,
 		PassageOptions: PassageOptions{Snap: snap, Plan: planOf(plan)},
 		Active:         true, Embedded: current.embedded, Status: string(state.Status),

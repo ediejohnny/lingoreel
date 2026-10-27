@@ -104,7 +104,7 @@ func (s *Session) RepeatPhrase() error {
 	if track == nil {
 		return nil
 	}
-	start, found := study.PhraseStart(track.Timeline, track.Offset, s.controls.Position())
+	start, found := study.PhraseStart(track.Timeline, track.Shown(), s.controls.Position())
 	if !found {
 		return nil
 	}

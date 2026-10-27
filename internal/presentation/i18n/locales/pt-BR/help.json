@@ -53,6 +53,7 @@
   "ui.help.subtitles.title": "Legendas",
   "ui.help.sync.p1": "Se uma legenda vem adiantada ou atrasada, mova a de estudo com {primary} e a tradução com {translation}. Segurando a tecla, o passo fica maior.",
   "ui.help.sync.p2": "O vídeo mostra quanto cada legenda mudou; o aviso pode ser desligado em Configurações › Geral. O painel e o menu Sincronia também ajustam e voltam ao tempo do arquivo. A sincronia fica guardada com o vídeo.",
+  "ui.help.sync.p3": "Com a IA de voz ligada, o app também mantém a legenda de estudo na voz quando o filme se descola no meio (Configurações › Estudo › Voz dos atores › Acertar a sincronia pela voz). O painel mostra quanto a voz moveu, abaixo do nome da legenda; o seu ajuste continua o mesmo, e voltar a legenda ao tempo do arquivo deixa a voz de fora até o fim do vídeo.",
   "ui.help.sync.title": "Sincronia",
   "ui.help.title": "Documentação",
   "ui.help.topics": "Tópicos",
