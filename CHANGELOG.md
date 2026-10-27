@@ -6,6 +6,8 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-27
+
 ### Added
 
 - The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
@@ -39,10 +41,11 @@ All notable changes to this project are listed here. The format follows
   back with either a comma or a point.
 - The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
   install message for FFmpeg points to the official site and the "Browse…" button.
-- The language setting is called "Linguagem do aplicativo" ("App language").
+- The language setting is called "App language".
 - A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
   (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
-- The first profile is named after the language studied, in the app language, instead of always "Inglês".
+- The first profile is named after the language studied, in the app language, instead of always the Portuguese name
+  for English.
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
 - The README presents the app as it is today, with pictures of it: highlights, features by area, the default
@@ -715,7 +718,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
