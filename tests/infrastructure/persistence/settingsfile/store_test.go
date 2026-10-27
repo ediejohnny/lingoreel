@@ -29,6 +29,13 @@ func TestSettingsStartWithTheDefaults(t *testing.T) {
 	if err != nil || len(profiles.Items) != 1 || profiles.Items[0].Name != settings.DefaultProfileName {
 		t.Fatalf("LoadProfiles on a first run = %+v, %v", profiles, err)
 	}
+	// It stays the first run, for the welcome, until the configuration is kept.
+	if !files.FirstRun() {
+		t.Fatal("reading the defaults ended the first run")
+	}
+	if err := files.SaveConfig(config); err != nil || files.FirstRun() {
+		t.Fatalf("after SaveConfig = %v, still the first run %v", err, files.FirstRun())
+	}
 }
 
 func TestSettingsRoundTrip(t *testing.T) {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";
-import { Card } from "../ui/Feedback";
+import { Banner, Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
@@ -40,6 +40,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
       aside={<HelpTip topic={t("ui.settings.voice.topic")}>{t("ui.settings.voice.help")}</HelpTip>}
     >
       <div className="flex flex-col gap-5">
+        {voice.weak && <Banner tone="warning">{t("ui.settings.voice.weak")}</Banner>}
         <Toggle
           label={t("ui.settings.voice.model.label")}
           checked={voice.model}

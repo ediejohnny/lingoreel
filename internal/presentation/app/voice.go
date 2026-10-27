@@ -42,7 +42,7 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 	view := VoiceSettings{
 		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Battery: a.deps.Ports.Power != nil && a.deps.Ports.Power.HasBattery(),
 		Follow: v.Follow, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
-		EvenWhenBusy: v.EvenWhenBusy, FFmpegPath: v.FFmpegPath,
+		EvenWhenBusy: v.EvenWhenBusy, FFmpegPath: v.FFmpegPath, Weak: a.machine().Weak(),
 	}
 	if a.deps.FFmpeg == nil {
 		return view
@@ -129,7 +129,7 @@ func (a *API) InstallFFmpeg() error {
 		return err
 	}
 	if a.deps.FFmpeg == nil || a.deps.Installer == nil || !a.deps.Installer.Available() {
-		return errors.New(ptbr.T("error.install.unavailable"))
+		return errors.New(ptbr.T("error.install.ffmpegUnavailable"))
 	}
 	go func() {
 		progress := InstallProgress{ID: ffmpegInstallID, Done: true}

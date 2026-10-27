@@ -6,6 +6,7 @@ import {
   lineLanguage,
   lineOfSection,
   noticesOf,
+  relabeled,
   sameSettings,
   settingsSections,
   splitColor,
@@ -13,6 +14,7 @@ import {
   type SectionItem,
   sectionOfPage,
 } from "./settings";
+import type { ProfileSettings } from "./services/backend";
 
 describe("settingsSections", () => {
   const sections = settingsSections({ primary: "Inglês", translation: "Português do Brasil" });
@@ -41,6 +43,8 @@ describe("settingsSections", () => {
       "Avançado",
       "Ajuda",
     ]);
+    // Ajuda opens on the documentation, with the notices beside it.
+    expect(sections.find((item) => item.id === "help")?.children?.map((item) => item.label)).toEqual(["Documentação", "Sobre"]);
   });
 
   it("tells the line each page edits", () => {
@@ -146,6 +150,40 @@ describe("sameSettings", () => {
   it("compares drafts by their content", () => {
     expect(sameSettings({ a: 1, b: [1, 2] }, { a: 1, b: [1, 2] })).toBe(true);
     expect(sameSettings({ a: 1 }, { a: 2 })).toBe(false);
+  });
+});
+
+describe("relabeled", () => {
+  // Only the shortcuts carry the app's words; the rest of a profile is choices.
+  const profile = (shortcuts: ProfileSettings["shortcuts"], name = "Inglês") => ({ name, shortcuts }) as unknown as ProfileSettings;
+  const pause = { command: "toggle-pause", chord: "Space" };
+  const back = { command: "seek-back", chord: "Left" };
+  const portuguese = profile([
+    { ...pause, name: "Pausar", category: "Reprodução", label: "Espaço" },
+    { ...back, name: "Voltar", category: "Reprodução", label: "←" },
+  ]);
+  const english = profile([
+    { ...pause, name: "Pause", category: "Playback", label: "Space" },
+    { ...back, name: "Back", category: "Playback", label: "←" },
+  ]);
+
+  it("keeps a draft of the same profile, in the new language", () => {
+    expect(sameSettings(relabeled(portuguese, english), english)).toBe(true);
+    // A draft that changed a key keeps that key, and its own label.
+    const draft = profile([
+      { ...pause, name: "Pausar", category: "Reprodução", label: "Espaço" },
+      { ...back, chord: "Ctrl+Left", name: "Voltar", category: "Reprodução", label: "Ctrl+←" },
+    ]);
+    expect(relabeled(draft, english).shortcuts).toEqual([
+      { ...pause, name: "Pause", category: "Playback", label: "Space" },
+      { ...back, chord: "Ctrl+Left", name: "Back", category: "Playback", label: "Ctrl+←" },
+    ]);
+    expect(sameSettings(relabeled(draft, english), english)).toBe(false);
+  });
+
+  it("never mistakes another profile for the same one", () => {
+    const french = profile(english.shortcuts, "Francês");
+    expect(sameSettings(relabeled(portuguese, french), french)).toBe(false);
   });
 });
 

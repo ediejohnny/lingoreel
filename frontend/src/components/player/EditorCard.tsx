@@ -138,8 +138,14 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
         />
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2">
-        <TextField label={t("ui.editor.start")} value={start} onChange={setStart} placeholder="1:02:03,456" action={now(setStart)} />
-        <TextField label={t("ui.editor.end")} value={end} onChange={setEnd} placeholder="1:02:05,000" action={now(setEnd)} />
+        <TextField
+          label={t("ui.editor.start")}
+          value={start}
+          onChange={setStart}
+          placeholder={editClock(3723.456)}
+          action={now(setStart)}
+        />
+        <TextField label={t("ui.editor.end")} value={end} onChange={setEnd} placeholder={editClock(3725)} action={now(setEnd)} />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button

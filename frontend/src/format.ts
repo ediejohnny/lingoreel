@@ -1,12 +1,11 @@
-// Small pure helpers for what the screens show.
-import { t } from "./i18n";
+// Small pure helpers for what the screens show; numbers carry the
+// interface's decimal separator.
+import { decimal, t } from "./i18n";
 
-/** speedLabel shows a playback speed as "1,00×". */
+/** speedLabel shows a playback speed as "1,00×" ("1.00×" in English). */
 export function speedLabel(speed: number): string {
-  if (!Number.isFinite(speed) || speed <= 0) {
-    return "1,00×";
-  }
-  return `${speed.toFixed(2).replace(".", ",")}×`;
+  const shown = !Number.isFinite(speed) || speed <= 0 ? 1 : speed;
+  return `${shown.toFixed(2).replace(".", decimal())}×`;
 }
 
 /** progress is the share of the video already played, from 0 to 1. */
@@ -47,7 +46,7 @@ export function passageClock(seconds: number): string {
   const tenthsTotal = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 10) : 0;
   const tenths = tenthsTotal % 10;
   const clock = wholeClock(Math.floor(tenthsTotal / 10));
-  return tenths > 0 ? `${clock},${tenths}` : clock;
+  return tenths > 0 ? `${clock}${decimal()}${tenths}` : clock;
 }
 
 /**
@@ -57,7 +56,7 @@ export function passageClock(seconds: number): string {
 export function editClock(seconds: number): string {
   const millisTotal = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : 0;
   const millis = String(millisTotal % 1000).padStart(3, "0");
-  return `${wholeClock(Math.floor(millisTotal / 1000))},${millis}`;
+  return `${wholeClock(Math.floor(millisTotal / 1000))}${decimal()}${millis}`;
 }
 
 /** wholeClock shows whole seconds as h:mm:ss, or m:ss below an hour. */

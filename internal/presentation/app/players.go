@@ -66,7 +66,7 @@ func (a *API) players() Players {
 			continue
 		}
 		result.Recommendations = append(result.Recommendations, PlayerInstall{
-			ID: string(descriptor.ID), Name: descriptor.Name, Benefit: descriptor.Install.Benefit,
+			ID: string(descriptor.ID), Name: descriptor.Name, Benefit: ptbr.PlayerBenefit(descriptor.ID, descriptor.Install.Benefit),
 			AutoInstall: autoInstall && descriptor.Install.WingetID != "",
 		})
 	}

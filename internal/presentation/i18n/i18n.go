@@ -24,6 +24,10 @@ var locales embed.FS
 // checked against it, and a text missing elsewhere falls back to it.
 const Fallback = "pt-BR"
 
+// Default is the language of a system the app does not speak: English,
+// which more people read than any other the app speaks.
+const Default = "en-US"
+
 // ErrNoCatalog reports a language without a catalog.
 var ErrNoCatalog = errors.New("no catalog for the language")
 
@@ -90,7 +94,7 @@ func Match(tag string) (string, bool) {
 }
 
 // Choose is the interface's language: the one the user configured, else the
-// system's, each only when there is a catalog for it, else the fallback.
+// system's, each only when there is a catalog for it, else the default.
 func Choose(configured, system string) string {
 	for _, tag := range []string{configured, system} {
 		if tag == "" {
@@ -100,7 +104,7 @@ func Choose(configured, system string) string {
 			return matched
 		}
 	}
-	return Fallback
+	return Default
 }
 
 // Load reads a language's catalog, backed by the fallback's for texts it

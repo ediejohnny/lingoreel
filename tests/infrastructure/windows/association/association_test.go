@@ -67,8 +67,11 @@ func write(t *testing.T, path, name, value string) {
 func TestTheAssociationComesAndGoesWithoutTouchingOthers(t *testing.T) {
 	base := testBase(t)
 	const exe = `C:\Program Files\LingoReel\LingoReel.exe`
-	r := association.Registrar{Base: base, Executable: exe, Extensions: []string{".mkv", ".mp4"}}
-	// Another program already owns .mkv and offers itself in "Abrir com".
+	words := func() association.Names {
+		return association.Names{Type: "Vídeo (LingoReel)", Menu: "Assistir com o LingoReel"}
+	}
+	r := association.Registrar{Base: base, Executable: exe, Extensions: []string{".mkv", ".mp4"}, Names: words}
+	// Another program already owns .mkv and offers itself in "Open with".
 	write(t, base+`\.mkv`, "", "VLC.mkv")
 	write(t, base+`\.mkv\OpenWithProgids`, "VLC.mkv", "")
 	write(t, base+`\SystemFileAssociations\.mkv\shell\enqueue`, "", "Adicionar à lista do VLC")
@@ -84,6 +87,7 @@ func TestTheAssociationComesAndGoesWithoutTouchingOthers(t *testing.T) {
 		{base + `\` + association.ProgID + `\shell\open\command`, "", command},
 		{base + `\.mkv\OpenWithProgids`, association.ProgID, ""},
 		{base + `\.mp4\OpenWithProgids`, association.ProgID, ""},
+		{base + `\` + association.ProgID, "", "Vídeo (LingoReel)"},
 		{base + `\SystemFileAssociations\.mp4\shell\LingoReel`, "", "Assistir com o LingoReel"},
 		{base + `\SystemFileAssociations\.mkv\shell\LingoReel\command`, "", command},
 	}

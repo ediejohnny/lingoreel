@@ -17,6 +17,7 @@ import { change, type SectionProps } from "./section";
 export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
   const options = view.options;
   const precisionKeys = both(keyLabel(draft.shortcuts, "precision-back"), keyLabel(draft.shortcuts, "precision-forward"));
+  const volumeKeys = both(keyLabel(draft.shortcuts, "volume-up"), keyLabel(draft.shortcuts, "volume-down"));
   return (
     <>
       <Card title={t("ui.settings.playback.open.title")}>
@@ -43,7 +44,11 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
             step={1}
             unit="%"
             onChange={(step) => change(setDraft, "volumeStep")(Math.round(step))}
-            help={<HelpTip topic={t("ui.settings.playback.volumeStep")}>{t("ui.settings.playback.volumeStepHelp")}</HelpTip>}
+            help={
+              <HelpTip topic={t("ui.settings.playback.volumeStep")}>
+                {volumeKeys ? t("ui.settings.playback.volumeStepHelpKeys", { keys: volumeKeys }) : t("ui.settings.playback.volumeStepHelp")}
+              </HelpTip>
+            }
           />
         </div>
       </Card>

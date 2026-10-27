@@ -3,7 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { AppearanceSection } from "../components/settings/AppearanceSection";
 import { AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
 import { GeneralSection } from "../components/settings/GeneralSection";
-import { HelpSection } from "../components/settings/HelpSection";
+import { HelpDocs, HelpSection } from "../components/settings/HelpSection";
 import { PlayersSection } from "../components/settings/PlayersSection";
 import { ShortcutsSection } from "../components/settings/ShortcutsSection";
 import { StudySection } from "../components/settings/StudySection";
@@ -13,7 +13,7 @@ import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { t } from "../i18n";
 import { backend, messageOf, type InterfaceSettings, type ProfileSettings, type SettingsView } from "../services/backend";
-import { lineLanguage, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
+import { lineLanguage, relabeled, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
 import type { Theme } from "../stores/theme";
 
 interface MenuEntryProps {
@@ -71,6 +71,8 @@ interface SettingsPageProps {
   shown?: boolean;
   /** onSaved is told once the profile changed: saved, reset or switched. */
   onSaved?: () => void;
+  /** onWelcome opens the welcome again; without it (a video plays) the settings do not offer it. */
+  onWelcome?: () => void;
   ref?: Ref<SettingsHandle>;
 }
 
@@ -97,6 +99,7 @@ export function SettingsPage({
   narrow = false,
   shown = true,
   onSaved,
+  onWelcome,
   ref,
 }: SettingsPageProps) {
   const [view, setView] = useState<SettingsView | null>(null);
@@ -112,10 +115,25 @@ export function SettingsPage({
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // latest is the draft and the settings of the last drawing, for what runs later.
+  const latest = useRef({ draft, view });
+  useEffect(() => {
+    latest.current = { draft, view };
+  });
+
+  // Reading the settings again keeps a draft of the same saved profile (the
+  // language, the window or the notices changed meanwhile), in the language
+  // of the moment; another saved profile starts a new draft.
   const reload = useCallback(async () => {
     const next = await backend.settings();
+    const { draft, view } = latest.current;
+    const same =
+      draft !== null &&
+      view !== null &&
+      view.general.activeProfile === next.general.activeProfile &&
+      sameSettings(relabeled(view.profile, next.profile), next.profile);
     setView(next);
-    setDraft(next.profile);
+    setDraft(same ? relabeled(draft, next.profile) : next.profile);
   }, []);
 
   useEffect(() => {
@@ -141,7 +159,7 @@ export function SettingsPage({
   }, [section]);
 
   const run = useCallback(
-    async (action: () => Promise<unknown>, done?: string) => {
+    async (action: () => Promise<unknown>, done?: string | (() => string)) => {
       setError("");
       setNotice("");
       try {
@@ -149,7 +167,8 @@ export function SettingsPage({
         await reload();
         onSaved?.();
         if (done) {
-          setNotice(done);
+          // Worded after the action, which may have changed the language.
+          setNotice(typeof done === "function" ? done() : done);
         }
       } catch (failure) {
         setError(messageOf(failure));
@@ -193,11 +212,6 @@ export function SettingsPage({
     [],
   );
 
-  // Before closing, the screen around asks what to do with the draft.
-  const latest = useRef({ draft, view });
-  useEffect(() => {
-    latest.current = { draft, view };
-  });
   // Shown again with nothing unsaved, the page reads what may have changed meanwhile.
   useEffect(() => {
     const { draft, view } = latest.current;
@@ -258,7 +272,7 @@ export function SettingsPage({
     }
   };
   const discard = () => setDraft(view.profile);
-  const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection };
+  const props: SectionProps = { view, draft, setDraft, dirty, run, open: setSection, welcome: onWelcome };
   const languages = view.options.languages;
   const sections = settingsSections({
     primary: lineLanguage("primary", draft.languages.primary, languages),
@@ -346,7 +360,8 @@ export function SettingsPage({
               <AppearanceSection view={view} draft={draft} run={props.run} theme={theme} onTheme={onTheme} look={look} onLook={onLook} />
             )}
             {section === "advanced" && <AdvancedSection {...props} />}
-            {section === "help" && <HelpSection />}
+            {(section === "help" || section === "help-docs") && <HelpDocs keys={draft.shortcuts} narrow={narrow} onOpen={setSection} />}
+            {section === "help-about" && <HelpSection />}
           </div>
         </main>
         {!narrow && saveBar}

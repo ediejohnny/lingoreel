@@ -53,6 +53,9 @@ export type InterfaceSettings = Plain<app.InterfaceSettings>;
 export type VideoLayout = Plain<app.VideoLayout>;
 export type PanelState = Plain<app.PanelState>;
 export type FillCheck = Plain<app.FillCheck>;
+export type WelcomeView = Plain<app.WelcomeView>;
+export type WelcomeChoices = Plain<app.WelcomeChoices>;
+export type LanguageSettings = Plain<app.LanguageSettings>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -151,6 +154,9 @@ export const backend = {
   preferences: () => api.Preferences(),
   setTheme: (theme: string) => api.SetTheme(theme),
   setLanguage: (tag: string) => api.SetLanguage(tag),
+  welcome: (): Promise<WelcomeView> => api.Welcome(),
+  finishWelcome: (choices: WelcomeChoices) => api.FinishWelcome(choices as app.WelcomeChoices),
+  skipWelcome: () => api.SkipWelcome(),
   installPlayer: (id: string) => api.InstallPlayer(id),
   openDownloadPage: (id: string) => api.OpenDownloadPage(id),
   dismissRecommendation: (id: string) => api.DismissRecommendation(id),

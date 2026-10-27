@@ -8,6 +8,7 @@ import { HomePage } from "./pages/HomePage";
 import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
 import { SettingsPage, type SettingsHandle } from "./pages/SettingsPage";
+import { WelcomePage } from "./pages/WelcomePage";
 import {
   backend,
   messageOf,
@@ -22,10 +23,10 @@ import {
 import { sectionOfPage, type SectionId } from "./settings";
 import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
 import { durationLabel } from "./format";
-import { t, setLanguage } from "./i18n";
+import { t, setLanguage, useLanguage } from "./i18n";
 import { useVideoKeys } from "./videoKeys";
 
-type Screen = "home" | "session" | "playing" | "settings";
+type Screen = "home" | "session" | "playing" | "settings" | "welcome";
 
 /** waitBeforeKeeping lets a slider move before the app's look is saved. */
 const waitBeforeKeeping = 300;
@@ -62,6 +63,16 @@ export function App() {
   const [settingsSection, setSettingsSection] = useState<SectionId>("general");
   const [fullscreen, setFullscreen] = useState(false);
 
+  // Another language draws every screen again in it; what the app worded
+  // (the video, its players and the session) the app sends again.
+  useLanguage();
+
+  // welcoming tells the welcome shows; waiting is the video that waits for it,
+  // afterWelcome the screen it goes back to.
+  const welcoming = useRef(false);
+  const waiting = useRef("");
+  const afterWelcome = useRef<Screen>("home");
+
   const open = useCallback(async (path: string) => {
     if (!path) {
       return;
@@ -94,11 +105,26 @@ export function App() {
         setPanel(preferences.panel);
       })
       .catch(() => undefined);
-    backend
-      .initialVideo()
-      .then(open)
+    // On the first run the welcome comes first; the video the app was opened
+    // with waits for it, as one dropped or sent meanwhile does.
+    Promise.all([backend.welcome().catch(() => null), backend.initialVideo().catch(() => "")])
+      .then(([welcome, path]) => {
+        if (welcome?.pending) {
+          welcoming.current = true;
+          waiting.current = path;
+          setScreen("welcome");
+          return;
+        }
+        return open(path);
+      })
       .catch(() => undefined);
-    const offDropped = backend.onDropped((path) => void open(path));
+    const offDropped = backend.onDropped((path) => {
+      if (welcoming.current) {
+        waiting.current = path;
+        return;
+      }
+      void open(path);
+    });
     const offPlayback = backend.onPlayback((next) => setState(next.active ? next : null));
     const offEnded = backend.onEnded((ended) => {
       setState(null);
@@ -111,7 +137,11 @@ export function App() {
     });
     const offFullscreen = backend.onFullscreen(setFullscreen);
     // A subtitle file added from the menu over the video: the session screen lists it afterwards.
-    const offVideo = backend.onVideo(setVideo);
+    // The same video comes again in another language.
+    const offVideo = backend.onVideo((next) => {
+      setVideo(next);
+      setPlayers(next.players);
+    });
     const offOpening = backend.onOpening((opening) => setOpened(opening.percent));
     const offPanel = backend.onPanel((request) => {
       setPanel((current) => (current.open ? current : { ...current, open: true }));
@@ -240,6 +270,23 @@ export function App() {
     });
   };
 
+  // The welcome opened again from the settings goes back to them.
+  const openWelcome = () => {
+    afterWelcome.current = "settings";
+    welcoming.current = true;
+    setScreen("welcome");
+  };
+  const welcomeDone = () => {
+    welcoming.current = false;
+    setScreen(afterWelcome.current);
+    afterWelcome.current = "home";
+    const path = waiting.current;
+    waiting.current = "";
+    if (path) {
+      void open(path);
+    }
+  };
+
   const dismissRecommendation = async (id: string) => {
     try {
       await backend.dismissRecommendation(id);
@@ -298,9 +345,11 @@ export function App() {
   const subtitle =
     screen === "settings"
       ? t("ui.app.settings")
-      : video && screen !== "home"
-        ? `${video.name} · ${durationLabel(video.duration)}`
-        : undefined;
+      : screen === "welcome"
+        ? t("ui.welcome.subtitle")
+        : video && screen !== "home"
+          ? `${video.name} · ${durationLabel(video.duration)}`
+          : undefined;
   const openSettings = embedded ? (
     <>
       <IconButton
@@ -323,7 +372,7 @@ export function App() {
         }}
       />
     </>
-  ) : screen === "settings" ? undefined : (
+  ) : screen === "settings" || screen === "welcome" ? undefined : (
     <IconButton
       icon={Settings}
       label={t("ui.app.settings")}
@@ -339,7 +388,9 @@ export function App() {
       {!(embedded && fullscreen) && (
         <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
       )}
-      {embedded && video && state ? (
+      {screen === "welcome" ? (
+        <WelcomePage onDone={welcomeDone} />
+      ) : embedded && video && state ? (
         <div className="flex min-h-0 flex-1">
           <VideoStage />
           {panel.open && (
@@ -387,6 +438,7 @@ export function App() {
           look={look}
           onLook={chooseLook}
           onSaved={() => setKeysVersion((version) => version + 1)}
+          onWelcome={state ? undefined : openWelcome}
         />
       ) : screen === "playing" && video && state ? (
         <PlayingPage

@@ -191,6 +191,37 @@ func DefaultProfile() Profile {
 	}
 }
 
+// FirstProfile is the profile a first run starts with: the defaults, named
+// and studying as the person chose, or as Windows tells.
+func FirstProfile(name string, languages LanguagePreferences) Profile {
+	profile := DefaultProfile()
+	profile.Name, profile.Languages = name, languages
+	return profile
+}
+
+// SuggestedLanguages are the languages to study with, from the Windows
+// display language: the person speaks it, on the translation line, and
+// studies English, or Brazilian Portuguese when Windows speaks English. An
+// unknown one keeps the defaults.
+func SuggestedLanguages(system string) LanguagePreferences {
+	base, region, _ := strings.Cut(system, "-")
+	spoken := strings.ToLower(base)
+	if !languageTagPattern.MatchString(spoken) {
+		return DefaultProfile().Languages
+	}
+	if spoken == "pt" {
+		spoken = "pt-BR"
+		if strings.EqualFold(region, "PT") {
+			spoken = "pt-PT"
+		}
+	}
+	studied := "en"
+	if spoken == "en" {
+		studied = "pt-BR"
+	}
+	return LanguagePreferences{Audio: studied, Primary: studied, Translation: spoken}
+}
+
 // Validate checks every preference of the profile.
 func (p Profile) Validate() error {
 	if err := validateProfileName(p.Name); err != nil {

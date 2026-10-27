@@ -2,6 +2,7 @@
 // colors with transparency and telling unsaved changes.
 import { t } from "./i18n";
 import { chordOf, isModifier, type KeyPress } from "./keys";
+import type { ProfileSettings } from "./services/backend";
 
 export type { KeyPress } from "./keys";
 
@@ -26,7 +27,9 @@ export type SectionId =
   | "players"
   | "appearance"
   | "advanced"
-  | "help";
+  | "help"
+  | "help-docs"
+  | "help-about";
 
 /** SectionItem is an entry of the settings menu; detail is a second, smaller line. */
 export interface SectionItem {
@@ -58,7 +61,14 @@ export function settingsSections(languages: Record<SubtitleLine, string>): Secti
     { id: "players", label: t("ui.settings.sections.players") },
     { id: "appearance", label: t("ui.settings.sections.appearance") },
     { id: "advanced", label: t("ui.settings.sections.advanced") },
-    { id: "help", label: t("ui.settings.sections.help") },
+    {
+      id: "help",
+      label: t("ui.settings.sections.help"),
+      children: [
+        { id: "help-docs", label: t("ui.help.title") },
+        { id: "help-about", label: t("ui.settings.about.title") },
+      ],
+    },
   ];
 }
 
@@ -131,6 +141,25 @@ export function joinColor(hex: string, alpha: number): string {
 /** sameSettings tells whether two drafts hold the same choices. */
 export function sameSettings(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * relabeled is a draft with the words the app gave it taken from another
+ * reading of the profile: the shortcuts' names, groups and keys, in the
+ * language of the moment. A key the draft changed keeps its own label.
+ */
+export function relabeled(draft: ProfileSettings, saved: ProfileSettings): ProfileSettings {
+  const words = new Map(saved.shortcuts.map((item) => [item.command, item]));
+  return {
+    ...draft,
+    shortcuts: draft.shortcuts.map((item) => {
+      const fresh = words.get(item.command);
+      if (!fresh) {
+        return item;
+      }
+      return { ...item, name: fresh.name, category: fresh.category, label: fresh.chord === item.chord ? fresh.label : item.label };
+    }),
+  };
 }
 
 /** clampNumber keeps a typed number inside its range; text that is no number keeps the old value. */

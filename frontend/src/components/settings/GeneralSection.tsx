@@ -1,6 +1,6 @@
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
-import { t } from "../../i18n";
+import { setLanguage, t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
@@ -11,8 +11,8 @@ import type { SectionProps } from "./section";
 
 type Editing = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
 
-/** GeneralSection holds the profiles, the interface's language (with more than one) and the sync notice. */
-export function GeneralSection({ view, dirty, run }: SectionProps) {
+/** GeneralSection holds the profiles, the app language (with more than one), the welcome, the window and the sync notice. */
+export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
   const [editing, setEditing] = useState<Editing>({ kind: "none" });
   const active = view.general.activeProfile;
   const finish = async (action: () => Promise<unknown>, done: string) => {
@@ -104,11 +104,33 @@ export function GeneralSection({ view, dirty, run }: SectionProps) {
               { value: "", label: t("ui.settings.language.windows") },
               ...view.general.languages.map((language) => ({ value: language.value, label: language.label })),
             ]}
-            onChange={(language) => void run(() => backend.setLanguage(language), t("ui.settings.language.saved"))}
+            onChange={(language) =>
+              void run(
+                async () => setLanguage(await backend.setLanguage(language)),
+                () => t("ui.settings.language.saved"),
+              )
+            }
             help={<HelpTip topic={t("ui.settings.language.topic")}>{t("ui.settings.language.help")}</HelpTip>}
           />
         </Card>
       )}
+      <Card
+        title={t("ui.settings.welcome.title")}
+        aside={<HelpTip topic={t("ui.settings.welcome.title")}>{t("ui.settings.welcome.help")}</HelpTip>}
+      >
+        <div className="flex flex-col gap-2">
+          <div>
+            <Button icon={Wand2} disabled={!welcome || dirty} onClick={welcome}>
+              {t("ui.settings.welcome.open")}
+            </Button>
+          </div>
+          {!welcome ? (
+            <p className="text-xs text-fg-muted">{t("ui.settings.welcome.watching")}</p>
+          ) : (
+            dirty && <p className="text-xs text-fg-muted">{t("ui.settings.profile.saveFirst")}</p>
+          )}
+        </div>
+      </Card>
       <Card title={t("ui.settings.window.title")}>
         <Toggle
           label={t("ui.settings.window.onTop")}

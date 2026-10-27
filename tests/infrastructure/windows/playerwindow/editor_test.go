@@ -202,7 +202,7 @@ func TestTwoClicksOnAPausedLineOpenTheBoxOverIt(t *testing.T) {
 	if height := float64(-font.Height); height < r.box.H/2 || height > r.box.H {
 		t.Fatalf("the box's font is %v px tall for a line %v px tall", height, r.box.H)
 	}
-	if got := textOf(child(box, "Static")); got != ptbr.EditHint {
+	if got := textOf(child(box, "Static")); got != ptbr.EditHint() {
 		t.Fatalf("hint %q", got)
 	}
 	if !slices.Contains(r.remote.selections(), session.LinePrimary) {

@@ -27,7 +27,7 @@ func (Plugin) Descriptor() player.Descriptor {
 		Install: player.Install{
 			WingetID:    "VideoLAN.VLC",
 			DownloadURL: "https://www.videolan.org/vlc/download-windows.html",
-			Benefit:     "O player mais popular: abre praticamente qualquer formato e é ótimo se você já usa.",
+			Benefit:     "The most popular player: it opens almost any format and is great if you already use it.",
 		},
 		// VLC 3 ignores the close button of its own window: it must draw
 		// into the app's, which closes like any other.

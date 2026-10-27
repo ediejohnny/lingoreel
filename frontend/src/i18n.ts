@@ -4,6 +4,8 @@
 // {percent}%") or plural forms picked by its "count", with the language's
 // own rules (Intl.PluralRules).
 
+import { useSyncExternalStore } from "react";
+
 type Forms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
 type Entry = string | Forms;
 type Catalog = Record<string, Entry>;
@@ -22,19 +24,46 @@ for (const [file, entries] of Object.entries(files)) {
 
 let current = fallback;
 
+/** listeners hear the language change: the screens draw themselves again in it. */
+const listeners = new Set<() => void>();
+
 /** languages lists the languages with a catalog. */
 export function languages(): string[] {
   return Object.keys(catalogs).sort();
 }
 
-/** setLanguage makes a language the interface's: its catalog, or the fallback's when it has none. */
+/** setLanguage makes a language the interface's, at once: its catalog, or the fallback's when it has none. */
 export function setLanguage(tag: string): void {
-  current = catalogs[tag] ? tag : fallback;
+  const next = catalogs[tag] ? tag : fallback;
+  if (next === current) {
+    return;
+  }
+  current = next;
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = current;
+  }
+  listeners.forEach((listener) => listener());
 }
 
 /** language is the interface's language. */
 export function language(): string {
   return current;
+}
+
+/** onLanguage calls a listener at each change of language; it returns what stops it. */
+export function onLanguage(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** useLanguage is the interface's language for a component, which draws itself again when it changes. */
+export function useLanguage(): string {
+  return useSyncExternalStore(onLanguage, language);
+}
+
+/** decimal is the interface's decimal separator: "," in Brazilian Portuguese, "." in English. */
+export function decimal(): string {
+  return new Intl.NumberFormat(current).formatToParts(1.5).find((part) => part.type === "decimal")?.value ?? ".";
 }
 
 export type Params = Record<string, string | number>;

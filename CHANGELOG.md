@@ -6,6 +6,57 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-27
+
+### Added
+
+- The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
+  has its English catalog (`internal/presentation/i18n/locales/en-US`), with English plurals and a decimal point.
+- Choosing the app language applies it at once, even with a video playing: the screens, the bar and the menu over the
+  video, the subtitle line names, the correction box and the Explorer's names for the app all switch without
+  reopening the app, and a settings draft not yet saved is kept.
+- A setup assistant on the first opening asks four quick questions: the app language (applied at once), the language
+  you speak and the one you study, the study mode, and the player and FFmpeg (found, chosen or installed there). Each
+  step can be skipped; skipping, or closing the app, keeps what Windows tells: you speak its language and study English,
+  or Brazilian Portuguese on an English Windows. A video the app was opened with waits for it.
+- On a weak computer (two logical processors or fewer, under 4 GB of memory, or a voice model under 25× real time,
+  measured once in the background on made-up sound), the first opening starts with the voice AI off and says why, in
+  the setup assistant and in Settings › Study › Actors' voice; it can still be turned on, at the user's own risk.
+  Someone who already uses the app keeps their choice.
+- Settings › Help › Documentation teaches everything the app can do, in 14 topics (getting started, watching,
+  subtitles, sync, study modes, karaoke mode, passages, correcting and exporting, shortcuts, profiles and appearance,
+  the voice AI, players, where the app keeps everything, problems and solutions), in both languages. It names the
+  profile's own keys, finds topics by any word with or without accents, opens the settings each topic is about, and
+  shows the topics as a list in the panel beside the video. Help now has two pages: Documentation and About.
+- Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
+  language studied gets a profile of its own, named after it, while the old one stays.
+
+### Changed
+
+- Texts that named a fixed key ("Space", "Backspace", the arrows) now show the key the profile gives the command, or
+  none when it has no shortcut; the karaoke help no longer quotes the default times, which can be changed.
+- The players' reasons to choose them, the Explorer's names for the app, and the messages Windows shows when WebView2
+  is missing are worded in the interface's language.
+- Numbers on the screens (speeds, passage and editor times) carry the interface's decimal separator; the times are read
+  back with either a comma or a point.
+- The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
+  install message for FFmpeg points to the official site and the "Browse…" button.
+- The language setting is called "App language".
+- A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
+  (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
+- The first profile is named after the language studied, in the app language, instead of always the Portuguese name
+  for English.
+- The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
+  below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
+- The README presents the app as it is today, with pictures of it: highlights, features by area, the default
+  shortcuts, requirements, privacy and building from source. The guide to translating covers the documentation's
+  file, the two catalogs and English as the language of a Windows the app does not speak.
+
+### Fixed
+
+- Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
+  changes to the profile not yet saved on the same settings screen.
+
 ## [0.26.0] - 2026-10-07
 
 The seek bar shows a still of the moment under the pointer, as video sites do: taken in the background without
@@ -667,7 +718,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0

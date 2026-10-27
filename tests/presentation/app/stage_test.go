@@ -90,6 +90,12 @@ func (w *fakeAppWindow) SetShortcuts(shortcut.Map) {}
 // stageRig is a rig whose player draws into the app's window, on a stage.
 func stageRig(t *testing.T) (*rig, *fakeStage) {
 	t.Helper()
+	return stageRigWith(t, nil)
+}
+
+// stageRigWith lets a test change the dependencies as well.
+func stageRigWith(t *testing.T, change func(*app.Deps)) (*rig, *fakeStage) {
+	t.Helper()
 	stage := &fakeStage{}
 	r := newRigWith(t, func(deps *app.Deps) {
 		deps.Stage = stage
@@ -97,6 +103,9 @@ func stageRig(t *testing.T) (*rig, *fakeStage) {
 			return &fakeAppWindow{closed: make(chan struct{})}, nil
 		}
 		deps.Ports.WindowHearsKeys = true
+		if change != nil {
+			change(deps)
+		}
 	})
 	r.plugin.drawsInHost = true
 	r.attach(t)

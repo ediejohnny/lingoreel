@@ -29,8 +29,9 @@ What the user sees about the player:
 - **`Name`:** the name shown on screen.
 - **`Install.WingetID`:** the winget package used by the automatic installation. Empty when there is no package.
 - **`Install.DownloadURL`:** the official download page. It must be `https`.
-- **`Install.Benefit`:** one sentence on why to choose this player, in the interface's language (Brazilian Portuguese for
-  now). It shows up behind the (?) button.
+- **`Install.Benefit`:** one sentence in English on why to choose this player. It shows up behind the (?) button; for the
+  players the catalog knows, the screen shows the catalog's sentence in the interface's language instead
+  (`ptbr.PlayerBenefit`), so a new plugin also adds its `player.benefit.<id>` text to every catalog.
 - **`DrawsInHost`:** `true` when the player can draw the video inside a window of the app (`LaunchRequest.Host`). This is
   the preferred way:
   - the window belongs to LingoReel, with closing (X, Alt+F4), fullscreen, keyboard and the control bar that shows

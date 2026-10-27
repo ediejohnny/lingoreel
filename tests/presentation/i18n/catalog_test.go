@@ -139,9 +139,10 @@ func TestTheLanguageAndItsTexts(t *testing.T) {
 		}
 	}
 	// The configured language comes first, then the system's, each only with
-	// a catalog; else the fallback.
+	// a catalog; else English, the default.
 	for _, c := range []struct{ configured, system, want string }{
-		{"", "pt-BR", "pt-BR"}, {"pt-PT", "en-US", "pt-BR"}, {"xx", "yy", i18n.Fallback}, {"", "", i18n.Fallback},
+		{"", "pt-BR", "pt-BR"}, {"pt-PT", "en-US", "pt-BR"}, {"", "pt-PT", "pt-BR"}, {"", "en-GB", "en-US"},
+		{"", "es-ES", i18n.Default}, {"xx", "yy", i18n.Default}, {"", "", i18n.Default}, {"en-US", "pt-BR", "en-US"},
 	} {
 		if got := i18n.Choose(c.configured, c.system); got != c.want {
 			t.Errorf("Choose(%q, %q) = %q, want %q", c.configured, c.system, got, c.want)
@@ -159,6 +160,29 @@ func TestTheLanguageAndItsTexts(t *testing.T) {
 	}
 	if got := catalog.Text("app.windowTitle", "video", "Filme.mkv"); got != "Filme.mkv — LingoReel" {
 		t.Errorf("parameters = %q", got)
+	}
+}
+
+// The English catalog speaks with its own plurals and decimal point, and an
+// English system that is not American gets it too.
+func TestTheAppSpeaksEnglish(t *testing.T) {
+	t.Parallel()
+	for _, tag := range []string{"en-US", "en-GB", "en"} {
+		if got, found := i18n.Match(tag); !found || got != "en-US" {
+			t.Errorf("Match(%q) = %q, %v", tag, got, found)
+		}
+	}
+	catalog, err := i18n.Load("en-US")
+	if err != nil || catalog.Tag() != "en-US" {
+		t.Fatalf("Load(en-US) = %v, %v", catalog, err)
+	}
+	for count, want := range map[int]string{0: "0 laps", 1: "1 lap", 2: "2 laps"} {
+		if got := catalog.Text("bar.stepper.goalValue", "count", count); got != want {
+			t.Errorf("%d laps = %q, want %q", count, got, want)
+		}
+	}
+	if got := catalog.Text("number.decimal"); got != "." {
+		t.Errorf("the decimal separator = %q", got)
 	}
 }
 

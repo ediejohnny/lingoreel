@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
-import { t } from "../../i18n";
+import { decimal, t } from "../../i18n";
 import { clampNumber, joinColor, splitColor } from "../../settings";
 
 interface NumberFieldProps {
@@ -23,7 +23,7 @@ export function NumberField({ label, value, min, max, step, onChange, scale = 1,
   const shown = round(value * scale, step * scale);
   // editing is the text being typed; otherwise the field shows the value.
   const [editing, setEditing] = useState<string | null>(null);
-  const text = editing ?? String(shown).replace(".", ",");
+  const text = editing ?? String(shown).replace(".", decimal());
   const commit = () => {
     if (editing !== null) {
       onChange(clampNumber(editing, min * scale, max * scale, shown) / scale);

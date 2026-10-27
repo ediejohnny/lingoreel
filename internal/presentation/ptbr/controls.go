@@ -266,10 +266,8 @@ func BarStatus(s controlbar.StudyState) string {
 	return ""
 }
 
-// The box that corrects a line over the video: the hint under it, and what
-// is told when Enter would leave the line empty. Use words them again in
-// the interface's language.
-var (
-	EditHint  = T("edit.hint")
-	EditEmpty = T("edit.empty")
-)
+// EditHint shows under the box that corrects a line over the video.
+func EditHint() string { return T("edit.hint") }
+
+// EditEmpty is told when Enter would leave the corrected line empty.
+func EditEmpty() string { return T("edit.empty") }
