@@ -5,47 +5,28 @@ package ffmpeg_test
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
+	"path/filepath"
 	"testing"
 	"time"
-
-	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 )
 
-// standIn makes the test binary play an FFmpeg: "priority" answers
-// "-version" only at a priority a busy computer still serves, "slow" never
-// answers.
-const standIn = "LINGOREEL_TEST_FFMPEG_STAND_IN"
-
-func TestMain(m *testing.M) {
-	switch os.Getenv(standIn) {
-	case "priority":
-		class, err := windows.GetPriorityClass(windows.CurrentProcess())
-		if err == nil && class != windows.IDLE_PRIORITY_CLASS && class != windows.BELOW_NORMAL_PRIORITY_CLASS {
-			fmt.Println("ffmpeg version stand-in")
-		}
-		os.Exit(0)
-	case "slow":
-		time.Sleep(time.Minute)
-		os.Exit(0)
-	}
-	os.Exit(m.Run())
-}
-
 // An FFmpeg that does not answer in time is told slow, not missing: on a
-// busy computer it may well be there, and it is asked again later.
+// busy computer it may well be there, and it is asked again later. Only
+// places that hold no FFmpeg at all are told missing. (The search is given
+// its places, all in the test's own folder: no test looks around the
+// computer for an FFmpeg.)
 func TestAnFFmpegThatDoesNotAnswerInTimeIsSlowNotMissing(t *testing.T) {
-	self, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	self := standInPath(t)
+	nothing := filepath.Join(t.TempDir(), "ffmpeg.exe")
 	t.Setenv(standIn, "slow")
+	if _, err := ffmpeg.FindAmong(context.Background(), []string{"", nothing}); !errors.Is(err, ffmpeg.ErrNotFound) {
+		t.Fatalf("no FFmpeg anywhere: %v, want ffmpeg.ErrNotFound", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if _, err := ffmpeg.Find(ctx, self); !errors.Is(err, ffmpeg.ErrSlow) {
+	if _, err := ffmpeg.FindAmong(ctx, []string{nothing, self}); !errors.Is(err, ffmpeg.ErrSlow) {
 		t.Fatalf("an FFmpeg that did not answer in time: %v, want ffmpeg.ErrSlow", err)
 	}
 }
@@ -55,10 +36,7 @@ func TestAnFFmpegThatDoesNotAnswerInTimeIsSlowNotMissing(t *testing.T) {
 // priority waits tens of seconds for a turn, and an FFmpeg that is there
 // would be told missing.
 func TestTheCheckRunsAtAPriorityABusyComputerServes(t *testing.T) {
-	self, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	self := standInPath(t)
 	t.Setenv(standIn, "priority")
 	if err := ffmpeg.Check(context.Background(), self); err != nil {
 		t.Fatalf("an FFmpeg checked at a priority a busy computer starves: %v", err)

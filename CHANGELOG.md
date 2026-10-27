@@ -19,6 +19,13 @@ All notable changes to this project are listed here. The format follows
   time is told apart from a missing one: Settings say the computer is busy and offer no installation, and an FFmpeg
   chosen by hand is not called "not a working FFmpeg". Its work, the voice and the seek bar's stills, keeps the idle
   priority, so it never takes the film's turn.
+- A computer busy for a moment no longer turns the seek bar's stills off until the film is opened again. The look at
+  the film every still waits for now runs at the normal priority (on two busy processors it waited past its time at the
+  idle one), after the first seconds of play like the stills themselves, so the player's opening is left alone. What
+  the computer, not the film, kept from being done in time (a still that got almost no processor, or a wait for its turn
+  behind the voice) is asked again after a rest of 30 seconds, or at once when the pointer comes to the bar. Such a
+  still never counts toward giving up on the film; one that worked its whole time still does, so a film too heavy for
+  its stills is not tried for ever.
 
 ## [0.27.2] - 2026-10-27
 

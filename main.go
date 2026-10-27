@@ -459,10 +459,14 @@ func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
 }
 
 // openStills prepares a film for the seek bar's stills with the user's own
-// FFmpeg.
+// FFmpeg; one that did not answer in time leaves the stills to be asked for
+// again, one missing ends them.
 func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
 	path, err := ffmpeg.Find(ctx, chosen)
-	if err != nil {
+	switch {
+	case errors.Is(err, ffmpeg.ErrSlow):
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
+	case err != nil:
 		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
 	}
 	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)

@@ -33,8 +33,9 @@ type View struct {
 
 // Options tune a Service; zero fields take the defaults.
 type Options struct {
-	// Delay is how long the film plays before the first still, so the
-	// player's opening is not disturbed; the pointer on the bar ends it.
+	// Delay is how long the film plays before it is looked at and its first
+	// still taken, so the player's opening is not disturbed; the pointer on
+	// the bar ends it.
 	Delay time.Duration
 	// Overview is how many stills come at full speed before the background
 	// is paced: the first ones already cover the film.
@@ -43,8 +44,12 @@ type Options struct {
 	// for a moment: meanwhile no still is paced.
 	Hover time.Duration
 	// GiveUp is how many stills in a row may fail before the film's stills
-	// stop.
+	// stop; a still the computer was too busy for (ErrBusy) is no failure.
 	GiveUp int
+	// BusyRest is how long the stills wait after the computer was too busy
+	// for one, or for looking at the film, before asking again; the pointer
+	// on the bar ends the wait.
+	BusyRest time.Duration
 	// Store keeps the film's stills between openings; nil keeps them in
 	// memory only. They are saved once SaveEvery new stills, and as many as
 	// those already kept, are there, and when the stills end; a problem
@@ -66,6 +71,7 @@ const (
 	defaultOverview  = 100
 	defaultHover     = 2 * time.Second
 	defaultGiveUp    = 3
+	defaultBusyRest  = 30 * time.Second
 	defaultSaveEvery = 25
 	// durationPoll is how often a film with no duration yet is asked again.
 	durationPoll = 250 * time.Millisecond
@@ -115,6 +121,9 @@ func Start(file string, open Opener, duration func() time.Duration, options Opti
 	}
 	if options.Hover <= 0 {
 		options.Hover = defaultHover
+	}
+	if options.BusyRest <= 0 {
+		options.BusyRest = defaultBusyRest
 	}
 	options.Overview = cmpOr(options.Overview, defaultOverview)
 	options.GiveUp = cmpOr(options.GiveUp, defaultGiveUp)
@@ -245,12 +254,16 @@ func (s *Service) run() {
 	if s.load() && (!s.ensurePlan() || s.complete()) {
 		return
 	}
-	film, err := s.open(s.ctx, s.file)
+	// Nothing runs while the player opens the film, the look at it included.
+	if !s.pause(s.options.Delay) {
+		return
+	}
+	film, err := s.openWhenFree()
 	if err != nil {
 		s.stop(err)
 		return
 	}
-	if !s.pause(s.options.Delay) || !s.ensurePlan() {
+	if !s.ensurePlan() {
 		return
 	}
 	plan := s.plan
@@ -278,11 +291,15 @@ func (s *Service) run() {
 		if s.ctx.Err() != nil {
 			return
 		}
+		busy := errors.Is(err, ErrBusy)
 		s.mu.Lock()
-		if err != nil {
+		switch {
+		case busy:
+			// The slot stays open, to be taken after the rest.
+		case err != nil:
 			plan.Skip(slot)
 			failures++
-		} else {
+		default:
 			plan.Done(slot, picture.At)
 			s.pictures[picture.At] = picture
 			s.kept = append(s.kept, Kept{Asked: asked, Picture: picture})
@@ -294,6 +311,10 @@ func (s *Service) run() {
 		due := s.unsaved >= s.options.SaveEvery && s.unsaved >= len(s.kept)-s.unsaved
 		s.mu.Unlock()
 		switch {
+		case busy:
+			if !s.pause(s.options.BusyRest) {
+				return
+			}
 		case errors.Is(err, ErrNoStills):
 			s.stop(err)
 			return
@@ -302,6 +323,20 @@ func (s *Service) run() {
 			return
 		case due:
 			s.save()
+		}
+	}
+}
+
+// openWhenFree looks at the film, again after each rest while the computer
+// is too busy to; an error once the service is closed.
+func (s *Service) openWhenFree() (Film, error) {
+	for {
+		film, err := s.open(s.ctx, s.file)
+		if !errors.Is(err, ErrBusy) {
+			return film, err
+		}
+		if !s.pause(s.options.BusyRest) {
+			return nil, s.ctx.Err()
 		}
 	}
 }

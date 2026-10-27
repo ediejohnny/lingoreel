@@ -56,17 +56,23 @@ func Check(ctx context.Context, path string) error {
 }
 
 // Find returns the first FFmpeg that runs: the one the user chose, else
-// one where FFmpeg is usually installed on this system. With none running
-// and one that did not answer in time, it reports ErrSlow, not ErrNotFound.
+// one where FFmpeg is usually installed on this system.
 func Find(ctx context.Context, chosen string) (string, error) {
+	return FindAmong(ctx, append([]string{chosen}, candidates()...))
+}
+
+// FindAmong returns the first of places that is an FFmpeg that runs; empty
+// places are passed over. With none running and one that did not answer in
+// time, it reports ErrSlow, not ErrNotFound.
+func FindAmong(ctx context.Context, places []string) (string, error) {
 	missing := ErrNotFound
-	for _, candidate := range append([]string{chosen}, candidates()...) {
-		if candidate == "" {
+	for _, place := range places {
+		if place == "" {
 			continue
 		}
-		switch err := Check(ctx, candidate); {
+		switch err := Check(ctx, place); {
 		case err == nil:
-			return candidate, nil
+			return place, nil
 		case errors.Is(err, ErrSlow):
 			missing = ErrSlow
 		}

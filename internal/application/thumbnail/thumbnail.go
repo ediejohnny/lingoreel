@@ -13,6 +13,12 @@ import (
 // the app cannot show right (the bar then shows the time alone).
 var ErrNoStills = errors.New("the film gives no stills")
 
+// ErrBusy reports work the computer, not the film, kept from being done in
+// time (its processors busy, its disk slow to answer): the still, or the
+// look at the film, is asked again after a rest and never counts toward
+// giving up.
+var ErrBusy = errors.New("the computer was too busy to do it in time")
+
 // ErrNoRoom reports a disk without the room to keep a film's stills: they
 // stay in memory for the rest of the session.
 var ErrNoRoom = errors.New("no room on the disk to keep the stills")
@@ -44,7 +50,7 @@ type Film interface {
 }
 
 // Opener prepares a video for its stills, looking at it once, or reports
-// ErrNoStills.
+// ErrNoStills, or ErrBusy when the computer kept it from looking in time.
 type Opener func(ctx context.Context, file string) (Film, error)
 
 // Kept is a still as kept between openings: the moment it was asked for,

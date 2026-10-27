@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,7 +18,8 @@ import (
 // moment under the pointer first, never making anyone wait.
 
 // fakeFilm takes stills on demand: with a gate, each still waits for a
-// token (or its context), and started tells each one as it begins.
+// token (or its context), and started tells each one as it begins. Its
+// first busy stills find the computer too busy.
 type fakeFilm struct {
 	gate    chan struct{}
 	started chan thumbnail.Shot
@@ -26,6 +28,7 @@ type fakeFilm struct {
 	mu    sync.Mutex
 	shots []thumbnail.Shot
 	ctxs  []context.Context
+	busy  int
 }
 
 func newFakeFilm(gated bool) *fakeFilm {
@@ -39,8 +42,15 @@ func newFakeFilm(gated bool) *fakeFilm {
 func (f *fakeFilm) Grab(ctx context.Context, shot thumbnail.Shot) (thumbnail.Picture, error) {
 	f.mu.Lock()
 	f.shots, f.ctxs = append(f.shots, shot), append(f.ctxs, ctx)
+	busy := f.busy > 0
+	if busy {
+		f.busy--
+	}
 	f.mu.Unlock()
 	f.started <- shot
+	if busy {
+		return thumbnail.Picture{}, fmt.Errorf("%w: taking the still", thumbnail.ErrBusy)
+	}
 	if f.gate != nil {
 		select {
 		case <-f.gate:
@@ -149,7 +159,7 @@ func TestAThumbnailIsOffThenPendingThenReady(t *testing.T) {
 	stopped := make(chan error, 1)
 	none := thumbnail.Start("sound.mkv", func(context.Context, string) (thumbnail.Film, error) {
 		return nil, thumbnail.ErrNoStills
-	}, lasting(time.Minute), thumbnail.Options{OnStop: func(err error) { stopped <- err }})
+	}, lasting(time.Minute), thumbnail.Options{Delay: time.Millisecond, OnStop: func(err error) { stopped <- err }})
 	t.Cleanup(none.Close)
 	select {
 	case err := <-stopped:
@@ -228,6 +238,113 @@ func TestTheStillsGiveUpOnAFilmThatKeepsFailing(t *testing.T) {
 		if view := s.Thumbnail(0); view.Status != thumbnail.Off {
 			t.Fatalf("after giving up: %+v", view)
 		}
+	}
+}
+
+// A computer too busy to look at the film or to take a still never ends the
+// film's stills: the service rests, asks nothing during the rest, and asks
+// again after it, as often as it takes. A still the computer could not take
+// stays to be taken and never counts toward giving up, so four in a row (more
+// than the three that give up) still end with every still there.
+func TestABusyComputerNeverEndsTheStills(t *testing.T) {
+	t.Parallel()
+	const busyRest = 17 * time.Second // told apart from the service's other waits
+	rests := make(chan chan time.Time, 16)
+	after := func(d time.Duration) <-chan time.Time {
+		if d != busyRest {
+			return time.After(d)
+		}
+		ended := make(chan time.Time, 1)
+		rests <- ended
+		return ended
+	}
+	film := newFakeFilm(false)
+	film.busy = 4
+	var opens atomic.Int32
+	open := func(context.Context, string) (thumbnail.Film, error) {
+		if opens.Add(1) <= 2 {
+			return nil, fmt.Errorf("%w: describing the film", thumbnail.ErrBusy)
+		}
+		return film, nil
+	}
+	stopped := make(chan error, 1)
+	s := thumbnail.Start("film.mkv", open, lasting(100*time.Second), thumbnail.Options{
+		Delay: time.Millisecond, BusyRest: busyRest, After: after, OnStop: func(err error) { stopped <- err },
+	})
+	t.Cleanup(s.Close)
+
+	// Two busy openings, then four busy stills: each is followed by a rest
+	// during which nothing more is asked.
+	for i := range 6 {
+		var ended chan time.Time
+		select {
+		case ended = <-rests:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("no rest after busy answer %d", i+1)
+		}
+		asked := int(opens.Load()) + len(film.taken())
+		time.Sleep(20 * time.Millisecond)
+		if now := int(opens.Load()) + len(film.taken()); now != asked {
+			t.Fatalf("during rest %d the service asked again (%d asks, then %d)", i+1, asked, now)
+		}
+		ended <- time.Time{}
+	}
+	testkit.Eventually(t, "every still taken", func() bool {
+		for at := time.Duration(0); at < 100*time.Second; at += 10 * time.Second {
+			if view := s.Thumbnail(at); view.Status != thumbnail.Ready || !view.Sharp {
+				return false
+			}
+		}
+		return true
+	})
+	select {
+	case err := <-stopped:
+		t.Fatalf("a busy computer stopped the stills: %v", err)
+	default:
+	}
+	if opened, taken := opens.Load(), len(film.taken()); opened != 3 || taken != 14 {
+		t.Fatalf("%d openings and %d stills asked, want 3 and 14 (10 stills, 4 of them asked twice)", opened, taken)
+	}
+}
+
+// Nothing looks at the film while the player opens it, the look every still
+// waits for included: it comes once the delay is over, or at once for the
+// pointer at the bar.
+func TestTheFilmIsLookedAtOnlyAfterTheDelay(t *testing.T) {
+	t.Parallel()
+	for _, pointed := range []bool{false, true} {
+		delays := make(chan chan time.Time, 1)
+		after := func(d time.Duration) <-chan time.Time {
+			if d != time.Hour {
+				return time.After(d)
+			}
+			ended := make(chan time.Time, 1)
+			delays <- ended
+			return ended
+		}
+		var opens atomic.Int32
+		film := newFakeFilm(false)
+		open := func(context.Context, string) (thumbnail.Film, error) {
+			opens.Add(1)
+			return film, nil
+		}
+		s := thumbnail.Start("film.mkv", open, lasting(time.Minute), thumbnail.Options{Delay: time.Hour, After: after})
+		t.Cleanup(s.Close)
+		var ended chan time.Time
+		select {
+		case ended = <-delays:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the delay never began")
+		}
+		if n := opens.Load(); n != 0 {
+			t.Fatalf("the film was looked at %d times while the player opened it", n)
+		}
+		if pointed {
+			s.Want(30 * time.Second)
+		} else {
+			ended <- time.Time{}
+		}
+		testkit.Eventually(t, "the film looked at after the delay", func() bool { return opens.Load() == 1 })
 	}
 }
 
@@ -473,7 +590,9 @@ func TestKeptStillsOutliveAFilmThatGivesNone(t *testing.T) {
 	stopped := make(chan error, 1)
 	s := thumbnail.Start("film.mkv", func(context.Context, string) (thumbnail.Film, error) {
 		return nil, thumbnail.ErrNoStills
-	}, lasting(20*time.Minute), thumbnail.Options{Store: &fakeStore{kept: keptAt(60)}, OnStop: func(err error) { stopped <- err }})
+	}, lasting(20*time.Minute), thumbnail.Options{
+		Delay: time.Millisecond, Store: &fakeStore{kept: keptAt(60)}, OnStop: func(err error) { stopped <- err },
+	})
 	t.Cleanup(s.Close)
 	select {
 	case <-stopped:
