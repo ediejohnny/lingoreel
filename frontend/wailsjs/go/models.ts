@@ -1374,6 +1374,7 @@ export namespace app {
 	    evenWhenBusy: boolean;
 	    ffmpegPath: string;
 	    ffmpegFound: string;
+	    ffmpegSlow: boolean;
 	    canInstall: boolean;
 	    weak: boolean;
 	
@@ -1392,6 +1393,7 @@ export namespace app {
 	        this.evenWhenBusy = source["evenWhenBusy"];
 	        this.ffmpegPath = source["ffmpegPath"];
 	        this.ffmpegFound = source["ffmpegFound"];
+	        this.ffmpegSlow = source["ffmpegSlow"];
 	        this.canInstall = source["canInstall"];
 	        this.weak = source["weak"];
 	    }

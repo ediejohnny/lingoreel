@@ -26,6 +26,9 @@ var (
 	ErrNotFound = errors.New("ffmpeg: not found")
 	// ErrNotFFmpeg reports a program that is not an FFmpeg that runs.
 	ErrNotFFmpeg = errors.New("ffmpeg: the program is not an FFmpeg that runs")
+	// ErrSlow reports an FFmpeg that did not answer in time, as on a computer
+	// too busy to start it: it may well be there, so it is asked again later.
+	ErrSlow = errors.New("ffmpeg: the program did not answer in time")
 )
 
 // WingetID is the FFmpeg the app offers to install, under the LGPL: the
@@ -35,14 +38,18 @@ const WingetID = "BtbN.FFmpeg.LGPL.8.1"
 // checkTimeout bounds "ffmpeg -version", which answers at once.
 const checkTimeout = 5 * time.Second
 
-// Check tells whether a program is an FFmpeg that runs.
+// Check tells whether a program is an FFmpeg that runs. It runs at the
+// normal priority, so a busy computer still answers it at once.
 func Check(ctx context.Context, path string) error {
 	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
 	defer cancel()
 	command := exec.CommandContext(ctx, path, "-hide_banner", "-version")
-	command.SysProcAttr = background()
+	command.SysProcAttr = brief()
 	out, err := command.Output()
-	if err != nil || !bytes.HasPrefix(out, []byte("ffmpeg version")) {
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		return fmt.Errorf("%w: %s", ErrSlow, path)
+	case err != nil || !bytes.HasPrefix(out, []byte("ffmpeg version")):
 		return fmt.Errorf("%w: %s", ErrNotFFmpeg, path)
 	}
 	return nil
@@ -51,12 +58,26 @@ func Check(ctx context.Context, path string) error {
 // Find returns the first FFmpeg that runs: the one the user chose, else
 // one where FFmpeg is usually installed on this system.
 func Find(ctx context.Context, chosen string) (string, error) {
-	for _, candidate := range append([]string{chosen}, candidates()...) {
-		if candidate != "" && Check(ctx, candidate) == nil {
-			return candidate, nil
+	return FindAmong(ctx, append([]string{chosen}, candidates()...))
+}
+
+// FindAmong returns the first of places that is an FFmpeg that runs; empty
+// places are passed over. With none running and one that did not answer in
+// time, it reports ErrSlow, not ErrNotFound.
+func FindAmong(ctx context.Context, places []string) (string, error) {
+	missing := ErrNotFound
+	for _, place := range places {
+		if place == "" {
+			continue
+		}
+		switch err := Check(ctx, place); {
+		case err == nil:
+			return place, nil
+		case errors.Is(err, ErrSlow):
+			missing = ErrSlow
 		}
 	}
-	return "", ErrNotFound
+	return "", missing
 }
 
 // Arguments is the command line that decodes a stretch to 16 kHz float on

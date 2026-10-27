@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -427,14 +428,25 @@ func windowsVersion() string {
 	return fmt.Sprintf("%d.%d.%d", v.MajorVersion, v.MinorVersion, v.BuildNumber)
 }
 
-// userFFmpeg is the user's own FFmpeg for the settings screen.
+// userFFmpeg is the user's own FFmpeg for the settings screen, which tells
+// one that did not answer in time apart from one that is missing.
 type userFFmpeg struct{}
 
 func (userFFmpeg) Find(ctx context.Context, chosen string) (string, error) {
-	return ffmpeg.Find(ctx, chosen)
+	path, err := ffmpeg.Find(ctx, chosen)
+	return path, slowOf(err)
 }
-func (userFFmpeg) Check(ctx context.Context, path string) error { return ffmpeg.Check(ctx, path) }
-func (userFFmpeg) WingetID() string                             { return ffmpeg.WingetID }
+func (userFFmpeg) Check(ctx context.Context, path string) error {
+	return slowOf(ffmpeg.Check(ctx, path))
+}
+func (userFFmpeg) WingetID() string { return ffmpeg.WingetID }
+
+func slowOf(err error) error {
+	if errors.Is(err, ffmpeg.ErrSlow) {
+		return fmt.Errorf("%w: %w", app.ErrFFmpegSlow, err)
+	}
+	return err
+}
 
 // findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
 // ahead of the video; the app ships none.
@@ -447,10 +459,14 @@ func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
 }
 
 // openStills prepares a film for the seek bar's stills with the user's own
-// FFmpeg.
+// FFmpeg; one that did not answer in time leaves the stills to be asked for
+// again, one missing ends them.
 func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
 	path, err := ffmpeg.Find(ctx, chosen)
-	if err != nil {
+	switch {
+	case errors.Is(err, ffmpeg.ErrSlow):
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
+	case err != nil:
 		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
 	}
 	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)

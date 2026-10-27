@@ -290,6 +290,7 @@
   "ui.settings.ffmpeg.install": "Instalar o FFmpeg",
   "ui.settings.ffmpeg.installed": "FFmpeg instalado.",
   "ui.settings.ffmpeg.label": "FFmpeg",
+  "ui.settings.ffmpeg.slow": "O FFmpeg não respondeu a tempo porque o computador está ocupado. Ele é procurado de novo quando você abre esta tela ou um vídeo.",
   "ui.settings.ffmpeg.topic": "FFmpeg",
   "ui.settings.fill.adopt": "Usar esta cor",
   "ui.settings.fill.standIn": "Essa cor some sobre a cor da legenda de estudo. No vídeo, o preenchimento usa {color}.",

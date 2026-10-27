@@ -103,6 +103,13 @@ func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	if preview == 0 {
 		t.Fatal("no seek preview window")
 	}
+	// As in the app, the subtitles' window is up before the pointer comes to
+	// the bar; coming over the preview later is what the push below plays.
+	var subtitles windows.HWND
+	testkit.Eventually(t, "the subtitles' window to show", func() bool {
+		subtitles = ownedWindow(host, "LingoReelOverlay")
+		return subtitles != 0 && windows.IsWindowVisible(subtitles)
+	})
 	origin, err := win32.ClientRectOnScreen(host)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +127,6 @@ func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	if r.Bottom > origin.Top+308 || r.Bottom-r.Top < 68 {
 		t.Fatalf("preview at %+v: want the still and the time above the track (client y 308)", r)
 	}
-	subtitles := ownedWindow(host, "LingoReelOverlay")
 	onTop := func() bool { return zOrder(preview) < zOrder(subtitles) && zOrder(preview) < zOrder(host) }
 	testkit.Eventually(t, "the preview over the subtitles and the video", onTop)
 	if err := win32.SetWindowPos(subtitles, 0, win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE); err != nil {

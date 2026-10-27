@@ -6,10 +6,28 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-10-27
+
 ### Changed
 
 - The README says plainly that its screenshots' frames of Sintel stay under Creative Commons Attribution 3.0, with
   the app's subtitles and menus drawn over them, and are not covered by the MIT license.
+
+### Fixed
+
+- On a computer whose processors were all busy, the app said FFmpeg was missing while it was there: the check that it
+  runs started it at the idle priority, where it waited up to a minute for a turn. The check now runs at the normal
+  priority (it answers in a third of a second on two busy processors), and an FFmpeg that still does not answer in
+  time is told apart from a missing one: Settings say the computer is busy and offer no installation, and an FFmpeg
+  chosen by hand is not called "not a working FFmpeg". Its work, the voice and the seek bar's stills, keeps the idle
+  priority, so it never takes the film's turn.
+- A computer busy for a moment no longer turns the seek bar's stills off until the film is opened again. The look at
+  the film every still waits for now runs at the normal priority (on two busy processors it waited past its time at the
+  idle one), after the first seconds of play like the stills themselves, so the player's opening is left alone. What
+  the computer, not the film, kept from being done in time (a still that got almost no processor, or a wait for its turn
+  behind the voice) is asked again after a rest of 30 seconds, or at once when the pointer comes to the bar. Such a
+  still never counts toward giving up on the film; one that worked its whole time still does, so a film too heavy for
+  its stills is not tried for ever.
 
 ## [0.27.2] - 2026-10-27
 
@@ -789,7 +807,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...HEAD
+[0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0

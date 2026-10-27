@@ -82,7 +82,7 @@ func TestTheThumbnailSettings(t *testing.T) {
 }
 
 // Turned off, a video's stills are never taken; turned on while it plays,
-// they start at once.
+// they start, at once for the pointer at the bar.
 func TestTheThumbnailSettingsReachTheVideo(t *testing.T) {
 	t.Parallel()
 	window := &hostWindow{recordingDisplay: &recordingDisplay{}}
@@ -116,5 +116,12 @@ func TestTheThumbnailSettingsReachTheVideo(t *testing.T) {
 	if err := r.api.SetThumbnails(off); err != nil {
 		t.Fatal(err)
 	}
+	window.mu.Lock()
+	remote := window.remote
+	window.mu.Unlock()
+	if remote == nil {
+		t.Fatal("the window drives no session")
+	}
+	remote.WantThumbnail(30 * time.Second) // the pointer comes to the bar
 	testkit.Eventually(t, "the stills to start", func() bool { return opens.Load() > 0 })
 }

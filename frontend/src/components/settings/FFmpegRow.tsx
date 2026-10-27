@@ -7,7 +7,10 @@ import { HelpTip } from "../ui/HelpTip";
 import type { SectionProps } from "./section";
 
 interface FFmpegRowProps extends Pick<SectionProps, "run"> {
-  /** voice holds the FFmpeg chosen, the one found and whether one can be installed: the voice's and the stills' alike. */
+  /**
+   * voice holds the FFmpeg chosen, the one found, whether it was too slow to answer (a busy computer, not a missing
+   * FFmpeg) and whether one can be installed: the voice's and the stills' alike.
+   */
   voice: VoiceSettings;
   /** disabled leaves choosing and installing off while nothing uses FFmpeg. */
   disabled: boolean;
@@ -55,7 +58,9 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
         <span className="text-sm font-medium text-fg">{t("ui.settings.ffmpeg.label")}</span>
         <HelpTip topic={t("ui.settings.ffmpeg.topic")}>{help}</HelpTip>
       </div>
-      <p className="text-sm break-all text-fg-muted">{voice.ffmpegFound ? found(voice.ffmpegFound) : missing}</p>
+      <p className="text-sm break-all text-fg-muted">
+        {voice.ffmpegFound ? found(voice.ffmpegFound) : voice.ffmpegSlow ? t("ui.settings.ffmpeg.slow") : missing}
+      </p>
       <div className="flex flex-wrap gap-2">
         <Button
           icon={FolderOpen}

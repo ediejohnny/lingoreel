@@ -286,25 +286,30 @@ func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 }
 
 // describe has FFmpeg describe the file: given no output, it describes its
-// input on the error output and ends.
+// input on the error output and ends. Every still waits for it, and it is
+// brief, so it runs at the normal priority; past its time, waiting for its
+// turn behind another FFmpeg of the app or held back by the computer, it is
+// busy (thumbnail.ErrBusy).
 func (s Stills) describe(ctx context.Context, file, format string) (string, error) {
+	const what = "describing the film"
 	ctx, cancel := context.WithTimeout(ctx, describeTimeout)
 	defer cancel()
 	command := exec.CommandContext(ctx, s.Path, "-hide_banner", "-nostdin", "-protocol_whitelist", "file", "-f", format, "-i", "file:"+file)
-	command.SysProcAttr = background()
+	command.SysProcAttr = brief()
 	var description bytes.Buffer
 	command.Stderr = &limitedWriter{buffer: &description, room: maxDescription}
 	release, err := takeTurn(ctx)
 	if err != nil {
-		return "", fmt.Errorf("ffmpeg: describing the film: %w", err)
+		return "", late(what, err, true) // the wait for the turn is never the film's doing
 	}
 	defer release()
+	began := time.Now()
 	if _, err := start(command, plainRun); err != nil {
 		return "", err
 	}
 	_ = command.Wait() // it always fails: there is no output
 	if err := ctx.Err(); err != nil {
-		return "", fmt.Errorf("ffmpeg: describing the film: %w", err)
+		return "", late(what, err, Starved(processorOf(command), time.Since(began), 1))
 	}
 	return description.String(), nil
 }
@@ -328,6 +333,33 @@ type cost struct {
 	wall, cpu time.Duration
 	reads     reads
 	capped    bool
+}
+
+// Starved tells, of a run that reached its deadline, whether the computer
+// held it back rather than the work being too much: it had less than half
+// the processor it could take (share: 1 for one thread, less for a run held
+// to a share of one). What was starved is asked again later; what worked the
+// whole time is not, so a film too heavy for its stills is never tried for
+// ever.
+func Starved(cpu, wall time.Duration, share float64) bool {
+	return float64(cpu) < share*float64(wall)/2
+}
+
+// processorOf is the processor time an ended run took.
+func processorOf(command *exec.Cmd) time.Duration {
+	if state := command.ProcessState; state != nil {
+		return state.UserTime() + state.SystemTime()
+	}
+	return 0
+}
+
+// late words work that reached its deadline: busy (thumbnail.ErrBusy) when
+// the computer held it back, its plain context error otherwise.
+func late(what string, err error, heldBack bool) error {
+	if heldBack && errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("%w: %s: %w", thumbnail.ErrBusy, what, err)
+	}
+	return fmt.Errorf("ffmpeg: %s: %w", what, err)
 }
 
 // Grab takes a still: the pointer's at once, the others in their turn after
@@ -404,9 +436,11 @@ func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (th
 		cancel()
 	}
 	waitErr := command.Wait()
-	spent := cost{wall: time.Since(began), reads: watch.stop(), capped: capped && kind == pacedRun}
-	if state := command.ProcessState; state != nil {
-		spent.cpu = state.UserTime() + state.SystemTime()
+	spent := cost{wall: time.Since(began), cpu: processorOf(command), reads: watch.stop(), capped: capped && kind == pacedRun}
+	// A still runs on one thread, a capped one on its share of it.
+	share := 1.0
+	if spent.capped {
+		share = pacedShare
 	}
 	switch {
 	case spent.reads.over:
@@ -415,7 +449,8 @@ func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (th
 	case len(still) > maxStill:
 		return thumbnail.Picture{}, spent, "", errors.New("ffmpeg: the still is larger than any still")
 	case ctx.Err() != nil:
-		return thumbnail.Picture{}, spent, "", fmt.Errorf("ffmpeg: taking the still at %v: %w", shot.At, ctx.Err())
+		what := fmt.Sprintf("taking the still at %v", shot.At)
+		return thumbnail.Picture{}, spent, "", late(what, ctx.Err(), Starved(spent.cpu, spent.wall, share))
 	case waitErr != nil:
 		problems := strings.TrimSpace(told.String())
 		return thumbnail.Picture{}, spent, problems, fmt.Errorf("ffmpeg: %w: %s", waitErr, problems)

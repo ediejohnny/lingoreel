@@ -290,6 +290,7 @@
   "ui.settings.ffmpeg.install": "Install FFmpeg",
   "ui.settings.ffmpeg.installed": "FFmpeg installed.",
   "ui.settings.ffmpeg.label": "FFmpeg",
+  "ui.settings.ffmpeg.slow": "FFmpeg did not answer in time because the computer is busy. It is looked for again when you open this screen or a video.",
   "ui.settings.ffmpeg.topic": "FFmpeg",
   "ui.settings.fill.adopt": "Use this color",
   "ui.settings.fill.standIn": "That color disappears over the study subtitle's color. On the video, the fill uses {color}.",

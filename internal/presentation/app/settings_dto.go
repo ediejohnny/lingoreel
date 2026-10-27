@@ -57,10 +57,12 @@ type VoiceSettings struct {
 	DelayMs      int  `json:"delayMs"`
 	EvenWhenBusy bool `json:"evenWhenBusy"`
 	// FFmpegPath is the FFmpeg the user chose, empty when it is looked for;
-	// FFmpegFound is the one in use, empty when none was found; CanInstall
-	// tells winget can install one.
+	// FFmpegFound is the one in use, empty when none was found; FFmpegSlow
+	// tells one did not answer in time (a busy computer), so it is not
+	// missing; CanInstall tells winget can install one.
 	FFmpegPath  string `json:"ffmpegPath"`
 	FFmpegFound string `json:"ffmpegFound"`
+	FFmpegSlow  bool   `json:"ffmpegSlow"`
 	CanInstall  bool   `json:"canInstall"`
 	// Weak tells the computer seems too weak for the voice AI (read only).
 	Weak bool `json:"weak"`

@@ -34,6 +34,38 @@ func (someFFmpeg) Check(_ context.Context, path string) error {
 
 func (someFFmpeg) WingetID() string { return "BtbN.FFmpeg.LGPL.8.1" }
 
+// busyFFmpeg is an FFmpeg on a computer too busy to start it in time.
+type busyFFmpeg struct{ someFFmpeg }
+
+func (busyFFmpeg) Find(context.Context, string) (string, error) { return "", app.ErrFFmpegSlow }
+
+func (busyFFmpeg) Check(context.Context, string) error { return app.ErrFFmpegSlow }
+
+// An FFmpeg that did not answer in time is never told missing: the settings
+// screen says the computer is busy and offers no installation, and one chosen
+// is not called "not an FFmpeg".
+func TestAnFFmpegTooBusyToAnswerIsNotToldMissing(t *testing.T) {
+	t.Parallel()
+	missing := newRigWith(t, func(deps *app.Deps) { deps.FFmpeg = someFFmpeg{} })
+	missing.attach(t)
+	missing.ui.program = `D:\Tools\notepad.exe`
+	_, notFFmpeg := missing.api.ChooseFFmpeg()
+	if voice := settingsOf(t, missing).Voice; voice.FFmpegSlow || !voice.CanInstall || notFFmpeg == nil {
+		t.Fatalf("with no FFmpeg: %+v, choosing another program: %v", voice, notFFmpeg)
+	}
+
+	r := newRigWith(t, func(deps *app.Deps) { deps.FFmpeg = busyFFmpeg{} })
+	r.attach(t)
+	if voice := settingsOf(t, r).Voice; !voice.FFmpegSlow || voice.CanInstall || voice.FFmpegFound != "" {
+		t.Fatalf("an FFmpeg too busy to answer: %+v, want it slow and no installation offered", voice)
+	}
+	r.ui.program = `D:\Tools\ffmpeg.exe`
+	path, err := r.api.ChooseFFmpeg()
+	if err == nil || path != "" || err.Error() == notFFmpeg.Error() || r.settings.config.Voice.FFmpegPath != "" {
+		t.Fatalf("choosing an FFmpeg too busy to answer = %q, %v; want the busy computer told, nothing kept", path, err)
+	}
+}
+
 // The voice settings are the computer's: kept at once, an FFmpeg chosen only
 // once it runs, and a delay out of range refused with nothing changed.
 func TestTheVoiceSettings(t *testing.T) {

@@ -22,6 +22,12 @@ func background() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW | windows.IDLE_PRIORITY_CLASS}
 }
 
+// brief runs a short FFmpeg with no console window at the normal priority:
+// with every processor busy, an idle one waits tens of seconds for a turn.
+func brief() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+}
+
 // jobs are where every FFmpeg runs, one per kind of run; their handles live
 // as long as the app, and Windows ends what is in them when the app ends.
 var jobs struct {
