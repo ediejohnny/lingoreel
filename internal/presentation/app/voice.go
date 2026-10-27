@@ -26,7 +26,14 @@ type FFmpeg interface {
 // ffmpegTimeout bounds looking for FFmpeg from the settings screen.
 const ffmpegTimeout = 10 * time.Second
 
-var errNotFFmpeg = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
+// ErrFFmpegSlow is what an FFmpeg reports when it did not answer in time, as
+// on a computer too busy to start it: it may well be there.
+var ErrFFmpegSlow = errors.New("ffmpeg: did not answer in time")
+
+var (
+	errNotFFmpeg  = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
+	errFFmpegSlow = worded(func() string { return ptbr.T("error.ffmpeg.slow") })
+)
 
 // voiceSetup is how a session follows the voice, from the settings.
 func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
@@ -37,7 +44,8 @@ func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 }
 
 // voiceView is the settings screen's part on the voice: the choices, the
-// FFmpeg in use (looked for now) and whether one can be installed.
+// FFmpeg in use (looked for now) and whether one can be installed; an FFmpeg
+// that did not answer in time is told slow, and none is offered to install.
 func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceSettings {
 	view := VoiceSettings{
 		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Battery: a.deps.Ports.Power != nil && a.deps.Ports.Power.HasBattery(),
@@ -49,10 +57,13 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 	}
 	ctx, cancel := context.WithTimeout(ctx, ffmpegTimeout)
 	defer cancel()
-	if found, err := a.deps.FFmpeg.Find(ctx, v.FFmpegPath); err == nil {
+	switch found, err := a.deps.FFmpeg.Find(ctx, v.FFmpegPath); {
+	case err == nil:
 		view.FFmpegFound = found
+	case errors.Is(err, ErrFFmpegSlow):
+		view.FFmpegSlow = true
 	}
-	view.CanInstall = view.FFmpegFound == "" && a.deps.Installer != nil && a.deps.Installer.Available()
+	view.CanInstall = view.FFmpegFound == "" && !view.FFmpegSlow && a.deps.Installer != nil && a.deps.Installer.Available()
 	return view
 }
 
@@ -91,7 +102,13 @@ func (a *API) ChooseFFmpeg() (string, error) {
 	}
 	checked, cancel := context.WithTimeout(ctx, ffmpegTimeout)
 	defer cancel()
-	if a.deps.FFmpeg == nil || a.deps.FFmpeg.Check(checked, path) != nil {
+	if a.deps.FFmpeg == nil {
+		return "", errNotFFmpeg
+	}
+	switch err := a.deps.FFmpeg.Check(checked, path); {
+	case errors.Is(err, ErrFFmpegSlow):
+		return "", errFFmpegSlow
+	case err != nil:
 		return "", errNotFFmpeg
 	}
 	if err := a.keepFFmpeg(path); err != nil {

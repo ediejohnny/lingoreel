@@ -11,6 +11,15 @@ All notable changes to this project are listed here. The format follows
 - The README says plainly that its screenshots' frames of Sintel stay under Creative Commons Attribution 3.0, with
   the app's subtitles and menus drawn over them, and are not covered by the MIT license.
 
+### Fixed
+
+- On a computer whose processors were all busy, the app said FFmpeg was missing while it was there: the check that it
+  runs started it at the idle priority, where it waited up to a minute for a turn. The check now runs at the normal
+  priority (it answers in a third of a second on two busy processors), and an FFmpeg that still does not answer in
+  time is told apart from a missing one: Settings say the computer is busy and offer no installation, and an FFmpeg
+  chosen by hand is not called "not a working FFmpeg". Its work, the voice and the seek bar's stills, keeps the idle
+  priority, so it never takes the film's turn.
+
 ## [0.27.2] - 2026-10-27
 
 ### Added
