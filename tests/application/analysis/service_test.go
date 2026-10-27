@@ -92,7 +92,7 @@ func TestAnalyzeSuggestsTracks(t *testing.T) {
 	reader := &fakeReader{info: studyInfo()}
 	service := analysis.NewService(reader, nil)
 
-	for _, path := range []string{`D:\Filmes\Matrix.MKV`, `D:\Séries\Episódio 1.webm`} {
+	for _, path := range []string{`D:\Filmes\Movie.MKV`, `D:\Séries\Episódio 1.webm`} {
 		result, err := service.Analyze(context.Background(), path, preferences)
 		if err != nil {
 			t.Fatalf("Analyze(%q): %v", path, err)

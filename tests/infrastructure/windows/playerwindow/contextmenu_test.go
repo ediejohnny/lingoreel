@@ -78,7 +78,8 @@ func openMenuWindowWith(t *testing.T, app playerwindow.AppActions, chrome *playe
 	t.Helper()
 	m := &menuWindow{}
 	options := playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 		NoActivate: true, Chrome: chrome,
@@ -177,7 +178,8 @@ func TestAWindowOnTheStageReachesTheApp(t *testing.T) {
 	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
 	settings := make(chan bool, 1)
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 		Look:       defaultLook(),
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 		NoActivate: true, Stage: stage,
@@ -534,7 +536,8 @@ func TestARealMenuClosesAndLetsTheWindowGo(t *testing.T) {
 	})
 	stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 		NoActivate: true, Stage: stage,
 	})
@@ -590,7 +593,8 @@ func TestTheRealMenuFollowsTheTheme(t *testing.T) {
 		stage.SetChrome(chrome)
 		stage.SetLayout(playerwindow.StageLayout{Visible: true, Insets: panelOpen})
 		w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-			Title: ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
+			Modifiers: noModifiers,
+			Title:     ptbr.WindowTitle("v.mkv"), VideoWidth: 1280, VideoHeight: 720,
 			Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Menu: ptbr.MenuTexts(nil)},
 			NoActivate: true, Stage: stage,
 		})

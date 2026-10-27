@@ -332,6 +332,11 @@ func TestAProjectTheAppCannotReadIsNeverWritten(t *testing.T) {
 			if !state.Editing.Edited || !strings.Contains(state.ProjectNote, c.note) {
 				t.Fatalf("editing %+v, note %q", state.Editing, state.ProjectNote)
 			}
+			// A passage would only seem saved: it is refused, and says why.
+			if err := r.api.StudyPassage(app.PassageRequest{Start: "0:10", End: "0:20"}); err != nil {
+				t.Fatal(err)
+			}
+			wantMessage(t, "SavePassage", r.api.SavePassage("Loja"), "não foi salvo")
 			if _, saves := r.projects.stored(t, movie); saves != 0 {
 				t.Fatalf("the unreadable project was written %d times", saves)
 			}

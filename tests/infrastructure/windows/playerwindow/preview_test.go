@@ -30,7 +30,8 @@ import (
 func openPreviewing(t *testing.T) (host windows.HWND, remote *fakeRemote) {
 	t.Helper()
 	w, err := playerwindow.Open(t.Context(), playerwindow.Options{
-		Title: ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
+		Modifiers: noModifiers,
+		Title:     ptbr.WindowTitle("v.mkv"), Placement: offScreen, VideoWidth: 1280, VideoHeight: 720,
 		Labels:     playerwindow.Labels{Tip: ptbr.BarTips(nil), Item: ptbr.BarItem, Time: ptbr.BarTime, Moment: ptbr.Clock},
 		NoActivate: true,
 		Choose:     func(uintptr, int32, int32) uint32 { return 0 },

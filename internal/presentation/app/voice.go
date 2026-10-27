@@ -59,15 +59,13 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 // SetVoice changes how the actors' voice is followed, at once and from then
 // on; the FFmpeg chosen stays as it is.
 func (a *API) SetVoice(view VoiceSettings) error {
-	a.mu.Lock()
-	next := a.config
-	next.Voice.Model, next.Voice.ModelOnBattery = view.Model, view.ModelOnBattery
-	next.Voice.Follow, next.Voice.EvenWhenBusy = view.Follow, view.EvenWhenBusy
-	next.Voice.Sensitivity = speech.Sensitivity(view.Sensitivity)
-	next.Voice.Delay = settings.Duration(time.Duration(view.DelayMs) * time.Millisecond)
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Voice.Model, next.Voice.ModelOnBattery = view.Model, view.ModelOnBattery
+		next.Voice.Follow, next.Voice.EvenWhenBusy = view.Follow, view.EvenWhenBusy
+		next.Voice.Sensitivity = speech.Sensitivity(view.Sensitivity)
+		next.Voice.Delay = settings.Duration(time.Duration(view.DelayMs) * time.Millisecond)
+		return nil
+	}); err != nil {
 		return err
 	}
 	a.applyVoice()
@@ -108,12 +106,10 @@ func (a *API) ClearFFmpeg() error {
 }
 
 func (a *API) keepFFmpeg(path string) error {
-	a.mu.Lock()
-	next := a.config
-	next.Voice.FFmpegPath = path
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.Voice.FFmpegPath = path
+		return nil
+	}); err != nil {
 		return err
 	}
 	a.applyVoice()

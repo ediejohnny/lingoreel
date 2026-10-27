@@ -152,6 +152,50 @@ func New() Project {
 	return Project{Tracks: map[string]Track{}, Passages: []Passage{}, AddedFiles: []string{}}
 }
 
+// Clone is a copy of p that shares nothing with it, so it can be written
+// while p goes on changing. Nil maps and lists stay nil.
+func (p Project) Clone() Project {
+	c := p
+	if p.Tracks != nil {
+		c.Tracks = make(map[string]Track, len(p.Tracks))
+		for key, track := range p.Tracks {
+			c.Tracks[key] = track.clone()
+		}
+	}
+	if p.Passages != nil {
+		c.Passages = make([]Passage, len(p.Passages))
+		for i, passage := range p.Passages {
+			passage.Plan = copied(passage.Plan)
+			c.Passages[i] = passage
+		}
+	}
+	c.AddedFiles = slices.Clone(p.AddedFiles)
+	c.Last.Karaoke = copied(p.Last.Karaoke)
+	return c
+}
+
+func (t Track) clone() Track {
+	c := t
+	c.Fit = copied(t.Fit)
+	if t.Edits != nil {
+		c.Edits = make(map[string]Edit, len(t.Edits))
+		for id, edit := range t.Edits {
+			edit.Text, edit.Start, edit.End = copied(edit.Text), copied(edit.Start), copied(edit.End)
+			c.Edits[id] = edit
+		}
+	}
+	return c
+}
+
+// copied is a pointer to a copy of what value points to; nil stays nil.
+func copied[T any](value *T) *T {
+	if value == nil {
+		return nil
+	}
+	c := *value
+	return &c
+}
+
 // RememberFile keeps a subtitle file picked for the video, once; it reports
 // whether the list changed. With the list full, the oldest file that is no
 // longer there (present says which are) gives way; with every file there,

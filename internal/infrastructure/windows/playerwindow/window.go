@@ -125,6 +125,10 @@ type Options struct {
 	// Chrome is how the bar and the box for corrections look; nil takes the
 	// stage's, and with no stage the app's defaults.
 	Chrome *Chrome
+	// Modifiers tells which of Ctrl, Alt and Shift are held as a key goes
+	// down; nil reads the real keyboard. Tests set it, so someone typing
+	// beside them changes no key they send.
+	Modifiers func() shortcut.Modifiers
 }
 
 // Chrome is how the controls over the video look: the bar and its menus,

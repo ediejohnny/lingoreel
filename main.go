@@ -94,16 +94,25 @@ const thumbnailsFolder = "thumbnails"
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "LingoReel:", err)
+		// A window app has no console: Windows' own box tells it, in the
+		// Windows display language when the app had not chosen one yet.
+		if !spoken.Load() {
+			_, _ = ptbr.UseLanguage("", systemLanguage())
+		}
+		win32.Tell(ptbr.StartupError(err))
 		os.Exit(1)
 	}
 }
+
+// spoken tells the interface's language was chosen.
+var spoken atomic.Bool
 
 func run() error {
 	dir, err := settingsfile.Dir()
 	if err != nil {
 		return err
 	}
-	logger, closeLog := openLog(filepath.Join(dir, logFolder))
+	logger, closeLog, logDir := openLog(filepath.Join(dir, logFolder))
 	defer closeLog()
 	logger.Info("starting", "version", buildinfo.Version, "windows", windowsVersion())
 	defer logger.Info("closed")
@@ -115,6 +124,7 @@ func run() error {
 	files := settingsfile.Open(dir)
 	firstRun := files.FirstRun()
 	stills := stillcache.Cache{Dir: filepath.Join(dir, thumbnailsFolder)}
+	go stills.Sweep() // packages a closing left half written
 	// The interface speaks its language from the first text on; a
 	// configuration that does not load is reported by the app later.
 	config, _ := files.LoadConfig()
@@ -180,6 +190,7 @@ func run() error {
 				logger.Warn("keeping the seek bar's stills", "err", err)
 			},
 		},
+		AskRetry:      win32.AskRetry,
 		Stage:         stagePort{stage},
 		Settings:      files,
 		Installer:     install.Winget{},
@@ -195,7 +206,7 @@ func run() error {
 		Projects:      projectfile.Open(dir),
 		About:         app.About{Version: buildinfo.Version, Windows: windowsVersion()},
 		Monitors:      monitors,
-		LogDir:        filepath.Join(dir, logFolder),
+		LogDir:        logDir,
 		// The interface speaks Windows' language when none is chosen.
 		SystemLanguage: systemLanguage,
 		// Read before anything is saved: the first run opens the welcome.
@@ -347,12 +358,13 @@ func systemLanguage() string {
 // Windows display language, each when the app speaks it, else English.
 func speakLanguage(configured string, logger *slog.Logger) {
 	system := systemLanguage()
-	spoken, err := ptbr.UseLanguage(configured, system)
+	language, err := ptbr.UseLanguage(configured, system)
 	if err != nil {
 		logger.Warn("the interface's catalog did not load", "error", err)
 		return
 	}
-	logger.Info("interface language", "language", spoken, "windows", system)
+	spoken.Store(true)
+	logger.Info("interface language", "language", language, "windows", system)
 }
 
 // measureMachine measures what the computer offers the voice AI: its
@@ -381,13 +393,16 @@ func activeProfile(files *settingsfile.Files) settings.Profile {
 	return settings.DefaultProfile()
 }
 
-// openLog writes the day's log in dir; without it, the app runs with no log.
-func openLog(dir string) (*slog.Logger, func()) {
-	file, err := logfile.Open(dir, time.Now)
-	if err != nil {
-		return slog.New(slog.DiscardHandler), func() {}
+// openLog writes the day's log in dir or, when dir cannot take it (a
+// read-only or full disk), in the user's temporary folder; it returns the
+// folder used, empty when neither could, and the app then runs with no log.
+func openLog(dir string) (*slog.Logger, func(), string) {
+	for _, folder := range []string{dir, filepath.Join(os.TempDir(), "LingoReel", logFolder)} {
+		if file, err := logfile.Open(folder, time.Now); err == nil {
+			return slog.New(slog.NewTextHandler(file, nil)), func() { file.Close() }, folder
+		}
 	}
-	return slog.New(slog.NewTextHandler(file, nil)), func() { file.Close() }
+	return slog.New(slog.DiscardHandler), func() {}, ""
 }
 
 // monitors lists the screens for the diagnostics.

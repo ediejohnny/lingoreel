@@ -191,9 +191,10 @@ func TestClearingFreesTheDisk(t *testing.T) {
 	if err := os.WriteFile(left, make([]byte, 100), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The size counts the half-written package too.
 	kept, _ := cache.Size()
-	if freed, err := cache.Clear(); err != nil || freed != kept+100 {
-		t.Fatalf("freed %d bytes (%v), want %d", freed, err, kept+100)
+	if freed, err := cache.Clear(); err != nil || freed != kept || kept < 100 {
+		t.Fatalf("freed %d bytes (%v), want %d", freed, err, kept)
 	}
 	if size, _ := cache.Size(); size != 0 {
 		t.Fatalf("%d bytes left after clearing", size)
@@ -272,5 +273,34 @@ func TestACrowdedDiskIsTold(t *testing.T) {
 	}
 	if full := (stillcache.Cache{Dir: filepath.Join(t.TempDir(), "thumbnails"), MinFree: 1 << 62}); !full.Crowded() {
 		t.Fatal("the real disk's room was not read through the folder above")
+	}
+}
+
+// A package left half written by an app that stopped while writing it is
+// counted in the size and taken out as the app opens, an hour old or more; a
+// younger one may be a write on its way.
+func TestHalfWrittenPackagesAreCountedAndSwept(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	old := time.Now().Add(-2 * time.Hour)
+	for name, at := range map[string]time.Time{"a.stills.partial-00": old, "b.stills.partial-11": time.Now()} {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, make([]byte, 100), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(path, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cache := stillcache.Cache{Dir: dir}
+	if size, err := cache.Size(); err != nil || size != 200 {
+		t.Fatalf("Size = %d, %v; want both half-written packages counted", size, err)
+	}
+	cache.Sweep()
+	if size, err := cache.Size(); err != nil || size != 100 {
+		t.Fatalf("after Sweep, Size = %d, %v; want the young one only", size, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "b.stills.partial-11")); err != nil {
+		t.Fatalf("the young package went: %v", err)
 	}
 }

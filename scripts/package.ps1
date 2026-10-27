@@ -22,8 +22,9 @@ $distDir = Join-Path $root "build\dist"
 $buildVersion = Resolve-BuildVersion -Root $root -Version $Version
 $fileVersion = Get-NumericVersion -BuildVersion $buildVersion
 
-# The read-me that goes in the zip, for whoever downloads it. Like the app's
-# interface, it is in Brazilian Portuguese until the app takes translations.
+# The read-me that goes in the zip, for whoever downloads it, in Brazilian
+# Portuguese like the app's first audience; the app itself also speaks
+# English.
 $readMe = @"
 LingoReel $fileVersion
 ============================
@@ -32,26 +33,33 @@ Duas legendas sincronizadas sobre o vídeo, para estudar idiomas com filmes e s�
 
 COMO USAR
 1. Extraia esta pasta para onde quiser (por exemplo, Documentos\LingoReel).
-2. Abra "LingoReel.exe" e arraste um vídeo para a janela.
-3. Se nenhum player compatível estiver instalado, o app oferece instalar o VLC.
+2. Abra "LingoReel.exe". Na primeira vez, um assistente rápido pergunta a língua
+   que você fala, a que estuda, o modo de estudo e o player.
+3. Arraste um vídeo para a janela. Configurações > Ajuda > Documentação explica tudo
+   o que o app faz.
 
 REQUISITOS
 - Windows 10 ou 11, 64 bits.
-- Um player de vídeo compatível (o VLC; o app ajuda a instalar).
+- Um player de vídeo compatível: o VLC ou o PotPlayer (o app ajuda a instalar).
+- Opcional e grátis: o FFmpeg, para escolher a legenda pelo áudio, seguir a voz dos
+  atores um pouco à frente e mostrar miniaturas na barra.
 
 ONDE FICAM SEUS DADOS
-- Configurações e perfis: %APPDATA%\LingoReel
-- Registros (logs) dos últimos 14 dias: %APPDATA%\LingoReel\logs
-- As correções de legenda de cada vídeo: ao lado do vídeo, em "Filme.dualsub.json".
+Tudo fica em %APPDATA%\LingoReel, nunca na pasta do vídeo:
+- Configurações e perfis: config.json e profiles.json.
+- As correções, a sincronia e os trechos de cada vídeo: pasta projects.
+- As miniaturas da barra: pasta thumbnails (até 4 GB; Configurações > Aparência limpa).
+- Registros (logs) dos últimos 14 dias: pasta logs.
 Nada é enviado pela internet.
 
 PARA REMOVER
 - Se você ligou "Abrir vídeos pelo Windows" (Configurações > Avançado), desligue antes.
-- Apague esta pasta. Para apagar também as configurações, apague %APPDATA%\LingoReel.
+- Apague esta pasta. Para apagar também os seus dados, apague %APPDATA%\LingoReel.
 
 LICENÇA
 MIT. Veja o arquivo LICENSE. (c) Edie Johnny.
-As licenças dos programas de terceiros incluídos estão em AVISOS-DE-TERCEIROS.txt.
+As licenças dos programas de terceiros incluídos estão em AVISOS-DE-TERCEIROS.txt
+e no próprio app, em Configurações > Ajuda > Sobre.
 "@
 
 # The notices' introduction, in the language of the read-me; the licenses

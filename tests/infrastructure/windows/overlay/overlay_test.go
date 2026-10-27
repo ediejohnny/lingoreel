@@ -554,14 +554,18 @@ func TestOverlayFollowsTheRealVLC(t *testing.T) {
 		player, err := win32.ClientRectOnScreen(s.target)
 		return err == nil && player.Right-player.Left >= 1000
 	}
-	for attempt := 1; !fullscreen(); attempt++ {
-		if attempt > 3 {
-			t.Fatalf("VLC ignored 3 fullscreen requests; %s", s.state())
+	// VLC refuses the request while it has no video output (its script
+	// answers an error), as after a restore to an empty window: it is asked
+	// again until it takes it, for up to 10 s.
+	var refused error
+	for attempt, deadline := 1, time.Now().Add(10*time.Second); !fullscreen(); attempt++ {
+		if time.Now().After(deadline) {
+			t.Fatalf("VLC did not enter fullscreen in 10 s (%d requests, last refusal: %v); %s", attempt-1, refused, s.state())
 		}
 		if err := session.SetFullscreen(true); err != nil {
-			t.Fatalf("SetFullscreen(true): %v", err)
+			refused = err
 		}
-		for deadline := time.Now().Add(2 * time.Second); !fullscreen() && time.Now().Before(deadline); {
+		for wait := time.Now().Add(2 * time.Second); !fullscreen() && time.Now().Before(wait); {
 			time.Sleep(100 * time.Millisecond)
 		}
 		if fullscreen() && attempt > 1 {

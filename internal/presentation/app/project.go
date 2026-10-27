@@ -38,6 +38,10 @@ type videoProject struct {
 	flush func() bool
 	// positionAt is when the position was last kept.
 	positionAt time.Time
+	// seq numbers the copies taken to be written (under a.mu); written is
+	// the last one written (under a.projectWrites too), so an older copy
+	// never goes over a newer one.
+	seq, written uint64
 }
 
 // Timing of the saves that wait.
@@ -58,6 +62,7 @@ var (
 	errDuplicatePassage = worded(func() string { return ptbr.T("error.passage.duplicate") })
 	errPassageOutside   = worded(func() string { return ptbr.T("error.passage.outside") })
 	errNotKept          = worded(func() string { return ptbr.T("error.project.notSaved") })
+	errPassageReadOnly  = worded(func() string { return ptbr.T("error.passage.readOnly") })
 	errResetWatching    = worded(func() string { return ptbr.T("error.project.resetWhileWatching") })
 	errResetFailed      = worded(func() string { return ptbr.T("error.project.resetFailed") })
 )
@@ -172,20 +177,52 @@ func (p *videoProject) track(key string) project.Track {
 	return track
 }
 
-// saveProject writes the project; a read-only one is kept in memory only.
-// A failed save stays due, so the next one (at the latest as the session
-// ends) tries again, and the panel of the video's session tells why until a
-// save works. Called with a.mu held.
-func (a *API) saveProject() error {
+// projectSave takes a copy of what the open project holds now and returns
+// its write, to run once a.mu is let go (written), so a slow disk never holds
+// the panel or the keys; nil when nothing is to be written (no project, or
+// one kept in memory only). Called with a.mu held.
+func (a *API) projectSave() func() error {
 	p := a.project
 	if p == nil || p.readOnly || a.deps.Projects == nil {
 		return nil
 	}
+	p.seq++
+	p.dirty = false // a failed write marks it again
+	seq, value := p.seq, p.value.Clone()
+	return func() error { return a.writeProject(p, seq, value) }
+}
+
+// written runs a write projectSave took; nil writes nothing. Called without
+// a.mu.
+func written(write func() error) error {
+	if write == nil {
+		return nil
+	}
+	return write()
+}
+
+// writeProject writes a copy of a project, one write at a time, and never
+// an older copy over a newer one, nor a project forgotten or kept in memory
+// only since. A failed write stays due, so the next one (at the latest as
+// the session ends) tries again, and the panel of the video's session tells
+// why until a write works. Called without a.mu.
+func (a *API) writeProject(p *videoProject, seq uint64, value project.Project) error {
+	a.projectWrites.Lock()
+	defer a.projectWrites.Unlock()
+	a.mu.Lock()
+	stale := seq <= p.written || p.readOnly
+	a.mu.Unlock()
+	if stale {
+		return nil
+	}
+	err := a.deps.Projects.Save(p.video, value)
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	var watching *watching
 	if a.watching != nil && a.watching.video == p.video {
 		watching = a.watching
 	}
-	if err := a.deps.Projects.Save(p.video, p.value); err != nil {
+	if err != nil {
 		a.logger.Warn("the video's project was not saved", "video", p.video, "error", err)
 		p.dirty = true
 		failed := a.because(errNotKept, err)
@@ -194,11 +231,29 @@ func (a *API) saveProject() error {
 		}
 		return failed
 	}
-	p.dirty = false
+	p.written = seq
 	if watching != nil {
 		watching.problem.Store("")
 	}
 	return nil
+}
+
+// writeDue writes what the project holds that is not written yet, once the
+// writes already on their way end, and returns why it could not. Called
+// without a.mu.
+func (a *API) writeDue(p *videoProject) error {
+	a.projectWrites.Lock()
+	a.mu.Lock()
+	due := a.project == p && p.dirty
+	a.mu.Unlock()
+	a.projectWrites.Unlock()
+	if !due {
+		return nil
+	}
+	a.mu.Lock()
+	write := a.projectSave()
+	a.mu.Unlock()
+	return written(write)
 }
 
 // markDirty schedules a save of the project a moment from now, if none is
@@ -227,12 +282,13 @@ func (a *API) markDirty(p *videoProject) {
 // open one (another video, or forgotten in the meantime).
 func (a *API) flushProject(p *videoProject) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	p.flush = nil
-	if a.project != p || !p.dirty {
-		return
+	var write func() error
+	if a.project == p && p.dirty {
+		write = a.projectSave()
 	}
-	_ = a.saveProject() // logged; the next change tries again
+	a.mu.Unlock()
+	_ = written(write) // logged; the next change tries again
 }
 
 // cancelFlush drops a pending save. Called with a.mu held.
@@ -255,21 +311,21 @@ func (a *API) projectOf(current *watching) *videoProject {
 // keepEdits takes a track's edits into the project and saves it.
 func (a *API) keepEdits(current *watching, number uint64, edits map[string]project.Edit) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	p := a.projectOf(current)
 	key := ""
 	if p != nil && number != 0 {
 		key = p.keys[number]
 	}
 	if key == "" {
+		a.mu.Unlock()
 		return
 	}
 	track := p.track(key)
 	track.Edits = edits
 	p.value.Tracks[key] = track
-	if err := a.saveProject(); err != nil {
-		current.problem.Store(err.Error())
-	}
+	write := a.projectSave()
+	a.mu.Unlock()
+	_ = written(write) // the panel tells a failure
 }
 
 // keepOffset takes a track's offset into the project, saved a moment after
@@ -294,9 +350,9 @@ func (a *API) keepOffset(current *watching, number uint64, offset subtitle.Offse
 // keepChoice remembers what the user chose to watch with, and saves.
 func (a *API) keepChoice(current *watching, tracks media.Selection, mode study.Mode) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	p := a.projectOf(current)
 	if p == nil {
+		a.mu.Unlock()
 		return
 	}
 	// A line watched with another file than the one kept was chosen now,
@@ -310,9 +366,9 @@ func (a *API) keepChoice(current *watching, tracks media.Selection, mode study.M
 	p.value.Choice = project.Choice{
 		Audio: p.keys[tracks.Audio], Primary: p.keys[tracks.Primary], Translation: p.keys[tracks.Translation], Mode: mode,
 	}
-	if err := a.saveProject(); err != nil {
-		current.problem.Store(err.Error())
-	}
+	write := a.projectSave()
+	a.mu.Unlock()
+	_ = written(write) // the panel tells a failure
 }
 
 // keepSession takes into the project how the video is being watched, at
@@ -367,24 +423,36 @@ func (a *API) keepSession(current *watching, final bool) {
 func (a *API) flushSession(current *watching) error {
 	a.keepSession(current, true)
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if p := a.projectOf(current); p != nil {
+	p := a.projectOf(current)
+	if p != nil {
 		p.cancelFlush()
-		if p.dirty {
-			return a.saveProject()
-		}
 	}
-	return nil
+	a.mu.Unlock()
+	if p == nil {
+		return nil
+	}
+	return a.writeDue(p)
 }
 
 // flushProjectAtExit tries once more a save that failed, as the app closes:
-// the disk may have room again. Nobody is left to tell.
+// the disk may have room again. When it still fails, Windows' own box asks
+// whether to try again or close without it, while the user can still make
+// room.
 func (a *API) flushProjectAtExit() {
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if p := a.project; p != nil && p.dirty {
+	p := a.project
+	if p != nil {
 		p.cancelFlush()
-		_ = a.saveProject()
+	}
+	a.mu.Unlock()
+	if p == nil {
+		return
+	}
+	for {
+		err := a.writeDue(p)
+		if err == nil || a.deps.AskRetry == nil || !a.deps.AskRetry(ptbr.T("app.title"), ptbr.T("dialog.exitNotSaved", "reason", err.Error())) {
+			return
+		}
 	}
 }
 
@@ -439,6 +507,11 @@ func (a *API) SavePassage(name string) error {
 		a.mu.Unlock()
 		return errPassageName
 	}
+	// A project kept as it is would only seem to save the passage.
+	if p.readOnly {
+		a.mu.Unlock()
+		return errPassageReadOnly
+	}
 	passages := p.value.Passages
 	if i := project.IndexOf(passages, passage.Name); i >= 0 {
 		passages[i] = passage
@@ -449,8 +522,9 @@ func (a *API) SavePassage(name string) error {
 		p.value.Passages = append(passages, passage)
 	}
 	a.tellPassages(current)
-	err := a.saveProject()
+	write := a.projectSave()
 	a.mu.Unlock()
+	err := written(write)
 	a.emit(EventPlayback, a.describe(current))
 	return err
 }
@@ -465,9 +539,13 @@ func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan s
 		a.mu.Unlock()
 		return
 	}
-	if len(p.value.Passages) >= project.MaxPassages {
+	if len(p.value.Passages) >= project.MaxPassages || p.readOnly {
+		refusal := errTooManySaved
+		if p.readOnly {
+			refusal = errPassageReadOnly
+		}
 		a.mu.Unlock()
-		current.session.Notify(errTooManySaved.Error())
+		current.session.Notify(refusal.Error())
 		return
 	}
 	practice := project.PlanOf(plan)
@@ -477,9 +555,9 @@ func (a *API) keepMarkedPassage(current *watching, segment study.Segment, plan s
 	}
 	p.value.Passages = append(p.value.Passages, passage)
 	a.tellPassages(current)
-	err := a.saveProject()
+	write := a.projectSave()
 	a.mu.Unlock()
-	if err != nil {
+	if err := written(write); err != nil {
 		current.problem.Store(err.Error())
 	} else {
 		a.logger.Info("passage saved", "start", segment.Start.Round(time.Millisecond), "end", segment.End.Round(time.Millisecond))
@@ -542,8 +620,9 @@ func (a *API) editPassages(change func([]project.Passage) ([]project.Passage, er
 	if current != nil {
 		a.tellPassages(current)
 	}
-	err = a.saveProject()
+	write := a.projectSave()
 	a.mu.Unlock()
+	err = written(write)
 	if current != nil {
 		a.emit(EventPlayback, a.describe(current))
 	}
@@ -637,7 +716,12 @@ func (a *API) ResetProject() (Video, error) {
 	a.resume = nil
 	a.mu.Unlock()
 	if a.deps.Projects != nil {
-		if err := a.deps.Projects.Remove(video.Path); err != nil {
+		// A write on its way ends first; a later one finds the project kept
+		// in memory only and writes nothing.
+		a.projectWrites.Lock()
+		err := a.deps.Projects.Remove(video.Path)
+		a.projectWrites.Unlock()
+		if err != nil {
 			a.logger.Warn("the video's project was not removed", "video", video.Path, "error", err)
 			// Still there, the project keeps being kept: what changes next is
 			// saved as before, and what waited is saved again.

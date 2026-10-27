@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
@@ -33,17 +34,29 @@ func Dir() (string, error) {
 	return filepath.Join(base, appFolder), nil
 }
 
-// Files are the settings documents: config.json and profiles.json.
+// Files are the settings documents: config.json and profiles.json. A document
+// that could not be read is never written over with the defaults (guard.go):
+// its read error is settings.ErrNewerVersion, ErrUnreadable or ErrDamaged.
 type Files struct {
-	config   *jsonstore.Store[settings.Config]
-	profiles *jsonstore.Store[settings.Profiles]
+	config        *jsonstore.Store[settings.Config]
+	profiles      *jsonstore.Store[settings.Profiles]
+	configGuard   *guard
+	profilesGuard *guard
 }
 
 // Open uses the documents in a folder; they are created on the first save.
 func Open(dir string) *Files {
+	return OpenAt(dir, time.Now)
+}
+
+// OpenAt is Open with the clock that names the copy of a damaged document.
+func OpenAt(dir string, now func() time.Time) *Files {
+	configPath, profilesPath := filepath.Join(dir, "config.json"), filepath.Join(dir, "profiles.json")
 	return &Files{
-		config:   jsonstore.New(filepath.Join(dir, "config.json"), configVersion, settings.DefaultConfig, nil),
-		profiles: jsonstore.New(filepath.Join(dir, "profiles.json"), profilesVersion, settings.DefaultProfiles, profilesMigrations),
+		config:        jsonstore.New(configPath, configVersion, settings.DefaultConfig, nil),
+		profiles:      jsonstore.New(profilesPath, profilesVersion, settings.DefaultProfiles, profilesMigrations),
+		configGuard:   &guard{path: configPath, now: now},
+		profilesGuard: &guard{path: profilesPath, now: now},
 	}
 }
 
@@ -54,14 +67,24 @@ func (f *Files) FirstRun() bool {
 	return errors.Is(err, fs.ErrNotExist)
 }
 
-// LoadConfig reads the configuration, or the defaults on the first run.
+// LoadConfig reads the configuration, or the defaults on the first run or
+// when it cannot be read.
 func (f *Files) LoadConfig() (settings.Config, error) {
-	config, err := f.config.Load()
+	config, err := f.readConfig()
+	f.configGuard.learn(err)
 	if err != nil {
 		return settings.DefaultConfig(), err
 	}
+	return config, nil
+}
+
+func (f *Files) readConfig() (settings.Config, error) {
+	config, err := f.config.Load()
+	if err != nil {
+		return config, classify(err)
+	}
 	if err := CheckPlayerPaths(config); err != nil {
-		return settings.DefaultConfig(), fmt.Errorf("%s: %w", f.config.Path(), err)
+		return config, fmt.Errorf("%w: %s: %w", settings.ErrDamaged, f.config.Path(), err)
 	}
 	if config.PlayerPaths == nil {
 		config.PlayerPaths = map[string]string{}
@@ -69,7 +92,8 @@ func (f *Files) LoadConfig() (settings.Config, error) {
 	return config, nil
 }
 
-// SaveConfig checks and writes the configuration.
+// SaveConfig checks and writes the configuration: never over a document kept
+// as it is (settings.ErrReadOnly), and after a damaged one is copied aside.
 func (f *Files) SaveConfig(config settings.Config) error {
 	if err := config.Validate(); err != nil {
 		return err
@@ -77,22 +101,31 @@ func (f *Files) SaveConfig(config settings.Config) error {
 	if err := CheckPlayerPaths(config); err != nil {
 		return err
 	}
-	return f.config.Save(config)
+	if !f.configGuard.known() {
+		_, _ = f.LoadConfig() // learns the document's state
+	}
+	return f.configGuard.write(func() error { return f.config.Save(config) })
 }
 
-// LoadProfiles reads the study profiles, or the defaults on the first run.
+// LoadProfiles reads the study profiles, or the defaults on the first run or
+// when they cannot be read.
 func (f *Files) LoadProfiles() (settings.Profiles, error) {
 	profiles, err := f.profiles.Load()
+	err = classify(err)
+	f.profilesGuard.learn(err)
 	if err != nil {
 		return settings.DefaultProfiles(), err
 	}
 	return profiles, nil
 }
 
-// SaveProfiles checks and writes the study profiles.
+// SaveProfiles checks and writes the study profiles, as SaveConfig does.
 func (f *Files) SaveProfiles(profiles settings.Profiles) error {
 	if err := profiles.Validate(); err != nil {
 		return err
 	}
-	return f.profiles.Save(profiles)
+	if !f.profilesGuard.known() {
+		_, _ = f.LoadProfiles() // learns the document's state
+	}
+	return f.profilesGuard.write(func() error { return f.profiles.Save(profiles) })
 }

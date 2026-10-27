@@ -22,6 +22,9 @@ type SettingsView struct {
 	Options    SettingsOptions   `json:"options"`
 	// Folder is where the settings and the log are kept.
 	Folder string `json:"folder"`
+	// Notes tell why a settings file could not be read and what becomes of
+	// it; empty when both were read.
+	Notes []string `json:"notes"`
 }
 
 // GeneralSettings are the choices shared by every profile.

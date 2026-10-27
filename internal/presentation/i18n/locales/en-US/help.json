@@ -22,7 +22,7 @@
   "ui.help.players.p1": "The app plays videos in a free player installed on the computer: VLC, inside the app's window and with the volume up to 200%, or PotPlayer, in its own window. With neither, the session screen offers to install one by itself or to download it from the official site.",
   "ui.help.players.p2": "In Settings › Player, choose your preferred player, point to a player installed somewhere else or have the app look again.",
   "ui.help.players.title": "Players",
-  "ui.help.problems.p1": "When something goes wrong, the message says why and what to do: a full disk, a read-only file or one in use, a player that does not answer. No correction is lost.",
+  "ui.help.problems.p1": "When something goes wrong, the message says why and what to do: a full disk, a read-only file or one in use, a player that does not answer. No correction is lost, and a settings file the app cannot read is never wiped: Settings tells so, and the app keeps a copy of it before writing over it.",
   "ui.help.problems.p2": "If the player closes midway, Watch again goes back to where you were. A subtitle early or late: see Sync. The wrong subtitle: switch it in the panel or add a file.",
   "ui.help.problems.p3": "To ask for help, Settings › Advanced › Diagnostics copies the versions, the screens and the player in use, and Open the folder shows the logs of the last days.",
   "ui.help.problems.title": "Problems and solutions",

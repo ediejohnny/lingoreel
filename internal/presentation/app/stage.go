@@ -73,11 +73,13 @@ func (a *API) SetPanel(state PanelState) error {
 		return errBadPanel
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.config.Panel == panel {
+	same := a.config.Panel == panel
+	a.mu.Unlock()
+	if same {
 		return nil
 	}
-	next := a.config
-	next.Panel = panel
-	return a.commitConfig(next)
+	return a.changeConfig(func(next *settings.Config) error {
+		next.Panel = panel
+		return nil
+	})
 }

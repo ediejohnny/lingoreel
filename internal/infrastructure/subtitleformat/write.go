@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/jsonstore"
 )
 
 // exportMode is an exported file's permission, as any program saves the
@@ -46,6 +47,8 @@ func WriteFile(path string, events []subtitle.Event) (string, error) {
 // so a full disk or a crash never spoils a file that was there (the film's
 // own subtitle, say).
 func replace(path string, body []byte) error {
+	// One left by an export the app could not end is taken out first.
+	jsonstore.SweepTemporaries(path, time.Now())
 	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return err

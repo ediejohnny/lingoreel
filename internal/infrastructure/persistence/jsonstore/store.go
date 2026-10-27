@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,10 @@ const (
 	directoryPermissions = 0o700
 	indentation          = "  "
 )
+
+// StaleTemporary is how old a temporary file must be to be taken for one an
+// app that stopped while writing left behind: a write never takes that long.
+const StaleTemporary = time.Hour
 
 var (
 	ErrCorrupt          = errors.New("corrupt document")
@@ -73,6 +78,7 @@ func (s *Store[T]) Path() string {
 // exist yet. Fields missing from the document keep their default values.
 func (s *Store[T]) Load() (T, error) {
 	value := s.defaults()
+	SweepTemporaries(s.path, time.Now())
 
 	data, err := readLimited(s.path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -139,6 +145,27 @@ func (s *Store[T]) Save(value T) error {
 		return fmt.Errorf("encoding %s: %w", s.path, err)
 	}
 	return writeAtomically(s.path, append(body, '\n'))
+}
+
+// SweepTemporaries takes out the temporary files ("."+name+".*.tmp") an
+// app that stopped while writing path left beside it, StaleTemporary old or
+// more at now; a write on its way is younger and stays. Failures are left
+// for the next time.
+func SweepTemporaries(path string, now time.Time) {
+	directory, prefix := filepath.Dir(path), "."+filepath.Base(path)+"."
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.Type().IsRegular() || !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".tmp") {
+			continue
+		}
+		if info, err := entry.Info(); err == nil && now.Sub(info.ModTime()) >= StaleTemporary {
+			_ = os.Remove(filepath.Join(directory, name))
+		}
+	}
 }
 
 func readLimited(path string) ([]byte, error) {

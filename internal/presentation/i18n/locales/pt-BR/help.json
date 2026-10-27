@@ -22,7 +22,7 @@
   "ui.help.players.p1": "O app toca os vídeos num player grátis instalado no computador: o VLC, dentro da janela do app e com volume até 200%, ou o PotPlayer, na janela dele. Sem nenhum, a tela da sessão oferece instalar sozinho ou baixar no site oficial.",
   "ui.help.players.p2": "Em Configurações › Player, escolha o player preferido, indique um player instalado num lugar diferente ou peça para procurar de novo.",
   "ui.help.players.title": "Players",
-  "ui.help.problems.p1": "Quando algo dá errado, a mensagem diz o motivo e o que fazer: disco cheio, arquivo somente leitura ou em uso, player que não responde. Nenhuma correção se perde.",
+  "ui.help.problems.p1": "Quando algo dá errado, a mensagem diz o motivo e o que fazer: disco cheio, arquivo somente leitura ou em uso, player que não responde. Nenhuma correção se perde, e um arquivo de configurações que o app não consegue ler nunca é apagado: as Configurações avisam, e o app guarda uma cópia dele antes de gravar por cima.",
   "ui.help.problems.p2": "Se o player fechar no meio, Assistir de novo volta ao ponto onde você estava. Legenda adiantada ou atrasada: veja Sincronia. Legenda errada: troque no painel ou adicione um arquivo.",
   "ui.help.problems.p3": "Para pedir ajuda, Configurações › Avançado › Diagnóstico copia as versões, as telas e o player em uso, e Abrir a pasta mostra os registros dos últimos dias.",
   "ui.help.problems.title": "Problemas e soluções",

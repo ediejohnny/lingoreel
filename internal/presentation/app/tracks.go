@@ -198,10 +198,14 @@ func (a *API) AddSubtitleFile(line string) (Video, error) {
 	}
 	a.video = &added
 	p := a.project
+	var write func() error
 	if p != nil && p.video == video.Path {
-		a.rememberFile(p, &added, track)
+		write = a.rememberFile(p, &added, track)
 	}
 	a.mu.Unlock()
+	if err := written(write); err != nil {
+		a.logger.Warn("the added subtitle file was not remembered", "name", filepath.Base(track.Path))
+	}
 	a.logger.Info("subtitle file added", "name", filepath.Base(path), "track", track.Number)
 
 	if current := a.current(); current != nil && current.session != nil && current.video == video.Path {
@@ -230,23 +234,21 @@ func (a *API) AddSubtitleFile(line string) (Video, error) {
 
 // rememberFile names a track added to the video in its project and, for a
 // file picked from elsewhere, keeps its path so it comes back. Called with
-// a.mu held.
-func (a *API) rememberFile(p *videoProject, video *analysis.Analysis, track media.Track) {
+// a.mu held; the write it returns (nil for none) runs once a.mu is let go.
+func (a *API) rememberFile(p *videoProject, video *analysis.Analysis, track media.Track) func() error {
 	if a.deps.Projects == nil {
-		return
+		return nil
 	}
 	p.keys[track.Number] = a.deps.Projects.TrackKey(video.Path, track)
 	if !track.Added || p.readOnly {
-		return
+		return nil
 	}
-	written := a.deps.Projects.AddedPath(video.Path, track.Path)
+	added := a.deps.Projects.AddedPath(video.Path, track.Path)
 	present := func(file string) bool { return a.loadedFile(video.Info, video.Path, file) }
-	if !p.value.RememberFile(written, present) {
-		return
+	if !p.value.RememberFile(added, present) {
+		return nil
 	}
-	if err := a.saveProject(); err != nil {
-		a.logger.Warn("the added subtitle file was not remembered", "name", filepath.Base(track.Path))
-	}
+	return a.projectSave()
 }
 
 // loadedFile tells whether a path the project wrote names a file the

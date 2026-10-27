@@ -298,8 +298,15 @@ export function SettingsPage({
       </Button>
     </div>
   );
+  // A settings file the app could not read stays on top of every page: it
+  // tells what becomes of the changes.
   const banners = (
     <>
+      {view.notes.map((note) => (
+        <Banner key={note} tone="warning">
+          {note}
+        </Banner>
+      ))}
       {error && (
         <Banner tone="error" onClose={() => setError("")}>
           {error}
@@ -342,7 +349,7 @@ export function SettingsPage({
         </nav>
       )}
       {narrow && saveBar}
-      {narrow && (error || notice) && <div className="flex shrink-0 flex-col gap-2 p-3 pb-0">{banners}</div>}
+      {narrow && (error || notice || view.notes.length > 0) && <div className="flex shrink-0 flex-col gap-2 p-3 pb-0">{banners}</div>}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* The padding is inside the scrolling area, so whatever sticks to its top sticks to the very top. */}
         <main ref={scroller} className="flex-1 overflow-x-hidden overflow-y-auto">

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -88,6 +89,10 @@ func (a *API) Settings() (SettingsView, error) {
 	for i, item := range a.profiles.Items {
 		names[i] = item.Name
 	}
+	notes := make([]string, len(a.settingsNotes))
+	for i, note := range a.settingsNotes {
+		notes[i] = note()
+	}
 	a.mu.Unlock()
 	view := SettingsView{
 		General: GeneralSettings{
@@ -97,7 +102,7 @@ func (a *API) Settings() (SettingsView, error) {
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),
-		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir,
+		Thumbnails: a.thumbnailsView(config.Thumbnails), Folder: a.deps.SettingsDir, Notes: notes,
 	}
 	return view, nil
 }
@@ -180,23 +185,20 @@ func presetName(preset appearance.Preset) string {
 // SaveProfile keeps the screen's choices in the active profile and applies
 // them at once to the video being watched.
 func (a *API) SaveProfile(view ProfileSettings) error {
-	a.mu.Lock()
-	current := a.profile()
-	if !strings.EqualFold(view.Name, current.Name) {
-		a.mu.Unlock()
-		return errors.New(ptbr.T("error.profile.changed"))
-	}
-	profile, err := profileFrom(current, view, a.deps.KeyChar)
-	if err != nil {
-		a.mu.Unlock()
+	var current, profile settings.Profile
+	err := a.changeProfiles(func(next *settings.Profiles) error {
+		current = a.profile()
+		if !strings.EqualFold(view.Name, current.Name) {
+			return errors.New(ptbr.T("error.profile.changed"))
+		}
+		var err error
+		if profile, err = profileFrom(current, view, a.deps.KeyChar); err != nil {
+			return err
+		}
+		profile.Name = current.Name
+		*next, err = next.Replace(profile)
 		return err
-	}
-	profile.Name = current.Name
-	next, err := a.profiles.Replace(profile)
-	if err == nil {
-		err = a.commitProfiles(next)
-	}
-	a.mu.Unlock()
+	})
 	if err != nil {
 		return err
 	}
@@ -244,37 +246,116 @@ func (a *API) restyle(profile settings.Profile) {
 	}
 }
 
-// commitProfiles saves the profiles and, once saved, keeps them. Called with
-// a.mu held.
-func (a *API) commitProfiles(next settings.Profiles) error {
+// What a settings change writes.
+const (
+	writeConfig = 1 << iota
+	writeProfiles
+)
+
+// changeConfig changes the configuration: change edits a copy of it, with
+// a.mu held, and the copy is written without a.mu, then kept. Called without
+// a.mu.
+func (a *API) changeConfig(change func(next *settings.Config) error) error {
+	return a.changeSettings(writeConfig, func(config *settings.Config, _ *settings.Profiles) error { return change(config) })
+}
+
+// changeProfiles changes the profiles as changeConfig does the
+// configuration. Called without a.mu.
+func (a *API) changeProfiles(change func(next *settings.Profiles) error) error {
+	return a.changeSettings(writeProfiles, func(_ *settings.Config, profiles *settings.Profiles) error { return change(profiles) })
+}
+
+// changeSettings changes the configuration and the profiles: change edits
+// copies of both, with a.mu held, and what writes names is written without
+// a.mu, the profiles first, one settings change at a time; the copies are
+// kept once written, so a slow disk never holds the screens or the keys.
+// When the configuration cannot be written after the profiles were, the
+// profiles are put back, so the configuration never names a profile the
+// file lacks. Called without a.mu.
+func (a *API) changeSettings(writes int, change func(config *settings.Config, profiles *settings.Profiles) error) error {
+	a.settingsWrites.Lock()
+	defer a.settingsWrites.Unlock()
+	a.mu.Lock()
+	before, beforeProfiles := a.config, a.profiles
+	config, profiles := a.config, settings.Profiles{Items: slices.Clone(a.profiles.Items)}
+	err := change(&config, &profiles)
+	a.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	// Both are checked before either is written, so a refused configuration
+	// never leaves the profiles written alone.
+	if writes&writeConfig != 0 {
+		if err := config.Validate(); err != nil {
+			a.logger.Warn("refused settings", "error", err)
+			return errSettingsNotSaved
+		}
+	}
+	if writes&writeProfiles != 0 {
+		if err := profiles.Validate(); err != nil {
+			a.logger.Warn("refused profiles", "error", err)
+			return errProfilesNotSaved
+		}
+	}
+	if writes&writeProfiles != 0 {
+		if err := a.writeProfiles(profiles); err != nil {
+			return err
+		}
+	}
+	if writes&writeConfig != 0 {
+		if err := a.writeConfig(config); err != nil {
+			if writes&writeProfiles != 0 {
+				if undo := a.writeProfiles(beforeProfiles); undo != nil {
+					a.logger.Warn("the profiles could not be put back", "error", undo)
+				}
+			}
+			return err
+		}
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if writes&writeConfig == 0 {
+		config = before
+	}
+	if writes&writeProfiles == 0 {
+		profiles = beforeProfiles
+	}
+	a.config, a.profiles = config, profiles
+	return nil
+}
+
+// writeProfiles checks and writes the profiles; a file kept as it is takes
+// them in memory only, until the app closes, and the settings screen says
+// why. Called with a.settingsWrites held, without a.mu.
+func (a *API) writeProfiles(next settings.Profiles) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused profiles", "error", err)
 		return errProfilesNotSaved
 	}
-	if a.deps.Settings != nil {
-		if err := a.deps.Settings.SaveProfiles(next); err != nil {
-			a.logger.Warn("profiles could not be saved", "error", err)
-			return a.because(errProfilesNotSaved, err)
-		}
+	if a.deps.Settings == nil {
+		return nil
 	}
-	a.profiles = next
+	if err := a.deps.Settings.SaveProfiles(next); err != nil && !errors.Is(err, settings.ErrReadOnly) {
+		a.logger.Warn("profiles could not be saved", "error", err)
+		return a.because(errProfilesNotSaved, err)
+	}
 	return nil
 }
 
-// commitConfig saves the configuration and, once saved, keeps it. Called
-// with a.mu held.
-func (a *API) commitConfig(next settings.Config) error {
+// writeConfig checks and writes the configuration, as writeProfiles does
+// the profiles. Called with a.settingsWrites held, without a.mu.
+func (a *API) writeConfig(next settings.Config) error {
 	if err := next.Validate(); err != nil {
 		a.logger.Warn("refused settings", "error", err)
 		return errSettingsNotSaved
 	}
-	if a.deps.Settings != nil {
-		if err := a.deps.Settings.SaveConfig(next); err != nil {
-			a.logger.Warn("settings could not be saved", "error", err)
-			return a.because(errSettingsNotSaved, err)
-		}
+	if a.deps.Settings == nil {
+		return nil
 	}
-	a.config = next
+	if err := a.deps.Settings.SaveConfig(next); err != nil && !errors.Is(err, settings.ErrReadOnly) {
+		a.logger.Warn("settings could not be saved", "error", err)
+		return a.because(errSettingsNotSaved, err)
+	}
 	return nil
 }
 
@@ -322,12 +403,10 @@ func (a *API) applyToSession(previous, profile settings.Profile) {
 // SetSyncNotice shows or leaves out the notice of a sync change on the
 // video, for every profile.
 func (a *API) SetSyncNotice(show bool) error {
-	a.mu.Lock()
-	next := a.config
-	next.SyncNotice = show
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.SyncNotice = show
+		return nil
+	}); err != nil {
 		return err
 	}
 	if current := a.current(); current != nil && current.session != nil {
@@ -339,12 +418,10 @@ func (a *API) SetSyncNotice(show bool) error {
 // SetAlwaysOnTop keeps the app's window in front of the other programs', or
 // lets it go behind them, at once and from then on.
 func (a *API) SetAlwaysOnTop(on bool) error {
-	a.mu.Lock()
-	next := a.config
-	next.AlwaysOnTop = on
-	err := a.commitConfig(next)
-	a.mu.Unlock()
-	if err != nil {
+	if err := a.changeConfig(func(next *settings.Config) error {
+		next.AlwaysOnTop = on
+		return nil
+	}); err != nil {
 		return err
 	}
 	a.keepOnTop()

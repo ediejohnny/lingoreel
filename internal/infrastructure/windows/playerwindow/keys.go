@@ -27,7 +27,11 @@ func (w *Window) keyDown(lparam uintptr) bool {
 		w.pointer(w.cursorInZone())
 		return true
 	}
-	chord := keyboard.ChordOf(key, keyboard.HeldModifiers())
+	held := keyboard.HeldModifiers
+	if w.options.Modifiers != nil {
+		held = w.options.Modifiers
+	}
+	chord := keyboard.ChordOf(key, held())
 	command, found := w.shortcuts().Find(chord)
 	if !found {
 		// Shift+F10 opens the menu, as in every Windows program, unless the

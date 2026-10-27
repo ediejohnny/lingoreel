@@ -318,14 +318,47 @@ func (c Cache) trim(kept string) error {
 	return nil
 }
 
-// Size is how much the kept stills take on the disk.
+// Size is how much the kept stills take on the disk, packages being written
+// included.
 func (c Cache) Size() (int64, error) {
 	found, err := c.packages()
 	total := int64(0)
 	for _, p := range found {
 		total += p.size
 	}
-	return total, err
+	return total + c.partials(time.Now(), false), err
+}
+
+// staleWrite is how old a package left half written must be to be taken for
+// one an app that stopped while writing it left: a write never takes that
+// long.
+const staleWrite = time.Hour
+
+// Sweep takes out the packages left half written by an app that stopped
+// while writing them, as the app opens.
+func (c Cache) Sweep() {
+	c.partials(time.Now(), true)
+}
+
+// partials is how much the packages being written take; sweep takes out
+// those staleWrite old or more at now, which no write is on.
+func (c Cache) partials(now time.Time, sweep bool) int64 {
+	entries, err := os.ReadDir(c.Dir)
+	if err != nil {
+		return 0
+	}
+	total := int64(0)
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil || !entry.Type().IsRegular() || !strings.Contains(entry.Name(), extension+partial) {
+			continue
+		}
+		if sweep && now.Sub(info.ModTime()) >= staleWrite && os.Remove(filepath.Join(c.Dir, entry.Name())) == nil {
+			continue
+		}
+		total += info.Size()
+	}
+	return total
 }
 
 // Clear takes every kept still off the disk (and any package left half

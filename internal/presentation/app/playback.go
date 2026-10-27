@@ -250,15 +250,15 @@ func (a *API) preferPlayer(id string) error {
 
 // updateProfile changes the active profile and saves the profiles.
 func (a *API) updateProfile(change func(*settings.Profile)) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	for i := range a.profiles.Items {
-		if a.profiles.Items[i].Name == a.profile().Name {
-			change(&a.profiles.Items[i])
-			return a.saveProfiles()
+	return a.changeProfiles(func(next *settings.Profiles) error {
+		active := a.profile().Name
+		for i := range next.Items {
+			if next.Items[i].Name == active {
+				change(&next.Items[i])
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 // report sends the playback state until the session ends, then the end.
