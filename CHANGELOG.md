@@ -62,6 +62,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- A video dragged onto the window opens in the app, on the same screen as "Open video", with the subtitles and the
+  study mode. It used to play in a browser window of its own, without any of them, that stayed open after the app
+  closed. Nothing dropped on the window, a file or a link, is opened by the window's browser anymore.
 - Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
   changes to the profile not yet saved on the same settings screen.
 - A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
