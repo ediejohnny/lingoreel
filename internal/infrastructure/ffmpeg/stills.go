@@ -201,6 +201,8 @@ func doviProfile(record string) int {
 // the colours of a JPEG (BT.601, every level), as Go's decoder reads them.
 // An HDR picture is made small first and tone-mapped after: FFmpeg's own
 // tone mapping inside "scale" costs seconds of every core for each still.
+// The curve is mobius, which leaves the mid tones as they are and bends only
+// the highlights, so a still is as bright as the film looks.
 func StillFilter(look Look) string {
 	var chain []string
 	if look.Interlaced {
@@ -212,7 +214,7 @@ func StillFilter(look Look) string {
 		return strings.Join(append(chain,
 			"scale="+size+":flags=bilinear", "format=yuv444p10le", "setsar=1",
 			"zscale=tin="+look.Transfer+":pin=bt2020:min=bt2020nc:rin=limited:t=linear:npl=100",
-			"format=gbrpf32le", "zscale=p=bt709", "tonemap=hable:desat=0",
+			"format=gbrpf32le", "zscale=p=bt709", "tonemap=mobius:desat=0",
 			"zscale=t=bt709:m=bt470bg:r=full", "format=yuvj444p"), ",")
 	}
 	scale := "scale=" + size + ":flags=bicubic"

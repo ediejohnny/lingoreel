@@ -52,7 +52,7 @@ func TestTheStillArgumentsTakeTheKeyframeOfTheLocalFile(t *testing.T) {
 		{"untagged HD", ffmpeg.Look{UntaggedHD: true}, []string{"in_color_matrix=bt709:in_range=tv"}, nil},
 		{"untagged HD at every level", ffmpeg.Look{UntaggedHD: true, FullRange: true}, []string{"in_color_matrix=bt709"}, []string{"in_range"}},
 		{"interlaced", ffmpeg.Look{Interlaced: true}, []string{"bwdif=mode=send_frame:deint=interlaced,scale="}, nil},
-		{"PQ", ffmpeg.Look{Transfer: ffmpeg.TransferPQ}, []string{"zscale=tin=smpte2084", "tonemap=hable"}, nil},
+		{"PQ", ffmpeg.Look{Transfer: ffmpeg.TransferPQ}, []string{"zscale=tin=smpte2084", "tonemap=mobius:desat=0"}, []string{"hable"}},
 		{"HLG", ffmpeg.Look{Transfer: ffmpeg.TransferHLG}, []string{"zscale=tin=arib-std-b67"}, nil},
 	} {
 		filter := ffmpeg.StillFilter(c.look)

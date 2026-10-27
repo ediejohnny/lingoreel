@@ -33,6 +33,8 @@ All notable changes to this project are listed here. The format follows
 
 - How fast the voice model runs is no longer measured to tell a weak computer: a computer is judged by its hardware
   alone, since how busy it is at a moment (a game on another screen, an update) passes and says nothing of it.
+- The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
+  they are and only the highlights bend, so a still is as bright as the film looks.
 
 ## [0.27.3] - 2026-10-27
 
