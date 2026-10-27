@@ -179,8 +179,10 @@ small libraries, and the [Silero VAD](https://github.com/snakers4/silero-vad) sp
 app. Their notices are in the app, in Settings › Help › About. VLC, PotPlayer and FFmpeg are not shipped with it: the
 app uses the copies on your computer.
 
-The screenshots show [Sintel](https://durian.blender.org/), © copyright Blender Foundation | durian.blender.org,
-under the [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/) license.
+The screenshots in `docs/images` show frames of [Sintel](https://durian.blender.org/), © copyright Blender
+Foundation | durian.blender.org, under the [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/)
+license, with the app's subtitles, bar and menus drawn over them. Those frames are not covered by the MIT license.
 
 If this project is useful to you, **please give credit** by mentioning LingoReel and its author, Edie Johnny,
-with a link to the repository (https://github.com/ediejohnny/lingoreel). The license does not require it, but it is a kind gesture that helps the project go on.
+with a link to the repository (https://github.com/ediejohnny/lingoreel). The license does not require it, but it is
+a kind gesture that helps the project go on.

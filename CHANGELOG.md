@@ -6,6 +6,11 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The README says plainly that its screenshots' frames of Sintel stay under Creative Commons Attribution 3.0, with
+  the app's subtitles and menus drawn over them, and are not covered by the MIT license.
+
 ## [0.27.2] - 2026-10-27
 
 ### Added
