@@ -6,6 +6,45 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-10-27
+
+### Changed
+
+- The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
+- The executable's details in Windows (its description and copyright) are in English.
+- The zip's read-me tells of the setup assistant, the free and optional FFmpeg, and where the projects, the seek
+  bar's stills and the logs are kept.
+
+### Fixed
+
+- A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
+  One written by a newer version, or one Windows would not open, stays as it is, and the changes last until the app
+  closes; a damaged one is copied aside, whole (`config.damaged-<date>-<time>.json`), before the first save over it.
+  Settings tells which file and why, on every page.
+- A video's project written by a newer version says that nothing changed now is kept, and saving a passage into a
+  project the app cannot write is refused, with why, instead of seeming to work.
+- Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
+  saved, so the app never opens on a profile that is gone.
+- A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
+  the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
+  the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
+- A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
+  (after making room on the disk, say) or to close without them; they used to be lost quietly.
+- Temporary files an app that stopped while saving left behind (beside the settings, the profiles, a video's project
+  or an exported subtitle) are taken out the next time that file is read or exported, once they are an hour old. A
+  package of seek-bar stills left half written is taken out as the app opens, and counts in the size the settings
+  show until then.
+- Switching the seek bar's stills to "taken again at each opening" no longer writes the stills taken until then to
+  the disk.
+- When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
+  folder, and the diagnostics name the folder really used.
+- An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
+- A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
+- Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
+  command, arrives after it on a busy computer.
+
+## [0.27.0] - 2026-10-27
+
 ### Added
 
 - The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
@@ -39,16 +78,13 @@ All notable changes to this project are listed here. The format follows
   back with either a comma or a point.
 - The subtitle ladder's help names the study subtitle and the translation instead of English and Portuguese, and the
   install message for FFmpeg points to the official site and the "Browse…" button.
-- The language setting is called "Linguagem do aplicativo" ("App language").
+- The language setting is called "App language".
 - A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
   (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
-- The first profile is named after the language studied, in the app language, instead of always "Inglês".
+- The first profile is named after the language studied, in the app language, instead of always the Portuguese name
+  for English.
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
-- The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
-- The executable's details in Windows (its description and copyright) are in English.
-- The zip's read-me tells of the setup assistant, the free and optional FFmpeg, and where the projects, the seek
-  bar's stills and the logs are kept.
 - The README presents the app as it is today, with pictures of it: highlights, features by area, the default
   shortcuts, requirements, privacy and building from source. The guide to translating covers the documentation's
   file, the two catalogs and English as the language of a Windows the app does not speak.
@@ -57,31 +93,6 @@ All notable changes to this project are listed here. The format follows
 
 - Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
   changes to the profile not yet saved on the same settings screen.
-- A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
-  One written by a newer version, or one Windows would not open, stays as it is, and the changes last until the app
-  closes; a damaged one is copied aside, whole (`config.damaged-<date>-<time>.json`), before the first save over it.
-  Settings tells which file and why, on every page.
-- A video's project written by a newer version says that nothing changed now is kept, and saving a passage into a
-  project the app cannot write is refused, with why, instead of seeming to work.
-- Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
-  saved, so the app never opens on a profile that is gone.
-- A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
-  the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
-  the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
-- A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
-  (after making room on the disk, say) or to close without them; they used to be lost quietly.
-- Temporary files an app that stopped while saving left behind (beside the settings, the profiles, a video's project
-  or an exported subtitle) are taken out the next time that file is read or exported, once they are an hour old. A
-  package of seek-bar stills left half written is taken out as the app opens, and counts in the size the settings
-  show until then.
-- Switching the seek bar's stills to "taken again at each opening" no longer writes the stills taken until then to
-  the disk.
-- When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
-  folder, and the diagnostics name the folder really used.
-- An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
-- A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
-- Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
-  command, arrives after it on a busy computer.
 
 ## [0.26.0] - 2026-10-07
 
@@ -746,7 +757,9 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...v0.27.1
+[0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
