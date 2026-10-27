@@ -19,6 +19,14 @@ import (
 // standard input, then allocates or spins and ends.
 const childMode = "LINGOREEL_JOB_CHILD"
 
+// spinWork is the processor time a spinning child takes. At a fiftieth of a
+// processor it lasts some 2.5 s, far beyond what a busy machine adds to
+// 50 ms, so the cap shows on a weak or loaded computer too.
+const (
+	spinWork = 50 * time.Millisecond
+	spinCap  = 0.02
+)
+
 func TestMain(m *testing.M) {
 	switch os.Getenv(childMode) {
 	case "":
@@ -31,8 +39,8 @@ func TestMain(m *testing.M) {
 		}
 	case "spin":
 		_, _ = io.ReadFull(os.Stdin, make([]byte, 1))
-		for spent() < 250*time.Millisecond {
-			for i := 0; i < 1_000_000; i++ {
+		for spent() < spinWork {
+			for i := range 1_000_000 {
 				_ = i * i
 			}
 		}
@@ -137,7 +145,7 @@ func TestAssignFailsForAMissingProcess(t *testing.T) {
 
 // A job's limits hold its processes: past its memory a process's
 // allocations fail, and together they take no more than their share of a
-// processor.
+// processor, even while the machine is busy.
 func TestAJobHoldsItsProcessesToItsLimits(t *testing.T) {
 	testkit.Slow(t)
 	held, err := job.New(job.Limits{Memory: 64 << 20})
@@ -152,7 +160,7 @@ func TestAJobHoldsItsProcessesToItsLimits(t *testing.T) {
 		t.Fatal("held to 64 MB, the child allocated 256 MB")
 	}
 
-	capped, err := job.New(job.Limits{CPU: 0.1})
+	capped, err := job.New(job.Limits{CPU: spinCap})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -165,9 +173,10 @@ func TestAJobHoldsItsProcessesToItsLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("250 ms of work: %v free, %v at a tenth of a processor", free, slow)
-	// 250 ms of a processor at a tenth of one takes some 2.5 s.
-	if slow < 1200*time.Millisecond || slow < 2*free {
-		t.Fatalf("at a tenth of a processor 250 ms of work took %v (free: %v)", slow, free)
+	t.Logf("%v of work: %v free, %v at a fiftieth of a processor", spinWork, free, slow)
+	// spinWork / spinCap is 2.5 s; a busy machine slows the free run too, so
+	// the capped one must still take several times longer than it did.
+	if slow < 1500*time.Millisecond || slow < 4*free {
+		t.Fatalf("at a fiftieth of a processor %v of work took %v (free: %v)", spinWork, slow, free)
 	}
 }
