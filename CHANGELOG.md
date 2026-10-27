@@ -6,6 +6,75 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-10-27
+
+### Added
+
+- `lrdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
+  first picture on the screen and to its first sound, and whether the two still go together a second later. A lap is
+  sent as one order, as a seek and a play, or with its picture made ready during the gap and a play after, also held
+  to fewer processors.
+- `lrdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
+
+### Changed
+
+- The developer tool is called `lrdev` (`lrdev.exe` beside the app in `build\bin`).
+- The zip's read-me and third-party notices are in English: `README.txt` and `THIRD-PARTY-NOTICES.txt`.
+
+### Fixed
+
+- A video dragged onto the window opens in the app, on the same screen as "Open video", with the subtitles and the
+  study mode. It used to play in a browser window of its own, without any of them, that stayed open after the app
+  closed. Nothing dropped on the window, a file or a link, is opened by the window's browser anymore.
+- Closing the app while the setup assistant is still open no longer writes over the answers it was given a moment
+  before.
+- The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
+  the earlier one is all painted and the fill goes on in the next.
+- A karaoke line whose time ends before its fill does (VLC's clock jumping forward a little, a computer busy for a
+  moment) shows all painted for one frame before it goes, instead of leaving the screen half painted; a seek away, a
+  sync step, a subtitle switch or turning the karaoke mode off takes it off at once.
+- Going back to a passage's start with VLC (each lap after its gap, or Play at its end) sends the seek and the play
+  as one order, so the picture and the sound start together; the sound used to start first, the picture catching up.
+
+## [0.27.1] - 2026-10-27
+
+### Changed
+
+- The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
+- The executable's details in Windows (its description and copyright) are in English.
+- The zip's read-me tells of the setup assistant, the free and optional FFmpeg, and where the projects, the seek
+  bar's stills and the logs are kept.
+
+### Fixed
+
+- A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
+  One written by a newer version, or one Windows would not open, stays as it is, and the changes last until the app
+  closes; a damaged one is copied aside, whole (`config.damaged-<date>-<time>.json`), before the first save over it.
+  Settings tells which file and why, on every page.
+- A video's project written by a newer version says that nothing changed now is kept, and saving a passage into a
+  project the app cannot write is refused, with why, instead of seeming to work.
+- Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
+  saved, so the app never opens on a profile that is gone.
+- A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
+  the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
+  the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
+- A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
+  (after making room on the disk, say) or to close without them; they used to be lost quietly.
+- Temporary files an app that stopped while saving left behind (beside the settings, the profiles, a video's project
+  or an exported subtitle) are taken out the next time that file is read or exported, once they are an hour old. A
+  package of seek-bar stills left half written is taken out as the app opens, and counts in the size the settings
+  show until then.
+- Switching the seek bar's stills to "taken again at each opening" no longer writes the stills taken until then to
+  the disk.
+- When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
+  folder, and the diagnostics name the folder really used.
+- An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
+- A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
+- Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
+  command, arrives after it on a busy computer.
+
+## [0.27.0] - 2026-10-27
+
 ### Added
 
 - The whole interface in American English, beside Brazilian Portuguese: every screen, menu, notice, message and tip
@@ -26,18 +95,11 @@ All notable changes to this project are listed here. The format follows
   the voice AI, players, where the app keeps everything, problems and solutions), in both languages. It names the
   profile's own keys, finds topics by any word with or without accents, opens the settings each topic is about, and
   shows the topics as a list in the panel beside the video. Help now has two pages: Documentation and About.
-- `lrdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
-  first picture on the screen and to its first sound, and whether the two still go together a second later. A lap is
-  sent as one order, as a seek and a play, or with its picture made ready during the gap and a play after, also held
-  to fewer processors.
-- `lrdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
 - Settings › General › Setup assistant opens it again when no video plays: it changes the active profile, and another
   language studied gets a profile of its own, named after it, while the old one stays.
 
 ### Changed
 
-- The developer tool is called `lrdev` (`lrdev.exe` beside the app in `build\bin`).
-- The zip's read-me and third-party notices are in English: `README.txt` and `THIRD-PARTY-NOTICES.txt`.
 - Texts that named a fixed key ("Space", "Backspace", the arrows) now show the key the profile gives the command, or
   none when it has no shortcut; the karaoke help no longer quotes the default times, which can be changed.
 - The players' reasons to choose them, the Explorer's names for the app, and the messages Windows shows when WebView2
@@ -49,58 +111,18 @@ All notable changes to this project are listed here. The format follows
 - The language setting is called "App language".
 - A Windows display language the app does not speak now opens the app in English instead of Brazilian Portuguese
   (Portuguese from Portugal still opens it in Brazilian Portuguese, British English in American English).
-- The first profile is named after the language studied, in the app language, instead of always the Portuguese name for English.
+- The first profile is named after the language studied, in the app language, instead of always the Portuguese name
+  for English.
 - The settings' subtitle preview speaks each line's language: the sample on top is in the language studied and the one
   below in the translation's (English, Portuguese, Spanish, French, German and Italian; English for the others).
-- The message for a file Windows would not let the app write names the file's "Read-only" mark among what to check.
-- The executable's details in Windows (its description and copyright) are in English.
-- The zip's read-me tells of the setup assistant, the free and optional FFmpeg, and where the projects, the seek
-  bar's stills and the logs are kept.
 - The README presents the app as it is today, with pictures of it: highlights, features by area, the default
   shortcuts, requirements, privacy and building from source. The guide to translating covers the documentation's
   file, the two catalogs and English as the language of a Windows the app does not speak.
 
 ### Fixed
 
-- A video dragged onto the window opens in the app, on the same screen as "Open video", with the subtitles and the
-  study mode. It used to play in a browser window of its own, without any of them, that stayed open after the app
-  closed. Nothing dropped on the window, a file or a link, is opened by the window's browser anymore.
 - Turning on "always on top" or the sync notices, or any other choice that applies at once, no longer throws away the
   changes to the profile not yet saved on the same settings screen.
-- A settings or profiles file the app could not read is no longer written over with the defaults at the next save.
-  One written by a newer version, or one Windows would not open, stays as it is, and the changes last until the app
-  closes; a damaged one is copied aside, whole (`config.damaged-<date>-<time>.json`), before the first save over it.
-  Settings tells which file and why, on every page.
-- A video's project written by a newer version says that nothing changed now is kept, and saving a passage into a
-  project the app cannot write is refused, with why, instead of seeming to work.
-- Renaming, removing or creating the active profile undoes the profiles' change when the configuration cannot be
-  saved, so the app never opens on a profile that is gone.
-- Closing the app while the setup assistant is still open no longer writes over the answers it was given a moment
-  before.
-- A slow disk (an old hard drive, an antivirus scanning the file) no longer holds the app while it saves: the panel,
-  the settings and the video's keys go on while a video's project or the settings are written, one write at a time,
-  the newest written last. Forgetting a video waits for a write on its way, and nothing writes it back afterwards.
-- A video's changes that still cannot be saved as the app closes now ask, in Windows' own box, whether to try again
-  (after making room on the disk, say) or to close without them; they used to be lost quietly.
-- Temporary files an app that stopped while saving left behind (beside the settings, the profiles, a video's project
-  or an exported subtitle) are taken out the next time that file is read or exported, once they are an hour old. A
-  package of seek-bar stills left half written is taken out as the app opens, and counts in the size the settings
-  show until then.
-- Switching the seek bar's stills to "taken again at each opening" no longer writes the stills taken until then to
-  the disk.
-- When the settings folder cannot take the log (a read-only or full disk), the log goes to the user's temporary
-  folder, and the diagnostics name the folder really used.
-- An error that keeps the app from opening is told in Windows' own box; it was told nowhere.
-- A failed FFmpeg install in Settings shows its message as the app words it, not the raw error.
-- Playing, pausing or seeking no longer flips back for a moment when the player's answer, read just before the
-  command, arrives after it on a busy computer.
-- The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
-  the earlier one is all painted and the fill goes on in the next.
-- A karaoke line whose time ends before its fill does (VLC's clock jumping forward a little, a computer busy for a
-  moment) shows all painted for one frame before it goes, instead of leaving the screen half painted; a seek away, a
-  sync step, a subtitle switch or turning the karaoke mode off takes it off at once.
-- Going back to a passage's start with VLC (each lap after its gap, or Play at its end) sends the seek and the play
-  as one order, so the picture and the sound start together; the sound used to start first, the picture catching up.
 
 ## [0.26.0] - 2026-10-07
 
@@ -762,7 +784,10 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...HEAD
+[0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2
+[0.27.1]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...v0.27.1
+[0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/ediejohnny/lingoreel/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/ediejohnny/lingoreel/compare/v0.23.1...v0.24.0
