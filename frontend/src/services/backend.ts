@@ -2,7 +2,7 @@
 // what they carry. Screens import from here, never from wailsjs directly.
 import * as api from "../../wailsjs/go/app/API";
 import type { app } from "../../wailsjs/go/models";
-import { ClipboardSetText, EventsOn } from "../../wailsjs/runtime/runtime";
+import { ClipboardSetText, EventsOn, OnFileDrop } from "../../wailsjs/runtime/runtime";
 import { t } from "../i18n";
 
 export type Video = app.Video;
@@ -199,6 +199,11 @@ export const backend = {
   setFullscreen: (on: boolean) => api.SetFullscreen(on),
   setPanel: (state: PanelState) => api.SetPanel(state as app.PanelState),
 
+  /**
+   * acceptDroppedFiles has Wails listen to files dropped anywhere on the window and hand their paths to the backend,
+   * which tells the screens through onDropped.
+   */
+  acceptDroppedFiles: () => OnFileDrop(() => undefined, false),
   onDropped: (listener: (path: string) => void) => EventsOn(events.dropped, listener),
   onPlayback: (listener: (state: Playback) => void) => EventsOn(events.playback, listener),
   onEnded: (listener: (ended: Ended) => void) => EventsOn(events.ended, listener),

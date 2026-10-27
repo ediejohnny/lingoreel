@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
@@ -202,23 +203,58 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
-	if s.karaoke.Fill && len(visible.Primary) == 1 {
-		line := visible.Primary[0]
-		if !study.SpeechUnits(line.Text()).Spoken() {
-			return visible // only a sound's description, or music: never painted
-		}
-		visible.Filling = true
-		// Whatever paints the line, it is all painted before the line goes.
-		start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
-		if s.voice != nil {
-			if fill, found := s.voice(line.Text(), start, end, position); found {
-				visible.Fill = study.FinishedFill(fill, position, start, end)
-				return visible
-			}
-		}
-		visible.Fill = study.FinishedFill(study.SpokenFraction(line, primary.Offset.TrackTime(position)), position, start, end)
+	if s.karaoke.Fill {
+		visible.Fill, visible.Filling = s.fill(primary, visible.Primary, position)
 	}
 	return visible
+}
+
+// fill is the share of the study events shown that is painted, and whether
+// they are being painted. The latest one is being spoken; one shown with it,
+// its time not over yet (the next line came before it went), is all painted,
+// since the actor has moved on. The share counts the visible characters as
+// the drawing does (layout.FillWidths), so those earlier lines end exactly
+// painted. Called with s.mu held.
+func (s *Subtitles) fill(primary *Track, shown []subtitle.Event, position time.Duration) (float64, bool) {
+	line := shown[len(shown)-1]
+	if len(shown) == 1 && !study.SpeechUnits(line.Text()).Spoken() {
+		return 0, false // only a sound's description, or music: never painted
+	}
+	// Whatever paints the line, it is all painted before the line goes.
+	start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
+	spoken := study.SpokenFraction(line, primary.Offset.TrackTime(position))
+	if s.voice != nil {
+		if fill, found := s.voice(line.Text(), start, end, position); found {
+			spoken = fill
+		}
+	}
+	spoken = study.FinishedFill(spoken, position, start, end)
+	if len(shown) == 1 {
+		return spoken, true
+	}
+	before, total := 0, 0
+	for _, event := range shown {
+		total += visibleCharacters(event.Text())
+	}
+	for _, event := range shown[:len(shown)-1] {
+		before += visibleCharacters(event.Text())
+	}
+	if total == 0 {
+		return 0, false
+	}
+	return (float64(before) + spoken*float64(total-before)) / float64(total), true
+}
+
+// visibleCharacters counts a text's characters that are not spaces, as the
+// drawing of the fill does.
+func visibleCharacters(text string) int {
+	count := 0
+	for _, r := range text {
+		if !unicode.IsSpace(r) {
+			count++
+		}
+	}
+	return count
 }
 
 // Track returns a line's track as it is now (offset included); nil for a

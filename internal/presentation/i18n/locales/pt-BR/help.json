@@ -39,7 +39,7 @@
   "ui.help.start.p1": "Arraste um vídeo para a janela ou use Abrir vídeo. O app funciona melhor com .mkv e também abre .mp4, .avi, .mov e .wmv. As legendas podem vir dentro do vídeo ou em arquivos .srt, .ass ou .vtt ao lado dele.",
   "ui.help.start.p2": "A tela da sessão já sugere a legenda de estudo, a tradução, o áudio e o player. Confira, mude o que quiser e clique em Assistir. Se você parou no meio, Continuar de volta ao ponto onde estava.",
   "ui.help.start.p3": "Na primeira abertura, o assistente pergunta a linguagem do app, as suas línguas, o modo de estudo, o player e o FFmpeg. Ele reabre em Configurações › Geral › Assistente de configuração.",
-  "ui.help.start.p4": "Com Configurações › Avançado › Abrir vídeos pelo Windows, um duplo clique num vídeo, ou o Abrir com do Explorer, já abre o app.",
+  "ui.help.start.p4": "Com Configurações › Avançado › Abrir vídeos pelo Windows, o botão direito num vídeo mostra Assistir com o LingoReel, e o app entra no Abrir com do Explorer; o programa padrão de cada vídeo continua o mesmo.",
   "ui.help.start.title": "Primeiros passos",
   "ui.help.storage.p1": "Tudo fica neste computador, na pasta do app (Configurações › Avançado › Abrir a pasta): as configurações, os perfis, as correções de cada vídeo (projects), as miniaturas (thumbnails) e os registros dos últimos 14 dias (logs). Nada é gravado na pasta do filme.",
   "ui.help.storage.p2": "O app não envia nada para a internet; ele só a usa quando você pede para instalar um player ou o FFmpeg. Na tela da sessão, Esquecer tudo deste vídeo apaga as correções, a sincronia, os trechos e o ponto onde você parou.",

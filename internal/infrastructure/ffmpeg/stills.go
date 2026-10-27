@@ -252,6 +252,10 @@ type Stills struct {
 	Indexed func(file string) (bool, error)
 	// Report hears what each still cost; nil hears nothing.
 	Report func(Run)
+	// ProbeSize is how many bytes FFmpeg reads to learn a film's streams
+	// before a still (its -probesize); zero leaves FFmpeg's own 5 MB. For
+	// measuring a smaller one.
+	ProbeSize int64
 }
 
 // Open looks at a film once, to know how its stills must be taken.
@@ -278,7 +282,7 @@ func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 	if look.DolbyVision == 5 {
 		return nil, fmt.Errorf("%w: Dolby Vision profile 5", thumbnail.ErrNoStills)
 	}
-	return &film{path: s.Path, file: file, format: format, look: look, report: s.Report}, nil
+	return &film{path: s.Path, file: file, format: format, look: look, report: s.Report, probe: s.ProbeSize}, nil
 }
 
 // describe has FFmpeg describe the file: given no output, it describes its
@@ -310,6 +314,8 @@ type film struct {
 	path, file, format string
 	look               Look
 	report             func(Run)
+	// probe is FFmpeg's -probesize, zero for its own.
+	probe int64
 	// untimed is an FFmpeg older than 6.1, which cannot tell the frame's
 	// time: its stills stand for the moment asked.
 	untimed atomic.Bool
@@ -371,7 +377,11 @@ func rest(ctx context.Context, work time.Duration) {
 func (f *film) grab(ctx context.Context, shot thumbnail.Shot, withTime bool) (thumbnail.Picture, cost, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, stillTimeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, f.path, StillArguments(f.file, f.format, shot.At, f.look, withTime)...)
+	args := StillArguments(f.file, f.format, shot.At, f.look, withTime)
+	if f.probe > 0 {
+		args = append([]string{"-probesize", strconv.FormatInt(f.probe, 10)}, args...)
+	}
+	command := exec.CommandContext(ctx, f.path, args...)
 	command.SysProcAttr = background()
 	var told bytes.Buffer
 	command.Stderr = &limitedWriter{buffer: &told, room: 4096}

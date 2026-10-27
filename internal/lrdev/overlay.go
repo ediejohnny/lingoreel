@@ -1,4 +1,4 @@
-package spdev
+package lrdev
 
 import (
 	"github.com/ediejohnny/lingoreel/internal/application/watch"

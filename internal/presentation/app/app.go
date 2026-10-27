@@ -482,7 +482,7 @@ func (l Lifecycle) FullscreenChanged(on bool) {
 }
 
 // ShowEditor opens the panel beside the video on the line editor: the bar's
-// "Corrigir a legenda…" has picked the line.
+// "Correct the study subtitle…" has picked the line.
 // KeepOnTop puts the window in front of the other programs' when the
 // settings ask for it; showing the window (Wails' WindowShow) leaves that
 // place, so this follows every show.

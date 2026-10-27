@@ -39,7 +39,7 @@
   "ui.help.start.p1": "Drag a video onto the window or use Open video. The app works best with .mkv and also opens .mp4, .avi, .mov and .wmv. Subtitles can come inside the video or in .srt, .ass or .vtt files next to it.",
   "ui.help.start.p2": "The session screen already suggests the study subtitle, the translation, the audio and the player. Check them, change what you like and click Watch. If you stopped midway, Resume from goes back to where you were.",
   "ui.help.start.p3": "On the first opening, the setup assistant asks for the app language, your languages, the study mode, the player and FFmpeg. It opens again in Settings › General › Setup assistant.",
-  "ui.help.start.p4": "With Settings › Advanced › Open videos from Windows, a double click on a video, or Explorer's Open with, opens the app.",
+  "ui.help.start.p4": "With Settings › Advanced › Open videos from Windows, right-clicking a video shows Watch with LingoReel, and the app joins Explorer's Open with; each video's default program stays the same.",
   "ui.help.start.title": "Getting started",
   "ui.help.storage.p1": "Everything stays on this computer, in the app's folder (Settings › Advanced › Open the folder): the settings, the profiles, each video's corrections (projects), the thumbnails (thumbnails) and the logs of the last 14 days (logs). Nothing is written to the film's folder.",
   "ui.help.storage.p2": "The app sends nothing to the internet; it only uses it when you ask it to install a player or FFmpeg. On the session screen, Forget everything about this video deletes the corrections, the sync, the passages and where you stopped.",

@@ -6,7 +6,7 @@ import { Button, IconButton } from "../ui/Button";
 
 interface SavedPassagesProps {
   passages: SavedPassage[];
-  /** studyLabel is the study button's text: "Estudar" or "Estudar este trecho". */
+  /** studyLabel is the study button's text: "Study passage" or "Study this passage". */
   studyLabel: string;
   /** studyDisabled turns every study button off, with the reason in its tip. */
   studyDisabled?: string;

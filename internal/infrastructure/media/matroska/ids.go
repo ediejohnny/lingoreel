@@ -1,4 +1,4 @@
-// Package matroska reads the parts of Matroska/WebM files that the LingoReel needs: segment information, tracks and the frames of subtitle tracks.
+// Package matroska reads the parts of Matroska/WebM files that LingoReel needs: segment information, tracks and the frames of subtitle tracks.
 // Every file is treated as untrusted input and every allocation is bounded.
 package matroska
 

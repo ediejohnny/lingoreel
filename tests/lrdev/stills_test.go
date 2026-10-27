@@ -1,4 +1,4 @@
-package spdev_test
+package lrdev_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
@@ -24,13 +24,13 @@ func TestStillsValidatesOptionsFirst(t *testing.T) {
 		args []string
 		want error
 	}{
-		{[]string{"stills"}, spdev.ErrMissingArgument},
-		{[]string{"stills", "film.mkv", "--affinity", "zz"}, spdev.ErrInvalidOption},
-		{[]string{"stills", "film.mkv", "--affinity", "0"}, spdev.ErrInvalidOption},
-		{[]string{"stills", "film.mkv", "--parallel", "9"}, spdev.ErrInvalidOption},
-		{[]string{"stills", "film.mkv", "--count", "0"}, spdev.ErrInvalidOption},
+		{[]string{"stills"}, lrdev.ErrMissingArgument},
+		{[]string{"stills", "film.mkv", "--affinity", "zz"}, lrdev.ErrInvalidOption},
+		{[]string{"stills", "film.mkv", "--affinity", "0"}, lrdev.ErrInvalidOption},
+		{[]string{"stills", "film.mkv", "--parallel", "9"}, lrdev.ErrInvalidOption},
+		{[]string{"stills", "film.mkv", "--count", "0"}, lrdev.ErrInvalidOption},
 	} {
-		if err := spdev.Run(ctx, c.args, &bytes.Buffer{}); !errors.Is(err, c.want) {
+		if err := lrdev.Run(ctx, c.args, &bytes.Buffer{}); !errors.Is(err, c.want) {
 			t.Errorf("%q: %v, want %v", c.args, err, c.want)
 		}
 	}
@@ -50,7 +50,7 @@ func TestStillsMeasuresAFilmWithoutNamingIt(t *testing.T) {
 		t.Fatalf("making the film: %v: %s", err, out)
 	}
 	var out bytes.Buffer
-	if err := spdev.Run(context.Background(), []string{"stills", film, "--ffmpeg", tool, "--count", "3", "--paced"}, &out); err != nil {
+	if err := lrdev.Run(context.Background(), []string{"stills", film, "--ffmpeg", tool, "--count", "3", "--paced"}, &out); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
 	text := out.String()

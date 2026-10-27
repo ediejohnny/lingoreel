@@ -1,4 +1,4 @@
-package spdev_test
+package lrdev_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 )
 
 // The version is swapped for a distinctive value so the test fails if Run
@@ -18,7 +18,7 @@ func TestRunVersionPrintsInjectedBuildVersion(t *testing.T) {
 	t.Cleanup(func() { buildinfo.Version = original })
 	var out bytes.Buffer
 
-	if err := spdev.Run(t.Context(), []string{"version"}, &out); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"version"}, &out); err != nil {
 		t.Fatalf("Run(version) returned error: %v", err)
 	}
 	if got := out.String(); got != "7.8.9-injected\n" {
@@ -29,7 +29,7 @@ func TestRunVersionPrintsInjectedBuildVersion(t *testing.T) {
 // diag lists one line per monitor and the checklist for other machines.
 func TestDiagListsMonitorsAndTheChecklist(t *testing.T) {
 	var out bytes.Buffer
-	if err := spdev.Run(t.Context(), []string{"diag"}, &out); err != nil {
+	if err := lrdev.Run(t.Context(), []string{"diag"}, &out); err != nil {
 		t.Fatalf("Run(diag): %v", err)
 	}
 	text := out.String()
@@ -46,10 +46,10 @@ func TestDiagListsMonitorsAndTheChecklist(t *testing.T) {
 func TestRunWithoutArgumentsOrWithHelpPrintsUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {}, {"help"}, {"-h"}, {"--help"}} {
 		var out bytes.Buffer
-		if err := spdev.Run(t.Context(), args, &out); err != nil {
+		if err := lrdev.Run(t.Context(), args, &out); err != nil {
 			t.Fatalf("Run(%q) returned error: %v", args, err)
 		}
-		if !strings.Contains(out.String(), "Usage: spdev") || !strings.Contains(out.String(), "Commands:") {
+		if !strings.Contains(out.String(), "Usage: lrdev") || !strings.Contains(out.String(), "Commands:") {
 			t.Fatalf("Run(%q) did not print the usage, got %q", args, out.String())
 		}
 	}
@@ -58,11 +58,11 @@ func TestRunWithoutArgumentsOrWithHelpPrintsUsage(t *testing.T) {
 func TestRunRejectsUnknownCommands(t *testing.T) {
 	for _, command := range []string{"bogus", "", "VERSION", "version2"} {
 		var out bytes.Buffer
-		err := spdev.Run(t.Context(), []string{command}, &out)
-		if !errors.Is(err, spdev.ErrUnknownCommand) {
+		err := lrdev.Run(t.Context(), []string{command}, &out)
+		if !errors.Is(err, lrdev.ErrUnknownCommand) {
 			t.Fatalf("Run(%q) error = %v, want ErrUnknownCommand", command, err)
 		}
-		if !strings.Contains(out.String(), "Usage: spdev") {
+		if !strings.Contains(out.String(), "Usage: lrdev") {
 			t.Fatalf("usage not printed for %q, got %q", command, out.String())
 		}
 	}

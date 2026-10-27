@@ -14,8 +14,8 @@ type Screen struct {
 	// TranslationVisible hides the translation without freeing its space,
 	// so the primary line never moves when it is revealed.
 	TranslationVisible bool
-	// PrimaryHidden hides the line on top, as the ladder of "Estudar
-	// trecho" does in its last laps.
+	// PrimaryHidden hides the line on top, as the passage study's ladder does in
+	// its last laps.
 	PrimaryHidden bool
 	// Cue is set when the primary line is shown before its time.
 	Cue *CueScreen

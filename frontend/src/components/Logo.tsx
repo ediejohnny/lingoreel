@@ -1,5 +1,5 @@
 /**
- * Logo is the app's mark, the same drawing as its icon (spdev icon): a dark
+ * Logo is the app's mark, the same drawing as its icon (lrdev icon): a dark
  * rounded square with a play sign split across the middle, its halves a neon
  * red and a pink. It is only decoration: the app's name always goes beside it.
  */

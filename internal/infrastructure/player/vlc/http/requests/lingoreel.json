@@ -4,7 +4,7 @@ own lua\http\requests\status.json. VLC runs the code between the vlc
 markers and answers with what it prints, which is JSON; the file name is
 the address it is served at (/requests/lingoreel.json).
 
-Control endpoint of the LingoReel. VLC's own status.json only
+Control endpoint of LingoReel. VLC's own status.json only
 reports whole seconds; this one reports microseconds and accepts a short,
 fixed list of commands. Query values are parsed as numbers and never run.
 The placeholders are filled when the file is written for one session: the
@@ -28,6 +28,26 @@ else
       local microseconds = number("us")
       if microseconds and microseconds >= 0 then
         vlc.var.set(input, "time", math.floor(microseconds))
+      end
+    elseif command == "lap" then
+      -- A seek and a play in one request, for a passage's lap: VLC's input
+      -- takes them together and waits for the picture before the sound
+      -- starts. A seek while paused and a play after start the sound first,
+      -- the picture catching up once the video decoded to it.
+      local microseconds = number("us")
+      if microseconds and microseconds >= 0 then
+        vlc.var.set(input, "time", math.floor(microseconds))
+        if vlc.playlist.status() == "paused" then vlc.playlist.pause() end
+      end
+    elseif command == "prepare" then
+      -- A passage's next lap, made ready during its gap: paused, a seek
+      -- shows no picture, and one frame forward decodes to the target and
+      -- shows it, so the play after starts at once.
+      local microseconds = number("us")
+      if microseconds and microseconds >= 0 then
+        if vlc.playlist.status() == "playing" then vlc.playlist.pause() end
+        vlc.var.set(input, "time", math.floor(microseconds))
+        vlc.var.trigger_callback(input, "frame-next")
       end
     elseif command == "pause" then
       if vlc.playlist.status() == "playing" then vlc.playlist.pause() end

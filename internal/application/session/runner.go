@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
 // maxIdleWait bounds how long the runner sleeps without any subtitle change
@@ -63,6 +64,7 @@ func (r *Runner) Refresh() {
 // closed, which means the player went away.
 func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error {
 	var last Visible
+	var lastAt time.Duration
 	first := true
 	for {
 		state := r.clock.State()
@@ -76,8 +78,17 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 		// its subtitles would flash the wrong line on a session that starts later.
 		known := state.Status != playback.StatusUnknown
 		if known && (first || !visible.Equal(last)) {
+			if whole, finish := finishing(last, lastAt, visible, state, r.subtitles.Offset(LinePrimary)); finish {
+				// The line shows all painted for one frame, then what comes.
+				r.onChange(state.Position, whole)
+				last, lastAt = whole, state.Position
+				if ended, err := r.hold(ctx, samples); ended {
+					return err
+				}
+				continue
+			}
 			r.onChange(state.Position, visible)
-			last, first = visible, false
+			last, lastAt, first = visible, state.Position, false
 		}
 
 		timer := r.newTimer(r.waitFor(state, visible))
@@ -98,6 +109,58 @@ func (r *Runner) Run(ctx context.Context, samples <-chan playback.Sample) error 
 		case <-r.refresh:
 			timer.Stop()
 		case <-timer.C():
+		}
+	}
+}
+
+// finishReach is how far forward the video may have moved for a line still
+// being painted to be shown whole before it goes; farther is a seek.
+const finishReach = time.Second
+
+// finishing is the line last shown being painted, all painted, when the
+// video playing on took it off the screen before its fill ended: a clock
+// that jumped forward, a computer busy for a moment, the next line coming.
+// Whatever paints a line, once its time is over it shows whole; a line taken
+// off for another reason (its subtitle or offset changed, the karaoke turned
+// off) just goes.
+func finishing(last Visible, lastAt time.Duration, next Visible, state playback.Sample, offset subtitle.Offset) (Visible, bool) {
+	if !last.Filling || last.Fill >= 1 || len(last.Primary) == 0 || state.Status != playback.StatusPlaying {
+		return Visible{}, false
+	}
+	if moved := state.Position - lastAt; moved < 0 || moved > finishReach {
+		return Visible{}, false
+	}
+	line := last.Primary[len(last.Primary)-1]
+	if offset.PlaybackTime(line.End) > state.Position {
+		return Visible{}, false
+	}
+	painted := line.ID
+	for _, event := range next.Primary {
+		if event.ID == painted {
+			return Visible{}, false // still on screen: its fill goes on
+		}
+	}
+	whole := last
+	whole.Fill = 1
+	return whole, true
+}
+
+// hold keeps a frame on screen for KaraokeFrame, still hearing the player;
+// ended tells the run is over, with its error.
+func (r *Runner) hold(ctx context.Context, samples <-chan playback.Sample) (ended bool, err error) {
+	timer := r.newTimer(KaraokeFrame)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return true, ctx.Err()
+		case sample, open := <-samples:
+			if !open {
+				return true, nil
+			}
+			r.clock.Observe(sample)
+		case <-timer.C():
+			return false, nil
 		}
 	}
 }

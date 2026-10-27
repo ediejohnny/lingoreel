@@ -6,6 +6,36 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-10-27
+
+### Added
+
+- `lrdev seek-probe <clip>` measures, lap after lap, how long a passage's start takes in VLC from the order to its
+  first picture on the screen and to its first sound, and whether the two still go together a second later. A lap is
+  sent as one order, as a seek and a play, or with its picture made ready during the gap and a play after, also held
+  to fewer processors.
+- `lrdev stills --probesize <bytes>` measures the stills with a smaller FFmpeg probe; the app keeps FFmpeg's own.
+
+### Changed
+
+- The developer tool is called `lrdev` (`lrdev.exe` beside the app in `build\bin`).
+- The zip's read-me and third-party notices are in English: `README.txt` and `THIRD-PARTY-NOTICES.txt`.
+
+### Fixed
+
+- A video dragged onto the window opens in the app, on the same screen as "Open video", with the subtitles and the
+  study mode. It used to play in a browser window of its own, without any of them, that stayed open after the app
+  closed. Nothing dropped on the window, a file or a link, is opened by the window's browser anymore.
+- Closing the app while the setup assistant is still open no longer writes over the answers it was given a moment
+  before.
+- The karaoke mode's fill no longer drops halfway when the next line comes before the line goes: while both show,
+  the earlier one is all painted and the fill goes on in the next.
+- A karaoke line whose time ends before its fill does (VLC's clock jumping forward a little, a computer busy for a
+  moment) shows all painted for one frame before it goes, instead of leaving the screen half painted; a seek away, a
+  sync step, a subtitle switch or turning the karaoke mode off takes it off at once.
+- Going back to a passage's start with VLC (each lap after its gap, or Play at its end) sends the seek and the play
+  as one order, so the picture and the sound start together; the sound used to start first, the picture catching up.
+
 ## [0.27.1] - 2026-10-27
 
 ### Changed
@@ -135,7 +165,7 @@ is renamed or moved. When the app cannot keep something on the disk it says why 
   corrections and passages, forgetting a video, exporting a subtitle, clearing the kept stills, changing the file
   association or a karaoke mode choice, and when a session cannot start because the disk is full (no longer blamed on a
   slow player). The seek bar's card says when their disk is nearly full and new stills stay in memory.
-- `spdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
+- `lrdev stills <video>` measures a film's stills as the app takes them: the time, processor and reads of each, paced
   or not, beside VLC playing the film (decoding on the graphics card or on the processor) to count the pictures it
   loses, and held to a few processors as a smaller computer, printing the film's key and never its name.
 - Stills of a film taken with the user's own FFmpeg, one short run each, at the lowest priority: the keyframe at or
@@ -197,7 +227,7 @@ a bar.
   and its modules, the screens' packages, the voice model), as their authors ask. The app ships as a single file, so
   they go inside it; `scripts/update-notices.ps1` writes them, the check refuses them out of date and the build makes
   sure they name every module inside the app. The help page will also hold the guide to using the app.
-- `spdev voice-check` measures the voice found against a film's lines, printing only numbers, and `spdev inspect
+- `lrdev voice-check` measures the voice found against a film's lines, printing only numbers, and `lrdev inspect
   --hear` hears a video to tell which file fits it.
 
 ### Changed
@@ -368,7 +398,7 @@ A review of 0.20.0: the menu reaches the app, and smaller fixes.
 ### Changed
 
 - The menu's item for adding a subtitle file is named as on the session screen and the panel.
-- The developer tool `spdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
+- The developer tool `lrdev` speaks English: its options are now `--subtitles`, `--start`, `--paused` and `--step`.
 - The check runs staticcheck.
 
 ## [0.20.0] - 2026-10-05
@@ -470,9 +500,6 @@ The karaoke mode's fill color on the page of the line on top, and three fixes.
 - The Go module is named after its GitHub home: `github.com/ediejohnny/lingoreel`.
 - The repository speaks English: the README, the plugin guide and the scripts' messages. The app's interface stays in
   Brazilian Portuguese for now.
-
-### Documentation
-
 - This changelog.
 
 ## [0.16.2] - 2026-10-04
@@ -493,7 +520,7 @@ The passage's save button and training a line again.
 - A field's button keeps its whole label on one line
 - Training a line again plays it again, also at a passage's end
 
-### Documentation
+### Changed
 
 - The README calls the app a beta
 
@@ -505,7 +532,7 @@ Correct a line right over the video.
 
 - Two clicks on a paused line correct it right over the video
 
-### Documentation
+### Changed
 
 - Correcting a line right over the video, in the README
 
@@ -533,7 +560,7 @@ Saved studies and the full control bar.
 
 - An edit, undo or redo could leave the old text on screen
 
-### Documentation
+### Changed
 
 - The karaoke mode, saved studies and the bar in the README
 
@@ -624,7 +651,7 @@ The app window, player plugins and assisted installation.
 ### Changed
 
 - Move the watching session into the application layer
-- Share the Portuguese wording and the composition pieces with spdev
+- Share the Portuguese wording and the composition pieces with lrdev
 
 ### Fixed
 
@@ -643,9 +670,9 @@ Downloaded subtitles, automatic and manual sync.
 - Show short notices in a corner of the video
 - Move each subtitle line earlier or later by steps
 - Register shortcuts only while the player is in front
-- Sync shortcuts in spdev play and overlay
+- Sync shortcuts in lrdev play and overlay
 
-### Documentation
+### Changed
 
 - Explain that the VLC endpoint file is a Lua page, not JSON
 
@@ -658,7 +685,7 @@ Fixes from the audit against the docs, risk mitigations.
 - Emulate the backward frame step with an exact seek
 - Open other videos with subtitle files and analyze with a context
 - Log VLC events that have no caller
-- Add spdev diag with monitors, scaling and a checklist
+- Add lrdev diag with monitors, scaling and a checklist
 
 ### Changed
 
@@ -690,7 +717,7 @@ External subtitle files and a window that fits the screen.
 
 - Open the player window inside the screen
 
-### Documentation
+### Changed
 
 - License the project under MIT and invite contributions
 
@@ -723,7 +750,7 @@ Playback session, player detection and the VLC adapter.
 - Detect installed video players from registry, folders and PATH
 - Add kill-on-close job object for player processes
 - Add VLC adapter over a private HTTP control endpoint
-- Add spdev play to follow subtitles with a real player
+- Add lrdev play to follow subtitles with a real player
 
 ### Fixed
 
@@ -738,7 +765,7 @@ Matroska reader, language detection and track selection.
 - Add media tracks, language normalization and track selection
 - Add Matroska reader for tracks and text subtitle frames
 - Add analysis use cases for media and subtitle loading
-- Add spdev inspect command
+- Add lrdev inspect command
 
 ## [0.1.0] - 2026-09-29
 
@@ -746,7 +773,7 @@ Subtitle core, text subtitle parsers and settings model.
 
 ### Added
 
-- Add spdev developer tool skeleton with build version
+- Add lrdev developer tool skeleton with build version
 - Add subtitle timeline with interval lookup and offsets
 - Add SRT, ASS/SSA and WebVTT parsers with encoding fallback
 - Add appearance, study and settings domain models
@@ -757,7 +784,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...HEAD
+[0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/ediejohnny/lingoreel/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/ediejohnny/lingoreel/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/ediejohnny/lingoreel/compare/v0.25.0...v0.26.0

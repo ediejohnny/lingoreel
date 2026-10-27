@@ -1,4 +1,4 @@
-// Command spdev is the developer tool that exercises LingoReel subsystems
+// Command lrdev is the developer tool that exercises LingoReel subsystems
 // without the graphical application.
 package main
 
@@ -9,7 +9,7 @@ import (
 	"os/signal"
 
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
-	"github.com/ediejohnny/lingoreel/internal/spdev"
+	"github.com/ediejohnny/lingoreel/internal/lrdev"
 )
 
 func main() {
@@ -18,10 +18,10 @@ func main() {
 	win32.UsePerMonitorDPIForProcess()
 	// Ctrl+C ends long-running commands cleanly, closing the player they opened.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	err := spdev.Run(ctx, os.Args[1:], os.Stdout)
+	err := lrdev.Run(ctx, os.Args[1:], os.Stdout)
 	stop()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "spdev:", err)
+		fmt.Fprintln(os.Stderr, "lrdev:", err)
 		os.Exit(1)
 	}
 }

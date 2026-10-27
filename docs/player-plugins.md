@@ -31,7 +31,10 @@ What the user sees about the player:
 - **`Install.DownloadURL`:** the official download page. It must be `https`.
 - **`Install.Benefit`:** one sentence in English on why to choose this player. It shows up behind the (?) button; for the
   players the catalog knows, the screen shows the catalog's sentence in the interface's language instead
-  (`ptbr.PlayerBenefit`), so a new plugin also adds its `player.benefit.<id>` text to every catalog.
+  (`ptbr.PlayerBenefit`), so a new plugin also adds:
+  - its `player.ID` constant in `internal/domain/player`;
+  - a `case` for it in `ptbr.PlayerBenefit` (`internal/presentation/ptbr/players.go`);
+  - its `player.benefit.<id>` text to every catalog.
 - **`DrawsInHost`:** `true` when the player can draw the video inside a window of the app (`LaunchRequest.Host`). This is
   the preferred way:
   - the window belongs to LingoReel, with closing (X, Alt+F4), fullscreen, keyboard and the control bar that shows
@@ -53,6 +56,9 @@ What the user sees about the player:
     where 1 is the player's 100%.
   - A command the player does not have **returns an error**. Never pretend it worked: the app shows the button
     disabled.
+  - Seeking and playing in one order is optional: a player that implements `SeekAndPlay` (`session.LapPlayer`) gets
+    it when a passage's lap starts from a pause, so its picture and its sound start together. VLC needs it: seeking
+    while paused and playing after, it starts the sound before the picture. Without it, the app seeks, then plays.
 - **`Samples()`:** delivers observations (position, duration, speed, state). It is closed when the player ends.
 - **`ProcessID()`:** the player's process. The overlay follows its window.
 - **`Err()`:** once `Samples()` is closed, tells whether the player **crashed** (`playback.ErrPlayerLost`) or the user

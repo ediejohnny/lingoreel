@@ -1,5 +1,5 @@
 ﻿# build.ps1 - Compiles the LingoReel executables into build\bin: the
-# development tool (spdev.exe) and the app with its window (LingoReel.exe).
+# development tool (lrdev.exe) and the app with its window (LingoReel.exe).
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 [-Version 1.2.3] [-OutDir folder]
@@ -39,15 +39,15 @@ $env:CGO_ENABLED = "0"
 
 Push-Location -LiteralPath $root
 try {
-    $spdev = Join-Path $binDir "spdev.exe"
-    Write-Host "[1/5] Building spdev.exe (version $buildVersion)..."
-    Invoke-Native -FilePath "go" -Arguments @("build", "-trimpath", "-ldflags", $ldflags, "-o", $spdev, "./cmd/spdev") `
-        -FailureMessage "Building spdev failed"
+    $lrdev = Join-Path $binDir "lrdev.exe"
+    Write-Host "[1/5] Building lrdev.exe (version $buildVersion)..."
+    Invoke-Native -FilePath "go" -Arguments @("build", "-trimpath", "-ldflags", $ldflags, "-o", $lrdev, "./cmd/lrdev") `
+        -FailureMessage "Building lrdev failed"
 
     Write-Host "[2/5] Checking the version stamped in the executable..."
-    $reported = Invoke-Native -FilePath $spdev -Arguments @("version") -FailureMessage "spdev.exe did not run" -Capture
+    $reported = Invoke-Native -FilePath $lrdev -Arguments @("version") -FailureMessage "lrdev.exe did not run" -Capture
     if ("$reported".Trim() -ne $buildVersion) {
-        throw "spdev.exe reports version '$reported', but '$buildVersion' was expected."
+        throw "lrdev.exe reports version '$reported', but '$buildVersion' was expected."
     }
 
     $app = Join-Path $binDir "LingoReel.exe"
@@ -95,10 +95,10 @@ try {
     if ($missing.Count -gt 0) {
         throw "The app carries no notice for $($missing -join ', '). Run scripts\update-notices.ps1 and build again."
     }
-    $sizeMb = [math]::Round((Get-Item -LiteralPath $spdev).Length / 1MB, 1)
+    $sizeMb = [math]::Round((Get-Item -LiteralPath $lrdev).Length / 1MB, 1)
     Write-Host ""
     Write-Host "Build finished." -ForegroundColor Green
-    Write-Host "  $spdev ($sizeMb MB)"
+    Write-Host "  $lrdev ($sizeMb MB)"
     $appMb = [math]::Round((Get-Item -LiteralPath $app).Length / 1MB, 1)
     Write-Host "  $app ($appMb MB, version $fileVersion)"
 }

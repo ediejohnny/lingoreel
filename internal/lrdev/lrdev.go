@@ -1,6 +1,6 @@
-// Package spdev implements the commands of the spdev developer tool, which
+// Package lrdev implements the commands of the lrdev developer tool, which
 // exercises LingoReel subsystems without the graphical application.
-package spdev
+package lrdev
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 )
 
-// ErrUnknownCommand reports a command name that spdev does not know.
+// ErrUnknownCommand reports a command name that lrdev does not know.
 var ErrUnknownCommand = errors.New("unknown command")
 
 // Run executes the command named by args[0], writing its output to stdout.
@@ -42,6 +42,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return voiceCheck(ctx, args[1:], stdout)
 	case "stills":
 		return stills(ctx, args[1:], stdout)
+	case "seek-probe":
+		return seekProbe(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
 		printUsage(stdout)
 		return nil
@@ -52,7 +54,7 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: spdev <command>")
+	fmt.Fprintln(w, "Usage: lrdev <command>")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Commands:")
 	fmt.Fprintln(w, "  version                         shows this build's version")
@@ -86,6 +88,18 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --parallel <n>                  how many at a time (1)")
 	fmt.Fprintln(w, "      --watch [--software]            beside VLC playing the film (decoding on the processor), counting what it loses")
 	fmt.Fprintln(w, "      --affinity <mask>               held to these processors (0xF: the first four), as a smaller computer")
+	fmt.Fprintln(w, "      --probesize <bytes>             what FFmpeg reads to learn the streams before each still (5 MB by default)")
+	fmt.Fprintln(w, "  seek-probe <clip> [options]     measures, lap after lap, a passage's start in VLC: order to picture and to sound")
+	fmt.Fprintln(w, "      --mode <together|apart|prepare> one order (seek and play), a seek then a play, or the picture")
+	fmt.Fprintln(w, "                                      made ready during the gap, then a play")
+	fmt.Fprintln(w, "      --laps <n>                      how many laps (20)")
+	fmt.Fprintln(w, "      --start <d> --rest <d>          the passage's start (61s) and where each lap waits paused (63s)")
+	fmt.Fprintln(w, "      --affinity <mask>               holds VLC to these processors (0x3: the first two)")
+	fmt.Fprintln(w, "      the clip (white and a beep for 2 s, black and silence for 2 s, a keyframe every 10 s):")
+	fmt.Fprintln(w, `      ffmpeg -f lavfi -i "color=black:s=1920x1080:r=24000/1001:d=120" -f lavfi -i "sine=f=1000:d=120"`)
+	fmt.Fprintln(w, `        -filter_complex "[0]drawbox=c=white:t=fill:enable='between(mod(t,4),0,2)'[v];[1]volume=enable='gte(mod(t,4),2)':volume=0[a]"`)
+	fmt.Fprintln(w, `        -map "[v]" -map "[a]" -c:v libx264 -g 240 -keyint_min 240 -sc_threshold 0 -c:a aac seek-probe.mkv`)
+	fmt.Fprintln(w, "      the window must stay uncovered: the picture is read from the screen")
 	fmt.Fprintln(w, "  help                            shows this help")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Sync (play and overlay, with the player in front):")

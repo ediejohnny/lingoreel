@@ -35,6 +35,13 @@ type VolumePlayer interface {
 	SetVolume(volume playback.Volume) error
 }
 
+// LapPlayer is a player that seeks and plays in one order, so the picture
+// and the sound of the new position start together: VLC 3, seeking while
+// paused and then playing, starts the sound before the picture arrives.
+type LapPlayer interface {
+	SeekAndPlay(position time.Duration) error
+}
+
 // VolumeReader is a volume player that tells its level, such as one that
 // keeps the user's own level between sessions.
 type VolumeReader interface {
@@ -151,6 +158,35 @@ func (c *Controls) SeekTo(position time.Duration) error {
 		return fmt.Errorf("seeking to %v: %w", position, err)
 	}
 	c.clock.SetPosition(position)
+	if c.afterSeek != nil {
+		c.afterSeek(position)
+	}
+	return nil
+}
+
+// SeekAndPlay goes to a position and plays from there: in one order to a
+// LapPlayer, so its picture and sound start together; otherwise a seek and
+// then Play.
+func (c *Controls) SeekAndPlay(position time.Duration) error {
+	lap, together := c.player.(LapPlayer)
+	if !together || !c.capabilities.Seek || !c.capabilities.Pause {
+		if err := c.SeekTo(position); err != nil {
+			return err
+		}
+		return c.Play()
+	}
+	position = max(position, 0)
+	if duration := c.clock.State().Duration; duration > 0 {
+		position = min(position, duration)
+	}
+	if c.beforePlay != nil {
+		c.beforePlay()
+	}
+	if err := lap.SeekAndPlay(position); err != nil {
+		return fmt.Errorf("going to %v and playing: %w", position, err)
+	}
+	c.clock.SetPosition(position)
+	c.clock.SetStatus(playback.StatusPlaying)
 	if c.afterSeek != nil {
 		c.afterSeek(position)
 	}

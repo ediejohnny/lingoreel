@@ -13,7 +13,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6.svg" alt="Windows 10 and 11">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.27.1-brightgreen.svg" alt="Version 0.27.1"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.27.2-brightgreen.svg" alt="Version 0.27.2"></a>
   <img src="https://img.shields.io/badge/languages-English%20%7C%20Portugu%C3%AAs-orange.svg" alt="English and Portuguese">
 </p>
 
@@ -39,7 +39,7 @@ translation, which can stay on screen or show up only when you ask for it. Every
   A video with no subtitle of its own is heard to find the file that fits it.
 - **Fix a line right on the video:** double-click it while paused, correct it, undo and redo, and export the result as
   `.srt` or `.ass`.
-- **Stills on the seek bar**, as video sites do, kept in the app's own folder.
+- **Thumbnails on the seek bar**, as video sites do, kept in the app's own folder.
 - **Everything is yours to change:** shortcuts, colors, fonts, sizes, the bar, the menus, per profile.
 
 <table>
@@ -63,7 +63,7 @@ translation, which can stay on screen or show up only when you ask for it. Every
 
 ## Getting started
 
-1. Download `lingoreel.exe` from the [releases](../../releases). It is a single portable file: no installation.
+1. Download `LingoReel.exe` from the [releases](../../releases). It is a single portable file: no installation.
 2. Open it. A short setup assistant asks the language you speak, the one you study, how you want to study, and which
    player to use. Each step can be skipped.
 3. Drop a video on the window, or open one with the app from the Windows menu.
@@ -87,7 +87,7 @@ Settings › Help › Documentation explains everything the app can do, with you
 - Reads the subtitles inside `.mkv` files without ever changing the file, and `.srt`, `.ass`, `.ssa` and `.vtt` files
   from any folder.
 - Tells a subtitle's language, and whether it is for the hearing impaired or forced, from its text.
-- Sync each line on its own with a key; switch subtitles and audio while the video plays; watch with no subtitle at all.
+- Sync each subtitle on its own with a key; switch subtitles and audio while the video plays; watch with no subtitle at all.
 
 **Studying**
 - Three study modes: both subtitles, translation on demand, and translation always visible.
@@ -111,13 +111,13 @@ Settings › Help › Documentation explains everything the app can do, with you
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `Space` | Play or pause | `Right Alt` | Show or hide the translation |
-| `←` / `→` | Back or forward 5 s | `Backspace` | Replay the line |
+| `←` / `→` | Back or forward 5 s | `Backspace` | Train the line again (karaoke mode) |
 | `Shift` + `←` / `→` | Back or forward 10 s | `F9` | Repeat the phrase |
 | `Ctrl` + `←` / `→` | Back or forward 30 s | `3` / `5` / `0` | Repeat the last 3, 5 or 10 s |
 | `Alt` + `←` / `→` | Precision step | `Ctrl` + `F9` / `F10` | Mark a passage's start / end |
 | `,` / `.` | Frame back / forward | `Shift` + `,` / `.` | Sync the study line |
 | `↑` / `↓` | Volume | `Ctrl` + `,` / `.` | Sync the translation |
-| `Ctrl` + `↑` / `↓` / `0` | Speed down / up / normal | `Ctrl` + `Z` / `Y` | Undo / redo a correction |
+| `Ctrl` + `↑` / `↓` / `0` | Speed up / down / normal | `Ctrl` + `Z` / `Y` | Undo / redo a correction |
 | `F` / `Esc` | Fullscreen / leave it | `M` | Mute |
 
 Every shortcut can be changed in Settings › Shortcuts, per profile.
@@ -153,7 +153,7 @@ needs a `gcc` on the `PATH`.
 
 | Command | What it does |
 |---|---|
-| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatting, static analysis and tests (`-Full` adds the race detector and the real players) |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check.ps1` | Formatting, static analysis and tests (`-Full` also runs the slow tests, such as the real players) |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1` | Builds the executables into `build\bin` |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev.ps1` | Opens the app in development mode (reloads when the code changes) |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\package.ps1` | Builds a portable zip into `build\dist` (after the build) |
@@ -183,4 +183,4 @@ The screenshots show [Sintel](https://durian.blender.org/), © copyright Blender
 under the [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/) license.
 
 If this project is useful to you, **please give credit** by mentioning LingoReel and its author, Edie Johnny,
-with a link to the repository. The license does not require it, but it is a kind gesture that helps the project go on.
+with a link to the repository (https://github.com/ediejohnny/lingoreel). The license does not require it, but it is a kind gesture that helps the project go on.

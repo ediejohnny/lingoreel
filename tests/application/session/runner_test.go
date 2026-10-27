@@ -10,6 +10,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -306,5 +307,81 @@ func TestRunnerStopsOnCancellation(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run ignored the cancellation")
+	}
+}
+
+// A line still being painted that the video takes off the screen before
+// its fill ends (here a clock that jumps forward past its end, as an
+// estimated player's can) shows all painted for one frame, then goes: once
+// its time is over, a line is never left half painted. A seek away takes it
+// off at once.
+func TestALineLeavingUnfinishedShowsWholeFirst(t *testing.T) {
+	t.Parallel()
+	type shown struct {
+		position time.Duration
+		lines    int
+		fill     float64
+	}
+	run := func(t *testing.T) (*fakeTime, chan playback.Sample, chan shown, *session.Subtitles) {
+		quick := session.NewSubtitles(&session.Track{Timeline: timeline(t, subtitle.Event{ID: "Q", Start: ms(1000), End: ms(2000),
+			OriginalText: "Well, I really do not think that is what happened here."})}, nil)
+		quick.SetKaraoke(session.Karaoke{Enabled: true, Rules: study.DefaultCueRules(), Fill: true})
+		clock := newFakeTime()
+		samples, changes := make(chan playback.Sample), make(chan shown, 16)
+		c := session.NewClock(playback.PrecisionExact, clock.Now)
+		c.Observe(playback.Sample{Position: ms(1200), Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: clock.Now()})
+		select {
+		case <-c.Changes():
+		default:
+		}
+		runner := session.NewRunner(c, quick, func(position time.Duration, visible session.Visible) {
+			changes <- shown{position, len(visible.Primary), visible.Fill}
+		}, clock.NewTimer)
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		go func() { _ = runner.Run(ctx, samples) }()
+		return clock, samples, changes, quick
+	}
+	next := func(t *testing.T, changes chan shown) shown {
+		t.Helper()
+		select {
+		case got := <-changes:
+			return got
+		case <-time.After(2 * time.Second):
+			t.Fatal("nothing shown")
+			return shown{}
+		}
+	}
+
+	clock, samples, changes, _ := run(t)
+	if got := next(t, changes); got.lines != 1 || got.fill <= 0 || got.fill >= 0.5 {
+		t.Fatalf("early in the line: %+v, want it partly painted", got)
+	}
+	clock.waitForTimer(t)
+	samples <- playback.Sample{Position: ms(2_100), Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: clock.Now()}
+	if got := next(t, changes); got.lines != 1 || got.fill != 1 {
+		t.Fatalf("the clock jumped past the line's end: %+v, want it shown all painted first", got)
+	}
+	clock.waitForTimer(t)
+	clock.Advance(session.KaraokeFrame)
+	if got := next(t, changes); got.lines != 0 {
+		t.Fatalf("after its last frame: %+v, want it gone", got)
+	}
+
+	clock, samples, changes, _ = run(t)
+	next(t, changes)
+	clock.waitForTimer(t)
+	samples <- playback.Sample{Position: ms(30_000), Duration: time.Minute, Speed: 1, Status: playback.StatusPlaying, ObservedAt: clock.Now()}
+	if got := next(t, changes); got.lines != 0 {
+		t.Fatalf("a seek away: %+v, want the line gone at once", got)
+	}
+
+	// Moved off by a sync step while its time is not over: it just goes.
+	clock, _, changes, quick := run(t)
+	next(t, changes)
+	clock.waitForTimer(t)
+	quick.ShiftOffset(session.LinePrimary, 5*time.Second)
+	if got := next(t, changes); got.lines != 0 {
+		t.Fatalf("moved off by a sync step: %+v, want the line gone at once, not painted whole", got)
 	}
 }
