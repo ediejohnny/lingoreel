@@ -18,8 +18,10 @@ All notable changes to this project are listed here. The format follows
   Adjusting moves to the new level only what still is as the old level had it, so what was chosen by hand stays;
   declining keeps every setting, and that computer is not asked about again. Moving to another computer of the same
   level, or opening for the first time a version with the levels, records the computer and changes nothing.
-- Adjusting to the computer can be asked for at any time; it puts every setting the level decides to the level's own,
-  also the ones chosen by hand.
+- Settings › General › This computer shows what was read of the computer and its level, and "Adjust again to this
+  computer", once confirmed, puts every setting the level decides to the level's own, also the ones chosen by hand. The
+  setup assistant tells the computer's level, the question of a changed computer shows at the top of the window
+  outside a film, and the documentation has a topic on the levels.
 
 ### Changed
 

@@ -7,11 +7,15 @@ import { Card } from "../ui/Feedback";
 import { TextField, Toggle } from "../ui/Field";
 import { HelpTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
+import { ComputerCard } from "./ComputerCard";
 import type { SectionProps } from "./section";
 
 type Editing = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
 
-/** GeneralSection holds the profiles, the app language (with more than one), the welcome, the window and the sync notice. */
+/**
+ * GeneralSection holds the profiles, the app language (with more than one), the welcome, the computer, the window and the
+ * sync notice.
+ */
 export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
   const [editing, setEditing] = useState<Editing>({ kind: "none" });
   const active = view.general.activeProfile;
@@ -131,6 +135,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
           )}
         </div>
       </Card>
+      <ComputerCard view={view} dirty={dirty} run={run} />
       <Card title={t("ui.settings.window.title")}>
         <Toggle
           label={t("ui.settings.window.onTop")}

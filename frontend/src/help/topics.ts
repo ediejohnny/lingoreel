@@ -118,6 +118,12 @@ export function topics(keys: Keys): Topic[] {
       open: "study",
     },
     {
+      id: "computer",
+      title: t("ui.help.computer.title"),
+      paragraphs: [t("ui.help.computer.p1"), t("ui.help.computer.p2")],
+      open: "general",
+    },
+    {
       id: "players",
       title: t("ui.help.players.title"),
       paragraphs: [t("ui.help.players.p1"), t("ui.help.players.p2")],

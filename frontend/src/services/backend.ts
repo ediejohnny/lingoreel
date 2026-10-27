@@ -56,6 +56,8 @@ export type FillCheck = Plain<app.FillCheck>;
 export type WelcomeView = Plain<app.WelcomeView>;
 export type WelcomeChoices = Plain<app.WelcomeChoices>;
 export type LanguageSettings = Plain<app.LanguageSettings>;
+export type ComputerView = Plain<app.ComputerView>;
+export type ComputerChange = Plain<app.ComputerChange>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -93,6 +95,7 @@ const events = {
   video: "video:changed",
   listening: "video:listening",
   opening: "video:opening",
+  computerChanged: "computer:changed",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -174,6 +177,10 @@ export const backend = {
   installFFmpeg: () => api.InstallFFmpeg(),
   setThumbnails: (thumbnails: ThumbnailSettings) => api.SetThumbnails(thumbnails as app.ThumbnailSettings),
   clearThumbnails: () => api.ClearThumbnails(),
+  /** computerChange is the question of a computer of another level, if one waits for an answer. */
+  computerChange: (): Promise<ComputerChange> => api.ComputerChange(),
+  answerComputerChange: (adjust: boolean) => api.AnswerComputerChange(adjust),
+  adjustToComputer: () => api.AdjustToComputer(),
   switchProfile: (name: string) => api.SwitchProfile(name),
   createProfile: (name: string) => api.CreateProfile(name),
   renameProfile: (from: string, to: string) => api.RenameProfile(from, to),
@@ -215,4 +222,6 @@ export const backend = {
   onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
   /** onOpening hears how far opening a video has gone, for the bar while a large video is read. */
   onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
+  /** onComputerChanged hears the app runs on a computer of another level than the settings were adjusted to. */
+  onComputerChanged: (listener: (change: ComputerChange) => void) => EventsOn(events.computerChanged, listener),
 };

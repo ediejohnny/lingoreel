@@ -1,4 +1,7 @@
 {
+  "ui.help.computer.p1": "Como num jogo, o app lê o computador na primeira abertura (o processador, os núcleos e a memória, nunca a velocidade do momento) e escolhe um nível: Básico, com 2 núcleos ou menos ou menos de 4 GB de memória; Alto, com 4 núcleos ou mais e 8 GB ou mais; Médio, entre os dois. No Básico, a IA de voz começa desligada.",
+  "ui.help.computer.p2": "Em Configurações › Geral › Este computador ficam o que foi lido, o nível e o botão Ajustar de novo pelo PC, que volta ao padrão do nível tudo o que ele decide, mesmo o que você mudou à mão. Se o app abrir num computador de outro nível, ele pergunta antes de mudar qualquer coisa: o que você escolheu à mão fica, e Agora não não pergunta mais naquele computador.",
+  "ui.help.computer.title": "O nível do computador",
   "ui.help.editing.p1": "Pause o vídeo e clique numa fala para selecioná-la. Um duplo clique nela, ou Corrigir esta fala… no menu do botão direito, abre a caixa de correção no lugar da legenda: Enter salva, Esc cancela e Shift+Enter quebra a linha.",
   "ui.help.editing.p2": "O cartão Corrigir legendas, no painel, também corrige o texto e os tempos de início e fim de cada fala. {keys} desfazem e refazem as correções, e Restaurar o original volta ao texto do arquivo.",
   "ui.help.editing.p3": "Exportar a legenda grava a legenda como você a vê, com as correções e a sincronia, num arquivo .srt ou .ass novo. As correções ficam guardadas na pasta do app e continuam valendo mesmo se o vídeo mudar de nome ou de pasta.",
@@ -55,7 +58,7 @@
   "ui.help.topics": "Tópicos",
   "ui.help.voice.p1": "A IA de voz é pequena, vem dentro do app e roda só neste computador, sem internet e de graça. Ela percebe quando alguém fala no filme, para o Modo Karaokê seguir a voz e para o app escolher a legenda que bate com o som.",
   "ui.help.voice.p2": "Com o FFmpeg, grátis e opcional, o app ouve o filme à frente e faz as miniaturas da barra. Instale ou escolha o FFmpeg em Configurações › Estudo › Voz dos atores.",
-  "ui.help.voice.p3": "Na bateria, a IA e as miniaturas descansam, a menos que você peça o contrário. Num computador fraco, a IA começa desligada; dá para ligar mesmo assim, por sua conta e risco.",
+  "ui.help.voice.p3": "Na bateria, a IA e as miniaturas descansam, a menos que você peça o contrário. Num computador de nível Básico, a IA começa desligada; dá para ligar mesmo assim, por sua conta e risco.",
   "ui.help.voice.title": "IA de voz, FFmpeg e miniaturas",
   "ui.help.watch.p1": "Com o VLC, o vídeo toca dentro da janela do app, com a barra de controles por cima: reproduzir ({play}), voltar e avançar ({seek}), quadro a quadro ({frames}), volume, velocidade, tradução e tela cheia ({fullscreen}). Cada dica mostra a tecla.",
   "ui.help.watch.p2": "Passe o mouse na barra do tempo para ver a miniatura daquele ponto. O volume ({volume}) vai até 200% no VLC, e o passo de cada toque fica em Configurações › Reprodução.",
