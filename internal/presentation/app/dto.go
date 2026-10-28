@@ -249,6 +249,9 @@ type Karaoke struct {
 	// voice model rests on the battery, or is switched off), or empty when
 	// it is not followed.
 	Voice string `json:"voice"`
+	// NoStudyLine tells the video shows no study line: the karaoke mode,
+	// which paints it, has nothing to show.
+	NoStudyLine bool `json:"noStudyLine"`
 }
 
 // Passage is the passage being studied.

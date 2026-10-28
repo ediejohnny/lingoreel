@@ -354,6 +354,7 @@ export namespace app {
 	    indicator: string;
 	    repeat: number;
 	    voice: string;
+	    noStudyLine: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Karaoke(source);
@@ -365,6 +366,7 @@ export namespace app {
 	        this.indicator = source["indicator"];
 	        this.repeat = source["repeat"];
 	        this.voice = source["voice"];
+	        this.noStudyLine = source["noStudyLine"];
 	    }
 	}
 	export class KaraokeSettings {

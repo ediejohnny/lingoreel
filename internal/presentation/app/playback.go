@@ -188,6 +188,7 @@ func (a *API) Watch(request WatchRequest) error {
 		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode,
 		"embedded", current.embedded)
 	a.keepChoice(current, tracks, mode)
+	tellNoStudyLine(started)
 	a.setTitle(ptbr.WindowTitle(filepath.Base(video.Path)))
 	go a.report(current)
 	return nil

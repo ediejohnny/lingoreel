@@ -82,6 +82,7 @@
   "ui.karaoke.indicator.help": "The bar, as wide as the text, shrinks until the line starts. The countdown shows the seconds left, in real time (at 0.75× it lasts longer).",
   "ui.karaoke.indicator.label": "Time until the line",
   "ui.karaoke.indicator.topic": "time until the line",
+  "ui.karaoke.noStudyLine": "The karaoke mode paints the study subtitle, and this video has none. Choose or add one in Subtitles › Subtitle (studied language).",
   "ui.karaoke.repeat.help": "When a line ends, the video goes back to its preview and repeats it, as many times as you choose. Seeking elsewhere in the video starts the count again.",
   "ui.karaoke.repeat.label": "Repeat each line",
   "ui.karaoke.repeat.off": "Off",

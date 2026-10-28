@@ -281,6 +281,7 @@
   "mode.dual": "Both",
   "mode.onDemand": "Translation on demand",
   "notice.copied": "Line copied",
+  "notice.karaoke.noStudyLine": "Karaoke mode: this video has no study subtitle",
   "notice.mark.noStart": "Mark the start of the passage first",
   "notice.mark.tooShort": "The end must come at least 1 s after the start",
   "notice.muted": "Muted",

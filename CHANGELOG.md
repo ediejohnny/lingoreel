@@ -75,6 +75,8 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- Turning the karaoke mode on over a video with no subtitle in the studied language did nothing and said nothing; the
+  video now says so, as it opens too, and the panel tells where to choose or add one.
 - An FFmpeg chosen in the settings or the setup assistant was refused as "the computer is busy" when its first
   opening, while an antivirus read the large file, took more than a few seconds; the button now shows it is working,
   waits up to a minute, and keeps an FFmpeg slow to answer, which is checked again where it is used.

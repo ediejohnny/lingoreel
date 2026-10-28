@@ -71,7 +71,8 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
     <Card title={t("ui.karaoke.title")} aside={<KeyedTip k="ui.karaoke" />}>
       <div className="flex flex-col gap-4">
         <Toggle label={t("ui.karaoke.enable")} checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
-        {karaoke.enabled && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
+        {karaoke.enabled && karaoke.noStudyLine && <p className="text-xs text-warning">{t("ui.karaoke.noStudyLine")}</p>}
+        {karaoke.enabled && !karaoke.noStudyLine && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
         <Select
           label={t("ui.karaoke.indicator.label")}
           value={karaoke.indicator}

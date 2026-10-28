@@ -281,6 +281,7 @@
   "mode.dual": "Dupla",
   "mode.onDemand": "Tradução sob demanda",
   "notice.copied": "Fala copiada",
+  "notice.karaoke.noStudyLine": "Modo Karaokê: este vídeo está sem legenda de estudo",
   "notice.mark.noStart": "Marque o início do trecho primeiro",
   "notice.mark.tooShort": "O fim precisa vir pelo menos 1 s depois do início",
   "notice.muted": "Sem som",

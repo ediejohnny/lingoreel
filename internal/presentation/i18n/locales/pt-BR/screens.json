@@ -82,6 +82,7 @@
   "ui.karaoke.indicator.help": "A barra, na largura do texto, diminui até a fala começar. A contagem mostra os segundos que faltam, em tempo real (a 0,75× ela dura mais).",
   "ui.karaoke.indicator.label": "Tempo até a fala",
   "ui.karaoke.indicator.topic": "tempo até a fala",
+  "ui.karaoke.noStudyLine": "O Modo Karaokê pinta a legenda de estudo, e este vídeo está sem ela. Escolha ou adicione uma em Legendas › Legenda (idioma estudado).",
   "ui.karaoke.repeat.help": "Quando uma fala termina, o vídeo volta para a prévia dela e repete, quantas vezes você escolher. Buscar outro ponto do vídeo começa a contagem de novo.",
   "ui.karaoke.repeat.label": "Repetir cada fala",
   "ui.karaoke.repeat.off": "Desligado",

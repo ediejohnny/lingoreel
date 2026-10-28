@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
+	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 	"github.com/ediejohnny/lingoreel/tests/testkit"
 )
 
@@ -21,6 +22,48 @@ func startWatching(t *testing.T) *rig {
 	testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
 	t.Cleanup(func() { r.api.StopWatching() })
 	return r
+}
+
+// The karaoke mode paints the study line. Turned on over a video without
+// one, or a video opened so with the mode on, the video says so and the
+// panel tells why nothing is painted; with a study line, nothing is said.
+func TestTheKaraokeModeTellsAVideoHasNoStudyLine(t *testing.T) {
+	t.Parallel()
+	noLine := ptbr.T("notice.karaoke.noStudyLine")
+	r := newRig(t)
+	r.attach(t)
+	if _, err := r.api.OpenVideo(`D:\Filmes\Movie.mkv`); err != nil {
+		t.Fatal(err)
+	}
+	watchWithoutStudyLine := func() {
+		if err := r.api.Watch(app.WatchRequest{Player: "fake", Audio: 3, Translation: 5}); err != nil {
+			t.Fatal(err)
+		}
+		testkit.Eventually(t, "the session", func() bool { return r.api.PlaybackState().Active })
+	}
+	watchWithoutStudyLine()
+	t.Cleanup(func() { r.api.StopWatching() })
+	if err := r.api.SetKaraoke(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.display.lastNotice(); got != noLine || !r.api.PlaybackState().Karaoke.NoStudyLine {
+		t.Fatalf("karaoke on, no study line: notice %q, state %+v", got, r.api.PlaybackState().Karaoke)
+	}
+	told := r.display.noticeCount()
+	r.api.StopWatching()
+	watchWithoutStudyLine()
+	testkit.Eventually(t, "the notice as the video opens", func() bool { return r.display.noticeCount() > told })
+	if got := r.display.lastNotice(); got != noLine {
+		t.Fatalf("opened with the karaoke mode on and no study line: notice %q", got)
+	}
+
+	with := startWatching(t)
+	if err := with.api.SetKaraoke(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := with.display.lastNotice(); got == noLine || with.api.PlaybackState().Karaoke.NoStudyLine {
+		t.Fatalf("karaoke on with a study line: notice %q, state %+v", got, with.api.PlaybackState().Karaoke)
+	}
 }
 
 func TestKaraokeChoicesAreKeptInTheProfile(t *testing.T) {
