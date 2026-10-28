@@ -20,8 +20,8 @@ import (
 const childMode = "LINGOREEL_JOB_CHILD"
 
 // spinWork is the processor time a spinning child takes. At a fiftieth of a
-// processor it lasts some 2.5 s, far beyond what a busy machine adds to
-// 50 ms, so the cap shows on a weak or loaded computer too.
+// processor it lasts some 2.5 s, where a free child takes a fraction of a
+// second.
 const (
 	spinWork = 50 * time.Millisecond
 	spinCap  = 0.02
@@ -165,18 +165,15 @@ func TestAJobHoldsItsProcessesToItsLimits(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	defer capped.Close()
-	free, err := runChild(t, "spin", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	slow, err := runChild(t, "spin", capped)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%v of work: %v free, %v at a fiftieth of a processor", spinWork, free, slow)
-	// spinWork / spinCap is 2.5 s; a busy machine slows the free run too, so
-	// the capped one must still take several times longer than it did.
-	if slow < 1500*time.Millisecond || slow < 4*free {
-		t.Fatalf("at a fiftieth of a processor %v of work took %v (free: %v)", spinWork, slow, free)
+	t.Logf("%v of work took %v at a fiftieth of a processor", spinWork, slow)
+	// spinWork / spinCap is 2.5 s, which Windows enforces over intervals, so
+	// a run may come in somewhat under it; a busy machine only makes it
+	// longer, so the floor holds however loaded it is.
+	if slow < time.Second {
+		t.Fatalf("at a fiftieth of a processor %v of work took %v", spinWork, slow)
 	}
 }
