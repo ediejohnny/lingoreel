@@ -92,7 +92,7 @@ func ScoreLanguages(ctx context.Context, decoder Decoder, track Stretch, candida
 			stretch := track
 			stretch.From = max(line.Start-lineMargin, 0)
 			stretch.Length = line.End + lineMargin - stretch.From
-			sound, err := decodeMono(ctx, decoder, stretch)
+			sound, err := DecodeMono(ctx, decoder, stretch)
 			if err != nil {
 				return nil, err
 			}
@@ -116,9 +116,9 @@ func ScoreLanguages(ctx context.Context, decoder Decoder, track Stretch, candida
 	return scores, nil
 }
 
-// decodeMono decodes a stretch at speech.SampleRate, its channels averaged.
-func decodeMono(ctx context.Context, decoder Decoder, stretch Stretch) ([]float32, error) {
-	var sound []float32
+// DecodeMono decodes a stretch at speech.SampleRate, its channels averaged.
+func DecodeMono(ctx context.Context, decoder Decoder, stretch Stretch) ([]float32, error) {
+	sound := make([]float32, 0, max(int(stretch.Length.Seconds()*speech.SampleRate), 0))
 	err := decoder.Decode(ctx, stretch, func(samples []float32, channels int) {
 		channels = max(channels, 1)
 		for i := 0; i+channels <= len(samples); i += channels {

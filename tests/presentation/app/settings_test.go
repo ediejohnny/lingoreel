@@ -617,20 +617,23 @@ func TestPlayerPaths(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	r.attach(t)
-	if err := r.api.SetPlayerPath("fake", `D:\Apps\Fake\fake.exe`); err != nil || r.settings.config.PlayerPaths["fake"] != `D:\Apps\Fake\fake.exe` {
-		t.Fatalf("SetPlayerPath = %v", err)
-	}
-	if !settingsOf(t, r).Players[0].Custom {
-		t.Fatal("a path set by the user is not marked")
-	}
+	// Only a program the user picks in the dialog is kept, and only a real one
+	// for a player the app knows.
 	for _, c := range []struct{ id, path string }{{"fake", `fake.exe`}, {"fake", `D:\Apps\fake.bat`}, {"potplayer", `D:\pot.exe`}, {"../x", `D:\x.exe`}} {
-		if err := r.api.SetPlayerPath(c.id, c.path); err == nil {
-			t.Errorf("SetPlayerPath(%q, %q) was taken", c.id, c.path)
+		r.ui.program = c.path
+		if _, err := r.api.ChoosePlayerProgram(c.id); err == nil {
+			t.Errorf("ChoosePlayerProgram(%q) took %q", c.id, c.path)
 		}
+	}
+	if len(r.settings.config.PlayerPaths) != 0 {
+		t.Fatalf("a refused program was kept: %v", r.settings.config.PlayerPaths)
 	}
 	r.ui.program = `E:\Fake\fake.exe`
 	if path, err := r.api.ChoosePlayerProgram("fake"); err != nil || path != `E:\Fake\fake.exe` || r.settings.config.PlayerPaths["fake"] != path {
 		t.Fatalf("ChoosePlayerProgram = %q, %v", path, err)
+	}
+	if !settingsOf(t, r).Players[0].Custom {
+		t.Fatal("a path set by the user is not marked")
 	}
 	r.ui.program = ""
 	if path, err := r.api.ChoosePlayerProgram("fake"); err != nil || path != "" || r.settings.config.PlayerPaths["fake"] != `E:\Fake\fake.exe` {

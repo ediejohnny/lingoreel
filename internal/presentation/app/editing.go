@@ -134,9 +134,7 @@ func (a *API) ExportSubtitle(line string) error {
 	if len(events) == 0 {
 		return errNothingToSay
 	}
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return ErrNotReady
 	}

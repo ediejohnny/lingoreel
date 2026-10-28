@@ -101,8 +101,8 @@ func (s *Session) nudge(line session.Line, later, repeat bool) (subtitle.Offset,
 }
 
 func (s *Session) synced(line session.Line, track uint64, offset subtitle.Offset) {
-	if notice := *s.notice.Load(); s.display != nil && notice != nil && !s.quiet.Load() {
-		_ = s.display.Notify(notice(line, offset)) // a lost notice is cosmetic
+	if notice := *s.notice.Load(); notice != nil && !s.quiet.Load() {
+		s.Notify(notice(line, offset))
 	}
 	if s.listener != nil {
 		s.listener.Synced(line, track, offset)

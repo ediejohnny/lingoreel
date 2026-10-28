@@ -30,9 +30,9 @@ var (
 	})
 )
 
-// Use makes a catalog the interface's language, at once: every text is
+// use makes a catalog the interface's language, at once: every text is
 // worded when it is shown, so the next one comes in the new language.
-func Use(c *i18n.Catalog) {
+func use(c *i18n.Catalog) {
 	catalog.Store(c)
 }
 
@@ -43,7 +43,7 @@ func UseLanguage(configured, system string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	Use(c)
+	use(c)
 	return c.Tag(), nil
 }
 

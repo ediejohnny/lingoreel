@@ -58,9 +58,7 @@ func (s *Session) practiced(notice func(session.PracticeEvent, session.PracticeS
 		if s.display == nil || notice == nil {
 			return
 		}
-		if text := notice(event, status); text != "" {
-			_ = s.display.Notify(text) // a lost notice is cosmetic
-		}
+		s.Notify(notice(event, status))
 	}
 }
 

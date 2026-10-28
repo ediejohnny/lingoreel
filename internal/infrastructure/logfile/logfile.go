@@ -21,7 +21,8 @@ const (
 	prefix     = "lingoreel-"
 	extension  = ".log"
 	dateLayout = "2006-01-02"
-	// legacyName is the single log of the versions before 0.13.
+	// legacyName is a single log for every day, a name this package no longer
+	// writes: one found is removed.
 	legacyName = "lingoreel.log"
 )
 
@@ -60,8 +61,8 @@ func OpenLimited(dir string, now func() time.Time, limit int64) (*Writer, error)
 	if err := w.rotate(); err != nil {
 		return nil, err
 	}
-	// The single log of older versions is no longer written; one that
-	// cannot go now goes at a later start.
+	// A single log for every day is stale and removed; one that cannot go
+	// now goes at a later start.
 	_ = os.Remove(filepath.Join(dir, legacyName))
 	return w, nil
 }

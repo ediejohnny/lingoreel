@@ -154,7 +154,5 @@ func (s *Session) tellMark(event MarkEvent, segment study.Segment) {
 	if s.display == nil || s.markNotice == nil {
 		return
 	}
-	if text := s.markNotice(event, segment); text != "" {
-		_ = s.display.Notify(text) // a lost notice is cosmetic
-	}
+	s.Notify(s.markNotice(event, segment))
 }

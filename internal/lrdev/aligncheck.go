@@ -107,7 +107,7 @@ func alignCheck(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		stretch := voice.Stretch{File: path, Track: position, Channels: track.Channels, Codec: track.Codec,
 			From: max(event.Start-*margin, 0), Length: event.End - event.Start + 2**margin}
-		sound, err := decodeMono(ctx, decoder, stretch)
+		sound, err := voice.DecodeMono(ctx, decoder, stretch)
 		if err != nil {
 			return err
 		}
@@ -153,29 +153,4 @@ func alignCheck(ctx context.Context, args []string, stdout io.Writer) error {
 	out.line("Speed: %s of sound in %s of model time, real-time factor %.3f on %d threads",
 		heard.Round(time.Millisecond), spent.Round(time.Millisecond), spent.Seconds()/heard.Seconds(), *threads)
 	return out.err
-}
-
-// decodeMono decodes a stretch of sound at 16 kHz, its channels averaged.
-func decodeMono(ctx context.Context, decoder ffmpeg.Decoder, stretch voice.Stretch) ([]float32, error) {
-	var sound []float32
-	err := decoder.Decode(ctx, stretch, func(samples []float32, channels int) {
-		for i := 0; i+channels <= len(samples); i += channels {
-			sum := float32(0)
-			for _, s := range samples[i : i+channels] {
-				sum += s
-			}
-			sound = append(sound, sum/float32(channels))
-		}
-	})
-	if err == nil && len(sound) == 0 {
-		err = errors.New("align-check: no sound decoded")
-	}
-	return sound, err
-}
-
-func quantileOf(sorted []float64, q float64) float64 {
-	if len(sorted) == 0 {
-		return 0
-	}
-	return sorted[min(int(q*float64(len(sorted))), len(sorted)-1)]
 }

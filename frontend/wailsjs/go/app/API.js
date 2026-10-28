@@ -282,10 +282,6 @@ export function SetPassageOptions(arg1) {
   return window['go']['app']['API']['SetPassageOptions'](arg1);
 }
 
-export function SetPlayerPath(arg1, arg2) {
-  return window['go']['app']['API']['SetPlayerPath'](arg1, arg2);
-}
-
 export function SetSpeed(arg1) {
   return window['go']['app']['API']['SetSpeed'](arg1);
 }

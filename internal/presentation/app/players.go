@@ -134,9 +134,7 @@ func (a *API) OpenDownloadPage(id string) error {
 	if !found {
 		return ErrUnknownPlayer
 	}
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return ErrNotReady
 	}

@@ -12,7 +12,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -446,8 +445,7 @@ func quantile(list []time.Duration, q float64) string {
 	if len(list) == 0 {
 		return "-"
 	}
-	sorted := slices.Sorted(slices.Values(list))
-	return fmt.Sprintf("%+d ms", sorted[int(q*float64(len(sorted)-1))].Milliseconds())
+	return fmt.Sprintf("%+d ms", quantileOf(list, q).Milliseconds())
 }
 
 func share(part, total int) string {

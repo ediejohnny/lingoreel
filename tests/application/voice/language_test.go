@@ -150,3 +150,22 @@ func TestADecodingThatFailsStopsTheHearing(t *testing.T) {
 		t.Error("a failed decoding was not told")
 	}
 }
+
+// zeroChannels hands samples saying they have no channel at all, as a broken
+// decoder might.
+type zeroChannels struct{}
+
+func (zeroChannels) Decode(_ context.Context, _ voice.Stretch, hear func([]float32, int)) error {
+	hear([]float32{0.5, 0.25}, 0)
+	return nil
+}
+
+// A decoder that tells no channel cannot hang the mixing: each sample counts
+// as mono.
+func TestSoundWithoutChannelsIsTakenAsMono(t *testing.T) {
+	t.Parallel()
+	sound, err := voice.DecodeMono(t.Context(), zeroChannels{}, voice.Stretch{Length: time.Second})
+	if err != nil || !slices.Equal(sound, []float32{0.5, 0.25}) {
+		t.Fatalf("DecodeMono = %v, %v; want the two samples as mono", sound, err)
+	}
+}

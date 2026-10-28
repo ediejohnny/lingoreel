@@ -180,13 +180,9 @@ func (s *Session) startVoice(attempt int) {
 func (s *Session) voiceSources() voice.Sources {
 	v := s.voice
 	tracks := s.Tracks()
-	language := media.LanguageTag("")
-	for _, track := range tracks.List {
-		if track.Number == tracks.Current.Primary {
-			language = track.Language
-		}
-	}
 	info := media.Info{Tracks: tracks.List}
+	primary, _ := info.Track(tracks.Current.Primary)
+	language := primary.Language
 	sources := voice.Sources{Model: v.model}
 	track, position, found := media.VoiceTrack(info, language)
 	if found {

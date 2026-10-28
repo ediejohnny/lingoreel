@@ -506,10 +506,15 @@ func (l Lifecycle) ShowEditor() {
 	l.api.emit(EventPanel, PanelRequest{Section: PanelEditor})
 }
 
-func (a *API) emit(event string, data any) {
+// window is the window the API is attached to, nil before Attach.
+func (a *API) window() UI {
 	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	return a.ui
+}
+
+func (a *API) emit(event string, data any) {
+	ui := a.window()
 	if ui != nil {
 		ui.Emit(event, data)
 	}

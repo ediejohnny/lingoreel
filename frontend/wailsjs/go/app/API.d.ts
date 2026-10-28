@@ -142,8 +142,6 @@ export function SetPanel(arg1:app.PanelState):Promise<void>;
 
 export function SetPassageOptions(arg1:app.PassageOptions):Promise<void>;
 
-export function SetPlayerPath(arg1:string,arg2:string):Promise<void>;
-
 export function SetSpeed(arg1:number):Promise<void>;
 
 export function SetStudyMode(arg1:string):Promise<void>;

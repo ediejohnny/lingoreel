@@ -90,9 +90,7 @@ func (a *API) ChooseFFmpeg() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return "", ErrNotReady
 	}

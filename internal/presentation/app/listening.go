@@ -47,10 +47,9 @@ func withKeptFits(result analysis.Analysis, p *videoProject, preferences media.P
 
 // startListening starts hearing a video just opened, when some of its files
 // are still unheard and the voice model may work. Called with a.mu held.
-func (a *API) startListening(ctx context.Context, result analysis.Analysis, preferences media.Preferences) {
+func (a *API) startListening(ctx context.Context, result analysis.Analysis, preferences media.Preferences, onBattery bool) {
 	ports := a.deps.Ports
 	setup := voiceSetup(a.config.Voice)
-	onBattery := ports.Power != nil && ports.Power.OnBattery()
 	stretches := subtitle.HearingStretches(result.HearingLength())
 	if len(result.Unheard()) == 0 || len(stretches) == 0 || ports.Model == nil || ports.FindDecoder == nil ||
 		setup.Rest(onBattery) != watch.ModelAtWork {
@@ -158,21 +157,9 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 	}
 	a.listen = nil
 	path := l.state.Path
-	if a.video == nil || a.video.Path != path {
-		a.mu.Unlock()
-		a.emit(EventListening, Listening{Path: path})
-		return
-	}
-	languages := a.profile().Languages
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
-	mode := a.profile().Study.Mode
-	next := a.video.WithFits(fits, preferences)
-	a.video = &next
-	opened, suggested := a.project, next.Suggested
-	if opened != nil && opened.video == path {
+	a.showFound(path, func(video analysis.Analysis, preferences media.Preferences) analysis.Analysis {
+		return video.WithFits(fits, preferences)
+	}, func(opened *videoProject, next analysis.Analysis) {
 		for number, fit := range fits {
 			if key := opened.keys[number]; key != "" {
 				track := opened.track(key)
@@ -182,11 +169,32 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 			}
 		}
 		opened.correctInherited(next.Info, fits)
+	})
+	a.emit(EventListening, Listening{Path: path})
+}
+
+// showFound gives the open video what a hearing found, while it is still the
+// one at path: apply makes its analysis anew with the profile's preferences,
+// keep puts in its project what is kept of it, the tracks are suggested again
+// over what the project remembers, and the screens are told the video. It
+// tells whether the video was still open. Called with a.mu held, which it
+// lets go.
+func (a *API) showFound(path string, apply func(analysis.Analysis, media.Preferences) analysis.Analysis, keep func(*videoProject, analysis.Analysis)) bool {
+	if a.video == nil || a.video.Path != path {
+		a.mu.Unlock()
+		return false
+	}
+	mode := a.profile().Study.Mode
+	next := apply(*a.video, preferencesOf(a.profile().Languages))
+	a.video = &next
+	opened, suggested := a.project, next.Suggested
+	if opened != nil && opened.video == path {
+		keep(opened, next)
 		suggested, mode = opened.remembered(next.Info, next.Suggested, mode)
 	} else {
 		opened = nil
 	}
 	a.mu.Unlock()
 	a.emit(EventVideo, a.describeVideo(next, opened, suggested, mode))
-	a.emit(EventListening, Listening{Path: path})
+	return true
 }

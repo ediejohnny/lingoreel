@@ -59,9 +59,7 @@ func (l Lifecycle) ExportSubtitle(line session.Line) {
 // CopyText puts a line's text on the clipboard, and says so on the video.
 func (l Lifecycle) CopyText(text string) {
 	a := l.api
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return
 	}

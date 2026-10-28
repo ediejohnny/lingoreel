@@ -63,17 +63,22 @@ func untoldAudio(info media.Info) []media.Track {
 	return untold
 }
 
-// spokenCandidates are the profile's languages a video's tracks can be
-// heard in: each with a speech pack here and a subtitle in it, the one
-// suggested first.
-func (a *API) spokenCandidates(result analysis.Analysis, preferences media.Preferences) []spokenCandidate {
-	if a.deps.SpeechPacks == nil {
-		return nil
-	}
+// readyPacks are the languages whose speech pack is here. It looks at the
+// disk: called without a.mu.
+func (a *API) readyPacks() map[string]bool {
 	ready := map[string]bool{}
-	for _, state := range a.deps.SpeechPacks.States() {
-		ready[state.Language] = state.Ready
+	if a.deps.SpeechPacks != nil {
+		for _, state := range a.deps.SpeechPacks.States() {
+			ready[state.Language] = state.Ready
+		}
 	}
+	return ready
+}
+
+// spokenCandidates are the profile's languages a video's tracks can be
+// heard in: each with a speech pack ready and a subtitle in it, the one
+// suggested first.
+func spokenCandidates(result analysis.Analysis, preferences media.Preferences, ready map[string]bool) []spokenCandidate {
 	var candidates []spokenCandidate
 	for _, tag := range []media.LanguageTag{preferences.Primary, preferences.Translation} {
 		language := tag.Base()
@@ -99,14 +104,14 @@ func (a *API) spokenCandidates(result analysis.Analysis, preferences media.Prefe
 // tracks whose language its file does not tell, not yet heard in every
 // language it can be heard in, and the voice model may work. Called with
 // a.mu held.
-func (a *API) startLanguageHearing(ctx context.Context, result analysis.Analysis, opened *videoProject, preferences media.Preferences) {
+func (a *API) startLanguageHearing(ctx context.Context, result analysis.Analysis, opened *videoProject, preferences media.Preferences,
+	onBattery bool, ready map[string]bool) {
 	ports := a.deps.Ports
 	setup := voiceSetup(a.config.Voice)
-	onBattery := ports.Power != nil && ports.Power.OnBattery()
 	if a.deps.OpenSpeech == nil || ports.FindDecoder == nil || setup.Rest(onBattery) != watch.ModelAtWork {
 		return
 	}
-	candidates := a.spokenCandidates(result, preferences)
+	candidates := spokenCandidates(result, preferences, ready)
 	languages := make([]string, 0, len(candidates))
 	for _, c := range candidates {
 		languages = append(languages, c.language)
@@ -223,22 +228,6 @@ func (a *API) scoreTracks(ctx context.Context, decoder voice.Decoder, path strin
 // project and tells the screens the video again. A video no longer open, or
 // nothing heard, changes nothing.
 func (a *API) endLanguageHearing(h *languageHearing, scores map[uint64][]speech.LanguageScore) {
-	a.mu.Lock()
-	if a.hearLanguage != h {
-		a.mu.Unlock()
-		return
-	}
-	a.hearLanguage = nil
-	if len(scores) == 0 || a.video == nil || a.video.Path != h.path {
-		a.mu.Unlock()
-		return
-	}
-	languages := a.profile().Languages
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
-	mode := a.profile().Study.Mode
 	decided := map[uint64]string{}
 	heard := map[uint64]media.LanguageTag{}
 	for number, s := range scores {
@@ -249,10 +238,19 @@ func (a *API) endLanguageHearing(h *languageHearing, scores map[uint64][]speech.
 		}
 		a.logger.Info("an audio track was heard", "track", number, "language", language, "scores", s)
 	}
-	next := a.video.WithHeardLanguages(heard, preferences)
-	a.video = &next
-	opened, suggested := a.project, next.Suggested
-	if opened != nil && opened.video == h.path {
+	a.mu.Lock()
+	if a.hearLanguage != h {
+		a.mu.Unlock()
+		return
+	}
+	a.hearLanguage = nil
+	if len(scores) == 0 {
+		a.mu.Unlock()
+		return
+	}
+	a.showFound(h.path, func(video analysis.Analysis, preferences media.Preferences) analysis.Analysis {
+		return video.WithHeardLanguages(heard, preferences)
+	}, func(opened *videoProject, _ analysis.Analysis) {
 		for number, s := range scores {
 			key := opened.keys[number]
 			if key == "" {
@@ -267,10 +265,5 @@ func (a *API) endLanguageHearing(h *languageHearing, scores map[uint64][]speech.
 			opened.value.Tracks[key] = track
 		}
 		a.markDirty(opened)
-		suggested, mode = opened.remembered(next.Info, next.Suggested, mode)
-	} else {
-		opened = nil
-	}
-	a.mu.Unlock()
-	a.emit(EventVideo, a.describeVideo(next, opened, suggested, mode))
+	})
 }
