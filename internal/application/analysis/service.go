@@ -222,24 +222,35 @@ func (s *Service) externalTracks(ctx context.Context, videoPath string, videoLen
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		hints := media.HintsFromFileName(filepath.Base(path), filepath.Base(videoPath))
-		track := media.Track{
-			Number: media.ExternalTrackBase + uint64(i), Type: media.TrackSubtitle,
-			Name: filepath.Base(path), Path: path, Language: hints.Language,
-			Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
-			Candidate: i >= own,
-		}
+		track := fileTrack(path, videoPath)
+		track.Number, track.Candidate = media.ExternalTrackBase+uint64(i), i >= own
 		format, content, err := s.files.Load(path)
 		if err == nil {
-			track.Readable, track.SubtitleFormat = true, format
-			track.Codec = strings.ToUpper(string(format))
-			judgeContent(&track, content, videoLength)
+			readFile(&track, format, content, videoLength)
 			contents[track.Number] = content
 		}
 		tracks = append(tracks, track)
 		progress(float64(i+1) / float64(len(paths)))
 	}
 	return tracks, contents, nil
+}
+
+// fileTrack is a subtitle file as a track, before it is read: its name and
+// what the name tells of its language and flags.
+func fileTrack(path, videoPath string) media.Track {
+	hints := media.HintsFromFileName(filepath.Base(path), filepath.Base(videoPath))
+	return media.Track{
+		Type: media.TrackSubtitle, Name: filepath.Base(path), Path: path,
+		Language: hints.Language, Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
+	}
+}
+
+// readFile gives a file's track what reading it told: its format, and its
+// language and flags from its text (judgeContent).
+func readFile(track *media.Track, format subtitle.Format, content media.SubtitleContent, videoLength time.Duration) {
+	track.Readable, track.SubtitleFormat = true, format
+	track.Codec = strings.ToUpper(string(format))
+	judgeContent(track, content, videoLength)
 }
 
 // ErrTooManyFiles reports one subtitle file too many picked for a video.
@@ -275,13 +286,9 @@ func (s *Service) AddSubtitleFile(ctx context.Context, analysis Analysis, path s
 	if err != nil {
 		return analysis, media.Track{}, fmt.Errorf("reading the subtitle file %s: %w", filepath.Base(path), err)
 	}
-	hints := media.HintsFromFileName(filepath.Base(path), filepath.Base(analysis.Path))
-	track := media.Track{
-		Number: next, Type: media.TrackSubtitle, Name: filepath.Base(path), Path: path,
-		Language: hints.Language, Forced: hints.Forced, HearingImpaired: hints.HearingImpaired,
-		Readable: true, SubtitleFormat: format, Codec: strings.ToUpper(string(format)), Added: true,
-	}
-	judgeContent(&track, content, analysis.Info.Duration)
+	track := fileTrack(path, analysis.Path)
+	track.Number, track.Added = next, true
+	readFile(&track, format, content, analysis.Info.Duration)
 	measured := []media.Track{track}
 	internal, err := s.alignFiles(ctx, analysis.Path, analysis.Info, measured, map[uint64]media.SubtitleContent{next: content}, analysis.internal, nil)
 	if err != nil {

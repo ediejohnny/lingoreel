@@ -404,6 +404,8 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 	err = f.sources.Decoder.Decode(window, decode, func(samples []float32, channels int) {
 		began := time.Now()
 		if analyzer == nil {
+			// The decoder hands mono or stereo; a sound of another layout
+			// stays unjudged (the estimate goes on) rather than guessed at.
 			analyzer, _ = speech.NewAnalyzer(channels, stream)
 		}
 		if analyzer != nil {
@@ -480,6 +482,8 @@ func (f *Follower) hear(sound *liveSound, packet Packet) {
 	sound.frames = sound.frames[:0]
 	if playing {
 		if sound.analyzer == nil {
+			// The tap asks Windows for stereo; a sound of another layout stays
+			// unjudged (the estimate goes on) rather than guessed at.
 			sound.analyzer, _ = speech.NewAnalyzer(packet.Channels, sound.stream)
 		}
 		if sound.analyzer != nil {

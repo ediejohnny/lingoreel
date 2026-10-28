@@ -5,11 +5,8 @@
 package project
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -48,9 +45,6 @@ var (
 	// which must not be overwritten.
 	ErrNewerVersion = errors.New("project written by a newer version")
 )
-
-// hashPattern is the form of HashOf.
-var hashPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // Millis is a time in whole milliseconds, as the file writes it.
 type Millis int64
@@ -121,31 +115,6 @@ type Karaoke struct {
 // Rules are the preview's timing rules.
 func (k Karaoke) Rules() study.CueRules {
 	return study.CueRules{MinGap: k.MinGap.Duration(), Lead: k.Lead.Duration()}
-}
-
-// PassagePlan is how a saved passage is studied, so "Estudar" plays it the
-// way it was set up: pausing or looping at the end, and the helps.
-type PassagePlan struct {
-	Loop        bool   `json:"loop"`
-	Gap         Millis `json:"gap"`
-	Progressive bool   `json:"progressive"`
-	Ladder      bool   `json:"ladder"`
-	Goal        int    `json:"goal"`
-}
-
-// PlanOf keeps a practice plan in the file's form.
-func PlanOf(plan study.PracticePlan) PassagePlan {
-	return PassagePlan{Loop: plan.Mode == study.EndLoop, Gap: MillisOf(plan.Gap),
-		Progressive: plan.Progressive, Ladder: plan.Ladder, Goal: plan.Goal}
-}
-
-// Practice is the plan as the study rules take it.
-func (p PassagePlan) Practice() study.PracticePlan {
-	mode := study.EndPause
-	if p.Loop {
-		mode = study.EndLoop
-	}
-	return study.PracticePlan{Mode: mode, Gap: p.Gap.Duration(), Progressive: p.Progressive, Ladder: p.Ladder, Goal: p.Goal}
 }
 
 // New is an empty project.
@@ -241,262 +210,6 @@ type Track struct {
 	Hearing *Hearing        `json:"hearing,omitempty"`
 }
 
-// Limits of a hearing kept: how many languages, and how many lines each.
-const (
-	MaxHeardLanguages = 8
-	maxHeardLines     = 1000
-)
-
-// heardLanguage is the form of a language tried: its ISO 639 code.
-var heardLanguage = regexp.MustCompile(`^[a-z]{2,3}$`)
-
-// Hearing is what was heard in an audio track the file did not name: how
-// sure each language tried was of its lines in it, and the language the
-// track speaks, empty when its sound did not tell. A language tried later is
-// heard and weighed against the scores kept.
-type Hearing struct {
-	Scores   []HeardScore `json:"scores"`
-	Language string       `json:"language,omitempty"`
-}
-
-// HeardScore is how sure a language's model was of that language's lines in
-// the track: the median sureness, from 0 to 1, over Lines lines.
-type HeardScore struct {
-	Language string  `json:"language"`
-	Score    float64 `json:"score"`
-	Lines    int     `json:"lines"`
-}
-
-// Covers tells every language given was tried already.
-func (h *Hearing) Covers(languages []string) bool {
-	if h == nil {
-		return false
-	}
-	for _, language := range languages {
-		if !slices.ContainsFunc(h.Scores, func(s HeardScore) bool { return s.Language == language }) {
-			return false
-		}
-	}
-	return true
-}
-
-func (h Hearing) validate() error {
-	if len(h.Scores) > MaxHeardLanguages {
-		return fmt.Errorf("%w: %d languages heard", ErrInvalid, len(h.Scores))
-	}
-	tried := false
-	for _, s := range h.Scores {
-		if !heardLanguage.MatchString(s.Language) || !(s.Score >= 0 && s.Score <= 1) || s.Lines < 0 || s.Lines > maxHeardLines {
-			return fmt.Errorf("%w: language heard %+v", ErrInvalid, s)
-		}
-		tried = tried || s.Language == h.Language
-	}
-	if h.Language != "" && !tried {
-		return fmt.Errorf("%w: language %q heard but not tried", ErrInvalid, h.Language)
-	}
-	return nil
-}
-
-// Fit is how a subtitle file was found to line up with the video's voice
-// (subtitle.AlignToVoice), kept so the video is not heard again for it the
-// next time it opens. Of is FitOf the file's lines: a file changed since is
-// heard anew.
-type Fit struct {
-	Of      string           `json:"of"`
-	Verdict subtitle.Verdict `json:"verdict"`
-	Offset  int64            `json:"offset"` // ms, either way
-	Rate    float64          `json:"rate"`
-	Score   float64          `json:"score"`
-}
-
-// The rates a fit may keep: the frame rates' ratios and a little drift.
-const (
-	minFitRate = 0.9
-	maxFitRate = 1.1
-)
-
-// FitOf identifies a file's lines by their times, as HashOf does a text.
-func FitOf(events []subtitle.Event) string {
-	var times strings.Builder
-	for _, event := range events {
-		fmt.Fprintf(&times, "%d-%d;", event.Start.Milliseconds(), event.End.Milliseconds())
-	}
-	return HashOf(times.String())
-}
-
-// FitFrom keeps an alignment found by the voice for a file.
-func FitFrom(alignment subtitle.Alignment, of string) Fit {
-	return Fit{Of: of, Verdict: alignment.Verdict, Offset: alignment.Offset.Milliseconds(), Rate: alignment.Rate, Score: alignment.Score}
-}
-
-// Alignment is the fit as the analysis takes it, heard.
-func (f Fit) Alignment() subtitle.Alignment {
-	return subtitle.Alignment{
-		Offset: time.Duration(f.Offset) * time.Millisecond, Rate: f.Rate, Score: f.Score, Verdict: f.Verdict, Heard: true,
-	}
-}
-
-func (f Fit) validate() error {
-	switch f.Verdict {
-	case subtitle.VerdictMatch, subtitle.VerdictNoMatch, subtitle.VerdictOtherCut, subtitle.VerdictUnknown:
-	default:
-		return fmt.Errorf("%w: fit verdict %q", ErrInvalid, f.Verdict)
-	}
-	limit := subtitle.MaxOffset.Milliseconds()
-	switch {
-	case !hashPattern.MatchString(f.Of):
-		return fmt.Errorf("%w: fit of %q", ErrInvalid, f.Of)
-	case f.Offset < -limit || f.Offset > limit:
-		return fmt.Errorf("%w: fit offset %d ms", ErrInvalid, f.Offset)
-	// Written as "not within" so NaN is refused too.
-	case !(f.Rate >= minFitRate && f.Rate <= maxFitRate), !(f.Score >= 0 && f.Score <= 1):
-		return fmt.Errorf("%w: fit rate %v, score %v", ErrInvalid, f.Rate, f.Score)
-	}
-	return nil
-}
-
-// Edit is the user's change to one line. Original is HashOf the line's
-// original text, so an edit never lands on another text when the file
-// changes; nil fields keep the file's own value.
-type Edit struct {
-	Original string  `json:"original"`
-	Text     *string `json:"text,omitempty"`
-	Start    *Millis `json:"start,omitempty"`
-	End      *Millis `json:"end,omitempty"`
-}
-
-// Passage is a passage saved for studying, on the playback clock.
-// Its times are the ones studied, already fitted to the lines.
-type Passage struct {
-	Name  string `json:"name"`
-	Start Millis `json:"start"`
-	End   Millis `json:"end"`
-	// Plan is how it is studied; nil (a passage saved before version 2)
-	// pauses at the end, with no helps.
-	Plan *PassagePlan `json:"plan,omitempty"`
-}
-
-// Segment is the passage as the study rules see it.
-func (p Passage) Segment() study.Segment {
-	return study.Segment{Start: p.Start.Duration(), End: p.End.Duration()}
-}
-
-// Practice is how the passage is studied.
-func (p Passage) Practice() study.PracticePlan {
-	if p.Plan == nil {
-		return study.PracticePlan{Mode: study.EndPause}
-	}
-	return p.Plan.Practice()
-}
-
-// Outside tells the passage starts at or past the end of a video of the
-// given duration (zero when unknown), or leaves less than a lap of it: a
-// passage saved on another cut of the film.
-func (p Passage) Outside(duration time.Duration) bool {
-	return duration > 0 && p.Start.Duration() > duration-study.MinSegment
-}
-
-// IndexOf finds a passage by name, whatever the case and the spaces around
-// it; -1 when there is none.
-func IndexOf(passages []Passage, name string) int {
-	name = strings.TrimSpace(name)
-	for i, passage := range passages {
-		if strings.EqualFold(passage.Name, name) {
-			return i
-		}
-	}
-	return -1
-}
-
-// UniqueName returns name, or name with " (2)", " (3)"… when a passage
-// already has it, so saving the same span twice keeps both. It never goes
-// past MaxPassageNameLen: the suffix takes the end of a long name.
-func UniqueName(passages []Passage, name string) string {
-	name = strings.TrimSpace(name)
-	if IndexOf(passages, name) < 0 {
-		return name
-	}
-	for n := 2; ; n++ {
-		suffix := fmt.Sprintf(" (%d)", n)
-		base := []rune(name)
-		if room := MaxPassageNameLen - utf8.RuneCountInString(suffix); len(base) > room {
-			base = base[:room]
-		}
-		candidate := strings.TrimSpace(string(base)) + suffix
-		if IndexOf(passages, candidate) < 0 {
-			return candidate
-		}
-	}
-}
-
-// HashOf identifies a line's original text: 16 hex digits of its SHA-256.
-func HashOf(original string) string {
-	sum := sha256.Sum256([]byte(original))
-	return hex.EncodeToString(sum[:8])
-}
-
-// Apply puts the edit on a line of the file. It reports false, and leaves
-// the line alone, when the line's text is not the one the edit was made on
-// or when the edited line would not be valid.
-func (e Edit) Apply(line subtitle.Event) (subtitle.Event, bool) {
-	if e.Original != HashOf(line.OriginalText) {
-		return line, false
-	}
-	edited := line
-	if e.Text != nil {
-		edited.OverrideText = *e.Text
-	}
-	if e.Start != nil {
-		edited.Start = e.Start.Duration()
-	}
-	if e.End != nil {
-		edited.End = e.End.Duration()
-	}
-	if !edited.Valid() {
-		return line, false
-	}
-	return edited, true
-}
-
-// Diff is the edit that turns a line of the file into its edited form;
-// false when they do not differ.
-func Diff(original, edited subtitle.Event) (Edit, bool) {
-	edit := Edit{Original: HashOf(original.OriginalText)}
-	changed := false
-	if text := edited.Text(); text != original.Text() {
-		edit.Text, changed = &text, true
-	}
-	if edited.Start != original.Start {
-		start := MillisOf(edited.Start)
-		edit.Start, changed = &start, true
-	}
-	if edited.End != original.End {
-		end := MillisOf(edited.End)
-		edit.End, changed = &end, true
-	}
-	return edit, changed
-}
-
-// Apply puts the track's edits on the lines of the file, in their order. It
-// returns how many edits did not apply: their line is gone, its text
-// changed, or the edit would break it.
-func (t Track) Apply(lines []subtitle.Event) ([]subtitle.Event, int) {
-	edited := make([]subtitle.Event, len(lines))
-	used := 0
-	for i, line := range lines {
-		edited[i] = line
-		edit, found := t.Edits[line.ID]
-		if !found {
-			continue
-		}
-		if applied, ok := edit.Apply(line); ok {
-			edited[i] = applied
-			used++
-		}
-	}
-	return edited, len(t.Edits) - used
-}
-
 // Validate checks every value against the limits.
 func (p Project) Validate() error {
 	if len(p.Tracks) > MaxTracks {
@@ -567,20 +280,6 @@ func (k Karaoke) Validate() error {
 	return nil
 }
 
-// Validate checks a passage: a name and a span inside the time limit.
-func (p Passage) Validate() error {
-	name := strings.TrimSpace(p.Name)
-	switch {
-	case name == "" || name != p.Name || !utf8.ValidString(p.Name) || utf8.RuneCountInString(p.Name) > MaxPassageNameLen:
-		return fmt.Errorf("%w: passage name %q", ErrInvalid, p.Name)
-	case !validTime(p.Start) || !validTime(p.End) || p.End <= p.Start:
-		return fmt.Errorf("%w: passage %q from %d to %d ms", ErrInvalid, p.Name, p.Start, p.End)
-	case p.Plan != nil && p.Plan.Practice().Validate() != nil:
-		return fmt.Errorf("%w: passage %q plan %+v", ErrInvalid, p.Name, *p.Plan)
-	}
-	return nil
-}
-
 func (t Track) validate() error {
 	if offset := t.Offset.Duration(); offset < -subtitle.MaxOffset || offset > subtitle.MaxOffset {
 		return fmt.Errorf("%w: offset %d ms", ErrInvalid, t.Offset)
@@ -600,20 +299,6 @@ func (t Track) validate() error {
 	}
 	if t.Hearing != nil {
 		return t.Hearing.validate()
-	}
-	return nil
-}
-
-func (e Edit) validate() error {
-	switch {
-	case !hashPattern.MatchString(e.Original):
-		return fmt.Errorf("%w: original %q", ErrInvalid, e.Original)
-	case e.Text != nil && (strings.TrimSpace(*e.Text) == "" || !utf8.ValidString(*e.Text) || utf8.RuneCountInString(*e.Text) > MaxTextRunes):
-		return fmt.Errorf("%w: text", ErrInvalid)
-	case e.Start != nil && !validTime(*e.Start), e.End != nil && !validTime(*e.End):
-		return fmt.Errorf("%w: time", ErrInvalid)
-	case e.Start != nil && e.End != nil && *e.End <= *e.Start:
-		return fmt.Errorf("%w: end before start", ErrInvalid)
 	}
 	return nil
 }

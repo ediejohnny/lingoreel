@@ -16,12 +16,15 @@ func (r Rect) Bottom() float64 { return r.Y + r.H }
 // Valid reports whether the rectangle has a finite, positive size.
 func (r Rect) Valid() bool {
 	for _, v := range []float64{r.X, r.Y, r.W, r.H} {
-		if math.IsNaN(v) || math.IsInf(v, 0) {
+		if !Finite(v) {
 			return false
 		}
 	}
 	return r.W > 0 && r.H > 0
 }
+
+// Finite tells a number is neither NaN nor infinite.
+func Finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
 
 // Contains reports whether a point lies inside the rectangle; the right and
 // bottom edges are outside.
