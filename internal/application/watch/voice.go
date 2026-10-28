@@ -113,9 +113,18 @@ func (s *Session) paintByVoice(follower *voice.Follower) {
 		s.subtitles.SetVoice(nil)
 		return
 	}
-	s.subtitles.SetVoice(func(text string, start, end, position time.Duration) (float64, bool) {
-		return follower.Fill(voice.Line{Text: text, Start: start, End: end}, position)
-	})
+	s.subtitles.SetVoice(followedVoice{follower})
+}
+
+// followedVoice is a follower as the subtitles ask for a line's voice.
+type followedVoice struct{ follower *voice.Follower }
+
+func (v followedVoice) Fill(text string, start, end, position time.Duration) (float64, bool) {
+	return v.follower.Fill(voice.Line{Text: text, Start: start, End: end}, position)
+}
+
+func (v followedVoice) Begins(text string, start, end time.Duration) (time.Duration, bool) {
+	return v.follower.Begins(voice.Line{Text: text, Start: start, End: end})
 }
 
 // reviewVoice hears the voice while something wants it; again (restart)

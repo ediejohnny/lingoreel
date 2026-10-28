@@ -54,6 +54,8 @@ All notable changes to this project are listed here. The format follows
   words the model is not sure of is filled by the voice found, as before; so is every line when the language's model
   is not downloaded or does not suit the computer's level (English at the medium level, every language at the high
   one).
+- In karaoke mode, when the actor starts before the line's time, the preview's bar or countdown ends as the first word
+  is said, and from then the line fills along the voice instead of waiting for the subtitle's time.
 - The setup assistant offers a player as the session screen does, with the note that winget installs it.
 - The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
   beside it keeps editing.

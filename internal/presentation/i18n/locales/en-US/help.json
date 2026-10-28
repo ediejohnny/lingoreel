@@ -9,7 +9,7 @@
   "ui.help.intro": "Everything the app can do, by subject. The keys mentioned are your profile's.",
   "ui.help.karaoke.p1": "The karaoke mode helps you practice speaking. After a long pause, the next subtitle shows a few seconds early, with a bar or a countdown until the actor speaks, and fills in as they speak.",
   "ui.help.karaoke.p2": "{key} trains the line again, and Repeat each line repeats every line 1 to 10 times. The minimum pause and the lead time are in Settings › Study; the colors of the fill and the bar, in Settings › Subtitles › Study subtitle.",
-  "ui.help.karaoke.p3": "With the voice AI on, the fill follows the actors' voice. Without it, it follows an estimate from the line's syllables. It always finishes before the subtitle goes away.",
+  "ui.help.karaoke.p3": "With the voice AI on, the fill follows the actors' voice; with the line's language downloaded in Settings › Study › Voice languages, it goes word by word, and when the actor starts before the subtitle the countdown ends as they speak. Without the AI, it follows an estimate from the line's syllables. It always finishes before the subtitle goes away.",
   "ui.help.karaoke.title": "Karaoke mode",
   "ui.help.modes.p1": "Translation on demand, the recommended mode, shows only the study subtitle, and {key} shows the translation when you need it. Both shows the two subtitles, and the same key hides the translation. Translation always visible shows both all the time.",
   "ui.help.modes.p2": "In Settings › Study, the translation key can toggle the translation or show it only while held. Each video's mode is chosen on the session screen and in the panel; the default is in the profile.",

@@ -61,6 +61,29 @@ func TestUpcomingCueAfterALongSilence(t *testing.T) {
 	}
 }
 
+// An actor who begins before the line shows ends its preview then: e2's
+// voice begins at 19.6 s, so the bar, still whole at 15 s, is empty at
+// 19.6 s; a voice beginning on time or late leaves the cue as it is.
+func TestAPreviewEndsAsTheVoiceBegins(t *testing.T) {
+	t.Parallel()
+	placed := subtitle.Placed{Timeline: scene(t)}
+	at15, _ := study.UpcomingCue(placed, s(15), defaults)
+	if early := at15.Until(s(19.6)); early.Start != s(19.6) || early.Remaining != s(4.6) || early.Progress() != 1 {
+		t.Fatalf("at 15 s, the voice at 19.6 s: %+v, want the whole bar counting 4.6 s to it", early)
+	}
+	at19, _ := study.UpcomingCue(placed, s(19), defaults)
+	if early := at19.Until(s(19.6)); math.Abs(early.Progress()-0.6/4.6) > 1e-9 || early.Countdown(1) != 1 {
+		t.Fatalf("at 19 s: progress %v, countdown %d; want 0.6 s of 4.6 left", early.Progress(), early.Countdown(1))
+	}
+	at19_8, _ := study.UpcomingCue(placed, s(19.8), defaults)
+	if said := at19_8.Until(s(19.6)); said.Remaining > 0 || said.Progress() != 0 || said.Countdown(1) != 0 {
+		t.Fatalf("at 19.8 s, the voice begun: %+v, want nothing left", said)
+	}
+	if late := at15.Until(s(20.3)); late != at15 {
+		t.Fatalf("a voice beginning late moved the cue: %+v", late)
+	}
+}
+
 func TestMinimumGapBoundary(t *testing.T) {
 	t.Parallel()
 	timeline := scene(t)

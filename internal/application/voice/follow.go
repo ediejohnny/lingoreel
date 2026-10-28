@@ -293,6 +293,19 @@ func (f *Follower) Fill(line Line, position time.Duration) (float64, bool) {
 	return 0, false // not decoded yet
 }
 
+// Begins is when a line's voice begins, its first word placed in the sound;
+// false when its words were not placed (yet, or surely enough).
+func (f *Follower) Begins(line Line) (time.Duration, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, word := range f.placed[line] {
+		if word.Heard {
+			return word.Start, true
+		}
+	}
+	return 0, false
+}
+
 // Heard is the voice heard around a moment of the film, up to before it and
 // after it, as Memory.Around tells it; false when none was heard there.
 func (f *Follower) Heard(at, before, after time.Duration) (speech.Track, bool) {

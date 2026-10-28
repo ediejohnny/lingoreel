@@ -9,7 +9,7 @@
   "ui.help.intro": "Tudo o que dá para fazer no app, por assunto. As teclas citadas são as do seu perfil.",
   "ui.help.karaoke.p1": "O Modo Karaokê ajuda a treinar a fala. Depois de uma pausa longa, a próxima legenda aparece alguns segundos antes, com uma barra ou uma contagem regressiva até o ator falar, e se preenche enquanto ele fala.",
   "ui.help.karaoke.p2": "{key} treina a fala de novo, e Repetir cada fala repete cada uma de 1 a 10 vezes. A pausa mínima e a antecedência ficam em Configurações › Estudo; as cores do preenchimento e da barra, em Configurações › Legendas › Legenda de estudo.",
-  "ui.help.karaoke.p3": "Com a IA de voz ligada, o preenchimento acompanha a voz dos atores. Sem ela, segue uma estimativa pelas sílabas da fala. Ele sempre termina antes de a legenda sumir.",
+  "ui.help.karaoke.p3": "Com a IA de voz ligada, o preenchimento acompanha a voz dos atores; com a língua da fala baixada em Configurações › Estudo › Línguas da voz, ele vai palavra por palavra, e quando o ator começa antes da legenda a contagem acaba na hora em que ele fala. Sem a IA, segue uma estimativa pelas sílabas da fala. Ele sempre termina antes de a legenda sumir.",
   "ui.help.karaoke.title": "Modo Karaokê",
   "ui.help.modes.p1": "Tradução sob demanda, o modo recomendado, mostra só a legenda de estudo, e {key} mostra a tradução quando você precisar. Dupla mostra as duas, e a mesma tecla esconde a tradução. Tradução sempre visível mostra as duas o tempo todo.",
   "ui.help.modes.p2": "Em Configurações › Estudo, a tecla da tradução pode alternar ou mostrar a tradução só enquanto estiver pressionada. O modo de cada vídeo se escolhe na tela da sessão e no painel; o padrão fica no perfil.",

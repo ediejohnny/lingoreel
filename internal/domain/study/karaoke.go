@@ -84,6 +84,19 @@ func (c Cue) Progress() float64 {
 	return math.Min(math.Max(float64(c.Remaining)/float64(c.Lead), 0), 1)
 }
 
+// Until is the cue counting down to the line's voice instead of its time,
+// when the voice begins before it (an actor starting before the line shows):
+// the preview keeps its beginning and ends as the voice begins, and from then
+// on Remaining is not above zero.
+func (c Cue) Until(voice time.Duration) Cue {
+	if early := c.Start - voice; early > 0 {
+		c.Start = voice
+		c.Remaining -= early
+		c.Lead = max(c.Lead-early, 0)
+	}
+	return c
+}
+
 // Countdown is the whole seconds left in real time, rounded up, at a
 // playback speed: at 0.75x a second of video lasts longer.
 func (c Cue) Countdown(speed float64) int {

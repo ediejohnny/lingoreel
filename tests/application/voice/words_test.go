@@ -14,14 +14,16 @@ import (
 )
 
 // placingModel places a line's words where a test says, in the film's time,
-// as sure as it says; it keeps what it was asked and whether it was closed.
+// as sure as it says, the first unheard ones without a time of their own (a
+// number); it keeps what it was asked and whether it was closed.
 type placingModel struct {
-	at     []speech.Span
-	sure   float64
-	mu     sync.Mutex
-	words  []string
-	sound  int
-	closed atomic.Bool
+	at      []speech.Span
+	sure    float64
+	unheard int
+	mu      sync.Mutex
+	words   []string
+	sound   int
+	closed  atomic.Bool
 }
 
 // soundFrom is where the sound handed for "How... are you?" begins: the
@@ -34,6 +36,9 @@ func (m *placingModel) Align(sound []float32, words []string) ([]speech.Word, er
 	m.mu.Unlock()
 	placed := make([]speech.Word, len(m.at))
 	for i, span := range m.at {
+		if i < m.unheard {
+			continue
+		}
 		placed[i] = speech.Word{Span: speech.Span{Start: span.Start - soundFrom, End: span.End - soundFrom}, Heard: true, Confidence: m.sure}
 	}
 	return placed, nil
@@ -77,6 +82,9 @@ func TestTheFillFollowsTheWordsPlacedInTheSound(t *testing.T) {
 	within(t, `halfway through "How..."`, fill(t, follower, howAreYou, 2600*ms), 3, 3)
 	within(t, `between "How..." and "are"`, fill(t, follower, howAreYou, 2850*ms), 6, 6)
 	within(t, `halfway through "are"`, fill(t, follower, howAreYou, 3100*ms), 7.5, 7.5)
+	if begins, ok := follower.Begins(howAreYou); !ok || begins != wordsInThePause[0].Start {
+		t.Errorf("the line's voice begins at %v (%v), want its first word's %v", begins, ok, wordsInThePause[0].Start)
+	}
 
 	words, sound := model.asked()
 	if !slices.Equal(words, []string{"How...", "are", "you?"}) {
@@ -104,6 +112,9 @@ func TestUnsureWordsLeaveTheLineToTheVoiceFound(t *testing.T) {
 		return words != nil && ok
 	})
 	within(t, "in the pause, by the voice found", fill(t, follower, howAreYou, 3500*ms), 5.5, 6)
+	if begins, ok := follower.Begins(howAreYou); ok {
+		t.Errorf("unsure words tell the line's voice begins at %v, want nothing told", begins)
+	}
 }
 
 // A film's last line may show past the film's end, where no sound ever
@@ -121,5 +132,21 @@ func TestTheLastLineIsPlacedInTheSoundUpToTheFilmsEnd(t *testing.T) {
 	})
 	if _, sound := model.asked(); sound != int((filmPeriod-soundFrom).Seconds()*speech.SampleRate) {
 		t.Errorf("the model heard %d samples, want the sound from the margin before the line to the film's end", sound)
+	}
+}
+
+// A word without letters (a number) has no time of its own, so it never
+// tells when the line's voice begins: the first word heard does.
+func TestTheVoiceBeginsAtTheFirstWordHeard(t *testing.T) {
+	t.Parallel()
+	model := &placingModel{at: wordsInThePause, sure: 0.9, unheard: 1}
+	follower := followWithWords(model, howAreYou)
+	defer follower.Close()
+	testkit.Eventually(t, "the line's words placed", func() bool {
+		_, ok := follower.Begins(howAreYou)
+		return ok
+	})
+	if begins, _ := follower.Begins(howAreYou); begins != wordsInThePause[1].Start {
+		t.Errorf("the line's voice begins at %v, want the first heard word's %v", begins, wordsInThePause[1].Start)
 	}
 }

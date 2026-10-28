@@ -93,10 +93,14 @@ type Karaoke struct {
 	Fill bool
 }
 
-// VoiceFill paints a line, given by its text and its time on the playback
-// clock, along its actor's voice at a position; false leaves the line to the
-// estimate from its letters.
-type VoiceFill func(text string, start, end, position time.Duration) (float64, bool)
+// Voice follows a line's actor, the line given by its text and its time on
+// the playback clock: Fill is the share of it said at a position, false
+// leaving the line to the estimate from its letters; Begins is when its voice
+// begins, false when that is not known.
+type Voice interface {
+	Fill(text string, start, end, position time.Duration) (float64, bool)
+	Begins(text string, start, end time.Duration) (time.Duration, bool)
+}
 
 func sameEvents(a, b []subtitle.Event) bool {
 	if len(a) != len(b) {
@@ -120,7 +124,7 @@ type Subtitles struct {
 	mu      sync.RWMutex
 	lines   [2]*Track
 	karaoke Karaoke
-	voice   VoiceFill
+	voice   Voice
 	// ownTiming shows the translation on its own file's time instead of
 	// with the study line it translates.
 	ownTiming bool
@@ -171,7 +175,7 @@ func (s *Subtitles) SetOwnTiming(own bool) {
 
 // SetVoice paints the primary line along the actor's voice, or by the
 // estimate (nil), and signals the change.
-func (s *Subtitles) SetVoice(voice VoiceFill) {
+func (s *Subtitles) SetVoice(voice Voice) {
 	s.mu.Lock()
 	s.voice = voice
 	s.mu.Unlock()
@@ -188,8 +192,8 @@ func (s *Subtitles) Karaoke() Karaoke {
 // At returns the events visible at a playback position. The translation
 // comes and goes with the study line it translates, unless it keeps its own
 // time. With the karaoke mode on, a silence before a line shows that line
-// ahead of time, with its translation, and a line being spoken carries its
-// fill.
+// ahead of time, with its translation, until its voice begins; a line being
+// spoken carries its fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -203,21 +207,40 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if len(visible.Primary) == 0 {
-		if cue, upcoming := study.UpcomingCue(primary.Placed(), position, s.karaoke.Rules); upcoming {
-			visible.Cue = &cue
-			visible.Primary = []subtitle.Event{cue.Event}
-			if s.ownTiming && len(visible.Translation) == 0 {
-				visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
-			}
+		cue, upcoming := study.UpcomingCue(primary.Placed(), position, s.karaoke.Rules)
+		if !upcoming {
+			visible.Translation = s.translationWith(nil, visible.Translation, position)
+			return visible
+		}
+		visible.Primary = []subtitle.Event{cue.Event}
+		if s.ownTiming && len(visible.Translation) == 0 {
+			visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
 		}
 		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
-		return visible
+		if cue = s.untilVoice(primary, cue); cue.Remaining > 0 {
+			visible.Cue = &cue
+			return visible
+		}
+	} else {
+		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 	}
-	visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 	if s.karaoke.Fill {
 		visible.Fill, visible.Filling = s.fill(primary, visible.Primary, position)
 	}
 	return visible
+}
+
+// untilVoice is a preview counting down to its line's voice when the voice
+// begins before the line's time. Called with s.mu held.
+func (s *Subtitles) untilVoice(primary *Track, cue study.Cue) study.Cue {
+	if s.voice == nil {
+		return cue
+	}
+	end := primary.Shown().PlaybackTime(cue.Event.End)
+	if begins, ok := s.voice.Begins(cue.Event.Text(), cue.Start, end); ok {
+		return cue.Until(begins)
+	}
+	return cue
 }
 
 // fill is the share of the study events shown that is painted, and whether
@@ -235,7 +258,7 @@ func (s *Subtitles) fill(primary *Track, shown []subtitle.Event, position time.D
 	start, end := primary.Shown().PlaybackTime(line.Start), primary.Shown().PlaybackTime(line.End)
 	spoken := study.SpokenFraction(line, primary.Shown().TrackTime(position))
 	if s.voice != nil {
-		if fill, found := s.voice(line.Text(), start, end, position); found {
+		if fill, found := s.voice.Fill(line.Text(), start, end, position); found {
 			spoken = fill
 		}
 	}
