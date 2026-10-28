@@ -144,17 +144,17 @@ func TestAPackComesWithTheRuntimeOnceAndIsReadyToUse(t *testing.T) {
 	if changes.Load() < 2 {
 		t.Errorf("the screen was told %d times; the start and the end at least", changes.Load())
 	}
-	runtime, folder, ok := m.Paths("en")
+	runtime, model, ok := m.Paths("en")
 	if !ok {
 		t.Fatal("a ready pack has no paths")
 	}
 	if data, _ := os.ReadFile(runtime); !bytes.Equal(data, runtimeBytes) {
 		t.Error("the runtime on disk is not the one published")
 	}
-	if data, _ := os.ReadFile(filepath.Join(folder, "model.onnx")); !bytes.Equal(data, englishBytes) {
+	if data, _ := os.ReadFile(model); !bytes.Equal(data, englishBytes) {
 		t.Error("the model on disk is not the one published")
 	}
-	if data, _ := os.ReadFile(filepath.Join(folder, "meta.json")); string(data) != `{"model":"en"}` {
+	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(model), "meta.json")); string(data) != `{"model":"en"}` {
 		t.Errorf("meta.json = %q, want the one the app carries", data)
 	}
 

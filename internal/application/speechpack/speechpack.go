@@ -128,8 +128,8 @@ func (m *Manager) States() []State {
 	return states
 }
 
-// Paths tells where a ready pack's runtime and model folder are; ok is false
-// while the pack is not ready.
+// Paths tells where a ready pack's runtime and model are (its vocab.json and
+// meta.json beside the model); ok is false while the pack is not ready.
 func (m *Manager) Paths(language string) (runtime, model string, ok bool) {
 	pack, known := m.packFor(language)
 	if !known {
@@ -140,7 +140,7 @@ func (m *Manager) Paths(language string) (runtime, model string, ok bool) {
 	if !m.present(m.runtimePath(), m.options.Runtime.Size) || !m.ready(pack) {
 		return "", "", false
 	}
-	return m.runtimePath(), m.packDir(language), true
+	return m.runtimePath(), filepath.Join(m.packDir(language), modelName), true
 }
 
 // Fetch starts fetching what a language's pack lacks in the background (the
