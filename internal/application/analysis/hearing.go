@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
@@ -44,6 +46,47 @@ func (a Analysis) HearingLength() time.Duration {
 // correction; nil for a track that is not a file read.
 func (a Analysis) FileLines(number uint64) []subtitle.Event {
 	return a.external[number].Events
+}
+
+// HearVoice hears the stretches of the video's voice that line its unheard
+// files up (subtitle.HearingStretches), in the audio track VoiceStretch picks
+// for language. progress, when not nil, hears the stretch being heard, from
+// 0, and the share of it done, from 0 to 1.
+func HearVoice(ctx context.Context, a Analysis, decoder voice.Decoder, model speech.Model, language media.LanguageTag, progress func(stretch int, done float64)) ([]speech.Track, error) {
+	stretches := subtitle.HearingStretches(a.HearingLength())
+	base := VoiceStretch(a, language)
+	heard := make([]speech.Track, 0, len(stretches))
+	for i, s := range stretches {
+		stretch := base
+		stretch.From, stretch.Length = s.From, s.Length
+		var told func(float64)
+		if progress != nil {
+			told = func(done float64) { progress(i, done) }
+		}
+		track, err := voice.Hear(ctx, decoder, model, stretch, told)
+		if err != nil {
+			return nil, err
+		}
+		heard = append(heard, track)
+	}
+	return heard, nil
+}
+
+// VoiceStretch is the audio track a hearing listens to: the one speaking
+// language, the film's own (subtitles are timed to it, not to a dub); else
+// the first.
+func VoiceStretch(a Analysis, language media.LanguageTag) voice.Stretch {
+	stretch := voice.Stretch{File: a.Path}
+	track, position, found := media.VoiceTrack(a.Info, language)
+	if !found {
+		audio := a.Info.TracksOf(media.TrackAudio)
+		if len(audio) == 0 {
+			return stretch // a video whose tracks are not read: its first audio
+		}
+		track, position = audio[0], 0
+	}
+	stretch.Track, stretch.Channels, stretch.Codec = position, track.Channels, track.Codec
+	return stretch
 }
 
 // FitByVoice lines up the unheard files with the voice heard in stretches of

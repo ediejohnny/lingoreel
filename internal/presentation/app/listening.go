@@ -5,11 +5,9 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
-	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -58,7 +56,7 @@ func (a *API) startListening(ctx context.Context, result analysis.Analysis, pref
 	ctx, cancel := context.WithCancel(ctx)
 	l := &listening{cancel: cancel, state: Listening{Path: result.Path, Active: true, Stretch: 1, Stretches: len(stretches)}}
 	a.listen = l
-	go a.listenTo(ctx, l, result, stretches, setup.FFmpegPath, preferences)
+	go a.listenTo(ctx, l, result, setup.FFmpegPath, preferences)
 }
 
 // stopListening stops hearing a video, which is no longer the one open.
@@ -79,9 +77,9 @@ func (a *API) listeningTo(path string) Listening {
 	return Listening{Path: path}
 }
 
-// listenTo hears the stretches of a video's voice, then lines its unheard
-// files up with it.
-func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, stretches []subtitle.HearingStretch, ffmpegPath string, preferences media.Preferences) {
+// listenTo hears the stretches of a video's voice in the language of the
+// line on top, then lines its unheard files up with it.
+func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, ffmpegPath string, preferences media.Preferences) {
 	found, cancelFind := context.WithTimeout(ctx, findTimeout)
 	decoder := a.deps.Ports.FindDecoder(found, ffmpegPath)
 	cancelFind()
@@ -90,41 +88,19 @@ func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analys
 		a.endListening(l, nil) // the files stay unheard
 		return
 	}
-	base := voiceOf(result, preferences.Primary)
-	heard := make([]speech.Track, 0, len(stretches))
-	for i, s := range stretches {
-		stretch := base
-		stretch.From, stretch.Length = s.From, s.Length
-		track, err := voice.Hear(ctx, decoder, a.deps.Ports.Model, stretch, func(done float64) { a.listened(l, i, done) })
-		if err != nil {
-			if ctx.Err() == nil {
-				a.logger.Warn("hearing the video failed", "error", err)
-			}
-			a.endListening(l, nil)
-			return
+	heard, err := analysis.HearVoice(ctx, result, decoder, a.deps.Ports.Model, preferences.Primary, func(stretch int, done float64) {
+		a.listened(l, stretch, done)
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			a.logger.Warn("hearing the video failed", "error", err)
 		}
-		heard = append(heard, track)
+		a.endListening(l, nil)
+		return
 	}
 	_, fits := analysis.FitByVoice(result, heard, preferences)
 	a.logger.Info("the video was heard", "files", len(fits))
 	a.endListening(l, fits)
-}
-
-// voiceOf is the audio track heard: the one speaking the language of the
-// line on top, the film's own (subtitles are timed to it, not to a dub);
-// else the first.
-func voiceOf(result analysis.Analysis, language media.LanguageTag) voice.Stretch {
-	stretch := voice.Stretch{File: result.Path}
-	track, position, found := media.VoiceTrack(result.Info, language)
-	if !found {
-		audio := result.Info.TracksOf(media.TrackAudio)
-		if len(audio) == 0 {
-			return stretch // a video whose tracks are not read: its first audio
-		}
-		track, position = audio[0], 0
-	}
-	stretch.Track, stretch.Channels, stretch.Codec = position, track.Channels, track.Codec
-	return stretch
 }
 
 // listened tells the screen how far hearing went, when it moved by a percent.
