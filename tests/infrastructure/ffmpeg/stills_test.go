@@ -254,9 +254,12 @@ func TestARealFFmpegToneMapsAnHDRFilm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The mobius curve leaves the mid tones as they are: 100 nits stays as
+	// bright as the film shows it (hable dimmed it to about 160); only the
+	// highlight is bent, and stays brighter.
 	still := decodeStill(t, picture, 384, 216)
-	if mid, high := rgbAt(still, 96, 108)[1], rgbAt(still, 288, 108)[1]; mid < 140 || mid > 185 || high < 235 {
-		t.Fatalf("100 nits at %d, the highlight at %d: want 140–185 and at least 235", mid, high)
+	if mid, high := rgbAt(still, 96, 108)[1], rgbAt(still, 288, 108)[1]; mid < 200 || mid > 235 || high < 245 || high <= mid {
+		t.Fatalf("100 nits at %d, the highlight at %d: want 200–235 and at least 245, above it", mid, high)
 	}
 }
 
