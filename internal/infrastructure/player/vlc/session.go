@@ -316,11 +316,13 @@ func (s *Session) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
 		s.closing.Store(true)
+		// The poller stops first: a VLC on its way out stops answering,
+		// which is not a player lost.
+		s.stop()
 		quit, cancel := context.WithTimeout(context.Background(), quitTimeout)
 		// VLC may already be gone; the job object below ends it either way.
 		_, _ = s.client.call(quit, command("quit"))
 		cancel()
-		s.stop()
 		playerkit.WaitClosed(s.exited, exitWait)
 		if jobErr := s.job.Close(); jobErr != nil {
 			err = errors.Join(err, fmt.Errorf("ending VLC: %w", jobErr))

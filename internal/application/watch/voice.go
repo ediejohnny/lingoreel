@@ -60,7 +60,7 @@ func (s VoiceSetup) Rest(onBattery bool) ModelRest {
 type voicing struct {
 	model speech.Model
 	tap   voice.Tap
-	find  func(ctx context.Context, chosen string) voice.Decoder
+	find  func(ctx context.Context, chosen string) (voice.Decoder, error)
 	file  string
 	pid   int
 
@@ -154,7 +154,10 @@ func (s *Session) startVoice(attempt int) {
 	}
 	if v.find != nil && sources.Voice.File != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), findTimeout)
-		sources.Decoder = v.find(ctx, setup.FFmpegPath)
+		// Without a decoder, busy or missing, the player is heard instead.
+		if decoder, err := v.find(ctx, setup.FFmpegPath); err == nil {
+			sources.Decoder = decoder
+		}
 		cancel()
 	}
 	settings := setup.Settings

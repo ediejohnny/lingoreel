@@ -155,9 +155,7 @@ func (a *API) stopLanguageHearing() {
 // those scores and the ones kept.
 func (a *API) hearLanguages(ctx context.Context, h *languageHearing, result analysis.Analysis, tracks []media.Track,
 	candidates []spokenCandidate, kept map[uint64][]speech.LanguageScore, ffmpegPath string) {
-	found, cancelFind := context.WithTimeout(ctx, findTimeout)
-	decoder := a.deps.Ports.FindDecoder(found, ffmpegPath)
-	cancelFind()
+	decoder := a.decoderFor(ctx, ffmpegPath, "the audio's language")
 	if decoder == nil {
 		a.endLanguageHearing(h, nil)
 		return

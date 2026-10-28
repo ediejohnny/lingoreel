@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
 	"net/http"
@@ -37,6 +38,14 @@ var sampleVideo = filepath.Join("..", "..", "..", "testdata", "video", "study-sa
 // line in the named file and exits at once.
 const fakeArgsEnv = "LINGOREEL_FAKE_VLC_ARGS"
 
+// fakeQuittingEnv turns the test binary into a fake VLC on its way out: it
+// answers the endpoint as a paused video, and once asked to quit it cuts
+// every other request and takes quitDelay to answer before exiting.
+const fakeQuittingEnv = "LINGOREEL_FAKE_VLC_QUITTING"
+
+// quitDelay is well past the session's 100 ms between readings.
+const quitDelay = 600 * time.Millisecond
+
 func TestMain(m *testing.M) {
 	if record := os.Getenv(fakeArgsEnv); record != "" {
 		if err := os.WriteFile(record, []byte(strings.Join(os.Args[1:], "\n")), 0o600); err != nil {
@@ -44,7 +53,77 @@ func TestMain(m *testing.M) {
 		}
 		os.Exit(0)
 	}
+	if os.Getenv(fakeQuittingEnv) != "" {
+		answerAsAQuittingVLC()
+	}
 	os.Exit(m.Run())
+}
+
+func answerAsAQuittingVLC() {
+	port := ""
+	for i, arg := range os.Args {
+		if arg == "--http-port" && i+1 < len(os.Args) {
+			port = os.Args[i+1]
+		}
+	}
+	var quitting sync.Once
+	quit := make(chan struct{})
+	endpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("command") == "quit" {
+			quitting.Do(func() { close(quit) })
+			time.Sleep(quitDelay)
+			fmt.Fprint(w, `{"status":"stopped","time":0,"length":0,"rate":1,"audio":-1}`)
+			return
+		}
+		select {
+		case <-quit:
+			panic(http.ErrAbortHandler) // the connection drops, as VLC's does
+		default:
+		}
+		fmt.Fprint(w, `{"status":"paused","time":0,"length":20000000,"rate":1,"volume":256,"audio":0}`)
+	})
+	go func() { _ = http.ListenAndServe("127.0.0.1:"+port, endpoint) }()
+	<-quit
+	time.Sleep(quitDelay + 200*time.Millisecond) // the answer to quit leaves first
+	os.Exit(0)
+}
+
+// syncBuffer is a log destination the session's goroutines share.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// Closing a session is no player lost: the readings stop before VLC is told
+// to quit, so a VLC slow to go (a busy computer) is never logged as one that
+// stopped answering.
+func TestClosingVLCIsNotLoggedAsAPlayerNotAnswering(t *testing.T) {
+	t.Setenv(fakeQuittingEnv, "1")
+	var logged syncBuffer
+	logger := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	session, err := vlc.LaunchWith(t.Context(), os.Args[0], player.LaunchRequest{File: sampleVideo, AudioIndex: -1}, vlc.Options{Logger: logger})
+	if err != nil {
+		t.Fatalf("LaunchWith: %v", err)
+	}
+	waitFor(t, session.Samples(), "a reading of the fake VLC", func(s playback.Sample) bool { return s.Duration > 0 })
+	if err := session.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if text := logged.String(); text != "" {
+		t.Fatalf("closing the session logged %q, want nothing", text)
+	}
 }
 
 // A relative file name that starts with "-" would reach VLC as an option;

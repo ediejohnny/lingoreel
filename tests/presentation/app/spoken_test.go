@@ -63,15 +63,26 @@ var englishTrack = map[string]float64{"en": 0.9, "pt": 0.2}
 // looked the times an FFmpeg was looked for to hear the video.
 func spokenRig(t *testing.T, packs *fakePacks, sureness map[string]float64) (r *rig, opened, looked *atomic.Int32) {
 	t.Helper()
-	opened, looked = new(atomic.Int32), new(atomic.Int32)
+	looked = new(atomic.Int32)
+	r, opened = spokenRigFinding(t, packs, sureness, func(context.Context, string) (voice.Decoder, error) {
+		looked.Add(1)
+		return sayingDecoder{new(atomic.Int32)}, nil
+	})
+	return r, opened, looked
+}
+
+// spokenRigFinding is spokenRig with its FFmpeg looked for with find; a
+// computer too busy to start it rests 10 ms.
+func spokenRigFinding(t *testing.T, packs *fakePacks, sureness map[string]float64,
+	find func(context.Context, string) (voice.Decoder, error)) (r *rig, opened *atomic.Int32) {
+	t.Helper()
+	opened = new(atomic.Int32)
 	var mu sync.Mutex
 	r = newRigWith(t, func(deps *app.Deps) {
 		service := analysis.NewService(untoldAudioReader{}, nil)
 		deps.Service, deps.Ports.Service = service, service
-		deps.Ports.FindDecoder = func(context.Context, string) voice.Decoder {
-			looked.Add(1)
-			return sayingDecoder{new(atomic.Int32)}
-		}
+		deps.Ports.FindDecoder = find
+		deps.BusyRest = 10 * time.Millisecond
 		deps.SpeechPacks = packs
 		deps.OpenSpeech = func(language string) (app.SpeechModel, error) {
 			mu.Lock()
@@ -81,7 +92,31 @@ func spokenRig(t *testing.T, packs *fakePacks, sureness map[string]float64) (r *
 		}
 	})
 	r.attach(t)
-	return r, opened, looked
+	return r, opened
+}
+
+// The track's language is heard after a computer too busy to start FFmpeg
+// rested: the busy looks delay the hearing, they do not end it.
+func TestABusyComputerDelaysHearingTheTracksLanguage(t *testing.T) {
+	t.Parallel()
+	var looks atomic.Int32
+	r, _ := spokenRigFinding(t, bothPacks(), englishTrack, func(context.Context, string) (voice.Decoder, error) {
+		if looks.Add(1) <= 2 {
+			return nil, voice.ErrDecoderBusy
+		}
+		return sayingDecoder{new(atomic.Int32)}, nil
+	})
+	if _, err := r.api.OpenVideo(dubbedVideo); err != nil {
+		t.Fatal(err)
+	}
+	heard := ptbr.T("track.audio.heard", "language", ptbr.Capitalized(ptbr.LanguageName("en")))
+	testkit.Eventually(t, "the track's language heard after two busy looks", func() bool {
+		told, ok := r.ui.last(app.EventVideo)
+		return ok && strings.HasPrefix(audioLabel(told.(app.Video)), heard)
+	})
+	if n := looks.Load(); n != 3 {
+		t.Fatalf("FFmpeg looked for %d times, want 3: two busy, then found", n)
+	}
 }
 
 func bothPacks() *fakePacks {

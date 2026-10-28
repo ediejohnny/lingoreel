@@ -53,6 +53,12 @@ All notable changes to this project are listed here. The format follows
 - The question about a computer of another level stayed on the screen after Settings › General › "Adjust again to
   this computer" answered it.
 - A voice delay changed just before leaving its settings page was not saved.
+- On a computer too busy to start FFmpeg in time (another program taking every processor, an antivirus looking at it
+  the first time after the computer starts), hearing a video's subtitle files or its audio track's language gave up
+  until the video was opened again, and the log said no FFmpeg was found. The hearing now rests 30 s and looks again
+  while the video is open; only a computer with no FFmpeg ends it.
+- Closing a video in VLC could log that VLC stopped answering: the app kept reading VLC's state while VLC was on its
+  way out. The reading now stops before VLC is told to quit, as it already did with PotPlayer.
 
 ## [0.28.0] - 2026-10-27
 

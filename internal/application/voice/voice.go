@@ -6,8 +6,13 @@ package voice
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrDecoderBusy reports a decoder the computer was too busy to start in
+// time: it may well be there, so it is looked for again later.
+var ErrDecoderBusy = errors.New("the computer was too busy to start the decoder")
 
 // Packet is a piece of the sound, at speech.SampleRate, interleaved when
 // stereo. Its samples are only good during the call that hands it over.

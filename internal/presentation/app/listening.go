@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
@@ -20,9 +19,6 @@ import (
 // EventListening tells the session screen how far hearing the open video
 // has gone (a Listening).
 const EventListening = "video:listening"
-
-// findTimeout bounds the search for the user's FFmpeg before hearing.
-const findTimeout = 10 * time.Second
 
 // listening is the hearing of the open video's voice.
 type listening struct {
@@ -80,11 +76,8 @@ func (a *API) listeningTo(path string) Listening {
 // listenTo hears the stretches of a video's voice in the language of the
 // line on top, then lines its unheard files up with it.
 func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, ffmpegPath string, preferences media.Preferences) {
-	found, cancelFind := context.WithTimeout(ctx, findTimeout)
-	decoder := a.deps.Ports.FindDecoder(found, ffmpegPath)
-	cancelFind()
+	decoder := a.decoderFor(ctx, ffmpegPath, "the video")
 	if decoder == nil {
-		a.logger.Info("the video was not heard: no FFmpeg found")
 		a.endListening(l, nil) // the files stay unheard
 		return
 	}

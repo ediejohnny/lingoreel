@@ -166,6 +166,9 @@ type Deps struct {
 	Projects  Projects
 	SaveDelay time.Duration
 	Later     func(delay time.Duration, run func()) (stop func() bool)
+	// BusyRest is how long hearing a video waits after the computer was too
+	// busy to start FFmpeg, before looking again; zero is 30 s.
+	BusyRest time.Duration
 	// About is the app's and the system's version, for the diagnostics;
 	// Monitors lists the screens (nil lists none); LogDir holds the logs.
 	About    About

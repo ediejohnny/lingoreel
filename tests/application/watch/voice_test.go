@@ -2,6 +2,7 @@ package watch_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -98,9 +99,9 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	tap, decoder := &listeningTap{}, &stretchDecoder{}
 	found := make(chan struct{}, 4)
 	r.ports.Tap = tap
-	r.ports.FindDecoder = func(context.Context, string) voice.Decoder {
+	r.ports.FindDecoder = func(context.Context, string) (voice.Decoder, error) {
 		found <- struct{}{}
-		return nil // no FFmpeg yet
+		return nil, errors.New("no FFmpeg yet")
 	}
 	r.request.Karaoke = paintingKaraoke()
 	r.request.Voice = watch.VoiceSetup{Model: true, Follow: true}
@@ -119,9 +120,9 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	testkit.Eventually(t, "hearing the English audio", func() bool { return tap.listening.Load() == 1 })
 
 	var chosen atomic.Value
-	r.ports.FindDecoder = func(_ context.Context, path string) voice.Decoder {
+	r.ports.FindDecoder = func(_ context.Context, path string) (voice.Decoder, error) {
 		chosen.Store(path)
-		return decoder
+		return decoder, nil
 	}
 	r.request.Voice.FFmpegPath = `C:\ffmpeg\bin\ffmpeg.exe`
 	ahead := r.start(t)
@@ -147,7 +148,7 @@ func TestKeepingTheLineOnTheVoiceHearsTheFilm(t *testing.T) {
 		r := newRig(t)
 		r.ports.Model = testkit.LoudModel{}
 		decoder := &stretchDecoder{}
-		r.ports.FindDecoder = func(context.Context, string) voice.Decoder { return decoder }
+		r.ports.FindDecoder = func(context.Context, string) (voice.Decoder, error) { return decoder, nil }
 		r.request.Voice = setup
 		return r.start(t), decoder
 	}

@@ -80,14 +80,24 @@ func FindAmong(ctx context.Context, places []string) (string, error) {
 	return "", missing
 }
 
-// FindDecoder is the voice's decoder on the user's own FFmpeg, found anew;
-// nil when none runs, and the voice is then not heard.
-func FindDecoder(ctx context.Context, chosen string) voice.Decoder {
-	path, err := Find(ctx, chosen)
-	if err != nil {
-		return nil
+// FindDecoder is the voice's decoder on the user's own FFmpeg, found anew as
+// Find finds it.
+func FindDecoder(ctx context.Context, chosen string) (voice.Decoder, error) {
+	return DecoderAmong(ctx, append([]string{chosen}, candidates()...))
+}
+
+// DecoderAmong is the voice's decoder on the first of places that is an
+// FFmpeg that runs. One that did not answer in time is voice.ErrDecoderBusy,
+// not one missing.
+func DecoderAmong(ctx context.Context, places []string) (voice.Decoder, error) {
+	path, err := FindAmong(ctx, places)
+	switch {
+	case errors.Is(err, ErrSlow):
+		return nil, fmt.Errorf("%w: %w", voice.ErrDecoderBusy, err)
+	case err != nil:
+		return nil, err
 	}
-	return Decoder{Path: path}
+	return Decoder{Path: path}, nil
 }
 
 // Arguments is the command line that decodes a stretch to 16 kHz float on

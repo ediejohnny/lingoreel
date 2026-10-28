@@ -148,8 +148,9 @@ type Ports struct {
 	// Tap hears the player's sound for the Model as it plays.
 	Tap voice.Tap
 	// FindDecoder looks for the user's FFmpeg, to decode the voice ahead of
-	// the video; nil, or a nil answer, hears the player instead.
-	FindDecoder func(ctx context.Context, chosen string) voice.Decoder
+	// the video; nil, or no decoder found, hears the player instead. A
+	// computer too busy to start it answers voice.ErrDecoderBusy.
+	FindDecoder func(ctx context.Context, chosen string) (voice.Decoder, error)
 	// OpenStills prepares a film for the seek bar's stills with the user's
 	// FFmpeg (chosen, else one found), or reports thumbnail.ErrNoStills; nil
 	// shows the time alone. StillsStopped hears why a film's stills stopped.
