@@ -1,4 +1,4 @@
-import { Eraser, Play, RotateCcw } from "lucide-react";
+import { Eraser, Play, RotateBack } from "../components/ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { SavedPassages } from "../components/player/SavedPassages";
 import { SubtitlePicker } from "../components/player/SubtitlePicker";
@@ -184,7 +184,7 @@ export function SessionPage(props: SessionPageProps) {
             onClose={props.onDismissError}
             action={
               props.resumable && canWatch ? (
-                <Button icon={RotateCcw} loading={props.starting} onClick={() => watch(true)}>
+                <Button icon={RotateBack} loading={props.starting} onClick={() => watch(true)}>
                   {t("ui.session.watchAgain")}
                 </Button>
               ) : undefined

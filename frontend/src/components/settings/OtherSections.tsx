@@ -1,4 +1,4 @@
-import { FolderOpen, RotateCcw } from "lucide-react";
+import { FolderOpen, RotateBack } from "../ui/icons";
 import { useState } from "react";
 import { speedLabel } from "../../format";
 import { t } from "../../i18n";
@@ -94,7 +94,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
           <div className="flex flex-wrap items-center gap-2 rounded-control border border-error/40 bg-error-soft p-3">
             <span className="flex-1 text-sm text-fg">{t("ui.settings.reset.confirm")}</span>
             <Button
-              icon={RotateCcw}
+              icon={RotateBack}
               onClick={() => {
                 setConfirming(false);
                 void run(() => backend.resetProfile(), t("ui.settings.reset.done"));
@@ -107,7 +107,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
             </Button>
           </div>
         ) : (
-          <Button icon={RotateCcw} disabled={dirty} onClick={() => setConfirming(true)}>
+          <Button icon={RotateBack} disabled={dirty} onClick={() => setConfirming(true)}>
             {t("ui.settings.reset.button")}
           </Button>
         )}

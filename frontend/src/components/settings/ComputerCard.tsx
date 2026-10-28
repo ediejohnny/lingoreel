@@ -1,4 +1,4 @@
-import { Cpu } from "lucide-react";
+import { Cpu } from "../ui/icons";
 import { useEffect, useRef, useState } from "react";
 import { adjustedApart, computerFacts, levelName } from "../../computer";
 import { t } from "../../i18n";

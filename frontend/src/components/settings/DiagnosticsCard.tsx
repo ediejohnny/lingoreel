@@ -1,4 +1,4 @@
-import { ClipboardCopy, RefreshCw } from "lucide-react";
+import { ClipboardCopy, Refresh } from "../ui/icons";
 import { useCallback, useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { backend, messageOf, type Diagnostics } from "../../services/backend";
@@ -40,7 +40,7 @@ export function DiagnosticsCard() {
           <Button icon={ClipboardCopy} disabled={!diagnostics} onClick={() => void copy()}>
             {t("ui.settings.diagnostics.copy")}
           </Button>
-          <Button icon={RefreshCw} variant="ghost" onClick={refresh}>
+          <Button icon={Refresh} variant="ghost" onClick={refresh}>
             {t("ui.settings.diagnostics.refresh")}
           </Button>
           {status && (

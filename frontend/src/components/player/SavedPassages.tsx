@@ -1,4 +1,4 @@
-import { BookOpenCheck, Check, Pencil, Trash2, X } from "lucide-react";
+import { BookOpenCheck, Check, Pencil, Trash, X } from "../ui/icons";
 import { useState } from "react";
 import { t } from "../../i18n";
 import { messageOf, type SavedPassage } from "../../services/backend";
@@ -121,7 +121,7 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
               {studyLabel}
             </Button>
             <IconButton icon={Pencil} label={t("ui.passages.rename.label", { name: passage.name })} onClick={() => setEditing(true)} />
-            <IconButton icon={Trash2} label={t("ui.passages.delete.label", { name: passage.name })} onClick={() => setConfirming(true)} />
+            <IconButton icon={Trash} label={t("ui.passages.delete.label", { name: passage.name })} onClick={() => setConfirming(true)} />
           </>
         )}
       </div>

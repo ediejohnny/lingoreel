@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash } from "../ui/icons";
 import { language, t } from "../../i18n";
 import { backend, type ThumbnailSettings } from "../../services/backend";
 import { Button } from "../ui/Button";
@@ -51,7 +51,7 @@ export function ThumbnailsCard({ view, run }: Pick<SectionProps, "view" | "run">
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-fg-muted">{t("ui.settings.thumbnails.kept", { size: megabytes(thumbnails.keptBytes) })}</p>
           <Button
-            icon={Trash2}
+            icon={Trash}
             disabled={thumbnails.keptBytes === 0}
             onClick={() => void run(() => backend.clearThumbnails(), t("ui.settings.thumbnails.cleared"))}
           >

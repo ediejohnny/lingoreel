@@ -66,6 +66,7 @@ All notable changes to this project are listed here. The format follows
 - The setup assistant offers a player as the session screen does, with the note that winget installs it.
 - The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
   beside it keeps editing.
+- The app's icons are its own drawings, under its MIT license, in place of an icon library's.
 
 ### Fixed
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, PanelRight, Settings } from "lucide-react";
+import { ArrowLeft, PanelRight, Settings } from "./components/ui/icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { ComputerChangeBanner } from "./components/ComputerChangeBanner";

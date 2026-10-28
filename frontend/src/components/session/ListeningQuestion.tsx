@@ -1,4 +1,4 @@
-import { Hourglass, Play } from "lucide-react";
+import { Hourglass, Play } from "../ui/icons";
 import { t } from "../../i18n";
 import type { Listening } from "../../services/backend";
 import { Button } from "../ui/Button";

@@ -1,5 +1,4 @@
-import type { LucideIcon } from "lucide-react";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, type IconDrawing } from "./icons";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
@@ -12,7 +11,7 @@ const variants: Record<Variant, string> = {
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
-  icon?: LucideIcon;
+  icon?: IconDrawing;
   loading?: boolean;
   size?: "md" | "lg";
   children: ReactNode;
@@ -45,7 +44,7 @@ export function Button({
 }
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: LucideIcon;
+  icon: IconDrawing;
   /** label names the action for screen readers and the tooltip. */
   label: string;
   size?: "md" | "lg";

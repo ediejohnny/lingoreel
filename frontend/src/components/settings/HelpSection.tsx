@@ -1,4 +1,4 @@
-import { ArrowRight, ScrollText } from "lucide-react";
+import { ArrowRight, Document } from "../ui/icons";
 import { useEffect, useState } from "react";
 import { searchTopics, topics, type Keys } from "../../help/topics";
 import { t } from "../../i18n";
@@ -134,7 +134,7 @@ function AboutCard() {
       <p className="mb-3 text-sm text-fg-secondary">{t("ui.settings.about.license")}</p>
       <p className="mb-3 text-sm text-fg-secondary">{t("ui.settings.about.notices")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button icon={ScrollText} loading={loading} aria-expanded={open} onClick={toggle}>
+        <Button icon={Document} loading={loading} aria-expanded={open} onClick={toggle}>
           {open ? t("ui.settings.about.hide") : t("ui.settings.about.show")}
         </Button>
         {status && (

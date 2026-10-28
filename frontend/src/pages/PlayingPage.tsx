@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Square } from "lucide-react";
+import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Stop } from "../components/ui/icons";
 import { EditorCard } from "../components/player/EditorCard";
 import { SubtitlesCard } from "../components/player/SubtitlesCard";
 import { SyncRow } from "../components/player/SyncRow";
@@ -183,7 +183,7 @@ export function PlayingPage({
         <TrainingCards state={state} label={label} onCommand={onCommand} />
 
         <div className="flex justify-end pb-2">
-          <Button icon={Square} onClick={() => onCommand(commands.stop)}>
+          <Button icon={Stop} onClick={() => onCommand(commands.stop)}>
             {t("ui.playing.stop")}
           </Button>
         </div>

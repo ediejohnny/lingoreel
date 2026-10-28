@@ -1,4 +1,4 @@
-import { Download, FolderOpen, X } from "lucide-react";
+import { Download, FolderOpen, X } from "../ui/icons";
 import { useInstall } from "../../hooks/useInstall";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";

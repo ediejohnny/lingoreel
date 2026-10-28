@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2, Wand2 } from "lucide-react";
+import { Pencil, Plus, Trash, Wand } from "../ui/icons";
 import { useState } from "react";
 import { setLanguage, t } from "../../i18n";
 import { backend } from "../../services/backend";
@@ -45,7 +45,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
               <Button icon={Pencil} disabled={dirty} onClick={() => setEditing({ kind: "rename", name: active })}>
                 {t("ui.settings.profile.rename")}
               </Button>
-              <Button icon={Trash2} disabled={dirty || view.profiles.length < 2} onClick={() => setEditing({ kind: "delete" })}>
+              <Button icon={Trash} disabled={dirty || view.profiles.length < 2} onClick={() => setEditing({ kind: "delete" })}>
                 {t("ui.settings.profile.delete")}
               </Button>
             </div>
@@ -84,7 +84,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
               <p className="text-sm text-fg">{t("ui.settings.profile.confirmDelete", { name: active })}</p>
               <div className="flex gap-2">
                 <Button
-                  icon={Trash2}
+                  icon={Trash}
                   onClick={() => void finish(() => backend.deleteProfile(active), t("ui.settings.profile.deleted", { name: active }))}
                 >
                   {t("ui.settings.profile.delete")}
@@ -122,7 +122,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
       >
         <div className="flex flex-col gap-2">
           <div>
-            <Button icon={Wand2} disabled={!welcome || dirty} onClick={welcome}>
+            <Button icon={Wand} disabled={!welcome || dirty} onClick={welcome}>
               {t("ui.settings.welcome.open")}
             </Button>
           </div>

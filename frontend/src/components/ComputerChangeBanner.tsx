@@ -1,4 +1,4 @@
-import { Cpu } from "lucide-react";
+import { Cpu } from "./ui/icons";
 import { useState } from "react";
 import { levelName } from "../computer";
 import { useFollowed } from "../hooks/useFollowed";

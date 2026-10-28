@@ -1,4 +1,4 @@
-import { CircleDot, FileDown, Flag, PencilLine, Redo2, RotateCcw, Save, Undo2, X } from "lucide-react";
+import { CircleDot, FileDown, Flag, PencilLine, Redo, RotateBack, Save, Undo, X } from "../ui/icons";
 import { useId, useState } from "react";
 import { editClock } from "../../format";
 import { t } from "../../i18n";
@@ -57,7 +57,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
         )}
         <div className="grid grid-cols-2 gap-2 border-t border-line pt-4">
           <Button
-            icon={Undo2}
+            icon={Undo}
             disabled={playing || !editing.canUndo}
             title={playing ? pausedOnly : withKey(t("ui.editor.undo.tip"), label("undo"))}
             onClick={() => onCommand(backend.undoEdit)}
@@ -65,7 +65,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
             {t("ui.editor.undo.label")}
           </Button>
           <Button
-            icon={Redo2}
+            icon={Redo}
             disabled={playing || !editing.canRedo}
             title={playing ? pausedOnly : withKey(t("ui.editor.redo.tip"), label("redo"))}
             onClick={() => onCommand(backend.redoEdit)}
@@ -161,7 +161,7 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
           {t("ui.common.cancel")}
         </Button>
         <Button
-          icon={RotateCcw}
+          icon={RotateBack}
           disabled={playing || !editing.edited}
           title={playing ? t("ui.editor.pausedOnly") : t("ui.editor.restore.tip")}
           onClick={() => onCommand(backend.restoreLine)}

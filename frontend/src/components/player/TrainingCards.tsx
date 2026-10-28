@@ -1,4 +1,4 @@
-import { BookOpenCheck, Bookmark, Flag, LogOut, RotateCcw, Undo2 } from "lucide-react";
+import { BookOpenCheck, Bookmark, Flag, LogOut, RotateBack, Undo } from "../ui/icons";
 import { useState } from "react";
 import { passageClock } from "../../format";
 import { t } from "../../i18n";
@@ -91,7 +91,7 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
         />
         <div className="flex items-center gap-1">
           <Button
-            icon={RotateCcw}
+            icon={RotateBack}
             onClick={() => onCommand(backend.replayLine)}
             title={replayKey ? t("ui.karaoke.replay.tip", { key: replayKey }) : t("ui.karaoke.replay.label")}
           >
@@ -199,7 +199,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {passage.suspended && (
-                <Button icon={Undo2} onClick={() => onCommand(backend.resumePassage)}>
+                <Button icon={Undo} onClick={() => onCommand(backend.resumePassage)}>
                   {t("ui.passage.resume")}
                 </Button>
               )}

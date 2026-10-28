@@ -1,4 +1,4 @@
-import { Minus, Plus, RotateCcw } from "lucide-react";
+import { Minus, Plus, RotateBack } from "../ui/icons";
 import { t } from "../../i18n";
 import { IconButton } from "../ui/Button";
 
@@ -29,7 +29,7 @@ export function SyncRow({ name, offset, voice, shortcut, onEarlier, onLater, onR
           {offset}
         </span>
         <IconButton icon={Plus} label={t("ui.sync.later", { name })} onClick={onLater} />
-        <IconButton icon={RotateCcw} label={t("ui.sync.reset", { name })} onClick={onReset} />
+        <IconButton icon={RotateBack} label={t("ui.sync.reset", { name })} onClick={onReset} />
       </div>
     </div>
   );

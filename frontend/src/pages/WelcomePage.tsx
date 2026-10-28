@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "../components/ui/icons";
 import { useCallback, useEffect, useState } from "react";
 import { InstallCards } from "../components/session/InstallCards";
 import { FFmpegRow } from "../components/settings/FFmpegRow";

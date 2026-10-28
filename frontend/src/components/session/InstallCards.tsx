@@ -1,4 +1,4 @@
-import { Download, ExternalLink, X } from "lucide-react";
+import { Download, ExternalLink, X } from "../ui/icons";
 import { t } from "../../i18n";
 import type { PlayerInstall } from "../../services/backend";
 import { Button } from "../ui/Button";

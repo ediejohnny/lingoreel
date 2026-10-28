@@ -1,4 +1,4 @@
-import { Download, Trash2, X } from "lucide-react";
+import { Download, Trash, X } from "../ui/icons";
 import { useState } from "react";
 import { levelName } from "../../computer";
 import { sizeLabel } from "../../format";
@@ -77,7 +77,7 @@ function PackRow({ pack, level, busy, onFetch, onCancel, onRemove }: PackRowProp
             {t("ui.common.cancel")}
           </Button>
         ) : pack.ready ? (
-          <Button variant="ghost" icon={Trash2} disabled={busy} onClick={onRemove}>
+          <Button variant="ghost" icon={Trash} disabled={busy} onClick={onRemove}>
             {t("ui.settings.packs.remove")}
           </Button>
         ) : (

@@ -1,4 +1,4 @@
-import { FolderOpen, RefreshCw, RotateCcw } from "lucide-react";
+import { FolderOpen, Refresh, RotateBack } from "../ui/icons";
 import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
@@ -45,7 +45,7 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
               </Button>
               {item.custom && (
                 <Button
-                  icon={RotateCcw}
+                  icon={RotateBack}
                   variant="ghost"
                   onClick={() => void run(() => backend.clearPlayerPath(item.id), t("ui.settings.players.searchAgain"))}
                 >
@@ -64,7 +64,7 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
           ))}
         </ul>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={RefreshCw} onClick={() => void run(() => backend.players(), t("ui.settings.players.detected"))}>
+          <Button icon={Refresh} onClick={() => void run(() => backend.players(), t("ui.settings.players.detected"))}>
             {t("ui.settings.players.detect")}
           </Button>
           {view.general.recommendationsHidden && (

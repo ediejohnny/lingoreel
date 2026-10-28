@@ -1,4 +1,4 @@
-import { CircleHelp } from "lucide-react";
+import { CircleHelp } from "./icons";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { fitsAbove } from "../../placement";

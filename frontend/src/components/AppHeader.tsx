@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "./ui/icons";
 import type { ReactNode } from "react";
 import { t } from "../i18n";
 import { nextTheme, themeLabel, type Theme } from "../theme";

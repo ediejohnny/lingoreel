@@ -1,4 +1,4 @@
-import { CircleAlert, Info, TriangleAlert, X } from "lucide-react";
+import { CircleAlert, Info, TriangleAlert, X } from "./icons";
 import type { ReactNode } from "react";
 import { t } from "../../i18n";
 

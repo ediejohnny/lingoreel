@@ -1,4 +1,4 @@
-import { Save, Undo2 } from "lucide-react";
+import { Save, Undo } from "../components/ui/icons";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AppearanceSection } from "../components/settings/AppearanceSection";
 import { AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
@@ -278,7 +278,7 @@ export function SettingsPage({
         <span aria-hidden className="mr-2 inline-block size-2 rounded-control bg-warning align-middle" />
         {t("ui.settings.unsaved")}
       </span>
-      <Button icon={Undo2} variant="ghost" onClick={discard}>
+      <Button icon={Undo} variant="ghost" onClick={discard}>
         {t("ui.settings.discard")}
       </Button>
       <Button icon={Save} variant="primary" loading={saving} onClick={() => void save()}>
@@ -368,7 +368,7 @@ export function SettingsPage({
               {t("ui.settings.leave.keepEditing")}
             </Button>
             <Button
-              icon={Undo2}
+              icon={Undo}
               onClick={() => {
                 discard();
                 settle(true);
