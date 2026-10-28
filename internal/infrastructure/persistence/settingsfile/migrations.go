@@ -26,6 +26,19 @@ var profilesMigrations = map[int]jsonstore.Migration{
 	6: moveTheNoticesRight,
 }
 
+// The defaults of earlier versions, which a migration moves a profile off while
+// it still has them; one the user changed is left alone.
+var (
+	// previousSelectionLook is the selection's frame up to version 5: a
+	// see-through white line over a dark one twice as wide.
+	previousSelectionLook = appearance.SelectionLook{
+		Color: appearance.RGB(0xFF, 0xFF, 0xFF).WithAlpha(0xD9), Edge: appearance.RGB(0, 0, 0).WithAlpha(0x8C),
+		Width: 1.5, Gap: 4, Radius: 1.6,
+	}
+	// previousDefaultFont is the subtitles' family up to version 2.
+	previousDefaultFont = "Arial"
+)
+
 // moveTheNoticesRight (version 6 to 7) moves the notices of every profile
 // from the top left corner, the old default, to the top right one, the new
 // default: in the left one they went unseen.
@@ -68,7 +81,7 @@ func freshenTheSelection(document map[string]any) error {
 			return err
 		}
 		var look appearance.SelectionLook
-		if json.Unmarshal(raw, &look) == nil && look == appearance.PreviousSelectionLook() {
+		if json.Unmarshal(raw, &look) == nil && look == previousSelectionLook {
 			marks["selection"] = fresh
 		}
 	}
@@ -184,7 +197,7 @@ func useTheAppFont(document map[string]any) error {
 			if !ok {
 				return fmt.Errorf("profile %d has no %s", i, name)
 			}
-			if family, _ := style["fontFamily"].(string); family == appearance.PreviousDefaultFont {
+			if family, _ := style["fontFamily"].(string); family == previousDefaultFont {
 				style["fontFamily"] = appearance.AppFont
 			}
 		}

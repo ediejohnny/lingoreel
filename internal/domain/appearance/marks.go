@@ -113,12 +113,6 @@ func DefaultSelectionLook() SelectionLook {
 	return SelectionLook{Color: RGB(0x5B, 0x9B, 0xFF), Edge: black.WithAlpha(0x80), Width: 1, Gap: 4, Radius: 1.5}
 }
 
-// PreviousSelectionLook is the default before 0.23: a see-through white line
-// over a dark one twice as wide. Profiles still on it get the new default.
-func PreviousSelectionLook() SelectionLook {
-	return SelectionLook{Color: white.WithAlpha(0xD9), Edge: black.WithAlpha(0x8C), Width: 1.5, Gap: 4, Radius: 1.6}
-}
-
 // Validate checks every field against its allowed range.
 func (s SelectionLook) Validate() error {
 	return firstFailure([]check{

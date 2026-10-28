@@ -183,7 +183,7 @@ func (v voiceLines) best(heard []heardVoice, rate float64) (offset, rival time.D
 	}
 	rivalFit := math.Inf(-1)
 	for _, t := range all {
-		if abs(t.offset-offset) > voiceRivalReach && t.fit > rivalFit {
+		if (t.offset-offset).Abs() > voiceRivalReach && t.fit > rivalFit {
 			rival, rivalFit = t.offset, t.fit
 		}
 	}
@@ -245,7 +245,7 @@ func AlignToVoice(heard []speech.Track, lines []speech.Span, videoDuration time.
 	for from := 0; from < len(stretches); from += size {
 		group, _ := v.best(stretches[from:min(from+size, len(stretches))], result.Rate)
 		result.Groups = append(result.Groups, group)
-		if abs(group-result.Offset) <= groupTolerance {
+		if (group - result.Offset).Abs() <= groupTolerance {
 			agree++
 		}
 	}

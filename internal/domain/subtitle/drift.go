@@ -96,13 +96,13 @@ func ReadDrift(heard speech.Track, shown []speech.Span) DriftReading {
 	}
 	rivalFit := math.Inf(-1)
 	for _, t := range all {
-		if abs(t.offset-best) > voiceRivalReach {
+		if (t.offset - best).Abs() > voiceRivalReach {
 			rivalFit = max(rivalFit, t.fit)
 		}
 	}
 	under := 0
 	v.within(h, 1, best, func(start, end time.Duration) { under += h.frame(end) - h.frame(start) })
-	r := DriftReading{Residual: best, edge: abs(best) > driftReach-driftCoarseStep}
+	r := DriftReading{Residual: best, edge: best.Abs() > driftReach-driftCoarseStep}
 	if under > 0 && !math.IsInf(rivalFit, -1) {
 		r.Sharpness = (bestFit - rivalFit) / float64(under)
 	}
@@ -182,14 +182,14 @@ func (t *DriftTracker) Heard(r DriftReading, position, windowEnd time.Duration, 
 	switch {
 	case !t.hasBase:
 		t.base, t.hasBase = agreed, true
-	case t.correcting && abs(agreed) < driftStart/2:
+	case t.correcting && agreed.Abs() < driftStart/2:
 		// Close enough: the rest is one last move, and the correction settles.
 		t.correcting, t.target = false, t.auto+agreed
 		t.settle()
 		t.quietUntil = now.Add(driftCooldown)
 	case t.correcting:
 		t.target = t.auto + agreed
-	case abs(agreed) >= driftStart && !now.Before(t.quietUntil):
+	case agreed.Abs() >= driftStart && !now.Before(t.quietUntil):
 		t.correcting, t.target = true, t.auto+agreed
 		t.from = max(first-driftLookBack/2, 0)
 	}
@@ -198,7 +198,7 @@ func (t *DriftTracker) Heard(r DriftReading, position, windowEnd time.Duration, 
 // fresh tells a window that ends away from every window counted.
 func (t *DriftTracker) fresh(windowEnd time.Duration) bool {
 	for _, end := range t.heard {
-		if abs(windowEnd-end) < driftFreshWindow {
+		if (windowEnd - end).Abs() < driftFreshWindow {
 			return false
 		}
 	}

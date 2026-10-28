@@ -166,7 +166,7 @@ func alignAt(reference, candidate []time.Duration, rate float64) Alignment {
 
 	var differences []time.Duration
 	for _, start := range scaled {
-		if difference, found := nearest(reference, start+coarse); found && abs(difference) <= matchTolerance {
+		if difference, found := nearest(reference, start+coarse); found && difference.Abs() <= matchTolerance {
 			differences = append(differences, difference+coarse)
 		}
 	}
@@ -186,7 +186,7 @@ func fitLine(reference, candidate []time.Duration, alignment Alignment) (Alignme
 	for _, start := range candidate {
 		shifted := time.Duration(float64(start)*alignment.Rate) + alignment.Offset
 		difference, found := nearest(reference, shifted)
-		if !found || abs(difference) > matchTolerance {
+		if !found || difference.Abs() > matchTolerance {
 			continue
 		}
 		x, y := start.Seconds(), (shifted + difference).Seconds()
@@ -235,7 +235,7 @@ func score(reference, scaled []time.Duration, offset time.Duration) float64 {
 	}
 	matched := 0
 	for _, start := range scaled {
-		if difference, found := nearest(reference, start+offset); found && abs(difference) <= matchTolerance {
+		if difference, found := nearest(reference, start+offset); found && difference.Abs() <= matchTolerance {
 			matched++
 		}
 	}
@@ -254,7 +254,7 @@ func nearest(sorted []time.Duration, at time.Duration) (time.Duration, bool) {
 		if j < 0 || j >= len(sorted) {
 			continue
 		}
-		if difference := sorted[j] - at; !found || abs(difference) < abs(best) {
+		if difference := sorted[j] - at; !found || difference.Abs() < best.Abs() {
 			best, found = difference, true
 		}
 	}
@@ -377,11 +377,4 @@ func sample(sorted []time.Duration) []time.Duration {
 		sampled[i] = sorted[i*len(sorted)/maxAlignLines]
 	}
 	return sampled
-}
-
-func abs(d time.Duration) time.Duration {
-	if d < 0 {
-		return -d
-	}
-	return d
 }
