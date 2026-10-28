@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -40,12 +39,28 @@ const (
 // errors wrap ErrNotPublished or ErrNotAsPublished when they are that.
 type Fetcher func(ctx context.Context, url string, file speech.File, dest string, progress func(done, total int64)) error
 
-// Options are what a Manager needs: the app's folder, where the packs are
-// published (a URL ending in "/"), how a file is fetched, the small files a
-// pack carries inside the app, and who is told of every change. Runtime and
-// Packs are the catalogue, speech.Runtime and speech.Packs() when empty.
+// Disk keeps files in the app's folder.
+type Disk interface {
+	// FileSize tells a regular file's size; false when there is none.
+	FileSize(path string) (int64, bool)
+	// Exists tells something is at the path.
+	Exists(path string) bool
+	// WriteFile writes a small file whole, making its folder.
+	WriteFile(path string, data []byte) error
+	// RemoveAll removes a folder and what it holds; a missing one is no error.
+	RemoveAll(path string) error
+	// Remove removes a file; a missing one is no error.
+	Remove(path string) error
+}
+
+// Options are what a Manager needs: the app's folder and the disk it is on,
+// where the packs are published (a URL ending in "/"), how a file is
+// fetched, the small files a pack carries inside the app, and who is told of
+// every change. Runtime and Packs are the catalogue, speech.Runtime and
+// speech.Packs() when empty.
 type Options struct {
 	Dir     string
+	Disk    Disk
 	Base    string
 	Fetch   Fetcher
 	Extras  func(language string) (map[string][]byte, error)
@@ -106,20 +121,24 @@ func (m *Manager) packFor(language string) (speech.Pack, bool) {
 
 // States tells every language's pack, in the catalogue's order.
 func (m *Manager) States() []State {
+	// The disk is looked at without the lock; what the lock keeps is copied.
+	runtimeHere := m.present(m.runtimePath(), m.options.Runtime.Size)
+	models, extras := make([]bool, len(m.options.Packs)), make([]bool, len(m.options.Packs))
+	for i, pack := range m.options.Packs {
+		models[i], extras[i] = m.modelHere(pack), m.extrasHere(pack)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	runtimeHere := m.present(m.runtimePath(), m.options.Runtime.Size)
 	var states []State
-	for _, pack := range m.options.Packs {
+	for i, pack := range m.options.Packs {
 		state := State{Language: pack.Language, Failed: m.failed[pack.Language]}
-		modelHere := m.ready(pack)
-		if !modelHere {
+		if !models[i] {
 			state.Size += pack.Model.Size
 		}
 		if !runtimeHere {
 			state.Size += m.options.Runtime.Size
 		}
-		state.Ready = runtimeHere && modelHere
+		state.Ready = runtimeHere && models[i] && extras[i]
 		if m.fetching == pack.Language {
 			state.Fetching, state.Done, state.Total = true, m.done, m.total
 		}
@@ -135,9 +154,7 @@ func (m *Manager) Paths(language string) (runtime, model string, ok bool) {
 	if !known {
 		return "", "", false
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if !m.present(m.runtimePath(), m.options.Runtime.Size) || !m.ready(pack) {
+	if !m.present(m.runtimePath(), m.options.Runtime.Size) || !m.modelHere(pack) || !m.extrasHere(pack) {
 		return "", "", false
 	}
 	return m.runtimePath(), filepath.Join(m.packDir(language), modelName), true
@@ -151,14 +168,14 @@ func (m *Manager) Fetch(language string) error {
 	if !known {
 		return fmt.Errorf("%w: %q", ErrUnknown, language)
 	}
+	needRuntime := !m.present(m.runtimePath(), m.options.Runtime.Size)
+	needModel, needExtras := !m.modelHere(pack), !m.extrasHere(pack)
 	m.mu.Lock()
 	if m.fetching != "" {
 		m.mu.Unlock()
 		return ErrBusy
 	}
-	needRuntime := !m.present(m.runtimePath(), m.options.Runtime.Size)
-	needModel := !m.ready(pack)
-	if !needRuntime && !needModel {
+	if !needRuntime && !needModel && !needExtras {
 		m.mu.Unlock()
 		return nil
 	}
@@ -216,18 +233,15 @@ func (m *Manager) Remove(language string) error {
 		return ErrBusy
 	}
 	delete(m.failed, language)
-	if err := os.RemoveAll(m.packDir(language)); err != nil {
+	if err := m.options.Disk.RemoveAll(m.packDir(language)); err != nil {
 		return err
 	}
 	for _, pack := range m.options.Packs {
-		if _, err := os.Stat(m.packDir(pack.Language)); err == nil {
+		if m.options.Disk.Exists(m.packDir(pack.Language)) {
 			return nil
 		}
 	}
-	if err := os.Remove(m.runtimePath()); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
+	return m.options.Disk.Remove(m.runtimePath())
 }
 
 // Close stops a fetch under way and waits for it to leave nothing behind.
@@ -236,6 +250,8 @@ func (m *Manager) Close() {
 	m.running.Wait()
 }
 
+// fetch brings what a pack lacks: the runtime, and its model; its small files,
+// a few KB the app carries, are written each time.
 func (m *Manager) fetch(ctx context.Context, pack speech.Pack, needRuntime, needModel bool) error {
 	var before int64
 	progress := func(done, _ int64) {
@@ -250,35 +266,34 @@ func (m *Manager) fetch(ctx context.Context, pack speech.Pack, needRuntime, need
 		}
 		before = m.options.Runtime.Size
 	}
-	if !needModel {
-		return nil
-	}
 	extras, err := m.options.Extras(pack.Language)
 	if err != nil {
 		return err
 	}
 	dir := m.packDir(pack.Language)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
 	// The small files go first: the model, the largest and last, makes the
 	// pack ready.
 	for name, data := range extras {
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+		if err := m.options.Disk.WriteFile(filepath.Join(dir, name), data); err != nil {
 			return err
 		}
+	}
+	if !needModel {
+		return nil
 	}
 	return m.options.Fetch(ctx, m.options.Base+pack.Model.Name, pack.Model, filepath.Join(dir, modelName), progress)
 }
 
-// ready tells a pack's model is whole and its small files are beside it.
-func (m *Manager) ready(pack speech.Pack) bool {
+// modelHere tells a pack's model is whole.
+func (m *Manager) modelHere(pack speech.Pack) bool {
+	return m.present(filepath.Join(m.packDir(pack.Language), modelName), pack.Model.Size)
+}
+
+// extrasHere tells a pack's small files are beside its model.
+func (m *Manager) extrasHere(pack speech.Pack) bool {
 	dir := m.packDir(pack.Language)
-	if !m.present(filepath.Join(dir, modelName), pack.Model.Size) {
-		return false
-	}
 	for _, name := range []string{"vocab.json", "meta.json"} {
-		if info, err := os.Stat(filepath.Join(dir, name)); err != nil || !info.Mode().IsRegular() {
+		if _, ok := m.options.Disk.FileSize(filepath.Join(dir, name)); !ok {
 			return false
 		}
 	}
@@ -288,8 +303,8 @@ func (m *Manager) ready(pack speech.Pack) bool {
 // present tells a file is here with its exact size; its SHA-256 was checked
 // when it was fetched.
 func (m *Manager) present(path string, size int64) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular() && info.Size() == size
+	got, ok := m.options.Disk.FileSize(path)
+	return ok && got == size
 }
 
 func (m *Manager) runtimePath() string { return filepath.Join(m.options.Dir, folder, runtimeName) }

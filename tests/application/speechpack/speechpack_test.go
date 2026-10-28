@@ -89,6 +89,7 @@ func (s *shelf) manager(t *testing.T, dir string, changed func()) *speechpack.Ma
 	t.Helper()
 	m := speechpack.New(speechpack.Options{
 		Dir:   dir,
+		Disk:  fetching.Disk{},
 		Base:  s.server.URL + "/release/",
 		Fetch: fetching.Fetcher(download.Client{HTTP: s.server.Client()}),
 		Extras: func(language string) (map[string][]byte, error) {
@@ -259,6 +260,26 @@ func TestOnlyWhatAPackLacksIsFetchedAgain(t *testing.T) {
 		t.Fatalf("after fetching the model alone: %+v", s)
 	}
 	told("the model alone", int64(len(englishBytes)))
+
+	// Without its small files the pack is not ready; they come back from the
+	// app, and nothing is fetched.
+	meta := filepath.Join(dir, "speech", "en", "meta.json")
+	if err := os.Remove(meta); err != nil {
+		t.Fatal(err)
+	}
+	if s := stateOf(m, "en"); s.Ready || s.Size != 0 {
+		t.Fatalf("the meta gone: %+v, want not ready with nothing to fetch", s)
+	}
+	if err := m.Fetch("en"); err != nil {
+		t.Fatal(err)
+	}
+	if s := settled(t, m, "en"); !s.Ready || shelf.asked("speech-en.onnx") != 2 || shelf.asked("ort.dll") != 2 {
+		t.Fatalf("after writing the small files again: %+v, the model asked %d times", s, shelf.asked("speech-en.onnx"))
+	}
+	if _, err := os.Stat(meta); err != nil {
+		t.Errorf("meta.json did not come back: %v", err)
+	}
+	told("the small files alone", 0)
 }
 
 func TestAFileOtherThanPublishedLeavesThePackNotReady(t *testing.T) {

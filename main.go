@@ -147,7 +147,7 @@ func run() error {
 	var lifecycle app.Lifecycle
 	fetchPack := packs.Fetcher(download.Client{})
 	voicePacks := speechpack.New(speechpack.Options{
-		Dir: dir, Base: speechPacks, Extras: packs.Extras,
+		Dir: dir, Disk: packs.Disk{}, Base: speechPacks, Extras: packs.Extras,
 		Fetch: func(ctx context.Context, url string, file speech.File, dest string, progress func(done, total int64)) error {
 			err := fetchPack(ctx, url, file, dest, progress)
 			if err != nil && !errors.Is(err, context.Canceled) {
