@@ -151,6 +151,11 @@ type Ports struct {
 	// the video; nil, or no decoder found, hears the player instead. A
 	// computer too busy to start it answers voice.ErrDecoderBusy.
 	FindDecoder func(ctx context.Context, chosen string) (voice.Decoder, error)
+	// OpenWords opens the speech pack that places a language's words in the
+	// film's sound, for the karaoke mode's fill to follow them; nil, or an
+	// error (no pack, or one the computer's level does not suit), leaves the
+	// fill on the voice found.
+	OpenWords func(language string) (voice.WordModel, error)
 	// OpenStills prepares a film for the seek bar's stills with the user's
 	// FFmpeg (chosen, else one found), or reports thumbnail.ErrNoStills; nil
 	// shows the time alone. StillsStopped hears why a film's stills stopped.

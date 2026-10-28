@@ -24,6 +24,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/speechpack"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
 	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
@@ -235,7 +236,7 @@ func run() error {
 		SpeechPacks: voicePacks,
 		// Hearing an audio track's language is background work: one
 		// processor, so the film keeps the rest.
-		OpenSpeech: func(language string) (app.SpeechModel, error) {
+		OpenSpeech: func(language string) (voice.WordModel, error) {
 			runtime, model, ok := voicePacks.Paths(language)
 			if !ok {
 				return nil, fmt.Errorf("no speech pack for %q", language)

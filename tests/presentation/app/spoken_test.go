@@ -84,7 +84,7 @@ func spokenRigFinding(t *testing.T, packs *fakePacks, sureness map[string]float6
 		deps.Ports.FindDecoder = find
 		deps.BusyRest = 10 * time.Millisecond
 		deps.SpeechPacks = packs
-		deps.OpenSpeech = func(language string) (app.SpeechModel, error) {
+		deps.OpenSpeech = func(language string) (voice.WordModel, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			opened.Add(1)

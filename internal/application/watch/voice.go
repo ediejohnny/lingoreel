@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
@@ -58,11 +59,12 @@ func (s VoiceSetup) Rest(onBattery bool) ModelRest {
 }
 
 type voicing struct {
-	model speech.Model
-	tap   voice.Tap
-	find  func(ctx context.Context, chosen string) (voice.Decoder, error)
-	file  string
-	pid   int
+	model     speech.Model
+	tap       voice.Tap
+	find      func(ctx context.Context, chosen string) (voice.Decoder, error)
+	openWords func(language string) (voice.WordModel, error)
+	file      string
+	pid       int
 
 	mu        sync.Mutex
 	setup     VoiceSetup
@@ -160,6 +162,13 @@ func (s *Session) startVoice(attempt int) {
 		}
 		cancel()
 	}
+	// The words are placed in the sound decoded ahead, which only a decoder
+	// gives; without their pack the fill keeps the voice found.
+	if sources.Decoder != nil && v.openWords != nil {
+		if words, err := v.openWords(s.studyLanguage().Base()); err == nil {
+			sources.Words, sources.Lines = words, s.studyLines
+		}
+	}
 	settings := setup.Settings
 	if !settings.Sensitivity.Valid() {
 		settings.Sensitivity = speech.SensitivityNormal
@@ -184,10 +193,8 @@ func (s *Session) voiceSources() voice.Sources {
 	v := s.voice
 	tracks := s.Tracks()
 	info := media.Info{Tracks: tracks.List}
-	primary, _ := info.Track(tracks.Current.Primary)
-	language := primary.Language
 	sources := voice.Sources{Model: v.model}
-	track, position, found := media.VoiceTrack(info, language)
+	track, position, found := media.VoiceTrack(info, s.studyLanguage())
 	if found {
 		sources.Voice = voice.Stretch{File: v.file, Track: position, Channels: track.Channels, Codec: track.Codec}
 	}
@@ -195,6 +202,29 @@ func (s *Session) voiceSources() voice.Sources {
 		sources.Tap, sources.PID = v.tap, v.pid
 	}
 	return sources
+}
+
+// studyLanguage is the language of the line on top, the voice followed.
+func (s *Session) studyLanguage() media.LanguageTag {
+	tracks := s.Tracks()
+	primary, _ := media.Info{Tracks: tracks.List}.Track(tracks.Current.Primary)
+	return primary.Language
+}
+
+// studyLines lists the lines on top shown between two moments of the
+// playback clock, with their times on it, as the fill asks for them.
+func (s *Session) studyLines(from, to time.Duration) []voice.Line {
+	track := s.subtitles.Track(session.LinePrimary)
+	if track == nil || track.Timeline == nil {
+		return nil
+	}
+	shown := track.Shown()
+	events := track.Timeline.Overlapping(shown.TrackTime(from), shown.TrackTime(to))
+	lines := make([]voice.Line, len(events))
+	for i, event := range events {
+		lines[i] = voice.Line{Text: event.Text(), Start: shown.PlaybackTime(event.Start), End: shown.PlaybackTime(event.End)}
+	}
+	return lines
 }
 
 // playedAudio is the audio track playing: the one chosen, else the player's

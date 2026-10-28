@@ -33,6 +33,12 @@ type Aligner interface {
 	Align(sound []float32, words []string) ([]speech.Word, error)
 }
 
+// WordModel is a language's speech pack opened: it aligns until closed.
+type WordModel interface {
+	Aligner
+	Close()
+}
+
 // SpokenLine is a subtitle line to hear: when it is shown and its words as
 // said.
 type SpokenLine struct {
@@ -120,14 +126,7 @@ func ScoreLanguages(ctx context.Context, decoder Decoder, track Stretch, candida
 func DecodeMono(ctx context.Context, decoder Decoder, stretch Stretch) ([]float32, error) {
 	sound := make([]float32, 0, max(int(stretch.Length.Seconds()*speech.SampleRate), 0))
 	err := decoder.Decode(ctx, stretch, func(samples []float32, channels int) {
-		channels = max(channels, 1)
-		for i := 0; i+channels <= len(samples); i += channels {
-			sum := float32(0)
-			for _, s := range samples[i : i+channels] {
-				sum += s
-			}
-			sound = append(sound, sum/float32(channels))
-		}
+		sound = appendMono(sound, samples, channels)
 	})
 	if err != nil {
 		return nil, err
@@ -136,6 +135,20 @@ func DecodeMono(ctx context.Context, decoder Decoder, stretch Stretch) ([]float3
 		return nil, ErrNoSound
 	}
 	return sound, nil
+}
+
+// appendMono appends interleaved samples to mono sound, each frame's
+// channels averaged; a frame left incomplete at the end is dropped.
+func appendMono(mono, samples []float32, channels int) []float32 {
+	channels = max(channels, 1)
+	for i := 0; i+channels <= len(samples); i += channels {
+		sum := float32(0)
+		for _, s := range samples[i : i+channels] {
+			sum += s
+		}
+		mono = append(mono, sum/float32(channels))
+	}
+	return mono
 }
 
 // ErrNoSound reports a stretch that decoded to no sound at all.

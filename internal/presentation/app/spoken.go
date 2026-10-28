@@ -20,12 +20,6 @@ import (
 // the audio; the project keeps what was heard, so a track is heard again
 // only in a language not tried yet.
 
-// SpeechModel is a language's speech pack, opened to place lines in sound.
-type SpeechModel interface {
-	voice.Aligner
-	Close()
-}
-
 // languageHearing is the hearing of the open video's untold audio tracks.
 type languageHearing struct {
 	cancel context.CancelFunc

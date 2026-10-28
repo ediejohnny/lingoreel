@@ -54,14 +54,19 @@ func ScoreLanguage(language string, lines []float64) LanguageScore {
 	if len(lines) == 0 {
 		return LanguageScore{Language: language}
 	}
-	sorted := slices.Clone(lines)
+	return LanguageScore{Language: language, Score: median(lines), Lines: len(lines)}
+}
+
+// median is the middle of some values, the mean of the two middle ones when
+// they are even; the values are left as they are.
+func median(values []float64) float64 {
+	sorted := slices.Clone(values)
 	slices.Sort(sorted)
 	middle := len(sorted) / 2
-	median := sorted[middle]
 	if len(sorted)%2 == 0 {
-		median = (sorted[middle-1] + sorted[middle]) / 2
+		return (sorted[middle-1] + sorted[middle]) / 2
 	}
-	return LanguageScore{Language: language, Score: median, Lines: len(lines)}
+	return sorted[middle]
 }
 
 // HeardLanguage is the language the track is spoken in, when one judged

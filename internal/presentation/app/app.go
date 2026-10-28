@@ -15,6 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
@@ -193,7 +194,7 @@ type Deps struct {
 	SpeechPacks SpeechPacks
 	// OpenSpeech opens a language's speech pack, to hear which language an
 	// audio track speaks; nil hears none.
-	OpenSpeech func(language string) (SpeechModel, error)
+	OpenSpeech func(language string) (voice.WordModel, error)
 	// AskRetry asks, with Windows' own box, whether to try again a save that
 	// failed as the app closes; nil never asks.
 	AskRetry func(title, text string) bool

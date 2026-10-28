@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/ediejohnny/lingoreel/internal/application/speechpack"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
 )
@@ -27,6 +28,19 @@ var (
 	errPackFailed       = worded(func() string { return ptbr.T("error.speechPack.failed") })
 	errPackNotRemoved   = worded(func() string { return ptbr.T("error.speechPack.notRemoved") })
 )
+
+// errPackUnsuited reports a speech pack the computer's level does not suit,
+// which the karaoke mode's fill does without.
+var errPackUnsuited = errors.New("app: the speech pack does not suit this computer's level")
+
+// openWords opens a language's speech pack for the karaoke mode's fill to
+// follow the words: one that is here and suits the computer's level.
+func (a *API) openWords(language string) (voice.WordModel, error) {
+	if !a.machine().Level().SuitsSpeechPack(language) {
+		return nil, errPackUnsuited
+	}
+	return a.deps.OpenSpeech(language)
+}
 
 // SpeechPacks tells every language's pack, with the computer's level, which
 // marks the packs that suit it.

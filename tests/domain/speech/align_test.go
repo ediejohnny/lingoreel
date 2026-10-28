@@ -2,6 +2,8 @@ package speech_test
 
 import (
 	"errors"
+	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -47,23 +49,81 @@ func englishVocabulary() map[string]int {
 
 func at(frames int) time.Duration { return time.Duration(frames) * alignFrame }
 
+// A letter heard surely over several frames keeps them all, at the line's
+// first and last letters too: before another voice (the "TT" after "DOGG")
+// and when the sound ends with the line.
 func TestWordsArePlacedWhereTheirLettersAreHeard(t *testing.T) {
 	t.Parallel()
 	a := english(t)
 	//                      0    5    10   15   20
-	logits := emitted(a, englishVocabulary(), ".....CCAT..||..DOOG.....")
-	words, err := a.Align(logits, alignFrame, []string{"Cat,", "dog!"})
+	logits := emitted(a, englishVocabulary(), ".....CCAT..||..DOGGTT...")
+	want := []speech.Span{{Start: at(5), End: at(9)}, {Start: at(15), End: at(19)}}
+	for _, sound := range [][][]float32{logits, logits[:19]} {
+		words, err := a.Align(sound, alignFrame, []string{"Cat,", "dog!"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, w := range words {
+			if !w.Heard || w.Span != want[i] {
+				t.Errorf("%d frames, word %d: %+v, want %v heard", len(sound), i, w, want[i])
+			}
+			if w.Confidence < 0.9 {
+				t.Errorf("%d frames, word %d: confidence %.2f, want the model's certainty", len(sound), i, w.Confidence)
+			}
+		}
+	}
+}
+
+// heardFrame is one frame of a model's output, from how likely it found each
+// token; the others are nearly never heard.
+func heardFrame(a speech.Alphabet, vocabulary map[string]int, likely map[string]float64) []float32 {
+	row := make([]float32, a.Size())
+	for i := range row {
+		row[i] = float32(math.Log(1e-6))
+	}
+	for token, p := range likely {
+		row[vocabulary[token]] = float32(math.Log(p))
+	}
+	return row
+}
+
+// The sound taken around a line holds its neighbours' voices, and a voice
+// is no blank: paying for every frame of it, the best path found it cheaper
+// to pull a line's last letters onto the next line's (Sintel's "flowing"
+// ended on the "thiNK" of "Thank you", 2.6 s late). The frames outside the
+// line cost nothing, so "sing" stays where its letters were heard, before
+// the next line's voice and, read backwards, after the previous line's.
+func TestALinesLettersStayOffItsNeighboursVoices(t *testing.T) {
+	t.Parallel()
+	a := english(t)
+	vocabulary := englishVocabulary()
+	sure := func(token string) map[string]float64 { return map[string]float64{token: 1} }
+	frames := []map[string]float64{
+		sure("<pad>"), sure("S"), sure("I"),
+		{"N": 0.855, "<pad>": 0.13}, {"G": 0.468, "<pad>": 0.26, "N": 0.25},
+		sure("<pad>"), sure("<pad>"), sure("<pad>"), sure("<pad>"), sure("<pad>"),
+		{"T": 0.99, "<pad>": 0.01}, {"I": 0.74, "A": 0.24, "<pad>": 0.01},
+		{"N": 0.94, "<pad>": 0.06}, {"N": 0.89, "<pad>": 0.11}, {"K": 0.99, "G": 0.006, "<pad>": 0.01},
+	}
+	logits := make([][]float32, 0, len(frames))
+	for _, f := range frames {
+		logits = append(logits, heardFrame(a, vocabulary, f))
+	}
+	words, err := a.Align(logits, alignFrame, []string{"sing"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []speech.Span{{Start: at(5), End: at(9)}, {Start: at(15), End: at(19)}}
-	for i, w := range words {
-		if !w.Heard || w.Span != want[i] {
-			t.Errorf("word %d: %+v, want %v heard", i, w, want[i])
-		}
-		if w.Confidence < 0.9 {
-			t.Errorf("word %d: confidence %.2f, want the model's certainty", i, w.Confidence)
-		}
+	if want := (speech.Span{Start: at(1), End: at(5)}); words[0].Span != want {
+		t.Errorf("sing before the next line's voice: %v, want %v, where its letters were heard", words[0].Span, want)
+	}
+
+	slices.Reverse(logits)
+	words, err = a.Align(logits, alignFrame, []string{"gnis"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (speech.Span{Start: at(len(frames) - 5), End: at(len(frames) - 1)}); words[0].Span != want {
+		t.Errorf("gnis after the previous line's voice: %v, want %v, where its letters were heard", words[0].Span, want)
 	}
 }
 

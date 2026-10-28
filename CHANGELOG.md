@@ -32,7 +32,10 @@ All notable changes to this project are listed here. The format follows
 - `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
   with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
-  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was.
+  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was. The sound taken around a
+  line may hold its neighbours' voices: they never pull the line's first or last word onto them.
+- `lrdev voice-check --each` prints every line with the voice found in it and what the karaoke mode's fill follows;
+  `--text` adds its words.
 
 ### Changed
 
@@ -44,6 +47,13 @@ All notable changes to this project are listed here. The format follows
   "English" (only the format's default) or "unknown language".
 - The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
   they are and only the highlights bend, so a still is as bright as the film looks.
+- In karaoke mode, with the voice AI on and the study language's speech model downloaded, the fill follows the line's
+  words where the actor says them: the model places each word in the sound decoded ahead, before the line shows. A
+  quick speaker, a word said before the line appears, a neighbour's voice, noise or music under the line no longer
+  pull the fill behind or ahead, and the film's last line is placed in the sound up to the film's end. A line whose
+  words the model is not sure of is filled by the voice found, as before; so is every line when the language's model
+  is not downloaded or does not suit the computer's level (English at the medium level, every language at the high
+  one).
 - The setup assistant offers a player as the session screen does, with the note that winget installs it.
 - The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
   beside it keeps editing.

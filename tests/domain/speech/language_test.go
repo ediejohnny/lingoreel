@@ -19,6 +19,37 @@ func TestALinesSurenessIsItsHeardWordsMean(t *testing.T) {
 	}
 }
 
+// The karaoke mode paints a line by its words when the model was sure of
+// them: the median of the heard words, so one unsure word among sure ones
+// does not decide, nor does a sure one among unsure ones (a shout).
+func TestALinesWordsAreSureByTheMedianOfTheHeardOnes(t *testing.T) {
+	t.Parallel()
+	words := func(confidences ...float64) []speech.Word {
+		out := []speech.Word{{Heard: false}} // a number: no time, no say
+		for _, c := range confidences {
+			out = append(out, speech.Word{Heard: true, Confidence: c})
+		}
+		return out
+	}
+	cases := []struct {
+		name  string
+		words []speech.Word
+		want  bool
+	}{
+		{"said plainly (Sintel, 1:58)", words(0.83, 0.99, 0.97, 1, 0.98, 0.98, 0.95, 0.99, 0.75), true},
+		{"one unsure word among sure ones", words(0.6, 0.6, 0.6, 0.01, 0.01), true},
+		{"a shout (Sintel, 4:10)", words(0.01, 0.05, 0.12, 0.16, 0.01), false},
+		{"one sure word in a shout", words(0.9, 0.05, 0.12), false},
+		{"at the rule's edge", words(0.5), true},
+		{"no word heard", words(), false},
+	}
+	for _, c := range cases {
+		if got := speech.WordsSure(c.words); got != c.want {
+			t.Errorf("%s: WordsSure = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestALanguageScoresTheMedianOfItsLines(t *testing.T) {
 	t.Parallel()
 	// A song and a wrong line do not pull an otherwise sure language down.

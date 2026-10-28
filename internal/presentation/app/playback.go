@@ -169,7 +169,11 @@ func (a *API) Watch(request WatchRequest) error {
 		embedded:   a.embeds(installation.ID),
 	}
 	current.names.Store(&names)
-	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
+	ports := a.deps.Ports
+	if a.deps.OpenSpeech != nil {
+		ports.OpenWords = a.openWords
+	}
+	started, err := watch.Start(ctx, ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
 		return a.startFailure(err, installation)

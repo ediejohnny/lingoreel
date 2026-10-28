@@ -3,6 +3,7 @@ package speech
 import (
 	"errors"
 	"math"
+	"slices"
 	"time"
 	"unicode"
 
@@ -66,6 +67,25 @@ type Word struct {
 	Confidence float64
 }
 
+// minWordsSureness is how sure the model must be of a line's words, the
+// median of the heard ones' confidence, for the karaoke mode to paint the
+// line by them. Measured on Sintel: a line said plainly scores 0.9 or more,
+// a shout or a whisper 0.01 to 0.5.
+const minWordsSureness = 0.5
+
+// WordsSure tells whether a line's words were placed surely enough to paint
+// it by them: some were heard, and their median confidence reaches
+// minWordsSureness.
+func WordsSure(words []Word) bool {
+	var heard []float64
+	for _, w := range words {
+		if w.Heard {
+			heard = append(heard, w.Confidence)
+		}
+	}
+	return len(heard) > 0 && median(heard) >= minWordsSureness
+}
+
 // letter finds a written letter in the alphabet: as written, in the other
 // case, or without its accent when the alphabet has none ("é" as "E").
 func (a Alphabet) letter(r rune) (int, bool) {
@@ -105,7 +125,8 @@ func (a Alphabet) spell(words []string) (tokens, owners []int) {
 
 // Align places a line's words in its sound, given the model's raw output
 // (logits) for each frame of frame length; the times count from the first
-// frame.
+// frame. A word's time runs over its letters' frames, and its confidence is
+// how likely the model found them, on average.
 func (a Alphabet) Align(logits [][]float32, frame time.Duration, words []string) ([]Word, error) {
 	tokens, owners := a.spell(words)
 	if len(tokens) == 0 {
@@ -140,16 +161,34 @@ func (a Alphabet) Align(logits [][]float32, frame time.Duration, words []string)
 }
 
 // step is one frame of the best path: the letter it is in (an index into
-// the line's letters, -1 for a blank) and how likely the model found it.
+// the line's letters, -1 for a blank or a frame outside the line) and how
+// likely the model found it.
 type step struct {
 	token   int
 	logProb float64
 }
 
+// Moves into a state of the best path: staying, coming from the state
+// before, skipping the blank between two different letters, or starting
+// the line there.
+const (
+	stay int8 = iota
+	advance
+	skipBlank
+	enter
+)
+
 // bestPath finds the most likely way through the line's letters (Viterbi
 // over CTC's states: a blank before, between and after the letters; a
 // letter may last several frames; the same letter twice in a row needs a
-// blank between).
+// blank between). The sound around a line may hold other lines' voices, so
+// the line may start and end at any frame, and a frame outside it is
+// whatever the model heard most there: a silence is its blank, a
+// neighbour's voice its own letter. Were those frames the line's blank, the
+// path would pay for every frame of a neighbour's voice and find it cheaper
+// to pull the line's last letters onto it (a "flowing" ending on the next
+// line's "thank"). On a tie the line keeps the frame, so a letter heard
+// surely is never cut short.
 func (a Alphabet) bestPath(logProbs [][]float64, tokens []int) ([]step, error) {
 	frames, states := len(logProbs), 2*len(tokens)+1
 	needed := len(tokens)
@@ -178,38 +217,66 @@ func (a Alphabet) bestPath(logProbs [][]float64, tokens []int) ([]step, error) {
 	for s := range previous {
 		previous[s] = impossible
 	}
-	previous[0] = logProbs[0][a.blank]
-	previous[1] = logProbs[0][tokens[0]]
-	back[0] = make([]int8, states)
-	for t := 1; t < frames; t++ {
+	// before and after are the paths still outside the line and already out
+	// of it; exits tells, for each frame after the line, the state the line
+	// ended in on the frame before, or -1 when it had ended earlier.
+	before, after := 0.0, impossible
+	exits := make([]int, frames)
+	ends := []int{states - 1, states - 2}
+	for t := range frames {
 		back[t] = make([]int8, states)
 		for s := range states {
-			best, from := previous[s], int8(0)
+			best, from := previous[s], stay
 			if s >= 1 && previous[s-1] > best {
-				best, from = previous[s-1], 1
+				best, from = previous[s-1], advance
 			}
 			if s >= 2 && s%2 == 1 && label(s) != label(s-2) && previous[s-2] > best {
-				best, from = previous[s-2], 2
+				best, from = previous[s-2], skipBlank
+			}
+			if s <= 1 && before > best {
+				best, from = before, enter
 			}
 			current[s] = best + logProbs[t][label(s)]
 			back[t][s] = from
 		}
+		exits[t] = -1
+		for _, s := range ends {
+			if previous[s] >= after {
+				after, exits[t] = previous[s], s
+			}
+		}
+		outside := slices.Max(logProbs[t])
+		before += outside
+		after += outside
 		previous, current = current, previous
 	}
-	s := states - 1
-	if previous[states-2] > previous[s] {
-		s = states - 2
+	end, s := after, -1
+	for _, state := range ends {
+		if previous[state] >= end {
+			end, s = previous[state], state
+		}
 	}
-	if math.IsInf(previous[s], -1) {
+	if math.IsInf(end, -1) {
 		return nil, ErrTooShort
 	}
 	path := make([]step, frames)
-	for t := frames - 1; t >= 0; t-- {
+	t := frames - 1
+	for ; s < 0; t-- {
+		path[t] = step{token: -1}
+		s = exits[t]
+	}
+	for ; t >= 0; t-- {
 		path[t] = step{token: -1, logProb: logProbs[t][label(s)]}
 		if s%2 == 1 {
 			path[t].token = s / 2
 		}
+		if back[t][s] == enter {
+			break
+		}
 		s -= int(back[t][s])
+	}
+	for t--; t >= 0; t-- {
+		path[t] = step{token: -1}
 	}
 	return path, nil
 }

@@ -44,6 +44,13 @@ type Sources struct {
 	// Tap hears the player's process PID as it plays.
 	Tap Tap
 	PID int
+	// Words places each line's words in the sound decoded ahead (the line's
+	// language's speech pack), and Lines lists the lines shown between two
+	// moments of the playback clock, so they are placed before they show.
+	// Without both, or without the Decoder, lines are painted by the voice
+	// found. The follower closes Words when it closes.
+	Words WordModel
+	Lines func(from, to time.Duration) []Line
 }
 
 // Mode is how the voice is followed now.
@@ -126,11 +133,19 @@ type Follower struct {
 	cancel   context.CancelFunc
 	done     sync.WaitGroup
 
+	// sound is the decoded sound kept while words are placed in it, which
+	// keepSound tells (set before anything runs).
+	sound     recording
+	keepSound bool
+
 	mu             sync.Mutex
 	mode           Mode
 	lines          map[Line]*painting
 	live           []*painting // lines painted live, fed every frame
 	tried, trusted int
+	// placed holds each line's words as placed in the sound, nil when no
+	// words are placed.
+	placed map[Line][]speech.Word
 	// seeks is the clock's count of jumps already taken into account.
 	seeks uint64
 	// Live hearing.
@@ -144,11 +159,13 @@ type Follower struct {
 	heardPosition time.Duration
 }
 
-// painting is how one line is painted: by a plan, live, or by the estimate.
+// painting is how one line is painted: by a plan, live, or by the estimate;
+// byWords tells a plan from the line's words placed.
 type painting struct {
-	plan *study.FillPlan
-	live *study.LiveFill
-	end  time.Duration
+	plan    *study.FillPlan
+	live    *study.LiveFill
+	end     time.Duration
+	byWords bool
 }
 
 func (p *painting) fraction(position time.Duration) (float64, bool) {
@@ -174,28 +191,28 @@ func Follow(ctx context.Context, sources Sources, clock Clock, settings Settings
 		f.memory = NewMemory(RecentSound)
 	case sources.Decoder != nil && sources.Voice.File != "":
 		f.mode, f.memory = ModeAhead, NewMemory(aheadMemory)
-		f.run(func() { f.decodeAhead(ctx) })
+		if sources.Words != nil && sources.Lines != nil {
+			f.placed, f.keepSound = map[Line][]speech.Word{}, true
+			f.done.Go(func() { f.placeWords(ctx) })
+		}
+		f.done.Go(func() { f.decodeAhead(ctx) })
 	case sources.Tap != nil && sources.PID > 0:
 		f.mode, f.memory = ModeLive, NewMemory(RecentSound)
-		f.run(func() { f.hearLive(ctx) })
+		f.done.Go(func() { f.hearLive(ctx) })
 	default:
 		f.memory = NewMemory(RecentSound)
 	}
 	return f
 }
 
-func (f *Follower) run(work func()) {
-	f.done.Add(1)
-	go func() {
-		defer f.done.Done()
-		work()
-	}()
-}
-
-// Close stops following; it returns once the sound stopped coming.
+// Close stops following; it returns once the sound stopped coming and the
+// words model is closed.
 func (f *Follower) Close() {
 	f.cancel()
 	f.done.Wait()
+	if f.sources.Words != nil {
+		f.sources.Words.Close()
+	}
 }
 
 // Mode tells how the voice is followed now.
@@ -239,6 +256,13 @@ func (f *Follower) Fill(line Line, position time.Duration) (float64, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.noticeSeeks()
+	if words, ok := f.placed[line]; ok {
+		if p := f.lines[line]; p == nil || !p.byWords {
+			plan := study.PlanWords(study.SpeechUnits(line.Text), words)
+			f.lines[line] = &painting{plan: &plan, byWords: true}
+		}
+		return f.lines[line].fraction(position)
+	}
 	if p, ok := f.lines[line]; ok {
 		return p.fraction(position)
 	}
@@ -400,9 +424,15 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 		at += time.Duration(len(frames)) * speech.FrameLength
 	}
 	paced := pace{duty: aheadDuty}
+	soundAt, mono := decode.From, []float32(nil) // where the next samples go, for placing words
 	started := time.Now()
 	err = f.sources.Decoder.Decode(window, decode, func(samples []float32, channels int) {
 		began := time.Now()
+		if f.keepSound {
+			mono = appendMono(mono[:0], samples, channels)
+			f.sound.add(soundAt, mono)
+			soundAt += time.Duration(len(mono)) * time.Second / speech.SampleRate
+		}
 		if analyzer == nil {
 			// The decoder hands mono or stereo; a sound of another layout
 			// stays unjudged (the estimate goes on) rather than guessed at.
@@ -417,6 +447,11 @@ func (f *Follower) decodeWindow(ctx context.Context, stretch Stretch, keep func(
 	if err == nil && analyzer != nil {
 		frames = analyzer.Flush(frames[:0])
 		store()
+	}
+	// A whole decode that stops before the window's end, though asked for
+	// aheadTail more, reached the end of the voice track.
+	if err == nil && window.Err() == nil && f.keepSound && soundAt < end {
+		f.sound.finish(soundAt)
 	}
 	slow := time.Since(started) > aheadSlowest
 	cancel()

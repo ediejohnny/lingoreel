@@ -65,6 +65,8 @@ func voiceCheck(ctx context.Context, args []string, stdout io.Writer) error {
 	clips := flags.Int("clips", 0, "cuts this many lines into sound clips in --out, to mark by hand where the voice begins")
 	clipsOut := flags.String("out", "", "the folder for the clips")
 	labels := flags.String("labels", "", "a file of lines marked by hand, to measure the start against")
+	each := flags.Bool("each", false, "prints every line: the voice found at the normal sensitivity and what the karaoke mode's fill follows")
+	showText := flags.Bool("text", false, "with --each, prints each line's words; only for a free film, never a private one")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -132,6 +134,10 @@ func voiceCheck(ctx context.Context, args []string, stdout io.Writer) error {
 	for _, sensitivity := range []speech.Sensitivity{speech.SensitivityLow, speech.SensitivityNormal, speech.SensitivityHigh} {
 		out.line("")
 		reportVoice(out, sound, events, *shift, sensitivity, marked)
+	}
+	if *each {
+		out.line("")
+		reportEach(out, sound, events, *shift, *showText)
 	}
 	if *clips > 0 {
 		heard := time.Duration(len(frames)) * speech.FrameLength
@@ -278,6 +284,51 @@ type measuredLine struct {
 	onset, finish time.Duration // first voice start - line start; last voice end - line end
 }
 
+// syllables is what a line's text weighs, as DetectLine takes it.
+func syllables(units study.Units) float64 {
+	weight := 0.0
+	for _, word := range units.Words {
+		weight += word.Weight
+	}
+	return weight
+}
+
+// reportEach prints, line by line at the normal sensitivity, the voice found
+// and what the karaoke mode's fill follows: that voice, from its first sound
+// to its last, or the estimate, over the line's whole time.
+func reportEach(out *printer, sound speech.Track, events []subtitle.Event, shift time.Duration, showText bool) {
+	heard := time.Duration(len(sound.Frames)) * speech.FrameLength
+	out.line("Each line, sensitivity normal (the line's time; the voice found; what the fill follows)")
+	for _, event := range events {
+		start, end := event.Start+shift, event.End+shift
+		if start < 0 || end > heard-time.Second {
+			continue
+		}
+		row := fmt.Sprintf("  %s - %s", formatMoment(start), formatMoment(end))
+		units := study.SpeechUnits(event.Text())
+		switch found := speech.DetectLine(sound, start, end, syllables(units), speech.SensitivityNormal); {
+		case !units.Spoken() || units.Lyrics:
+			row += "  not spoken: never filled by the voice"
+		case found.Verdict == speech.Trusted:
+			first, last := found.Spans[0].Start, found.Spans[len(found.Spans)-1].End
+			row += fmt.Sprintf("  voice %s - %s (%+d / %+d ms)  fill: the voice", formatMoment(first), formatMoment(last),
+				(first - start).Milliseconds(), (last - end).Milliseconds())
+		default:
+			row += fmt.Sprintf("  %s  fill: the estimate", found.Verdict)
+		}
+		if showText {
+			row += "  " + strconv.Quote(event.Text())
+		}
+		out.line("%s", row)
+	}
+}
+
+// formatMoment is a moment of the film to the millisecond (0:01:58.000).
+func formatMoment(d time.Duration) string {
+	d = max(d, 0)
+	return fmt.Sprintf("%d:%02d:%02d.%03d", d/time.Hour, d%time.Hour/time.Minute, d%time.Minute/time.Second, d%time.Second/time.Millisecond)
+}
+
 // reportVoice prints how the voice found at one sensitivity fits the lines.
 func reportVoice(out *printer, sound speech.Track, events []subtitle.Event, shift time.Duration, sensitivity speech.Sensitivity, marked map[int64]*int64) {
 	heard := time.Duration(len(sound.Frames)) * speech.FrameLength
@@ -295,10 +346,7 @@ func reportVoice(out *printer, sound speech.Track, events []subtitle.Event, shif
 		if !units.Spoken() || units.Lyrics || starts[i] < 0 || ends[i] > heard-time.Second {
 			continue
 		}
-		weight := 0.0
-		for _, word := range units.Words {
-			weight += word.Weight
-		}
+		weight := syllables(units)
 		line := measuredLine{context: "other", stretch: int(starts[i] / checkStretch)}
 		before, after := gap(starts, ends, i, -1), gap(starts, ends, i, 1)
 		switch {
