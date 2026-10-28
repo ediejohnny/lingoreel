@@ -142,16 +142,8 @@ func (a *API) InstallFFmpeg() error {
 	if a.deps.FFmpeg == nil || a.deps.Installer == nil || !a.deps.Installer.Available() {
 		return errors.New(ptbr.T("error.install.ffmpegUnavailable"))
 	}
-	go func() {
-		progress := InstallProgress{ID: ffmpegInstallID, Done: true}
-		if err := a.deps.Installer.Install(ctx, a.deps.FFmpeg.WingetID()); err != nil {
-			a.logger.Warn("FFmpeg installation failed", "error", err)
-			progress.Error = ptbr.T("error.install.failed")
-		} else {
-			a.applyVoice() // a video open finds it now
-		}
-		a.emit(EventInstall, progress)
-	}()
+	// A video open finds the FFmpeg installed at once.
+	a.installInBackground(ctx, ffmpegInstallID, a.deps.FFmpeg.WingetID(), a.applyVoice)
 	return nil
 }
 

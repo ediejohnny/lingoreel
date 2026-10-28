@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"slices"
 
@@ -117,15 +118,24 @@ func (a *API) InstallPlayer(id string) error {
 	if a.deps.Installer == nil || !a.deps.Installer.Available() || packageID == "" {
 		return errors.New(ptbr.T("error.install.unavailable"))
 	}
+	a.installInBackground(ctx, id, packageID, nil)
+	return nil
+}
+
+// installInBackground installs a package with winget in the background and
+// tells the window through the player:install event, under id; done runs
+// after an installation that worked.
+func (a *API) installInBackground(ctx context.Context, id, packageID string, done func()) {
 	go func() {
 		progress := InstallProgress{ID: id, Done: true}
 		if err := a.deps.Installer.Install(ctx, packageID); err != nil {
-			a.logger.Warn("player installation failed", "player", id, "error", err)
+			a.logger.Warn("installation failed", "package", packageID, "error", err)
 			progress.Error = ptbr.T("error.install.failed")
+		} else if done != nil {
+			done()
 		}
 		a.emit(EventInstall, progress)
 	}()
-	return nil
 }
 
 // OpenDownloadPage opens the player's official download page in the browser.
