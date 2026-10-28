@@ -113,6 +113,14 @@ function Get-ThirdPartyNotices {
     # it: not a Go module, so named here.
     & $add "Silero VAD (silero_vad_16k_op15.onnx)" "v6.2.1" (Join-Path $Root "internal\infrastructure\silero\model\LICENSE") ""
 
+    # What a voice language downloads on request: ONNX Runtime, built from its
+    # source without telemetry, and the speech models. They are not inside the
+    # executable, but the app that fetches them carries their notices.
+    $licenses = Join-Path $Root "internal\infrastructure\speechpack\licenses"
+    & $add "ONNX Runtime (onnxruntime-1.30.0.dll, downloaded with a voice language)" "1.30.0" (Join-Path $licenses "onnxruntime-LICENSE.txt") ""
+    & $add "ONNX Runtime third-party notices" "1.30.0" (Join-Path $licenses "onnxruntime-ThirdPartyNotices.txt") ""
+    & $add "Speech models (downloaded per voice language)" "wav2vec2 and XLSR-53" (Join-Path $licenses "models-LICENSE.txt") ""
+
     # The frontend packages bundled into the screens: those the lock file does
     # not mark as development only, and Tailwind, whose CSS is generated into
     # the bundle.

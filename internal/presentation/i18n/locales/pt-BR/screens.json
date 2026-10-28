@@ -257,7 +257,7 @@
   "ui.session.watchAgain": "Assistir de novo",
   "ui.settings.about.hide": "Ocultar avisos de terceiros",
   "ui.settings.about.license": "Licença MIT · © 2026 Edie Johnny",
-  "ui.settings.about.notices": "O LingoReel inclui programas de terceiros, cada um sob a sua própria licença, que os autores pedem para acompanhar o app. Nenhum deles pertence ao autor do LingoReel.",
+  "ui.settings.about.notices": "O LingoReel inclui programas de terceiros, cada um sob a sua própria licença, que os autores pedem para acompanhar o app. A lista também traz o que as Línguas da voz baixam quando você pede: o ONNX Runtime e os modelos de voz. Nenhum deles pertence ao autor do LingoReel.",
   "ui.settings.about.show": "Ver avisos de terceiros",
   "ui.settings.about.text": "Avisos de terceiros",
   "ui.settings.about.title": "Sobre",

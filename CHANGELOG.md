@@ -21,6 +21,8 @@ All notable changes to this project are listed here. The format follows
   telemetry, comes with the first one. Each file comes from the project's releases over HTTPS and is kept only with the
   size and SHA-256 the app carries; one that arrives otherwise is thrown away. The packs that suit the computer's level
   are marked (none at the basic level, English at the medium one, all at the high one), and Remove deletes a language.
+  Help › About lists their licenses with the app's own notices: ONNX Runtime's, with its third-party notices, and the
+  models' Apache License 2.0 with who made each one.
 - `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
   with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to

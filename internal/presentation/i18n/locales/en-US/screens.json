@@ -257,7 +257,7 @@
   "ui.session.watchAgain": "Watch again",
   "ui.settings.about.hide": "Hide third-party notices",
   "ui.settings.about.license": "MIT License · © 2026 Edie Johnny",
-  "ui.settings.about.notices": "LingoReel includes third-party software, each under its own license, which its authors ask to go along with the app. None of it belongs to the author of LingoReel.",
+  "ui.settings.about.notices": "LingoReel includes third-party software, each under its own license, which its authors ask to go along with the app. The list also covers what Voice languages download when you ask: ONNX Runtime and the speech models. None of it belongs to the author of LingoReel.",
   "ui.settings.about.show": "Show third-party notices",
   "ui.settings.about.text": "Third-party notices",
   "ui.settings.about.title": "About",
