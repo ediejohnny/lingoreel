@@ -79,7 +79,7 @@ func TestSnapToLines(t *testing.T) {
 		{"offset", study.Segment{Start: s(22), End: s(23)}, subtitle.Offset(s(1)), 20.5, 24},
 	}
 	for _, c := range cases {
-		got := study.SnapToLines(c.in, timeline, c.offset)
+		got := study.SnapToLines(c.in, subtitle.Placed{Timeline: timeline, Offset: c.offset})
 		if got.Start != s(c.start) || got.End != s(c.end) {
 			t.Errorf("%s: %+v, want %v–%v", c.name, got, s(c.start), s(c.end))
 		}
@@ -90,17 +90,17 @@ func TestSnapToLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := study.SnapToLines(study.Segment{Start: s(23.5), End: s(24)}, close, 0); got.Start != s(23) {
+	if got := study.SnapToLines(study.Segment{Start: s(23.5), End: s(24)}, subtitle.Placed{Timeline: close}); got.Start != s(23) {
 		t.Fatalf("lead-in into the line before: start %v, want 23 s", got.Start)
 	}
-	if got := study.SnapToLines(study.Segment{Start: s(1), End: s(3)}, nil, 0); got != (study.Segment{Start: s(1), End: s(3)}) {
+	if got := study.SnapToLines(study.Segment{Start: s(1), End: s(3)}, subtitle.Placed{}); got != (study.Segment{Start: s(1), End: s(3)}) {
 		t.Fatalf("no timeline changed the passage: %+v", got)
 	}
 }
 
 func TestSegmentForLine(t *testing.T) {
 	t.Parallel()
-	got := study.SegmentForLine(line("e2", 20, 23, "Second line."), scene(t), 0)
+	got := study.SegmentForLine(line("e2", 20, 23, "Second line."), subtitle.Placed{Timeline: scene(t)})
 	if got != (study.Segment{Start: s(19.5), End: s(23)}) {
 		t.Fatalf("SegmentForLine = %+v", got)
 	}

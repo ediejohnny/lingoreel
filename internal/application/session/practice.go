@@ -363,7 +363,7 @@ func (p *Practice) tickLines(state playback.Sample) {
 	}
 	p.repeated[line.ID]++
 	p.mu.Unlock()
-	if target, ok := study.ReplayTarget(track.Timeline, track.Shown(), track.Shown().PlaybackTime(line.Start), karaoke.Rules); ok {
+	if target, ok := study.ReplayTarget(track.Placed(), track.Shown().PlaybackTime(line.Start), karaoke.Rules); ok {
 		p.failed(p.seek(target))
 	}
 }
@@ -417,10 +417,10 @@ func (p *Practice) ReplayLine() error {
 	p.mu.Unlock()
 	var target time.Duration
 	if passage != nil {
-		target = study.ReplayTargetIn(track.Timeline, track.Shown(), position, rules, *passage)
+		target = study.ReplayTargetIn(track.Placed(), position, rules, *passage)
 	} else {
 		var ok bool
-		if target, ok = study.ReplayTarget(track.Timeline, track.Shown(), position, rules); !ok {
+		if target, ok = study.ReplayTarget(track.Placed(), position, rules); !ok {
 			return nil // no line yet: nothing to train again
 		}
 	}

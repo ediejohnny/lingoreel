@@ -146,7 +146,7 @@ func (s *Session) ReplayLine() error {
 func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, snap bool) error {
 	if snap {
 		if track := s.subtitles.Track(session.LinePrimary); track != nil {
-			segment = study.SnapToLines(segment, track.Timeline, track.Shown())
+			segment = study.SnapToLines(segment, track.Placed())
 		}
 	}
 	segment = segment.FitTo(s.clock.State().Duration)
@@ -174,7 +174,7 @@ func (s *Session) LinePassage() (study.Segment, error) {
 	if !found {
 		return study.Segment{}, ErrNoLine
 	}
-	return study.SegmentForLine(line, track.Timeline, track.Shown()), nil
+	return study.SegmentForLine(line, track.Placed()), nil
 }
 
 // StopPassage leaves the passage.

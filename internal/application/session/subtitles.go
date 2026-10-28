@@ -30,6 +30,11 @@ type Track struct {
 // Shown is the offset the line is shown at: the user's own and the voice's.
 func (t Track) Shown() subtitle.Offset { return t.Offset.Shift(t.Voice) }
 
+// Placed is the line's timeline at the offset it is shown at.
+func (t Track) Placed() subtitle.Placed {
+	return subtitle.Placed{Timeline: t.Timeline, Offset: t.Shown()}
+}
+
 // Visible holds the events on screen for both lines.
 type Visible struct {
 	Primary     []subtitle.Event
@@ -198,7 +203,7 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if len(visible.Primary) == 0 {
-		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Shown(), position, s.karaoke.Rules); upcoming {
+		if cue, upcoming := study.UpcomingCue(primary.Placed(), position, s.karaoke.Rules); upcoming {
 			visible.Cue = &cue
 			visible.Primary = []subtitle.Event{cue.Event}
 			if s.ownTiming && len(visible.Translation) == 0 {
@@ -288,8 +293,8 @@ func (s *Subtitles) translationWith(shown, own []subtitle.Event, position time.D
 		return own
 	}
 	return subtitle.Paired(shown,
-		subtitle.Placed{Timeline: primary.Timeline, Offset: primary.Shown()},
-		subtitle.Placed{Timeline: translation.Timeline, Offset: translation.Shown()},
+		primary.Placed(),
+		translation.Placed(),
 		position, maxVisiblePerLine)
 }
 
@@ -322,7 +327,7 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 		}
 	}
 	if primary := s.lines[LinePrimary]; s.karaoke.Enabled && primary != nil {
-		if begin, ok := study.NextCueStartAfter(primary.Timeline, primary.Shown(), position, s.karaoke.Rules); ok && (!found || begin < next) {
+		if begin, ok := study.NextCueStartAfter(primary.Placed(), position, s.karaoke.Rules); ok && (!found || begin < next) {
 			next, found = begin, true
 		}
 	}
