@@ -109,13 +109,19 @@ func PlanFill(units Units, spans []speech.Span) FillPlan {
 // own (a sound's description, punctuation alone, a number) is painted with
 // the next word, or as the last one ends (Fraction paints the whole line
 // past the plan's end). When the words heard are not as many as the words
-// said, they are the stretches PlanFill spreads the words over.
+// said, they are the stretches PlanFill spreads the words over. When the
+// model is not sure of them (speech.WordsSure: a shout, a whisper), their
+// letters are not to be trusted but where they are is the line's voice, so
+// the words spread over it, from the first word heard to the last.
 func PlanWords(units Units, words []speech.Word) FillPlan {
 	var heard []speech.Word
 	for _, w := range words {
 		if w.Heard {
 			heard = append(heard, w)
 		}
+	}
+	if len(heard) > 0 && !speech.WordsSure(words) {
+		return PlanFill(units, []speech.Span{{Start: heard[0].Start, End: heard[len(heard)-1].End}})
 	}
 	said := 0
 	for _, unit := range units.Words {

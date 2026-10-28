@@ -2,6 +2,7 @@ package study_test
 
 import (
 	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -95,9 +96,9 @@ func TestThePlanByWordsFollowsAQuickSpeaker(t *testing.T) {
 	}
 
 	numbered := study.PlanWords(study.SpeechUnits("Gate 9 opens"), []speech.Word{
-		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true},
+		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true, Confidence: 0.9},
 		{Heard: false},
-		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true},
+		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true, Confidence: 0.9},
 	})
 	if got := numbered.Fraction(1400*ms) * 10; math.Abs(got-4) > 0.01 {
 		t.Errorf("between the words: %.2f characters painted, want 4 (\"Gate\", the number waits)", got)
@@ -109,11 +110,26 @@ func TestThePlanByWordsFollowsAQuickSpeaker(t *testing.T) {
 	// What ends the line without a time of its own is painted as the last
 	// word ends: the fill never stops short of the line's end.
 	described := study.PlanWords(study.SpeechUnits("Open gate 9"), []speech.Word{
-		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true},
-		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true},
+		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true, Confidence: 0.9},
+		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true, Confidence: 0.9},
 	})
 	if got := described.Fraction(1900 * ms); got != 1 {
 		t.Errorf("as the last word ends: %.3f of the line painted, want all of it, the number too", got)
+	}
+
+	// A shout: the model placed the words, sure of none of their letters.
+	// Where they are is the voice, so the words spread over it by their
+	// syllables, from the first word to the last, never word by word.
+	shouted := slices.Clone(aFoolsWords)
+	for i := range shouted {
+		shouted[i].Confidence = 0.2
+	}
+	voice := []speech.Span{{Start: shouted[0].Start, End: shouted[len(shouted)-1].End}}
+	for _, at := range []time.Duration{9 * time.Second, 10180 * ms, 11 * time.Second, 12320 * ms} {
+		got, want := study.PlanWords(study.SpeechUnits(text), shouted).Fraction(at), study.PlanFill(study.SpeechUnits(text), voice).Fraction(at)
+		if got != want {
+			t.Errorf("shouted, at %v: %.3f painted, want the spread over the words' stretch (%.3f)", at, got, want)
+		}
 	}
 
 	spread := study.PlanWords(study.SpeechUnits(text), aFoolsWords[:5])

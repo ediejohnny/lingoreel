@@ -69,12 +69,12 @@ type Word struct {
 
 // minWordsSureness is how sure the model must be of a line's words, the
 // median of the heard ones' confidence, for the karaoke mode to paint the
-// line by them. Measured on Sintel: a line said plainly scores 0.9 or more,
-// a shout or a whisper 0.01 to 0.5.
+// line word by word. Measured on Sintel: a line said plainly scores 0.9 or
+// more, a shout or a whisper 0.01 to 0.5.
 const minWordsSureness = 0.5
 
 // WordsSure tells whether a line's words were placed surely enough to paint
-// it by them: some were heard, and their median confidence reaches
+// it word by word: some were heard, and their median confidence reaches
 // minWordsSureness.
 func WordsSure(words []Word) bool {
 	var heard []float64

@@ -294,7 +294,7 @@ func (f *Follower) Fill(line Line, position time.Duration) (float64, bool) {
 }
 
 // Begins is when a line's voice begins, its first word placed in the sound;
-// false when its words were not placed (yet, or surely enough).
+// false when its words were not placed (yet, or none was heard).
 func (f *Follower) Begins(line Line) (time.Duration, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

@@ -99,21 +99,23 @@ func TestTheFillFollowsTheWordsPlacedInTheSound(t *testing.T) {
 	}
 }
 
-// Words the model is not sure of (a shout, a whisper) leave the line to the
-// voice found: "How..." said, and the pause held.
-func TestUnsureWordsLeaveTheLineToTheVoiceFound(t *testing.T) {
+// Words the model is not sure of (a shout, a whisper) are still where the
+// line is said, though the voice found is elsewhere: the fill spreads over
+// them, from the first to the last, and the voice begins at the first.
+func TestUnsureWordsStillPaintTheLineWhereTheyWerePlaced(t *testing.T) {
 	t.Parallel()
 	model := &placingModel{at: wordsInThePause, sure: 0.2}
 	follower := followWithWords(model, howAreYou)
 	defer follower.Close()
-	testkit.Eventually(t, "the words tried and the line decoded", func() bool {
-		words, _ := model.asked()
-		_, ok := follower.Fill(howAreYou, 3500*ms)
-		return words != nil && ok
+	testkit.Eventually(t, "the line painted where its words were placed", func() bool {
+		share, ok := follower.Fill(howAreYou, 3500*ms)
+		return ok && share == 1
 	})
-	within(t, "in the pause, by the voice found", fill(t, follower, howAreYou, 3500*ms), 5.5, 6)
-	if begins, ok := follower.Begins(howAreYou); ok {
-		t.Errorf("unsure words tell the line's voice begins at %v, want nothing told", begins)
+	if share := fill(t, follower, howAreYou, 2400*ms); share != 0 {
+		t.Errorf("before the first word: %.2f characters painted, want none", share)
+	}
+	if begins, ok := follower.Begins(howAreYou); !ok || begins != wordsInThePause[0].Start {
+		t.Errorf("the line's voice begins at %v (%v), want its first word's %v", begins, ok, wordsInThePause[0].Start)
 	}
 }
 

@@ -2,6 +2,7 @@ package voice
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -14,8 +15,8 @@ import (
 // placed in it by its language's speech pack (Sources.Words) before it
 // shows. The fill then follows the words (study.PlanWords), which a quick
 // speaker, a neighbour's voice, a noise or music under the line do not
-// mislead as they do the stretches of voice found. A line whose words the
-// model is not sure of (speech.WordsSure) is painted as before.
+// mislead as they do the stretches of voice found; a shout, whose letters
+// the model is not sure of, is still where its words were placed.
 
 const (
 	// recordingSpan is how much decoded sound is kept for placing words:
@@ -145,7 +146,7 @@ func (f *Follower) placeWords(ctx context.Context) {
 
 // placeLine places a line's words in the sound kept around it, with the
 // times shifted to the film's; false when the sound is not kept, nothing in
-// the line is said, or the model is not sure of the words.
+// the line is said, or the model heard none of its words.
 func (f *Follower) placeLine(line Line) ([]speech.Word, bool) {
 	said := subtitle.SpokenWords(line.Text)
 	if len(said) == 0 {
@@ -157,7 +158,7 @@ func (f *Follower) placeLine(line Line) ([]speech.Word, bool) {
 		return nil, false
 	}
 	words, err := f.sources.Words.Align(sound, said)
-	if err != nil || !speech.WordsSure(words) {
+	if err != nil || !slices.ContainsFunc(words, func(w speech.Word) bool { return w.Heard }) {
 		return nil, false
 	}
 	for i := range words {
