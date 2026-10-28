@@ -67,6 +67,7 @@ All notable changes to this project are listed here. The format follows
 - The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
   beside it keeps editing.
 - The app's icons are its own drawings, under its MIT license, in place of an icon library's.
+- The right-click menu's icons are drawn as the screens' are, all of one size and line, and the study mode has one.
 
 ### Fixed
 

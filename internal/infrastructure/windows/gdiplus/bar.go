@@ -55,9 +55,6 @@ const (
 	barStroke      = 2.0
 	barTipPadding  = 6.0
 	barTipGap      = 6.0
-	// iconFont writes the letters inside icons ("CC"), the bar's and the
-	// menu's alike, whatever the bar's own font.
-	iconFont = "Segoe UI"
 )
 
 // BarLook is what the bar shows besides its layout: texts already worded

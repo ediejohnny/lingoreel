@@ -114,6 +114,7 @@ const (
 	IconFolder
 	IconSettings
 	IconClose
+	IconStudy
 )
 
 // Icons lists every icon, for the systems that draw them ahead.
@@ -121,6 +122,7 @@ func Icons() []Icon {
 	return []Icon{
 		IconPlay, IconPause, IconStop, IconFullscreen, IconExitFullscreen, IconBack, IconForward, IconFrameBack,
 		IconFrameForward, IconSpeaker, IconSubtitles, IconKaraoke, IconPassage, IconFolder, IconSettings, IconClose,
+		IconStudy,
 	}
 }
 
@@ -404,7 +406,7 @@ func studyModeMenu(b controlbar.State) Item {
 		command(shortcut.RepeatLast5, IconNone, b.Capabilities.Seek),
 		command(shortcut.RepeatLast10, IconNone, b.Capabilities.Seek),
 	)
-	return submenu(TitleStudyMode, IconNone, items...)
+	return submenu(TitleStudyMode, IconStudy, items...)
 }
 
 func karaokeMenu(s State) Item {

@@ -56,6 +56,7 @@ var (
 	procAddPathPolygon           = dll.NewProc("GdipAddPathPolygon")
 	procAddPathLine              = dll.NewProc("GdipAddPathLine")
 	procAddPathArc               = dll.NewProc("GdipAddPathArc")
+	procAddPathBezier            = dll.NewProc("GdipAddPathBezier")
 	procStartPathFigure          = dll.NewProc("GdipStartPathFigure")
 	procClosePathFigure          = dll.NewProc("GdipClosePathFigure")
 	procSetPenLineCap            = dll.NewProc("GdipSetPenLineCap197819")
