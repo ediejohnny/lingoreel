@@ -4,13 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/capped"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/onnx"
 )
 
@@ -124,15 +123,7 @@ func normalized(sound []float32) []float32 {
 	return out
 }
 
+// readBounded reads one of a pack's small files.
 func readBounded(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, smallFileLimit+1))
-	if err == nil && len(data) > smallFileLimit {
-		err = fmt.Errorf("%s is larger than %d bytes", path, smallFileLimit)
-	}
-	return data, err
+	return capped.ReadFile(path, smallFileLimit)
 }
