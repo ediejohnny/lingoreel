@@ -80,6 +80,16 @@ func FindAmong(ctx context.Context, places []string) (string, error) {
 	return "", missing
 }
 
+// FindDecoder is the voice's decoder on the user's own FFmpeg, found anew;
+// nil when none runs, and the voice is then not heard.
+func FindDecoder(ctx context.Context, chosen string) voice.Decoder {
+	path, err := Find(ctx, chosen)
+	if err != nil {
+		return nil
+	}
+	return Decoder{Path: path}
+}
+
 // Arguments is the command line that decodes a stretch to 16 kHz float on
 // the standard output, and the channels it gives: the centre alone of a
 // surround mix (the dialogue's channel), both sides of a stereo one (the

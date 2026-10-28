@@ -260,6 +260,22 @@ type Stills struct {
 	ProbeSize int64
 }
 
+// FindAndOpen opens a film for its stills with the user's own FFmpeg, found
+// anew from the one chosen, in place of Path: one that did not answer in time
+// leaves the stills to be asked for again (thumbnail.ErrBusy), one missing
+// ends them (thumbnail.ErrNoStills).
+func (s Stills) FindAndOpen(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
+	path, err := Find(ctx, chosen)
+	switch {
+	case errors.Is(err, ErrSlow):
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
+	case err != nil:
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
+	}
+	s.Path = path
+	return s.Open(ctx, file)
+}
+
 // Open looks at a film once, to know how its stills must be taken.
 func (s Stills) Open(ctx context.Context, file string) (thumbnail.Film, error) {
 	format, known := formats[strings.ToLower(filepath.Ext(file))]

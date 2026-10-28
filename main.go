@@ -24,13 +24,9 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/speechpack"
-	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
-	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
-	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
@@ -203,8 +199,8 @@ func run() error {
 			Model:       silero.Embedded{},
 			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
-			FindDecoder: findFFmpeg,
-			OpenStills:  openStills,
+			FindDecoder: ffmpeg.FindDecoder,
+			OpenStills:  ffmpeg.Stills{Indexed: seekable.Indexed}.FindAndOpen,
 			StillsStopped: func(err error) {
 				logger.Info("the seek bar's stills stopped", "reason", err)
 			},
@@ -215,7 +211,7 @@ func run() error {
 			},
 		},
 		AskRetry:      win32.AskRetry,
-		Stage:         stagePort{stage},
+		Stage:         playerwindow.AppStage{Stage: stage},
 		Settings:      files,
 		Installer:     install.Winget{},
 		FFmpeg:        userFFmpeg{},
@@ -333,18 +329,6 @@ func webViewMessages() *windows.Messages {
 	}
 }
 
-// stagePort places the video on the stage for the app.
-type stagePort struct{ *playerwindow.Stage }
-
-func (s stagePort) Place(visible bool, insets layout.Insets) {
-	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
-}
-
-func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme) {
-	shade := map[settings.Theme]playerwindow.Theme{settings.ThemeLight: playerwindow.ThemeLight, settings.ThemeDark: playerwindow.ThemeDark}[theme]
-	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit, Theme: shade})
-}
-
 // showWindow brings the app window up, in front of the others when the
 // settings say so: Wails' WindowShow leaves that place.
 func showWindow(ctx context.Context, lifecycle app.Lifecycle) {
@@ -456,7 +440,9 @@ func windowsVersion() string {
 }
 
 // userFFmpeg is the user's own FFmpeg for the settings screen, which tells
-// one that did not answer in time apart from one that is missing.
+// one that did not answer in time apart from one that is missing. It lives
+// here because the screen's port and its ErrFFmpegSlow are the presentation's,
+// which the infrastructure does not reach.
 type userFFmpeg struct{}
 
 func (userFFmpeg) Find(ctx context.Context, chosen string) (string, error) {
@@ -473,28 +459,4 @@ func slowOf(err error) error {
 		return fmt.Errorf("%w: %w", app.ErrFFmpegSlow, err)
 	}
 	return err
-}
-
-// findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
-// ahead of the video; the app ships none.
-func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
-	path, err := ffmpeg.Find(ctx, chosen)
-	if err != nil {
-		return nil
-	}
-	return ffmpeg.Decoder{Path: path}
-}
-
-// openStills prepares a film for the seek bar's stills with the user's own
-// FFmpeg; one that did not answer in time leaves the stills to be asked for
-// again, one missing ends them.
-func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
-	path, err := ffmpeg.Find(ctx, chosen)
-	switch {
-	case errors.Is(err, ffmpeg.ErrSlow):
-		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
-	case err != nil:
-		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
-	}
-	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)
 }
