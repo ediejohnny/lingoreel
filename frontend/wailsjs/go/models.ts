@@ -147,11 +147,11 @@ export namespace app {
 	    memoryGiB: number;
 	    level: string;
 	    adjusted: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ComputerView(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.processor = source["processor"];
@@ -164,17 +164,17 @@ export namespace app {
 	export class ComputerChange {
 	    asked: boolean;
 	    computer: ComputerView;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ComputerChange(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.asked = source["asked"];
 	        this.computer = this.convertValues(source["computer"], ComputerView);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -193,6 +193,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	export class Fact {
 	    label: string;
 	    value: string;
@@ -330,11 +331,11 @@ export namespace app {
 	    language: string;
 	    languages: Option[];
 	    computer: ComputerView;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GeneralSettings(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
@@ -1654,7 +1655,7 @@ export namespace app {
 	    voiceModel: boolean;
 	    weak: boolean;
 	    computer: ComputerView;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new WelcomeView(source);
 	    }
