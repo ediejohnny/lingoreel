@@ -107,8 +107,9 @@ func PlanFill(units Units, spans []speech.Span) FillPlan {
 // time, so a quick speaker is followed word by word and what was said
 // before the line showed is painted as it shows. What has no time of its
 // own (a sound's description, punctuation alone, a number) is painted with
-// the next word. When the words heard are not as many as the words said,
-// they are the stretches PlanFill spreads the words over.
+// the next word, or as the last one ends (Fraction paints the whole line
+// past the plan's end). When the words heard are not as many as the words
+// said, they are the stretches PlanFill spreads the words over.
 func PlanWords(units Units, words []speech.Word) FillPlan {
 	var heard []speech.Word
 	for _, w := range words {
@@ -146,9 +147,6 @@ func PlanWords(units Units, words []speech.Word) FillPlan {
 			next++
 		}
 		done += float64(unit.Chars)
-	}
-	if n := len(plan.points); n > 0 && plan.points[n-1].done < done {
-		plan.points = append(plan.points, fillPoint{plan.points[n-1].at, done})
 	}
 	return plan
 }

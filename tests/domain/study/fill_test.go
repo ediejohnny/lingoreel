@@ -106,6 +106,16 @@ func TestThePlanByWordsFollowsAQuickSpeaker(t *testing.T) {
 		t.Errorf("at the next word: %.2f characters painted, want 5 (the number with it)", got)
 	}
 
+	// What ends the line without a time of its own is painted as the last
+	// word ends: the fill never stops short of the line's end.
+	described := study.PlanWords(study.SpeechUnits("Open gate 9"), []speech.Word{
+		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true},
+		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true},
+	})
+	if got := described.Fraction(1900 * ms); got != 1 {
+		t.Errorf("as the last word ends: %.3f of the line painted, want all of it, the number too", got)
+	}
+
 	spread := study.PlanWords(study.SpeechUnits(text), aFoolsWords[:5])
 	if got, want := spread.Fraction(10760*ms), study.PlanFill(study.SpeechUnits(text), spansOf(aFoolsWords[:5])).Fraction(10760*ms); got != want {
 		t.Errorf("five words placed for nine said: %.3f painted, want the spread over them (%.3f)", got, want)
