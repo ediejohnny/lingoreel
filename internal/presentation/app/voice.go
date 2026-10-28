@@ -23,17 +23,19 @@ type FFmpeg interface {
 	WingetID() string
 }
 
-// ffmpegTimeout bounds looking for FFmpeg from the settings screen.
-const ffmpegTimeout = 10 * time.Second
+// ffmpegTimeout bounds looking for FFmpeg from the settings screen;
+// chosenTimeout bounds checking the one the person chose, whose first
+// opening can take seconds while an antivirus reads a large file.
+const (
+	ffmpegTimeout = 10 * time.Second
+	chosenTimeout = time.Minute
+)
 
 // ErrFFmpegSlow is what an FFmpeg reports when it did not answer in time, as
-// on a computer too busy to start it: it may well be there.
+// one opened for the first time or on a busy computer: it may well be there.
 var ErrFFmpegSlow = errors.New("ffmpeg: did not answer in time")
 
-var (
-	errNotFFmpeg  = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
-	errFFmpegSlow = worded(func() string { return ptbr.T("error.ffmpeg.slow") })
-)
+var errNotFFmpeg = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
 
 // voiceSetup is how a session follows the voice, from the settings.
 func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
@@ -84,7 +86,9 @@ func (a *API) SetVoice(view VoiceSettings) error {
 }
 
 // ChooseFFmpeg asks where the user's FFmpeg is and keeps it once it runs;
-// it returns the path, or empty when the user cancelled.
+// it returns the path, or empty when the user cancelled. One that has not
+// answered within chosenTimeout is kept too: it is checked again where it is
+// used, and a program that is not an FFmpeg is refused at once.
 func (a *API) ChooseFFmpeg() (string, error) {
 	ctx, err := a.context()
 	if err != nil {
@@ -98,15 +102,12 @@ func (a *API) ChooseFFmpeg() (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	checked, cancel := context.WithTimeout(ctx, ffmpegTimeout)
+	checked, cancel := context.WithTimeout(ctx, chosenTimeout)
 	defer cancel()
 	if a.deps.FFmpeg == nil {
 		return "", errNotFFmpeg
 	}
-	switch err := a.deps.FFmpeg.Check(checked, path); {
-	case errors.Is(err, ErrFFmpegSlow):
-		return "", errFFmpegSlow
-	case err != nil:
+	if err := a.deps.FFmpeg.Check(checked, path); err != nil && !errors.Is(err, ErrFFmpegSlow) {
 		return "", errNotFFmpeg
 	}
 	if err := a.keepFFmpeg(path); err != nil {

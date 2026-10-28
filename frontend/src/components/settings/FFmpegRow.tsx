@@ -1,4 +1,5 @@
 import { Download, FolderOpen, X } from "../ui/icons";
+import { useState } from "react";
 import { useInstall } from "../../hooks/useInstall";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";
@@ -8,8 +9,8 @@ import type { SectionProps } from "./section";
 
 interface FFmpegRowProps extends Pick<SectionProps, "run"> {
   /**
-   * voice holds the FFmpeg chosen, the one found, whether it was too slow to answer (a busy computer, not a missing
-   * FFmpeg) and whether one can be installed: the voice's and the stills' alike.
+   * voice holds the FFmpeg chosen, the one found, whether it was too slow to answer (its first opening or a busy
+   * computer, not a missing FFmpeg) and whether one can be installed: the voice's and the stills' alike.
    */
   voice: VoiceSettings;
   /** disabled leaves choosing and installing off while nothing uses FFmpeg. */
@@ -27,6 +28,12 @@ interface FFmpegRowProps extends Pick<SectionProps, "run"> {
 export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpegRowProps) {
   // Installed, the settings are read again: they tell the FFmpeg found.
   const install = useInstall("ffmpeg", () => void run(async () => undefined, t("ui.settings.ffmpeg.installed")));
+  // Choosing waits for the file picked to answer, up to a minute on its first opening: the button says it works.
+  const [choosing, setChoosing] = useState(false);
+  const choose = () => {
+    setChoosing(true);
+    void run(() => backend.chooseFFmpeg(), t("ui.settings.ffmpeg.chosen")).finally(() => setChoosing(false));
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -38,11 +45,7 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
         {voice.ffmpegFound ? found(voice.ffmpegFound) : voice.ffmpegSlow ? t("ui.settings.ffmpeg.slow") : missing}
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          icon={FolderOpen}
-          disabled={disabled}
-          onClick={() => void run(() => backend.chooseFFmpeg(), t("ui.settings.ffmpeg.chosen"))}
-        >
+        <Button icon={FolderOpen} loading={choosing} disabled={disabled} onClick={choose}>
           {t("ui.settings.ffmpeg.choose")}
         </Button>
         {voice.ffmpegPath && (

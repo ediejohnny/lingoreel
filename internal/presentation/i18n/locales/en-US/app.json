@@ -127,7 +127,6 @@
   "error.export.empty": "This subtitle has no lines to export.",
   "error.export.failed": "Could not write the exported subtitle.",
   "error.ffmpeg.notFFmpeg": "That program is not a working FFmpeg. Choose ffmpeg.exe.",
-  "error.ffmpeg.slow": "FFmpeg did not answer in time because the computer is busy. Try again in a moment.",
   "error.folder": "Could not open the folder.",
   "error.install.failed": "The installation did not finish. Try again or download it from the official site.",
   "error.install.ffmpegUnavailable": "Automatic installation is not available on this computer. Download FFmpeg from the official site (ffmpeg.org) and choose ffmpeg.exe in \"Browse…\".",

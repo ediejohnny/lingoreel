@@ -127,7 +127,6 @@
   "error.export.empty": "Esta legenda não tem falas para exportar.",
   "error.export.failed": "Não foi possível gravar a legenda exportada.",
   "error.ffmpeg.notFFmpeg": "Esse programa não é um FFmpeg que funcione. Escolha o ffmpeg.exe.",
-  "error.ffmpeg.slow": "O FFmpeg não respondeu a tempo porque o computador está ocupado. Tente de novo daqui a pouco.",
   "error.folder": "Não foi possível abrir a pasta.",
   "error.install.failed": "A instalação não foi concluída. Tente de novo ou baixe no site oficial.",
   "error.install.ffmpegUnavailable": "A instalação automática não está disponível neste computador. Baixe o FFmpeg pelo site oficial (ffmpeg.org) e escolha o ffmpeg.exe em \"Procurar…\".",

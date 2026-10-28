@@ -35,14 +35,15 @@ var (
 // user installs it from its authors through winget; the app ships none.
 const WingetID = "BtbN.FFmpeg.LGPL.8.1"
 
-// checkTimeout bounds "ffmpeg -version", which answers at once.
+// checkTimeout bounds "ffmpeg -version" at each place a search looks: an
+// FFmpeg opened before answers at once.
 const checkTimeout = 5 * time.Second
 
-// Check tells whether a program is an FFmpeg that runs. It runs at the
-// normal priority, so a busy computer still answers it at once.
+// Check tells whether a program is an FFmpeg that runs, waiting as long as
+// ctx allows: the first opening of a large FFmpeg can take seconds while an
+// antivirus reads it. It runs at the normal priority, so a busy computer
+// still answers it at once.
 func Check(ctx context.Context, path string) error {
-	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
-	defer cancel()
 	command := exec.CommandContext(ctx, path, "-hide_banner", "-version")
 	command.SysProcAttr = brief()
 	out, err := command.Output()
@@ -61,16 +62,16 @@ func Find(ctx context.Context, chosen string) (string, error) {
 	return FindAmong(ctx, append([]string{chosen}, candidates()...))
 }
 
-// FindAmong returns the first of places that is an FFmpeg that runs; empty
-// places are passed over. With none running and one that did not answer in
-// time, it reports ErrSlow, not ErrNotFound.
+// FindAmong returns the first of places that is an FFmpeg that runs, each
+// given checkTimeout; empty places are passed over. With none running and
+// one that did not answer in time, it reports ErrSlow, not ErrNotFound.
 func FindAmong(ctx context.Context, places []string) (string, error) {
 	missing := ErrNotFound
 	for _, place := range places {
 		if place == "" {
 			continue
 		}
-		switch err := Check(ctx, place); {
+		switch err := checkBriefly(ctx, place); {
 		case err == nil:
 			return place, nil
 		case errors.Is(err, ErrSlow):
@@ -78,6 +79,12 @@ func FindAmong(ctx context.Context, places []string) (string, error) {
 		}
 	}
 	return "", missing
+}
+
+func checkBriefly(ctx context.Context, place string) error {
+	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
+	defer cancel()
+	return Check(ctx, place)
 }
 
 // FindDecoder is the voice's decoder on the user's own FFmpeg, found anew as
