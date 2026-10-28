@@ -6,6 +6,7 @@ import { Banner } from "../components/ui/Feedback";
 import { Toggle } from "../components/ui/Field";
 import { HelpTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
+import { levelName } from "../computer";
 import { setLanguage, t } from "../i18n";
 import { backend, messageOf, type Players, type VoiceSettings, type WelcomeView } from "../services/backend";
 import { stepAfter, welcomeSteps, type WelcomeStep } from "../welcome";
@@ -324,6 +325,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
                   onChange={setVoiceModel}
                   help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
                 />
+                <p className="text-xs text-fg-muted">{t("ui.welcome.tools.level", { level: levelName(view.computer.level) })}</p>
                 {view.weak && <Banner tone="warning">{t("ui.settings.voice.weak")}</Banner>}
               </div>
               {voice && (

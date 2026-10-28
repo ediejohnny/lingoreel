@@ -1,4 +1,7 @@
 {
+  "ui.help.computer.p1": "As a game does, the app reads the computer on its first opening (the processor, the cores and the memory, never how fast it runs at the moment) and picks a level: Basic, with 2 cores or fewer or under 4 GB of memory; High, with 4 cores or more and 8 GB or more; Medium, in between. At the Basic level the voice AI starts off.",
+  "ui.help.computer.p2": "Settings › General › This computer shows what was read, the level and the button Adjust again to this computer, which puts everything the level decides back to its own, also what you changed by hand. If the app opens on a computer of another level, it asks before changing anything: what you chose by hand stays, and Not now does not ask again on that computer.",
+  "ui.help.computer.title": "The computer's level",
   "ui.help.editing.p1": "Pause the video and click a line to select it. A double click on it, or Correct this line… in the right-click menu, opens the correction box in place of the subtitle: Enter saves, Esc cancels and Shift+Enter breaks the line.",
   "ui.help.editing.p2": "The Correct subtitles card, in the panel, also corrects each line's text and its start and end times. {keys} undo and redo the corrections, and Restore the original goes back to the file's text.",
   "ui.help.editing.p3": "Exporting the subtitle writes it as you see it, with the corrections and the sync, to a new .srt or .ass file. The corrections are kept in the app's folder and still apply when the video is renamed or moved.",
@@ -55,7 +58,7 @@
   "ui.help.topics": "Topics",
   "ui.help.voice.p1": "The voice AI is small, comes inside the app and runs only on this computer, offline and free. It notices when someone speaks in the film, so the karaoke mode follows the voice and the app picks the subtitle that matches the sound.",
   "ui.help.voice.p2": "With FFmpeg, free and optional, the app listens to the film ahead and makes the seek bar's thumbnails. Install or choose FFmpeg in Settings › Study › Actors' voice.",
-  "ui.help.voice.p3": "On the battery, the AI and the thumbnails rest unless you ask otherwise. On a weak computer, the AI starts off; you can turn it on anyway, at your own risk.",
+  "ui.help.voice.p3": "On the battery, the AI and the thumbnails rest unless you ask otherwise. On a Basic level computer, the AI starts off; you can turn it on anyway, at your own risk.",
   "ui.help.voice.title": "Voice AI, FFmpeg and thumbnails",
   "ui.help.watch.p1": "With VLC, the video plays inside the app's window, with the control bar over it: play ({play}), back and forward ({seek}), frame by frame ({frames}), volume, speed, translation and fullscreen ({fullscreen}). Every tip shows the key.",
   "ui.help.watch.p2": "Hover the seek bar to see the thumbnail of that moment. The volume ({volume}) goes up to 200% with VLC, and the step of each press is in Settings › Playback.",

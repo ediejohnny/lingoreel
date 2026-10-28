@@ -13,7 +13,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6.svg" alt="Windows 10 and 11">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.27.3-brightgreen.svg" alt="Version 0.27.3"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.0-brightgreen.svg" alt="Version 0.28.0"></a>
   <img src="https://img.shields.io/badge/languages-English%20%7C%20Portugu%C3%AAs-orange.svg" alt="English and Portuguese">
 </p>
 
@@ -131,7 +131,10 @@ Every shortcut can be changed in Settings › Shortcuts, per profile.
 - Microsoft WebView2, which Windows 11 and an up-to-date Windows 10 already have. A computer without it is offered the
   download from Microsoft.
 
-On a weak computer the voice AI starts off, and can be turned on at your own risk.
+As a game does, the app sets itself up for the computer on its first opening, at a level read from the hardware alone:
+Basic (2 logical cores or fewer, or under 4 GB of memory), Medium, or High (4 cores or more and 8 GB or more). At the
+Basic level the voice AI starts off, and can be turned on at your own risk. Settings › General › This computer shows
+the level and adjusts to it again; on a computer of another level, the app asks before changing anything.
 
 ## Privacy
 

@@ -176,8 +176,8 @@ func TestTheWelcomeOpenedAgainChangesTheActiveProfile(t *testing.T) {
 // A strong one, or someone who already uses the app, keeps it as it is.
 func TestAWeakComputerStartsWithTheVoiceAIOff(t *testing.T) {
 	t.Parallel()
-	weak := capacity.Machine{Processors: 2, Memory: 2 << 30, ModelSpeed: 12}
-	strong := capacity.Machine{Processors: 8, Memory: 24 << 30, ModelSpeed: 90}
+	weak := capacity.Machine{Processors: 2, Memory: 2 << 30}
+	strong := capacity.Machine{Processors: 8, Memory: 24 << 30}
 	rigOn := func(machine capacity.Machine, firstRun bool) *rig {
 		r := newRigWith(t, func(deps *app.Deps) {
 			deps.FirstRun = firstRun

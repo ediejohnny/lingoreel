@@ -16,7 +16,7 @@ describe("topics", () => {
     for (const language of languages()) {
       setLanguage(language);
       const all = topics(keys);
-      expect(all.length).toBeGreaterThanOrEqual(14);
+      expect(all.length).toBeGreaterThanOrEqual(15);
       for (const topic of all) {
         for (const text of [topic.title, ...topic.paragraphs]) {
           expect(text, `${language} ${topic.id}`).not.toMatch(/ui\.help\.|\{[a-zA-Z]+\}/);

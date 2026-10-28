@@ -6,6 +6,10 @@ export function About():Promise<app.AboutView>;
 
 export function AddSubtitleFile(arg1:string):Promise<app.Video>;
 
+export function AdjustToComputer():Promise<void>;
+
+export function AnswerComputerChange(arg1:boolean):Promise<void>;
+
 export function ApplyPreset(arg1:app.StyleSettings,arg2:string):Promise<app.StyleSettings>;
 
 export function CheckFill(arg1:string,arg2:string):Promise<app.FillCheck>;
@@ -25,6 +29,8 @@ export function ClearPlayerPath(arg1:string):Promise<void>;
 export function ClearSelection():Promise<void>;
 
 export function ClearThumbnails():Promise<void>;
+
+export function ComputerChange():Promise<app.ComputerChange>;
 
 export function CreateProfile(arg1:string):Promise<void>;
 

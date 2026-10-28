@@ -1,6 +1,7 @@
 import { ArrowLeft, PanelRight, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
+import { ComputerChangeBanner } from "./components/ComputerChangeBanner";
 import { SidePanel, type PanelTab } from "./components/player/SidePanel";
 import { VideoStage } from "./components/player/VideoStage";
 import { IconButton } from "./components/ui/Button";
@@ -388,6 +389,8 @@ export function App() {
       {!(embedded && fullscreen) && (
         <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
       )}
+      {/* A changed computer is asked about outside the welcome and off a video in the window; it waits for them. */}
+      {screen !== "welcome" && !embedded && <ComputerChangeBanner />}
       {screen === "welcome" ? (
         <WelcomePage onDone={welcomeDone} />
       ) : embedded && video && state ? (

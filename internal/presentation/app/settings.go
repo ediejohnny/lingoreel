@@ -98,7 +98,7 @@ func (a *API) Settings() (SettingsView, error) {
 		General: GeneralSettings{
 			Theme: string(config.Theme), SyncNotice: config.SyncNotice, ActiveProfile: profile.Name, AlwaysOnTop: config.AlwaysOnTop,
 			RecommendationsHidden: config.InstallRecommendations.DismissAll || len(config.InstallRecommendations.Dismissed) > 0,
-			Language:              config.Language, Languages: interfaceLanguages(),
+			Language:              config.Language, Languages: interfaceLanguages(), Computer: a.computerView(),
 		},
 		Profiles: names, Profile: profileView(profile, a.deps.KeyChar), Appearance: appearanceView(config.Bar, config.Edit),
 		Players: a.playerSettings(config), Voice: a.voiceView(ctx, config.Voice), Options: a.settingsOptions(),

@@ -58,6 +58,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/playerwindow"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/power"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/preview"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/processor"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 	"github.com/ediejohnny/lingoreel/internal/presentation/app"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
@@ -368,17 +369,11 @@ func speakLanguage(configured string, logger *slog.Logger) {
 	logger.Info("interface language", "language", language, "windows", system)
 }
 
-// measureMachine measures what the computer offers the voice AI: its
-// processors, its memory and how fast the embedded model judges sound.
+// measureMachine reads the computer's hardware: its processor, its logical
+// processors and its memory. How busy it is now is left out: that passes.
 func measureMachine(logger *slog.Logger) capacity.Machine {
-	machine := capacity.Machine{Processors: goruntime.NumCPU(), Memory: memory.Total()}
-	speed, err := voice.ModelSpeed(silero.Embedded{})
-	if err != nil {
-		logger.Warn("the voice model's speed was not measured", "error", err)
-	}
-	machine.ModelSpeed = speed
-	logger.Info("computer", "processors", machine.Processors, "memoryGB", machine.Memory>>30,
-		"modelSpeed", fmt.Sprintf("%.0fx", speed), "weak", machine.Weak())
+	machine := capacity.Machine{Processor: processor.Name(), Processors: goruntime.NumCPU(), Memory: memory.Total()}
+	logger.Info("computer", "processors", machine.Processors, "memoryGiB", machine.Identity().MemoryGiB, "level", machine.Level())
 	return machine
 }
 
