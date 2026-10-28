@@ -53,7 +53,28 @@ func (a Analysis) FileLines(number uint64) []subtitle.Event {
 // for language. progress, when not nil, hears the stretch being heard, from
 // 0, and the share of it done, from 0 to 1.
 func HearVoice(ctx context.Context, a Analysis, decoder voice.Decoder, model speech.Model, language media.LanguageTag, progress func(stretch int, done float64)) ([]speech.Track, error) {
-	stretches := subtitle.HearingStretches(a.HearingLength())
+	return hearStretches(ctx, a, decoder, model, language, subtitle.HearingStretches(a.HearingLength()), progress)
+}
+
+// HearMoreVoice hears the stretches between the first ones
+// (subtitle.HearingStretchesBetween), as HearVoice does, when they left a
+// file undecided (Undecided); FitByVoice takes them beside the first ones.
+func HearMoreVoice(ctx context.Context, a Analysis, decoder voice.Decoder, model speech.Model, language media.LanguageTag, progress func(stretch int, done float64)) ([]speech.Track, error) {
+	return hearStretches(ctx, a, decoder, model, language, subtitle.HearingStretchesBetween(a.HearingLength()), progress)
+}
+
+// Undecided tells some unheard file may fit the voice heard but more
+// stretches are needed to tell (subtitle.VoiceAlignment.Undecided).
+func Undecided(a Analysis, heard []speech.Track) bool {
+	for _, number := range a.Unheard() {
+		if subtitle.AlignToVoice(heard, spokenLines(a.FileLines(number)), a.Info.Duration).Undecided() {
+			return true
+		}
+	}
+	return false
+}
+
+func hearStretches(ctx context.Context, a Analysis, decoder voice.Decoder, model speech.Model, language media.LanguageTag, stretches []subtitle.HearingStretch, progress func(stretch int, done float64)) ([]speech.Track, error) {
 	base := VoiceStretch(a, language)
 	heard := make([]speech.Track, 0, len(stretches))
 	for i, s := range stretches {
@@ -89,14 +110,21 @@ func VoiceStretch(a Analysis, language media.LanguageTag) voice.Stretch {
 	return stretch
 }
 
-// FitByVoice lines up the unheard files with the voice heard in stretches of
-// the video (subtitle.HearingStretches), and suggests the tracks again; it
-// returns the new analysis, the one passed in left as it was, and the fit
-// found for each file.
-func FitByVoice(a Analysis, heard []speech.Track, preferences media.Preferences) (Analysis, map[uint64]subtitle.Alignment) {
+// FitByVoice lines up the unheard files with the voice heard in the first
+// stretches of the video (HearVoice), and suggests the tracks again; a file
+// they left undecided is lined up with the stretches between them too
+// (HearMoreVoice; none when they were not heard), while every other keeps
+// the verdict of the first. It returns the new analysis, the one passed in
+// left as it was, and the fit found for each file.
+func FitByVoice(a Analysis, first, between []speech.Track, preferences media.Preferences) (Analysis, map[uint64]subtitle.Alignment) {
 	fits := map[uint64]subtitle.Alignment{}
 	for _, number := range a.Unheard() {
-		fits[number] = subtitle.AlignToVoice(heard, spokenLines(a.FileLines(number)), a.Info.Duration).Alignment
+		lines := spokenLines(a.FileLines(number))
+		fit := subtitle.AlignToVoice(first, lines, a.Info.Duration)
+		if fit.Undecided() && len(between) > 0 {
+			fit = subtitle.AlignToVoice(subtitle.InterleaveHeard(first, between), lines, a.Info.Duration)
+		}
+		fits[number] = fit.Alignment
 	}
 	return a.WithFits(fits, preferences), fits
 }

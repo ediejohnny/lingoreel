@@ -7,6 +7,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 )
 
@@ -74,7 +75,8 @@ func (a *API) listeningTo(path string) Listening {
 }
 
 // listenTo hears the stretches of a video's voice in the language of the
-// line on top, then lines its unheard files up with it.
+// line on top, and the ones between them when the first leave a file
+// undecided, then lines its unheard files up with it.
 func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, ffmpegPath string, preferences media.Preferences) {
 	decoder := a.decoderFor(ctx, ffmpegPath, "the video")
 	if decoder == nil {
@@ -84,6 +86,16 @@ func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analys
 	heard, err := analysis.HearVoice(ctx, result, decoder, a.deps.Ports.Model, preferences.Primary, func(stretch int, done float64) {
 		a.listened(l, stretch, done)
 	})
+	var between []speech.Track
+	if more := subtitle.HearingStretchesBetween(result.HearingLength()); err == nil && len(more) > 0 && analysis.Undecided(result, heard) {
+		first := len(heard)
+		a.mu.Lock()
+		l.state.Stretches = first + len(more)
+		a.mu.Unlock()
+		between, err = analysis.HearMoreVoice(ctx, result, decoder, a.deps.Ports.Model, preferences.Primary, func(stretch int, done float64) {
+			a.listened(l, first+stretch, done)
+		})
+	}
 	if err != nil {
 		if ctx.Err() == nil {
 			a.logger.Warn("hearing the video failed", "error", err)
@@ -91,8 +103,8 @@ func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analys
 		a.endListening(l, nil)
 		return
 	}
-	_, fits := analysis.FitByVoice(result, heard, preferences)
-	a.logger.Info("the video was heard", "files", len(fits))
+	_, fits := analysis.FitByVoice(result, heard, between, preferences)
+	a.logger.Info("the video was heard", "files", len(fits), "stretches", len(heard)+len(between))
 	a.endListening(l, fits)
 }
 

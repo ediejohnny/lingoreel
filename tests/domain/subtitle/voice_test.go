@@ -88,6 +88,64 @@ func TestTheFileThatFitsIsFoundByTheVoice(t *testing.T) {
 	}
 }
 
+// Lines timed by hand land a few hundred milliseconds apart from one part of
+// a film to another: each group of stretches finds its own offset, and the
+// file still fits.
+func TestAFileTimedByHandFitsThoughItsPartsDiffer(t *testing.T) {
+	t.Parallel()
+	const film = 90 * time.Minute
+	lines := dialogue(film, 5)
+	heard := heardOf(lines, film)
+	stretches := subtitle.HearingStretches(film)
+	file := make([]speech.Span, len(lines))
+	for i, line := range lines {
+		shift := time.Duration(0)
+		switch {
+		case line.Start >= stretches[4].From:
+			shift = -350 * time.Millisecond
+		case line.Start >= stretches[2].From:
+			shift = 350 * time.Millisecond
+		}
+		file[i] = speech.Span{Start: line.Start - shift, End: line.End - shift}
+	}
+	if got := subtitle.AlignToVoice(heard, file, film); got.Verdict != subtitle.VerdictMatch {
+		t.Fatalf("parts 350 ms apart: %+v, want a match", got)
+	}
+}
+
+// The stretches heard when the first leave a file undecided lie halfway
+// between each two of them, as long; put back among them, all are in the
+// film's order.
+func TestTheStretchesBetweenLieBetweenTheFirst(t *testing.T) {
+	t.Parallel()
+	const film = 90 * time.Minute
+	first, between := subtitle.HearingStretches(film), subtitle.HearingStretchesBetween(film)
+	if len(between) != len(first)-1 {
+		t.Fatalf("%d stretches between %d", len(between), len(first))
+	}
+	tracks := func(stretches []subtitle.HearingStretch) []speech.Track {
+		var out []speech.Track
+		for _, s := range stretches {
+			out = append(out, speech.Track{Start: s.From})
+		}
+		return out
+	}
+	all := subtitle.InterleaveHeard(tracks(first), tracks(between))
+	for i := 1; i < len(all); i++ {
+		if all[i].Start <= all[i-1].Start {
+			t.Fatalf("stretch %d at %v after one at %v", i, all[i].Start, all[i-1].Start)
+		}
+	}
+	for i, s := range between {
+		if s.Length != first[i].Length || s.From != (first[i].From+first[i+1].From)/2 {
+			t.Fatalf("stretch between %d: %+v, first %+v and %+v", i, s, first[i], first[i+1])
+		}
+	}
+	if got := subtitle.HearingStretchesBetween(4 * time.Minute); got != nil {
+		t.Fatalf("a film heard whole: %+v between, want none", got)
+	}
+}
+
 // Too few lines heard tell nothing.
 func TestAFewLinesHeardTellNothing(t *testing.T) {
 	t.Parallel()

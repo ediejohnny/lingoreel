@@ -75,6 +75,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- Subtitle files that fit a video were refused as "not for this video" when its few lines per stretch heard (a
+  cartoon with music under them) let each part of the film find a slightly different timing; parts may now differ by
+  half a second, and a file left undecided is told by hearing five stretches more, between the first ones.
 - Turning the karaoke mode on over a video with no subtitle in the studied language did nothing and said nothing; the
   video now says so, as it opens too, and the panel tells where to choose or add one.
 - An FFmpeg chosen in the settings or the setup assistant was refused as "the computer is busy" when its first

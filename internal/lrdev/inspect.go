@@ -15,6 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
@@ -273,19 +274,29 @@ func heardAnalysis(ctx context.Context, result analysis.Analysis, tool string, s
 		return result, err
 	}
 	preferences := defaultPreferences()
-	stretches := subtitle.HearingStretches(result.HearingLength())
-	told := -1
+	decoder := ffmpeg.Decoder{Path: path}
 	started := time.Now()
-	heard, err := analysis.HearVoice(ctx, result, ffmpeg.Decoder{Path: path}, silero.Embedded{}, preferences.Primary, func(stretch int, _ float64) {
-		if stretch != told && stretch < len(stretches) {
-			told = stretch
-			fmt.Fprintf(stdout, "Hearing stretch %d of %d (%s)...\n", stretch+1, len(stretches), formatClock(stretches[stretch].From))
+	telling := func(stretches []subtitle.HearingStretch, label string) func(int, float64) {
+		told := -1
+		return func(stretch int, _ float64) {
+			if stretch != told && stretch < len(stretches) {
+				told = stretch
+				fmt.Fprintf(stdout, "Hearing %sstretch %d of %d (%s)...\n", label, stretch+1, len(stretches), formatClock(stretches[stretch].From))
+			}
 		}
-	})
+	}
+	heard, err := analysis.HearVoice(ctx, result, decoder, silero.Embedded{}, preferences.Primary,
+		telling(subtitle.HearingStretches(result.HearingLength()), ""))
 	if err != nil {
 		return result, err
 	}
+	var more []speech.Track
+	if between := subtitle.HearingStretchesBetween(result.HearingLength()); len(between) > 0 && analysis.Undecided(result, heard) {
+		if more, err = analysis.HearMoreVoice(ctx, result, decoder, silero.Embedded{}, preferences.Primary, telling(between, "the undecided file's ")); err != nil {
+			return result, err
+		}
+	}
 	fmt.Fprintf(stdout, "Heard in %s.\n\n", time.Since(started).Round(time.Second))
-	fitted, _ := analysis.FitByVoice(result, heard, preferences)
+	fitted, _ := analysis.FitByVoice(result, heard, more, preferences)
 	return fitted, nil
 }
