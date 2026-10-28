@@ -34,6 +34,10 @@ All notable changes to this project are listed here. The format follows
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
   ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was. The sound taken around a
   line may hold its neighbours' voices: they never pull the line's first or last word onto them.
+- `lrdev lyrics-check <video> --lyrics <file>` places a song's lyrics, a text file with no times, in the whole song:
+  all the lines at once and in their order, the solos and refrains not written left between them, the model hearing
+  the song in pieces of 30 s. It prints where each line went and how sure the model was, never the words, and `--out`
+  writes the lines as a SubRip subtitle.
 - `lrdev voice-check --each` prints every line with the voice found in it and what the karaoke mode's fill follows;
   `--text` adds its words.
 

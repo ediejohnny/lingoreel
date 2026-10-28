@@ -46,6 +46,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return driftCheck(ctx, args[1:], stdout)
 	case "align-check":
 		return alignCheck(ctx, args[1:], stdout)
+	case "lyrics-check":
+		return lyricsCheck(ctx, args[1:], stdout)
 	case "language-check":
 		return languageCheck(ctx, args[1:], stdout)
 	case "seek-probe":
@@ -103,6 +105,10 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --file <name> --threads <n>     the model's file (model.onnx) and its processors (2)")
 	fmt.Fprintln(w, "      --lines <n> --margin <d>        how many lines (20) and the sound around each (300ms)")
 	fmt.Fprintln(w, "      --text                          prints the words; only for a free film")
+	fmt.Fprintln(w, "  lyrics-check <video> [options]  places a song's lyrics (no times) in the song, all the lines in their order")
+	fmt.Fprintln(w, "      --lyrics <file>                 the lyrics: a text file, one line of the song per line")
+	fmt.Fprintln(w, "      --runtime, --model, --file, --threads, --ffmpeg   as in align-check")
+	fmt.Fprintln(w, "      --language <tag> --out <srt>    the song's audio track by language (en), and a SubRip file to write")
 	fmt.Fprintln(w, "  language-check <video> [options] hears an audio track in each language given, as the app hears an untold one")
 	fmt.Fprintln(w, "      --runtime <dll> --pack en=<model.onnx>  the onnxruntime.dll and each language's model (repeat --pack)")
 	fmt.Fprintln(w, "      --audio <n> --subtitle pt=#4    the audio track (1 is the first) and a language's subtitle (its first readable)")

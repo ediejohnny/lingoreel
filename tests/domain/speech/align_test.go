@@ -127,6 +127,39 @@ func TestALinesLettersStayOffItsNeighboursVoices(t *testing.T) {
 	}
 }
 
+// A song's lines are placed in one sound, in their order, with whatever is
+// between them (a solo, a refrain not written) left outside them: "yo" also
+// sounds before "sing" but is the later one, and the voice between the lines
+// does not pull "sing"'s last letters onto it.
+func TestASongsLinesArePlacedInOrderWithAnythingBetween(t *testing.T) {
+	t.Parallel()
+	a := english(t)
+	vocabulary := englishVocabulary()
+	sure := func(token string) map[string]float64 { return map[string]float64{token: 1} }
+	frames := []map[string]float64{
+		sure("Y"), sure("O"), sure("<pad>"), sure("S"), sure("I"),
+		{"N": 0.855, "<pad>": 0.13}, {"G": 0.468, "<pad>": 0.26, "N": 0.25},
+		sure("<pad>"), sure("<pad>"),
+		{"T": 0.99, "<pad>": 0.01}, {"I": 0.74, "A": 0.24, "<pad>": 0.01},
+		{"N": 0.94, "<pad>": 0.06}, {"N": 0.89, "<pad>": 0.11}, {"K": 0.99, "G": 0.006, "<pad>": 0.01},
+		sure("<pad>"), sure("Y"), sure("O"), sure("<pad>"),
+	}
+	logits := make([][]float32, 0, len(frames))
+	for _, f := range frames {
+		logits = append(logits, heardFrame(a, vocabulary, f))
+	}
+	lines, err := a.AlignLines(logits, alignFrame, [][]string{{"sing"}, {"yo"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (speech.Span{Start: at(3), End: at(7)}); lines[0][0].Span != want {
+		t.Errorf("sing: %v, want %v, where its letters were heard", lines[0][0].Span, want)
+	}
+	if want := (speech.Span{Start: at(15), End: at(17)}); lines[1][0].Span != want {
+		t.Errorf("yo: %v, want %v, after sing", lines[1][0].Span, want)
+	}
+}
+
 func TestADoubledLetterNeedsABlankBetween(t *testing.T) {
 	t.Parallel()
 	a := english(t)

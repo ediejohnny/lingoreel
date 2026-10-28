@@ -74,10 +74,48 @@ func Open(runtimePath, modelPath string, threads int) (*Model, error) {
 // Version is ONNX Runtime's version.
 func (m *Model) Version() string { return m.runtime.Version() }
 
+// A long sound is heard in pieces: the model's attention grows with the
+// square of what it hears at once. Each piece is heard with pieceContext
+// more on each side, whose frames are dropped, so no word is cut at its
+// edges.
+const (
+	piece        = 30 * time.Second
+	pieceContext = 2 * time.Second
+)
+
 // Align places words in 16 kHz mono sound (left as it is); the times count
 // from the sound's start. A line with no letter of the model's alphabet
 // returns speech.ErrNothingToAlign.
 func (m *Model) Align(sound []float32, words []string) ([]speech.Word, error) {
+	rows, err := m.hear(sound)
+	if err != nil {
+		return nil, err
+	}
+	return m.alphabet.Align(rows, frame, words)
+}
+
+// AlignLines places several lines' words in a long 16 kHz mono sound, in
+// their order, as speech.Alphabet.AlignLines does: a song's lyrics in the
+// song. The model hears the sound piece by piece.
+func (m *Model) AlignLines(sound []float32, lines [][]string) ([][]speech.Word, error) {
+	samples := func(d time.Duration) int { return int(d * speech.SampleRate / time.Second) }
+	frameSamples := samples(frame)
+	var rows [][]float32
+	for at := 0; at < len(sound); at += samples(piece) {
+		from, to := max(at-samples(pieceContext), 0), min(at+samples(piece)+samples(pieceContext), len(sound))
+		heard, err := m.hear(sound[from:to])
+		if err != nil {
+			return nil, err
+		}
+		first := (at - from) / frameSamples
+		last := min(first+samples(piece)/frameSamples, len(heard))
+		rows = append(rows, heard[min(first, last):last]...)
+	}
+	return m.alphabet.AlignLines(rows, frame, lines)
+}
+
+// hear is the model's output for each frame of a sound.
+func (m *Model) hear(sound []float32) ([][]float32, error) {
 	input := sound
 	if m.normalize {
 		input = normalized(sound)
@@ -94,7 +132,7 @@ func (m *Model) Align(sound []float32, words []string) ([]speech.Word, error) {
 	for i := range rows {
 		rows[i] = logits[i*size : (i+1)*size]
 	}
-	return m.alphabet.Align(rows, frame, words)
+	return rows, nil
 }
 
 // Close releases the model and the runtime.
