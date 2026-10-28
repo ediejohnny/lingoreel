@@ -29,6 +29,12 @@ export function durationLabel(seconds: number): string {
   return t("ui.format.hoursMinutes", { hours, minutes: String(minutes % 60).padStart(2, "0") });
 }
 
+/** sizeLabel shows a file's size in whole megabytes as Windows counts them (1024 × 1024 bytes), "339 MB". */
+export function sizeLabel(bytes: number): string {
+  const megabytes = Number.isFinite(bytes) && bytes > 0 ? Math.max(1, Math.round(bytes / (1024 * 1024))) : 0;
+  return t("ui.format.megabytes", { size: megabytes });
+}
+
 /** isTyping tells whether a key event comes from a field where keys type text. */
 export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {

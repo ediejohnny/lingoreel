@@ -58,6 +58,8 @@ export type WelcomeChoices = Plain<app.WelcomeChoices>;
 export type LanguageSettings = Plain<app.LanguageSettings>;
 export type ComputerView = Plain<app.ComputerView>;
 export type ComputerChange = Plain<app.ComputerChange>;
+export type SpeechPacksView = Plain<app.SpeechPacksView>;
+export type SpeechPackView = Plain<app.SpeechPackView>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -96,6 +98,7 @@ const events = {
   listening: "video:listening",
   opening: "video:opening",
   computerChanged: "computer:changed",
+  speechPacks: "speechpacks:changed",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -181,6 +184,11 @@ export const backend = {
   computerChange: (): Promise<ComputerChange> => api.ComputerChange(),
   answerComputerChange: (adjust: boolean) => api.AnswerComputerChange(adjust),
   adjustToComputer: () => api.AdjustToComputer(),
+  /** speechPacks are the languages' speech packs, with the computer's level. */
+  speechPacks: (): Promise<SpeechPacksView> => api.SpeechPacks(),
+  fetchSpeechPack: (language: string) => api.FetchSpeechPack(language),
+  cancelSpeechPack: () => api.CancelSpeechPack(),
+  removeSpeechPack: (language: string) => api.RemoveSpeechPack(language),
   switchProfile: (name: string) => api.SwitchProfile(name),
   createProfile: (name: string) => api.CreateProfile(name),
   renameProfile: (from: string, to: string) => api.RenameProfile(from, to),
@@ -224,4 +232,6 @@ export const backend = {
   onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
   /** onComputerChanged hears the app runs on a computer of another level than the settings were adjusted to. */
   onComputerChanged: (listener: (change: ComputerChange) => void) => EventsOn(events.computerChanged, listener),
+  /** onSpeechPacks hears a speech pack began or stopped being fetched, went further, or was removed. */
+  onSpeechPacks: (listener: (view: SpeechPacksView) => void) => EventsOn(events.speechPacks, listener),
 };

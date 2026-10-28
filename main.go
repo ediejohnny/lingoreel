@@ -23,6 +23,7 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
+	"github.com/ediejohnny/lingoreel/internal/application/speechpack"
 	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
@@ -33,7 +34,9 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/download"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
@@ -45,6 +48,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/silero"
+	packs "github.com/ediejohnny/lingoreel/internal/infrastructure/speechpack"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
@@ -93,6 +97,10 @@ const logFolder = "logs"
 // thumbnailsFolder holds the films' seek-bar stills, next to the settings.
 const thumbnailsFolder = "thumbnails"
 
+// speechPacks is where the languages' speech packs are published, with the
+// version that first carried them.
+const speechPacks = "https://github.com/ediejohnny/lingoreel/releases/download/v0.29.0/"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "LingoReel:", err)
@@ -137,6 +145,20 @@ func run() error {
 	// window's menus to reach it; lifecycle is set once the API exists.
 	var started atomic.Pointer[context.Context]
 	var lifecycle app.Lifecycle
+	fetchPack := packs.Fetcher(download.Client{})
+	voicePacks := speechpack.New(speechpack.Options{
+		Dir: dir, Base: speechPacks, Extras: packs.Extras,
+		Fetch: func(ctx context.Context, url string, file speech.File, dest string, progress func(done, total int64)) error {
+			err := fetchPack(ctx, url, file, dest, progress)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				logger.Warn("speech pack file not fetched", "file", file.Name, "error", err)
+			}
+			return err
+		},
+		// Asked for only from the window, once the lifecycle is set.
+		Changed: func() { lifecycle.SpeechPacksChanged() },
+	})
+	defer voicePacks.Close()
 	// The video plays inside the app's own window: one window for all.
 	stage := playerwindow.NewStage(playerwindow.StageOptions{
 		Parent: func() uintptr {
@@ -212,8 +234,9 @@ func run() error {
 		// The interface speaks Windows' language when none is chosen.
 		SystemLanguage: systemLanguage,
 		// Read before anything is saved: the first run opens the welcome.
-		FirstRun: firstRun,
-		Machine:  func() capacity.Machine { return measureMachine(logger) },
+		FirstRun:    firstRun,
+		Machine:     func() capacity.Machine { return measureMachine(logger) },
+		SpeechPacks: voicePacks,
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{

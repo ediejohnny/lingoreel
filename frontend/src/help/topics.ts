@@ -115,7 +115,7 @@ export function topics(keys: Keys): Topic[] {
     {
       id: "voice",
       title: t("ui.help.voice.title"),
-      paragraphs: [t("ui.help.voice.p1"), t("ui.help.voice.p2"), t("ui.help.voice.p3")],
+      paragraphs: [t("ui.help.voice.p1"), t("ui.help.voice.p2"), t("ui.help.voice.p3"), t("ui.help.voice.p4")],
       open: "study",
     },
     {

@@ -63,6 +63,22 @@ func TestAComputersLevelIsTold(t *testing.T) {
 	if capacity.Level("ultra").Valid() || capacity.Level("").Valid() {
 		t.Error("a level that is none of the three passed for valid")
 	}
+	// The speech packs: none at basic, English's small model at medium, all at high.
+	for _, c := range []struct {
+		level    capacity.Level
+		language string
+		suits    bool
+	}{
+		{capacity.LevelBasic, "en", false},
+		{capacity.LevelMedium, "en", true},
+		{capacity.LevelMedium, "pt", false},
+		{capacity.LevelHigh, "pt", true},
+		{capacity.Level(""), "en", false},
+	} {
+		if got := c.level.SuitsSpeechPack(c.language); got != c.suits {
+			t.Errorf("%q.SuitsSpeechPack(%q) = %v, want %v", c.level, c.language, got, c.suits)
+		}
+	}
 }
 
 // A computer is told from another by its processor's name, its logical

@@ -22,6 +22,10 @@ export function ApplyPreset(arg1, arg2) {
   return window['go']['app']['API']['ApplyPreset'](arg1, arg2);
 }
 
+export function CancelSpeechPack() {
+  return window['go']['app']['API']['CancelSpeechPack']();
+}
+
 export function CheckFill(arg1, arg2) {
   return window['go']['app']['API']['CheckFill'](arg1, arg2);
 }
@@ -94,6 +98,10 @@ export function ExportSubtitle(arg1) {
   return window['go']['app']['API']['ExportSubtitle'](arg1);
 }
 
+export function FetchSpeechPack(arg1) {
+  return window['go']['app']['API']['FetchSpeechPack'](arg1);
+}
+
 export function FileAssociation() {
   return window['go']['app']['API']['FileAssociation']();
 }
@@ -160,6 +168,10 @@ export function PreviewSubtitles(arg1) {
 
 export function RedoEdit() {
   return window['go']['app']['API']['RedoEdit']();
+}
+
+export function RemoveSpeechPack(arg1) {
+  return window['go']['app']['API']['RemoveSpeechPack'](arg1);
 }
 
 export function RenamePassage(arg1, arg2) {
@@ -320,6 +332,10 @@ export function ShowRecommendations() {
 
 export function SkipWelcome() {
   return window['go']['app']['API']['SkipWelcome']();
+}
+
+export function SpeechPacks() {
+  return window['go']['app']['API']['SpeechPacks']();
 }
 
 export function StopPassage() {

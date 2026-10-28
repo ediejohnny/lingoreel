@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { durationLabel, progress, speedLabel } from "./format";
+import { durationLabel, progress, sizeLabel, speedLabel } from "./format";
 import { editClock, passageClock } from "./format";
 import { fallback, setLanguage } from "./i18n";
 
@@ -43,6 +43,15 @@ describe("progress", () => {
     expect(progress(10, 0)).toBe(0);
     expect(progress(10, Number.NaN)).toBe(0);
     expect(progress(Number.NaN, 10)).toBe(0);
+  });
+});
+
+describe("sizeLabel", () => {
+  it("counts megabytes as Windows does", () => {
+    // The Portuguese speech pack: 355,018,566 bytes.
+    expect(sizeLabel(355_018_566)).toBe("339 MB");
+    expect(sizeLabel(1000)).toBe("1 MB");
+    expect(sizeLabel(0)).toBe("0 MB");
   });
 });
 

@@ -1520,6 +1520,68 @@ export namespace app {
 	    }
 	}
 	
+	export class SpeechPackView {
+	    language: string;
+	    name: string;
+	    size: number;
+	    ready: boolean;
+	    fetching: boolean;
+	    done: number;
+	    total: number;
+	    suits: boolean;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SpeechPackView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.language = source["language"];
+	        this.name = source["name"];
+	        this.size = source["size"];
+	        this.ready = source["ready"];
+	        this.fetching = source["fetching"];
+	        this.done = source["done"];
+	        this.total = source["total"];
+	        this.suits = source["suits"];
+	        this.error = source["error"];
+	    }
+	}
+	export class SpeechPacksView {
+	    available: boolean;
+	    level: string;
+	    packs: SpeechPackView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SpeechPacksView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.level = source["level"];
+	        this.packs = this.convertValues(source["packs"], SpeechPackView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	
 	

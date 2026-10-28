@@ -12,6 +12,8 @@ export function AnswerComputerChange(arg1:boolean):Promise<void>;
 
 export function ApplyPreset(arg1:app.StyleSettings,arg2:string):Promise<app.StyleSettings>;
 
+export function CancelSpeechPack():Promise<void>;
+
 export function CheckFill(arg1:string,arg2:string):Promise<app.FillCheck>;
 
 export function CheckShortcut(arg1:string):Promise<app.ShortcutCheck>;
@@ -48,6 +50,8 @@ export function EndPreview():Promise<void>;
 
 export function ExportSubtitle(arg1:string):Promise<void>;
 
+export function FetchSpeechPack(arg1:string):Promise<void>;
+
 export function FileAssociation():Promise<boolean>;
 
 export function FinishWelcome(arg1:app.WelcomeChoices):Promise<void>;
@@ -81,6 +85,8 @@ export function PreviewLook(arg1:app.ProfileSettings):Promise<void>;
 export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 
 export function RedoEdit():Promise<void>;
+
+export function RemoveSpeechPack(arg1:string):Promise<void>;
 
 export function RenamePassage(arg1:string,arg2:string):Promise<void>;
 
@@ -161,6 +167,8 @@ export function Shortcuts():Promise<Array<app.ShortcutSetting>>;
 export function ShowRecommendations():Promise<void>;
 
 export function SkipWelcome():Promise<void>;
+
+export function SpeechPacks():Promise<app.SpeechPacksView>;
 
 export function StopPassage():Promise<void>;
 

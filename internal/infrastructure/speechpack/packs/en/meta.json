@@ -1,0 +1,8 @@
+{
+ "model": "facebook/wav2vec2-base-960h@22aad52d435eb6dbaf354bdad9b0da84ce7d6156",
+ "sampling_rate": 16000,
+ "do_normalize": true,
+ "pad_token": "<pad>",
+ "word_delimiter_token": "|",
+ "parameters": 94396320
+}

@@ -139,7 +139,9 @@ the level and adjusts to it again; on a computer of another level, the app asks 
 ## Privacy
 
 Everything stays on your computer. The app sends nothing over the internet, keeps what it saves in
-`%APPDATA%\LingoReel`, and never writes next to your videos. Its logs leave out the subtitles' text.
+`%APPDATA%\LingoReel`, and never writes next to your videos. Its logs leave out the subtitles' text. The only thing it
+fetches is a voice language you ask for in Settings › Study › Voice languages: a speech model, and ONNX Runtime built
+without its telemetry, from this project's own releases, checked against the size and SHA-256 the app carries.
 
 ## Languages
 

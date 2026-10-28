@@ -1,0 +1,8 @@
+{
+ "model": "jonatasgrosman/wav2vec2-large-xlsr-53-german@4b8a0295",
+ "sampling_rate": 16000,
+ "do_normalize": true,
+ "pad_token": "<pad>",
+ "word_delimiter_token": "|",
+ "parameters": 315477670
+}

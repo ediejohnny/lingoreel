@@ -185,6 +185,9 @@ type Deps struct {
 	// another level later is asked about. Nil reads nothing: the computer is
 	// medium and never asked about.
 	Machine func() capacity.Machine
+	// SpeechPacks are the languages' speech packs kept in the app's folder;
+	// nil keeps none.
+	SpeechPacks SpeechPacks
 	// AskRetry asks, with Windows' own box, whether to try again a save that
 	// failed as the app closes; nil never asks.
 	AskRetry func(title, text string) bool

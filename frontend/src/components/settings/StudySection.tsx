@@ -8,6 +8,7 @@ import { FillColorNote } from "./FillColorNote";
 import { change, type SectionProps } from "./section";
 import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
+import { SpeechPacksCard } from "./SpeechPacksCard";
 import { VoiceCard } from "./VoiceCard";
 
 /** StudySection holds the karaoke mode and the translation key. */
@@ -101,6 +102,7 @@ export function StudySection(props: SectionProps) {
         </div>
       </Card>
       <VoiceCard view={view} run={props.run} />
+      <SpeechPacksCard />
       <Card
         title={t("ui.settings.study.key.title")}
         aside={<HelpTip topic={t("ui.settings.study.key.topic")}>{t("ui.settings.study.key.help")}</HelpTip>}

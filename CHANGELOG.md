@@ -15,6 +15,12 @@ All notable changes to this project are listed here. The format follows
   film. Your own sync step against the voice's move, or putting the subtitle back to its file's timing, leaves the voice
   out for the rest of the video. Settings › Study › Actors' voice › "Keep the sync on the voice" turns it off; it starts
   off at the Basic level.
+- Settings › Study › Voice languages downloads, when asked, the speech model of each language (English, Portuguese,
+  Spanish, French, German and Italian; wav2vec2 and XLSR-53, Apache-2.0, int8 on their MatMul nodes) into the app's
+  folder, one at a time, with how far it went and a cancel; ONNX Runtime 1.30.0, built from its source without
+  telemetry, comes with the first one. Each file comes from the project's releases over HTTPS and is kept only with the
+  size and SHA-256 the app carries; one that arrives otherwise is thrown away. The packs that suit the computer's level
+  are marked (none at the basic level, English at the medium one, all at the high one), and Remove deletes a language.
 - `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
   with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
