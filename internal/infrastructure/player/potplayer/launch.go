@@ -21,6 +21,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/playerkit"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
@@ -73,15 +74,10 @@ func Launch(ctx context.Context, executable string, request player.LaunchRequest
 
 // LaunchWith is Launch with options.
 func LaunchWith(ctx context.Context, executable string, request player.LaunchRequest, options Options) (*Session, error) {
-	if !filepath.IsAbs(executable) || !isRegularFile(executable) {
-		return nil, fmt.Errorf("PotPlayer executable %q not found", executable)
+	file, err := playerkit.CheckLaunch("PotPlayer", executable, request.File)
+	if err != nil {
+		return nil, err
 	}
-	file, err := filepath.Abs(request.File)
-	if err != nil || !isRegularFile(file) {
-		return nil, fmt.Errorf("video %q not found", request.File)
-	}
-	// An absolute path starts with a drive or a share, never with "/", so
-	// PotPlayer cannot take the file name for one of its options.
 	request.File = file
 	logger := options.Logger
 	if logger == nil {
@@ -268,11 +264,6 @@ func writeBlankSubtitle() (dir, path string, err error) {
 // user's temporary directory, so a failure only leaves it for the system.
 func removeTemp(dir string) {
 	_ = os.RemoveAll(dir)
-}
-
-func isRegularFile(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
 }
 
 // windowAlive reports a window that still exists.

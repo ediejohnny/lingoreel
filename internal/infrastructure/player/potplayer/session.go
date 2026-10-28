@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/playerkit"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
@@ -28,13 +29,6 @@ var ErrNotSupported = errors.New("not supported by PotPlayer")
 var ErrNotAnswering = errors.New("PotPlayer is not answering")
 
 const (
-	pollInterval = 100 * time.Millisecond
-	// While PotPlayer runs but stops answering, the poller tries again
-	// after firstRetry, doubling up to maxRetry; after reconnectLimit
-	// without an answer the session is lost.
-	firstRetry     = 250 * time.Millisecond
-	maxRetry       = 2 * time.Second
-	reconnectLimit = 10 * time.Second
 	// closeWait is how long WM_CLOSE has before the job object ends it.
 	closeWait = 3 * time.Second
 	exitWait  = 2 * time.Second
@@ -55,8 +49,8 @@ type Session struct {
 	tempDir string
 	logger  *slog.Logger
 
-	samples chan playback.Sample
-	exited  chan struct{}
+	poller *playerkit.Poller
+	exited chan struct{}
 	// waitErr is the process exit error, set before exited is closed.
 	waitErr error
 
@@ -71,16 +65,10 @@ type Session struct {
 	// it has no message telling its speed back.
 	speed atomic.Uint64
 
-	// lost is set when PotPlayer stops answering while its process runs;
-	// reconnecting while it is being tried again.
-	lost         atomic.Bool
-	reconnecting atomic.Bool
 	// closing is set by Close, so a PotPlayer ended on purpose is not a crash.
 	closing   atomic.Bool
-	polling   atomic.Bool
 	stop      context.CancelFunc
 	pollCtx   context.Context
-	pollDone  chan struct{}
 	closeOnce sync.Once
 }
 
@@ -88,8 +76,8 @@ func newSession(cmd *exec.Cmd, killer *job.Job, tempDir string, logger *slog.Log
 	ctx, stop := context.WithCancel(context.Background())
 	s := &Session{
 		cmd: cmd, job: killer, tempDir: tempDir, logger: logger,
-		samples: make(chan playback.Sample, 1), exited: make(chan struct{}),
-		stop: stop, pollCtx: ctx, pollDone: make(chan struct{}),
+		poller: playerkit.NewPoller("PotPlayer", playerkit.DefaultTiming, logger), exited: make(chan struct{}),
+		stop: stop, pollCtx: ctx,
 	}
 	s.speed.Store(math.Float64bits(float64(playback.NormalSpeed)))
 	go func() {
@@ -131,13 +119,13 @@ func (s *Session) VideoArea() uintptr {
 // Samples delivers the latest observation roughly every 100 ms. It is
 // closed when PotPlayer exits or stops answering; Err tells the two apart.
 func (s *Session) Samples() <-chan playback.Sample {
-	return s.samples
+	return s.poller.Samples()
 }
 
 // Err reports why the samples ended: playback.ErrPlayerLost when PotPlayer
 // stopped answering or crashed, nil when it was closed normally.
 func (s *Session) Err() error {
-	if s.lost.Load() {
+	if s.poller.Lost() {
 		return playback.ErrPlayerLost
 	}
 	select {
@@ -153,7 +141,7 @@ func (s *Session) Err() error {
 // Reconnecting reports PotPlayer running but not answering, while the
 // poller tries again.
 func (s *Session) Reconnecting() bool {
-	return s.reconnecting.Load()
+	return s.poller.Reconnecting()
 }
 
 // Play resumes playback.
@@ -284,69 +272,15 @@ func (s *Session) refreshArea() {
 	s.area.Store(area)
 }
 
+// startPolling reads PotPlayer's state for the samples until it ends or
+// stops answering for good.
 func (s *Session) startPolling() {
-	s.polling.Store(true)
-	go s.poll()
+	s.poller.Start(s.pollCtx, s.exited, s.read)
 }
 
-// poll reads PotPlayer's state on a fixed interval and publishes it as a
-// sample, replacing one the consumer has not read yet. When PotPlayer stops
-// answering it tries again with growing waits before giving the session up;
-// a PotPlayer that exited ends the polling at once.
-func (s *Session) poll() {
-	defer close(s.pollDone)
-	defer close(s.samples)
-	defer s.reconnecting.Store(false)
-	timer := time.NewTimer(pollInterval)
-	defer timer.Stop()
-	lastSuccess := time.Now()
-	retry := time.Duration(0) // zero while PotPlayer answers
-
-	for {
-		select {
-		case <-s.pollCtx.Done():
-			return
-		case <-s.exited:
-			return
-		case <-timer.C:
-		}
-		started := time.Now()
-		current, err := s.read()
-		finished := time.Now()
-		if err != nil {
-			if s.pollCtx.Err() != nil {
-				return
-			}
-			if finished.Sub(lastSuccess) > reconnectLimit {
-				s.logger.Warn("PotPlayer stopped answering", "error", err)
-				s.lost.Store(true)
-				return
-			}
-			if retry == 0 {
-				retry = firstRetry
-				s.reconnecting.Store(true)
-				s.logger.Warn("PotPlayer is not answering; reconnecting", "error", err)
-			} else {
-				retry = min(2*retry, maxRetry)
-			}
-			timer.Reset(retry)
-			continue
-		}
-		if retry != 0 {
-			s.logger.Info("PotPlayer answered again", "after", finished.Sub(lastSuccess).Round(time.Millisecond))
-			retry = 0
-			s.reconnecting.Store(false)
-		}
-		lastSuccess = finished
-		current.ObservedAt = started.Add(finished.Sub(started) / 2)
-		s.publish(current)
-		timer.Reset(pollInterval)
-	}
-}
-
-// read asks PotPlayer where it is. The position decides: without it there
-// is no sample worth publishing.
-func (s *Session) read() (playback.Sample, error) {
+// read asks PotPlayer where it is; each message is bounded by answerTimeout.
+// The position decides: without it there is no sample worth publishing.
+func (s *Session) read(context.Context) (playback.Sample, error) {
 	window := s.mainWindow()
 	position, ok := ask(window, codeGetCurrentTime, 0)
 	if !ok {
@@ -375,17 +309,6 @@ func (s *Session) read() (playback.Sample, error) {
 	return sample, nil
 }
 
-func (s *Session) publish(sample playback.Sample) {
-	select {
-	case <-s.samples:
-	default:
-	}
-	select {
-	case s.samples <- sample:
-	default:
-	}
-}
-
 // Close asks PotPlayer to close its window, ends it through the job object
 // if it lingers, and removes the temporary folder. Every wait is bounded.
 func (s *Session) Close() error {
@@ -401,14 +324,15 @@ func (s *Session) Close() error {
 		if window := s.mainWindow(); windowAlive(window) {
 			_ = win32.PostMessage(window, win32.WM_CLOSE, 0, 0)
 		}
-		waitClosed(s.exited, closeWait)
+		playerkit.WaitClosed(s.exited, closeWait)
 		if jobErr := s.job.Close(); jobErr != nil {
 			err = errors.Join(err, fmt.Errorf("ending PotPlayer: %w", jobErr))
 		}
-		if !waitClosed(s.exited, exitWait) {
+		if !playerkit.WaitClosed(s.exited, exitWait) {
 			err = errors.Join(err, errors.New("PotPlayer did not exit"))
 		}
-		if s.polling.Load() && !waitClosed(s.pollDone, answerTimeout+pollInterval) {
+		// A reading under way asks up to three messages of answerTimeout each.
+		if !s.poller.Wait(3*answerTimeout + playerkit.DefaultTiming.Interval) {
 			err = errors.Join(err, errors.New("the PotPlayer status reader did not stop"))
 		}
 		s.window.Store(0)
@@ -418,16 +342,4 @@ func (s *Session) Close() error {
 		}
 	})
 	return err
-}
-
-// waitClosed waits for a channel to close, at most for limit.
-func waitClosed(done <-chan struct{}, limit time.Duration) bool {
-	timer := time.NewTimer(limit)
-	defer timer.Stop()
-	select {
-	case <-done:
-		return true
-	case <-timer.C:
-		return false
-	}
 }
