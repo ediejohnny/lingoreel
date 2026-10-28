@@ -46,6 +46,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- As a game does, the app reads the computer every time it opens and, when its settings come from a computer of
+  another level (a Windows profile that follows the person from PC to PC, a PC with more memory), adjusts to this one
+  by itself, keeping what was changed by hand; it no longer asks.
 - Settings › General › This computer scrolls to its question when "Adjust again to this computer" is pressed, and
   tells the adjustment inside the card instead of at the top of the page.
 - In the setup assistant, the warning of a basic computer no longer repeats the level the line above it tells.
@@ -78,8 +81,6 @@ All notable changes to this project are listed here. The format follows
 - A voice language now writes the licenses its authors ask to go with every copy beside what it downloads: the speech
   models' license beside each model, and ONNX Runtime's license, third-party notices and where its source is (Eigen,
   inside it, is under the MPL-2.0) beside the DLL. They go away with what they cover.
-- The question about a computer of another level stayed on the screen after Settings › General › "Adjust again to
-  this computer" answered it.
 - A voice delay changed just before leaving its settings page was not saved.
 - On a computer too busy to start FFmpeg in time (another program taking every processor, an antivirus looking at it
   the first time after the computer starts), hearing a video's subtitle files or its audio track's language gave up

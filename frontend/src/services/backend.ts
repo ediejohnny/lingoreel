@@ -57,7 +57,6 @@ export type WelcomeView = Plain<app.WelcomeView>;
 export type WelcomeChoices = Plain<app.WelcomeChoices>;
 export type LanguageSettings = Plain<app.LanguageSettings>;
 export type ComputerView = Plain<app.ComputerView>;
-export type ComputerChange = Plain<app.ComputerChange>;
 export type SpeechPacksView = Plain<app.SpeechPacksView>;
 export type SpeechPackView = Plain<app.SpeechPackView>;
 
@@ -97,7 +96,6 @@ const events = {
   video: "video:changed",
   listening: "video:listening",
   opening: "video:opening",
-  computerChanged: "computer:changed",
   speechPacks: "speechpacks:changed",
 } as const;
 
@@ -180,9 +178,6 @@ export const backend = {
   installFFmpeg: () => api.InstallFFmpeg(),
   setThumbnails: (thumbnails: ThumbnailSettings) => api.SetThumbnails(thumbnails as app.ThumbnailSettings),
   clearThumbnails: () => api.ClearThumbnails(),
-  /** computerChange is the question of a computer of another level, if one waits for an answer. */
-  computerChange: (): Promise<ComputerChange> => api.ComputerChange(),
-  answerComputerChange: (adjust: boolean) => api.AnswerComputerChange(adjust),
   adjustToComputer: () => api.AdjustToComputer(),
   /** speechPacks are the languages' speech packs, with the computer's level. */
   speechPacks: (): Promise<SpeechPacksView> => api.SpeechPacks(),
@@ -230,8 +225,6 @@ export const backend = {
   onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
   /** onOpening hears how far opening a video has gone, for the bar while a large video is read. */
   onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
-  /** onComputerChanged hears the app runs on a computer of another level than the settings were adjusted to. */
-  onComputerChanged: (listener: (change: ComputerChange) => void) => EventsOn(events.computerChanged, listener),
   /** onSpeechPacks hears a speech pack began or stopped being fetched, went further, or was removed. */
   onSpeechPacks: (listener: (view: SpeechPacksView) => void) => EventsOn(events.speechPacks, listener),
 };

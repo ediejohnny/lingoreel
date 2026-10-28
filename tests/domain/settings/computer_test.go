@@ -88,8 +88,8 @@ func TestRecordingAComputerChangesNothing(t *testing.T) {
 	}
 }
 
-// The record knows the computer it was made on, one the person declined to
-// adjust to, and one nothing was read of; any other is news.
+// The record knows the computer it was made on and one nothing was read of;
+// any other is news.
 func TestTheRecordKnowsItsComputers(t *testing.T) {
 	t.Parallel()
 	config := settings.DefaultConfig()
@@ -100,15 +100,8 @@ func TestTheRecordKnowsItsComputers(t *testing.T) {
 	if !config.Computer.Adjusted() || !config.Computer.Knows(studioPC.Identity()) || !config.Computer.Knows(capacity.Identity{}) {
 		t.Fatalf("the record does not know its own computer: %+v", config.Computer)
 	}
-	if config.Computer.Knows(schoolPC.Identity()) {
+	if config.Computer.Knows(schoolPC.Identity()) || config.Computer.Knows(studioPC2.Identity()) {
 		t.Fatal("another computer passed for the one recorded")
-	}
-	config.DeclineComputer(schoolPC.Identity())
-	if !config.Computer.Knows(schoolPC.Identity()) || config.Computer.Knows(studioPC2.Identity()) {
-		t.Fatalf("the declined computer is asked about again, or a third one is not: %+v", config.Computer)
-	}
-	if !config.Computer.Knows(capacity.Identity{}) {
-		t.Fatal("with a computer declined, one nothing was read of became news")
 	}
 }
 
@@ -120,7 +113,7 @@ func TestABrokenComputerRecordIsRefused(t *testing.T) {
 	for _, record := range []settings.ComputerRecord{
 		{Level: "ultra"},
 		{Level: capacity.LevelHigh, Identity: capacity.Identity{Processors: -1}},
-		{Level: capacity.LevelHigh, Declined: capacity.Identity{MemoryGiB: -4}},
+		{Level: capacity.LevelHigh, Identity: capacity.Identity{MemoryGiB: -4}},
 		{Level: capacity.LevelHigh, Identity: capacity.Identity{Processor: strings.Repeat("é", capacity.MaxProcessorName+1)}},
 	} {
 		config := settings.DefaultConfig()

@@ -134,7 +134,8 @@ Every shortcut can be changed in Settings › Shortcuts, per profile.
 As a game does, the app sets itself up for the computer on its first opening, at a level read from the hardware alone:
 Basic (2 logical cores or fewer, or under 4 GB of memory), Medium, or High (4 cores or more and 8 GB or more). At the
 Basic level the voice AI starts off, and can be turned on at your own risk. Settings › General › This computer shows
-the level and adjusts to it again; on a computer of another level, the app asks before changing anything.
+the level and adjusts to it again. As a game does, the app reads the computer every time it opens: on one of another
+level it adjusts by itself, keeping what you changed by hand.
 
 ## Privacy
 

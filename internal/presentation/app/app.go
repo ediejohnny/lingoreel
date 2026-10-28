@@ -261,10 +261,8 @@ type API struct {
 	projectWrites, settingsWrites sync.Mutex
 	// welcoming tells the first run's welcome is not answered yet.
 	welcoming bool
-	// machine is the computer as read, once; computerChanged tells the
-	// question of a computer of another level waits for an answer.
-	machine         func() capacity.Machine
-	computerChanged bool
+	// machine is the computer as read, once.
+	machine func() capacity.Machine
 	// settingsNotes tell, in the language of the moment, why a settings file
 	// could not be read and what becomes of it.
 	settingsNotes []func() string

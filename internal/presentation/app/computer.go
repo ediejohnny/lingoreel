@@ -2,98 +2,39 @@ package app
 
 import "github.com/ediejohnny/lingoreel/internal/domain/settings"
 
-// EventComputerChanged tells the screens the app runs on another computer,
-// of another level than the one the settings were adjusted to: they ask
-// whether to adjust again (ComputerChange, AnswerComputerChange).
-const EventComputerChanged = "computer:changed"
-
-// meetComputer compares the computer with the one the settings were adjusted
-// to, once the settings are loaded. The first run's welcome records it. One
-// already known, or one never adjusted to (someone from before the levels),
-// or another of the same level, is recorded and nothing changes; another of
-// another level waits for the person's answer. Called without a.mu.
+// meetComputer reads the computer on every start, as a game does, once the
+// settings are loaded. The first run's welcome records it; the computer
+// recorded, or one nothing was read of, changes nothing. Any other is
+// recorded, and when its level is another, every setting the level decides
+// that is still as the old level had it moves to the new one; what was
+// chosen by hand stays. Someone from before the levels is only recorded.
+// Nothing is asked. Called without a.mu.
 func (a *API) meetComputer() {
 	machine := a.machine()
 	id := machine.Identity()
 	a.mu.Lock()
 	welcoming, record := a.welcoming, a.config.Computer
-	known := welcoming || record.Knows(id)
-	changed := !known && record.Adjusted() && record.Level != machine.Level()
-	if changed {
-		a.computerChanged = true
-	}
 	a.mu.Unlock()
-	switch {
-	case known:
-	case changed:
-		a.logger.Info("another computer", "level", machine.Level(), "adjustedTo", record.Level)
-		a.emit(EventComputerChanged, a.ComputerChange())
-	default:
-		if err := a.changeConfig(func(next *settings.Config) error {
-			if !next.Computer.Knows(id) {
-				next.RecordComputer(machine)
-			}
-			return nil
-		}); err != nil {
-			a.logger.Warn("the computer was not recorded", "error", err)
-		}
-	}
-}
-
-// ComputerChange is the question asked when the app runs on a computer of
-// another level, with the computer; Asked is false when none waits.
-func (a *API) ComputerChange() ComputerChange {
-	view := a.computerView()
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return ComputerChange{Asked: a.computerChanged, Computer: view}
-}
-
-// AnswerComputerChange answers the question of the computer that changed:
-// adjusting moves to its level what still is as the old level had it,
-// keeping what was chosen by hand; declining keeps every setting and the
-// computer is not asked about again. With no question waiting it does
-// nothing.
-func (a *API) AnswerComputerChange(adjust bool) error {
-	machine := a.machine()
-	a.mu.Lock()
-	asked := a.computerChanged
-	a.mu.Unlock()
-	if !asked {
-		return nil
+	if welcoming || record.Knows(id) {
+		return
 	}
 	if err := a.changeConfig(func(next *settings.Config) error {
-		if adjust {
+		if !next.Computer.Knows(id) {
 			next.AdjustKeepingChoices(machine)
-		} else {
-			next.DeclineComputer(machine.Identity())
 		}
 		return nil
 	}); err != nil {
-		return err
+		a.logger.Warn("the computer was not recorded", "error", err)
+		return
 	}
-	a.settleComputerChange()
-	a.logger.Info("computer change answered", "adjusted", adjust, "level", machine.Level())
-	a.applyVoice()
-	return nil
-}
-
-// settleComputerChange ends the question of a changed computer; the screens
-// are told when one was waiting, so none of them keeps asking it. Called
-// without a.mu.
-func (a *API) settleComputerChange() {
-	a.mu.Lock()
-	asked := a.computerChanged
-	a.computerChanged = false
-	a.mu.Unlock()
-	if asked {
-		a.emit(EventComputerChanged, a.ComputerChange())
+	if record.Adjusted() && record.Level != machine.Level() {
+		a.logger.Info("adjusted to another computer", "level", machine.Level(), "was", record.Level)
+		a.applyVoice()
 	}
 }
 
 // AdjustToComputer puts every setting the computer's level decides to the
-// level's own, also the ones chosen by hand, as the settings' button asks;
-// a question of a changed computer is answered by it.
+// level's own, also the ones chosen by hand, as the settings' button asks.
 func (a *API) AdjustToComputer() error {
 	machine := a.machine()
 	if err := a.changeConfig(func(next *settings.Config) error {
@@ -102,7 +43,6 @@ func (a *API) AdjustToComputer() error {
 	}); err != nil {
 		return err
 	}
-	a.settleComputerChange()
 	a.logger.Info("adjusted to the computer", "level", machine.Level())
 	a.applyVoice()
 	return nil

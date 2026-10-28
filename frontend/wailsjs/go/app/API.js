@@ -14,10 +14,6 @@ export function AdjustToComputer() {
   return window['go']['app']['API']['AdjustToComputer']();
 }
 
-export function AnswerComputerChange(arg1) {
-  return window['go']['app']['API']['AnswerComputerChange'](arg1);
-}
-
 export function ApplyPreset(arg1, arg2) {
   return window['go']['app']['API']['ApplyPreset'](arg1, arg2);
 }
@@ -60,10 +56,6 @@ export function ClearSelection() {
 
 export function ClearThumbnails() {
   return window['go']['app']['API']['ClearThumbnails']();
-}
-
-export function ComputerChange() {
-  return window['go']['app']['API']['ComputerChange']();
 }
 
 export function CreateProfile(arg1) {

@@ -57,14 +57,6 @@ type ComputerView struct {
 	Adjusted   string `json:"adjusted"`
 }
 
-// ComputerChange is the question asked when the app runs on a computer of
-// another level than the one the settings were adjusted to: Asked tells it
-// waits for an answer.
-type ComputerChange struct {
-	Asked    bool         `json:"asked"`
-	Computer ComputerView `json:"computer"`
-}
-
 // SpeechPacksView is every language's speech pack, with the computer's level
 // ("basic", "medium" or "high"); Available is false when the app keeps none.
 type SpeechPacksView struct {
