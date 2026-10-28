@@ -15,10 +15,13 @@ const (
 	// MinLanguageLines is how many lines a language needs to be judged.
 	MinLanguageLines = 4
 	// minLanguageScore is the sureness that makes a language the track's.
-	// Measured on Sintel: its English lines in English give a median of 0.90.
+	// Measured on real sound (Sintel and a dubbed film, English and
+	// Portuguese tracks): the language spoken scores 0.76 to 0.85, a language
+	// not spoken 0.20 to 0.26.
 	minLanguageScore = 0.6
 	// minLanguageLead is how far the language found must be above any other
-	// judged, so two close candidates decide nothing.
+	// judged, so two close candidates decide nothing; the leads measured were
+	// 0.53 to 0.61.
 	minLanguageLead = 0.2
 )
 

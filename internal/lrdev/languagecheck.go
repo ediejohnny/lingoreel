@@ -104,7 +104,7 @@ func languageCheck(ctx context.Context, args []string, stdout io.Writer) error {
 	stretch := voice.Stretch{File: path, Track: *audio - 1, Channels: track.Channels, Codec: track.Codec}
 
 	out := &printer{w: stdout}
-	out.line("Audio:     #%d (%s%s), the track heard", track.Number, orUnknown(string(track.Language)), guessedMark(track))
+	out.line("Audio:     %s (%s%s), the track heard", trackLabel(track.Number), orUnknown(string(track.Language)), guessedMark(track))
 	var scores []speech.LanguageScore
 	for _, language := range languages {
 		model, err := speechpack.Open(dll, models[language], *threads)
@@ -118,7 +118,7 @@ func languageCheck(ctx context.Context, args []string, stdout io.Writer) error {
 			return err
 		}
 		scores = append(scores, found...)
-		out.line("%-4s subtitle #%d, %d lines heard of %d: score %.2f", language, numbers[language], found[0].Lines, len(lines), found[0].Score)
+		out.line("%-4s subtitle %s, %d lines heard of %d: score %.2f", language, trackLabel(numbers[language]), found[0].Lines, len(lines), found[0].Score)
 	}
 	if language, ok := speech.HeardLanguage(scores); ok {
 		out.line("Decided:   %s", language)
