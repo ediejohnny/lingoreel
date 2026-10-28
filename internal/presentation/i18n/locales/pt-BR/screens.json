@@ -669,5 +669,6 @@
   "ui.welcome.tools.looking": "Procurando os players…",
   "ui.welcome.tools.player": "Player",
   "ui.welcome.tools.playerHelp": "O app desenha as legendas por cima do vídeo tocado pelo VLC ou pelo PotPlayer. Automático usa o primeiro que encontrar.",
-  "ui.welcome.tools.title": "Player e FFmpeg"
+  "ui.welcome.tools.title": "Player e FFmpeg",
+  "ui.welcome.tools.weak": "Por isso a IA de voz começa desligada. Dá para ligar mesmo assim, por sua conta e risco: o app pode ficar pesado e os vídeos podem demorar para abrir. Desligada, o Modo Karaokê segue a estimativa."
 }

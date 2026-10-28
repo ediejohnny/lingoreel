@@ -36,6 +36,10 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- Settings › General › This computer scrolls to its question when "Adjust again to this computer" is pressed, and
+  tells the adjustment inside the card instead of at the top of the page.
+- In the setup assistant, the warning of a basic computer no longer repeats the level the line above it tells.
+- A help note (?) near the bottom of the window opens above its mark when it fits there.
 - An audio track whose file does not tell its language reads "Language not given by the file" in the lists, instead of
   "English" (only the format's default) or "unknown language".
 - The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as

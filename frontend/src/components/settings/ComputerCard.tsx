@@ -1,5 +1,5 @@
 import { Cpu } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adjustedApart, computerFacts, levelName } from "../../computer";
 import { t } from "../../i18n";
 import { backend } from "../../services/backend";
@@ -14,8 +14,18 @@ import type { SectionProps } from "./section";
  */
 export function ComputerCard({ view, dirty, run }: Pick<SectionProps, "view" | "dirty" | "run">) {
   const [confirming, setConfirming] = useState(false);
+  const [adjusted, setAdjusted] = useState("");
+  const confirmation = useRef<HTMLDivElement>(null);
   const computer = view.general.computer;
   const level = levelName(computer.level);
+
+  // The question and the answer show where the button was, even at the
+  // bottom of a short window.
+  useEffect(() => {
+    if (confirming) {
+      confirmation.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [confirming]);
 
   return (
     <Card title={t("ui.computer.title")} aside={<HelpTip topic={t("ui.computer.topic")}>{t("ui.computer.help")}</HelpTip>}>
@@ -31,8 +41,13 @@ export function ComputerCard({ view, dirty, run }: Pick<SectionProps, "view" | "
         {adjustedApart(computer) && (
           <p className="text-xs text-fg-muted">{t("ui.computer.adjustedApart", { level: levelName(computer.adjusted) })}</p>
         )}
+        {adjusted && (
+          <p role="status" className="text-sm text-fg">
+            {adjusted}
+          </p>
+        )}
         {confirming ? (
-          <div className="flex flex-col gap-3 rounded-control border border-line bg-surface-sunken p-3">
+          <div ref={confirmation} className="flex flex-col gap-3 rounded-control border border-line bg-surface-sunken p-3">
             <p className="text-sm text-fg">{t("ui.computer.confirm", { level })}</p>
             <div className="flex gap-2">
               <Button
@@ -40,7 +55,11 @@ export function ComputerCard({ view, dirty, run }: Pick<SectionProps, "view" | "
                 icon={Cpu}
                 onClick={() => {
                   setConfirming(false);
-                  void run(() => backend.adjustToComputer(), t("ui.computer.adjusted", { level }));
+                  void run(() => backend.adjustToComputer()).then((worked) => {
+                    if (worked) {
+                      setAdjusted(t("ui.computer.adjusted", { level }));
+                    }
+                  });
                 }}
               >
                 {t("ui.computer.adjust")}
@@ -53,7 +72,14 @@ export function ComputerCard({ view, dirty, run }: Pick<SectionProps, "view" | "
         ) : (
           <div className="flex flex-col gap-2">
             <div>
-              <Button icon={Cpu} disabled={dirty} onClick={() => setConfirming(true)}>
+              <Button
+                icon={Cpu}
+                disabled={dirty}
+                onClick={() => {
+                  setAdjusted("");
+                  setConfirming(true);
+                }}
+              >
                 {t("ui.computer.adjust")}
               </Button>
             </div>

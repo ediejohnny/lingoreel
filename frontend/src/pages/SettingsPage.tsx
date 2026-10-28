@@ -170,8 +170,10 @@ export function SettingsPage({
           // Worded after the action, which may have changed the language.
           setNotice(typeof done === "function" ? done() : done);
         }
+        return true;
       } catch (failure) {
         setError(messageOf(failure));
+        return false;
       }
     },
     [reload, onSaved],

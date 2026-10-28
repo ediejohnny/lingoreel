@@ -669,5 +669,6 @@
   "ui.welcome.tools.looking": "Looking for the players…",
   "ui.welcome.tools.player": "Player",
   "ui.welcome.tools.playerHelp": "The app draws the subtitles over the video played by VLC or PotPlayer. Automatic uses the first one it finds.",
-  "ui.welcome.tools.title": "Player and FFmpeg"
+  "ui.welcome.tools.title": "Player and FFmpeg",
+  "ui.welcome.tools.weak": "So the voice AI starts off. You can turn it on anyway, at your own risk: the app may get heavy and videos may take longer to open. With it off, the karaoke mode follows the estimate."
 }

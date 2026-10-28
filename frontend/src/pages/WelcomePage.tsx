@@ -156,8 +156,10 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
     try {
       await action();
       await refreshTools();
+      return true;
     } catch (failure) {
       setError(messageOf(failure));
+      return false;
     }
   };
 
@@ -326,7 +328,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
                   help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
                 />
                 <p className="text-xs text-fg-muted">{t("ui.welcome.tools.level", { level: levelName(view.computer.level) })}</p>
-                {view.weak && <Banner tone="warning">{t("ui.settings.voice.weak")}</Banner>}
+                {view.weak && <Banner tone="warning">{t("ui.welcome.tools.weak")}</Banner>}
               </div>
               {voice && (
                 <FFmpegRow

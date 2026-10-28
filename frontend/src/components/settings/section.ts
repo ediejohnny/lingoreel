@@ -10,8 +10,8 @@ export interface SectionProps {
   setDraft: Dispatch<SetStateAction<ProfileSettings | null>>;
   /** dirty tells the draft has unsaved changes. */
   dirty: boolean;
-  /** run carries out an action that applies at once, then reloads; done is said when it worked. */
-  run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<void>;
+  /** run carries out an action that applies at once, then reloads; done is said when it worked, and it resolves true then. */
+  run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<boolean>;
   /** open shows another page of the settings. */
   open?: (section: SectionId) => void;
   /** welcome opens the first run's welcome again; absent while a video plays. */
