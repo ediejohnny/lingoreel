@@ -1,4 +1,4 @@
-import { Keyboard, RotateCcw, X } from "lucide-react";
+import { Keyboard, RotateBack, X } from "../ui/icons";
 import { useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { backend, messageOf } from "../../services/backend";
@@ -116,7 +116,7 @@ export function ShortcutCapture({ name, label, taken, onChange, onClear, onDefau
           <span className="size-9" />
         )}
         {onDefault ? (
-          <IconButton icon={RotateCcw} label={t("ui.settings.shortcut.default", { name })} onClick={onDefault} />
+          <IconButton icon={RotateBack} label={t("ui.settings.shortcut.default", { name })} onClick={onDefault} />
         ) : (
           <span className="size-9" />
         )}

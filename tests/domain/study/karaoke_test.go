@@ -40,24 +40,47 @@ func TestUpcomingCueAfterALongSilence(t *testing.T) {
 	t.Parallel()
 	timeline := scene(t)
 	// e2: 16 s of silence, so its preview starts 5 s before it, at 15 s.
-	cue, ok := study.UpcomingCue(timeline, 0, s(15), defaults)
+	cue, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(15), defaults)
 	if !ok || cue.Event.ID != "e2" || cue.Start != s(20) || cue.Lead != s(5) || cue.Remaining != s(5) || cue.Progress() != 1 {
 		t.Fatalf("at 15 s: %+v %v", cue, ok)
 	}
-	if _, ok := study.UpcomingCue(timeline, 0, s(15)-1, defaults); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(15)-1, defaults); ok {
 		t.Fatal("preview 1 ns before its lead")
 	}
-	cue, _ = study.UpcomingCue(timeline, 0, s(19), defaults)
+	cue, _ = study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(19), defaults)
 	if cue.Remaining != s(1) || math.Abs(cue.Progress()-0.2) > 1e-9 {
 		t.Fatalf("at 19 s: remaining %v progress %v", cue.Remaining, cue.Progress())
 	}
 	// At 20 s e2 is spoken: the next line (e3) comes after only 1 s.
-	if _, ok := study.UpcomingCue(timeline, 0, s(20), defaults); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(20), defaults); ok {
 		t.Fatal("a preview while nothing qualifies")
 	}
 	// The first line counts its silence from the start of the video: 2 s.
-	if _, ok := study.UpcomingCue(timeline, 0, s(1), defaults); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(1), defaults); ok {
 		t.Fatal("the first line had a preview after 2 s of silence")
+	}
+}
+
+// An actor who begins before the line shows ends its preview then: e2's
+// voice begins at 19.6 s, so the bar, still whole at 15 s, is empty at
+// 19.6 s; a voice beginning on time or late leaves the cue as it is.
+func TestAPreviewEndsAsTheVoiceBegins(t *testing.T) {
+	t.Parallel()
+	placed := subtitle.Placed{Timeline: scene(t)}
+	at15, _ := study.UpcomingCue(placed, s(15), defaults)
+	if early := at15.Until(s(19.6)); early.Start != s(19.6) || early.Remaining != s(4.6) || early.Progress() != 1 {
+		t.Fatalf("at 15 s, the voice at 19.6 s: %+v, want the whole bar counting 4.6 s to it", early)
+	}
+	at19, _ := study.UpcomingCue(placed, s(19), defaults)
+	if early := at19.Until(s(19.6)); math.Abs(early.Progress()-0.6/4.6) > 1e-9 || early.Countdown(1) != 1 {
+		t.Fatalf("at 19 s: progress %v, countdown %d; want 0.6 s of 4.6 left", early.Progress(), early.Countdown(1))
+	}
+	at19_8, _ := study.UpcomingCue(placed, s(19.8), defaults)
+	if said := at19_8.Until(s(19.6)); said.Remaining > 0 || said.Progress() != 0 || said.Countdown(1) != 0 {
+		t.Fatalf("at 19.8 s, the voice begun: %+v, want nothing left", said)
+	}
+	if late := at15.Until(s(20.3)); late != at15 {
+		t.Fatalf("a voice beginning late moved the cue: %+v", late)
 	}
 }
 
@@ -65,11 +88,11 @@ func TestMinimumGapBoundary(t *testing.T) {
 	t.Parallel()
 	timeline := scene(t)
 	exact := study.CueRules{MinGap: s(16), Lead: s(5)}
-	if _, ok := study.UpcomingCue(timeline, 0, s(16), exact); !ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(16), exact); !ok {
 		t.Fatal("a silence exactly as long as the minimum gave no preview")
 	}
 	above := study.CueRules{MinGap: s(16) + 1, Lead: s(5)}
-	if _, ok := study.UpcomingCue(timeline, 0, s(16), above); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(16), above); ok {
 		t.Fatal("a silence 1 ns shorter than the minimum gave a preview")
 	}
 }
@@ -80,15 +103,15 @@ func TestLeadNeverCoversTheLineBefore(t *testing.T) {
 	// e5 after 5 s of silence with a 10 s lead: the preview starts when e4
 	// ends (40 s), not before.
 	rules := study.CueRules{MinGap: s(3), Lead: s(10)}
-	cue, ok := study.UpcomingCue(timeline, 0, s(40), rules)
+	cue, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(40), rules)
 	if !ok || cue.Event.ID != "e5" || cue.Lead != s(5) {
 		t.Fatalf("at 40 s: %+v %v", cue, ok)
 	}
-	if _, ok := study.UpcomingCue(timeline, 0, s(39.9), rules); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(39.9), rules); ok {
 		t.Fatal("the preview started while e4 was on screen")
 	}
 	// Overlapping lines (e4 starts inside e3) never get a preview.
-	if cue, ok := study.UpcomingCue(timeline, 0, s(24.5), study.CueRules{MinGap: s(3), Lead: s(2)}); ok {
+	if cue, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline}, s(24.5), study.CueRules{MinGap: s(3), Lead: s(2)}); ok {
 		t.Fatalf("an overlapping line got a preview: %+v", cue)
 	}
 }
@@ -98,14 +121,14 @@ func TestUpcomingCueFollowsTheOffset(t *testing.T) {
 	timeline := scene(t)
 	// +2 s shows the track later: e2 is spoken at 22 s, its preview at 17 s.
 	offset := subtitle.Offset(s(2))
-	cue, ok := study.UpcomingCue(timeline, offset, s(17), defaults)
+	cue, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline, Offset: offset}, s(17), defaults)
 	if !ok || cue.Start != s(22) || cue.Remaining != s(5) {
 		t.Fatalf("with +2 s at 17 s: %+v %v", cue, ok)
 	}
-	if _, ok := study.UpcomingCue(timeline, offset, s(16.9), defaults); ok {
+	if _, ok := study.UpcomingCue(subtitle.Placed{Timeline: timeline, Offset: offset}, s(16.9), defaults); ok {
 		t.Fatal("the offset was ignored")
 	}
-	if next, ok := study.NextCueStartAfter(timeline, offset, 0, defaults); !ok || next != s(17) {
+	if next, ok := study.NextCueStartAfter(subtitle.Placed{Timeline: timeline, Offset: offset}, 0, defaults); !ok || next != s(17) {
 		t.Fatalf("next preview with +2 s = %v %v, want 17 s", next, ok)
 	}
 }
@@ -113,14 +136,14 @@ func TestUpcomingCueFollowsTheOffset(t *testing.T) {
 func TestNextCueStartAfter(t *testing.T) {
 	t.Parallel()
 	timeline := scene(t)
-	if next, ok := study.NextCueStartAfter(timeline, 0, 0, defaults); !ok || next != s(15) {
+	if next, ok := study.NextCueStartAfter(subtitle.Placed{Timeline: timeline}, 0, defaults); !ok || next != s(15) {
 		t.Fatalf("from 0: %v %v", next, ok)
 	}
 	// From the moment e2's preview began, no later line qualifies.
-	if next, ok := study.NextCueStartAfter(timeline, 0, s(15), defaults); ok {
+	if next, ok := study.NextCueStartAfter(subtitle.Placed{Timeline: timeline}, s(15), defaults); ok {
 		t.Fatalf("from 15 s: %v, want none", next)
 	}
-	if _, ok := study.NextCueStartAfter(nil, 0, 0, defaults); ok {
+	if _, ok := study.NextCueStartAfter(subtitle.Placed{}, 0, defaults); ok {
 		t.Fatal("a missing timeline has previews")
 	}
 }
@@ -162,7 +185,7 @@ func TestReplayTarget(t *testing.T) {
 		{"never before the video", 2.5, subtitle.Offset(-s(1.5)), 0, true},
 	}
 	for _, c := range cases {
-		got, ok := study.ReplayTarget(timeline, c.offset, s(c.position), defaults)
+		got, ok := study.ReplayTarget(subtitle.Placed{Timeline: timeline, Offset: c.offset}, s(c.position), defaults)
 		if ok != c.ok || (ok && got != s(c.want)) {
 			t.Errorf("%s: %v %v, want %v %v", c.name, got, ok, s(c.want), c.ok)
 		}
@@ -191,7 +214,7 @@ func TestReplayTargetInAPassage(t *testing.T) {
 	}
 	for _, c := range cases {
 		passage := study.Segment{Start: s(c.start), End: s(c.end)}
-		if got := study.ReplayTargetIn(timeline, 0, s(c.pos), defaults, passage); got != s(c.want) {
+		if got := study.ReplayTargetIn(subtitle.Placed{Timeline: timeline}, s(c.pos), defaults, passage); got != s(c.want) {
 			t.Errorf("%s: %v, want %v", c.name, got, s(c.want))
 		}
 	}

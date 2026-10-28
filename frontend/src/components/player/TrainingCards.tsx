@@ -1,4 +1,4 @@
-import { BookOpenCheck, Bookmark, Flag, LogOut, RotateCcw, Undo2 } from "lucide-react";
+import { BookOpenCheck, Bookmark, Flag, LogOut, RotateBack, Undo } from "../ui/icons";
 import { useState } from "react";
 import { passageClock } from "../../format";
 import { t } from "../../i18n";
@@ -8,7 +8,7 @@ import type { Playback } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Toggle, TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { Rich } from "../ui/Rich";
 import { Select } from "../ui/Select";
 import { SavedPassages } from "./SavedPassages";
@@ -19,6 +19,10 @@ interface TrainingCardsProps {
   label: (command: string) => string;
   onCommand: (command: () => Promise<void>) => void;
 }
+
+/** sampleStart and sampleEnd are the times the passage's fields show as an example, in seconds. */
+const sampleStart = 4223;
+const sampleEnd = 4264;
 
 const repeatOptions = () =>
   Array.from({ length: 11 }, (_, times) => ({
@@ -64,10 +68,11 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
   const voice = voiceStates[karaoke.voice];
   const replayKey = label("replay-line");
   return (
-    <Card title={t("ui.karaoke.title")} aside={<HelpTip topic={t("ui.karaoke.topic")}>{t("ui.karaoke.help")}</HelpTip>}>
+    <Card title={t("ui.karaoke.title")} aside={<KeyedTip k="ui.karaoke" />}>
       <div className="flex flex-col gap-4">
         <Toggle label={t("ui.karaoke.enable")} checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
-        {karaoke.enabled && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
+        {karaoke.enabled && karaoke.noStudyLine && <p className="text-xs text-warning">{t("ui.karaoke.noStudyLine")}</p>}
+        {karaoke.enabled && !karaoke.noStudyLine && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
         <Select
           label={t("ui.karaoke.indicator.label")}
           value={karaoke.indicator}
@@ -76,18 +81,18 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
             { value: "countdown", label: t("ui.karaoke.indicator.countdown") },
           ]}
           onChange={(value) => onCommand(() => backend.setKaraokeIndicator(value))}
-          help={<HelpTip topic={t("ui.karaoke.indicator.topic")}>{t("ui.karaoke.indicator.help")}</HelpTip>}
+          help={<KeyedTip k="ui.karaoke.indicator" />}
         />
         <Select
           label={t("ui.karaoke.repeat.label")}
           value={String(karaoke.repeat)}
           options={repeatOptions()}
           onChange={(value) => onCommand(() => backend.setLineRepeats(Number(value)))}
-          help={<HelpTip topic={t("ui.karaoke.repeat.topic")}>{t("ui.karaoke.repeat.help")}</HelpTip>}
+          help={<KeyedTip k="ui.karaoke.repeat" />}
         />
         <div className="flex items-center gap-1">
           <Button
-            icon={RotateCcw}
+            icon={RotateBack}
             onClick={() => onCommand(backend.replayLine)}
             title={replayKey ? t("ui.karaoke.replay.tip", { key: replayKey }) : t("ui.karaoke.replay.label")}
           >
@@ -195,7 +200,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {passage.suspended && (
-                <Button icon={Undo2} onClick={() => onCommand(backend.resumePassage)}>
+                <Button icon={Undo} onClick={() => onCommand(backend.resumePassage)}>
                   {t("ui.passage.resume")}
                 </Button>
               )}
@@ -215,7 +220,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
                     {t("ui.passage.saveAs.button")}
                   </Button>
                 }
-                help={<HelpTip topic={t("ui.passage.saveAs.topic")}>{t("ui.passage.saveAs.help")}</HelpTip>}
+                help={<KeyedTip k="ui.passage.saveAs" />}
               />
             </div>
           </div>
@@ -229,7 +234,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
               studyLabel={t("ui.passage.study")}
               onStudy={(saved) => onCommand(() => backend.studySavedPassage(saved))}
               onRename={(from, to) => backend.renamePassage(from, to)}
-              onDelete={async (saved) => onCommand(() => backend.deletePassage(saved))}
+              onDelete={(saved) => onCommand(() => backend.deletePassage(saved))}
             />
           </div>
         )}
@@ -238,18 +243,30 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
           <summary className="cursor-pointer text-sm font-medium text-fg">{t("ui.passage.more")}</summary>
           <div className="mt-3 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
-              <TextField label={t("ui.passage.start")} value={start} onChange={setStart} placeholder="1:10:23" action={mark(setStart)} />
-              <TextField label={t("ui.passage.end")} value={end} onChange={setEnd} placeholder="1:11:04" action={mark(setEnd)} />
+              <TextField
+                label={t("ui.passage.start")}
+                value={start}
+                onChange={setStart}
+                placeholder={passageClock(sampleStart)}
+                action={mark(setStart)}
+              />
+              <TextField
+                label={t("ui.passage.end")}
+                value={end}
+                onChange={setEnd}
+                placeholder={passageClock(sampleEnd)}
+                action={mark(setEnd)}
+              />
             </div>
             <div className="flex items-center gap-1">
               <Button onClick={thisLine}>{t("ui.passage.thisLine.label")}</Button>
-              <HelpTip topic={t("ui.passage.thisLine.topic")}>{t("ui.passage.thisLine.help")}</HelpTip>
+              <KeyedTip k="ui.passage.thisLine" />
             </div>
             <Toggle
               label={t("ui.passage.snap.label")}
               checked={options.snap}
               onChange={(snap) => change({ snap })}
-              help={<HelpTip topic={t("ui.passage.snap.topic")}>{t("ui.passage.snap.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.snap" />}
             />
             <Select
               label={t("ui.passage.onEnd.label")}
@@ -259,7 +276,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
                 { value: "loop", label: t("ui.passage.onEnd.loop") },
               ]}
               onChange={(value) => change({ loop: value === "loop" })}
-              help={<HelpTip topic={t("ui.passage.onEnd.topic")}>{t("ui.passage.onEnd.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.onEnd" />}
             />
             {options.loop && (
               <Select
@@ -273,20 +290,20 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
               label={t("ui.passage.progressive.label")}
               checked={options.progressive}
               onChange={(progressive) => change({ progressive })}
-              help={<HelpTip topic={t("ui.passage.progressive.topic")}>{t("ui.passage.progressive.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.progressive" />}
             />
             <Toggle
               label={t("ui.passage.ladder.label")}
               checked={options.ladder}
               onChange={(ladder) => change({ ladder })}
-              help={<HelpTip topic={t("ui.passage.ladder.topic")}>{t("ui.passage.ladder.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.ladder" />}
             />
             <Select
               label={t("ui.passage.goal.label")}
               value={String(options.goal)}
               options={goalOptions()}
               onChange={(value) => change({ goal: Number(value) })}
-              help={<HelpTip topic={t("ui.passage.goal.topic")}>{t("ui.passage.goal.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.goal" />}
             />
             <Button variant="primary" icon={BookOpenCheck} onClick={study}>
               {t("ui.passage.studyNow")}

@@ -57,7 +57,8 @@ export type WelcomeView = Plain<app.WelcomeView>;
 export type WelcomeChoices = Plain<app.WelcomeChoices>;
 export type LanguageSettings = Plain<app.LanguageSettings>;
 export type ComputerView = Plain<app.ComputerView>;
-export type ComputerChange = Plain<app.ComputerChange>;
+export type SpeechPacksView = Plain<app.SpeechPacksView>;
+export type SpeechPackView = Plain<app.SpeechPackView>;
 
 /** PanelRequest asks to open the panel beside the video on a section: "editor" or "settings" (with a page). */
 export interface PanelRequest {
@@ -95,7 +96,7 @@ const events = {
   video: "video:changed",
   listening: "video:listening",
   opening: "video:opening",
-  computerChanged: "computer:changed",
+  speechPacks: "speechpacks:changed",
 } as const;
 
 /** messageOf turns a failed call into the sentence the Go side wrote. */
@@ -177,10 +178,12 @@ export const backend = {
   installFFmpeg: () => api.InstallFFmpeg(),
   setThumbnails: (thumbnails: ThumbnailSettings) => api.SetThumbnails(thumbnails as app.ThumbnailSettings),
   clearThumbnails: () => api.ClearThumbnails(),
-  /** computerChange is the question of a computer of another level, if one waits for an answer. */
-  computerChange: (): Promise<ComputerChange> => api.ComputerChange(),
-  answerComputerChange: (adjust: boolean) => api.AnswerComputerChange(adjust),
   adjustToComputer: () => api.AdjustToComputer(),
+  /** speechPacks are the languages' speech packs, with the computer's level. */
+  speechPacks: (): Promise<SpeechPacksView> => api.SpeechPacks(),
+  fetchSpeechPack: (language: string) => api.FetchSpeechPack(language),
+  cancelSpeechPack: () => api.CancelSpeechPack(),
+  removeSpeechPack: (language: string) => api.RemoveSpeechPack(language),
   switchProfile: (name: string) => api.SwitchProfile(name),
   createProfile: (name: string) => api.CreateProfile(name),
   renameProfile: (from: string, to: string) => api.RenameProfile(from, to),
@@ -222,6 +225,28 @@ export const backend = {
   onListening: (listener: (state: Listening) => void) => EventsOn(events.listening, listener),
   /** onOpening hears how far opening a video has gone, for the bar while a large video is read. */
   onOpening: (listener: (opening: Opening) => void) => EventsOn(events.opening, listener),
-  /** onComputerChanged hears the app runs on a computer of another level than the settings were adjusted to. */
-  onComputerChanged: (listener: (change: ComputerChange) => void) => EventsOn(events.computerChanged, listener),
+  /** onSpeechPacks hears a speech pack began or stopped being fetched, went further, or was removed. */
+  onSpeechPacks: (listener: (view: SpeechPacksView) => void) => EventsOn(events.speechPacks, listener),
 };
+
+/**
+ * PlayingCommands are what the screens run on the video that plays. Adding a subtitle file is the app's own: it also
+ * lists the file under the video.
+ */
+export type PlayingCommands = Pick<
+  typeof backend,
+  | "togglePause"
+  | "seekBy"
+  | "seekTo"
+  | "setSpeed"
+  | "nudge"
+  | "resetSync"
+  | "setTranslationVisible"
+  | "setStudyMode"
+  | "runShortcut"
+  | "reveal"
+  | "stop"
+  | "setFullscreen"
+  | "switchSubtitle"
+  | "switchAudio"
+> & { addSubtitleFile: (line: Line) => Promise<void> };

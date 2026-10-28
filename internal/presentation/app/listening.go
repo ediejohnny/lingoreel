@@ -2,10 +2,8 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/project"
@@ -22,9 +20,6 @@ import (
 // EventListening tells the session screen how far hearing the open video
 // has gone (a Listening).
 const EventListening = "video:listening"
-
-// findTimeout bounds the search for the user's FFmpeg before hearing.
-const findTimeout = 10 * time.Second
 
 // listening is the hearing of the open video's voice.
 type listening struct {
@@ -47,10 +42,9 @@ func withKeptFits(result analysis.Analysis, p *videoProject, preferences media.P
 
 // startListening starts hearing a video just opened, when some of its files
 // are still unheard and the voice model may work. Called with a.mu held.
-func (a *API) startListening(ctx context.Context, result analysis.Analysis, preferences media.Preferences) {
+func (a *API) startListening(ctx context.Context, result analysis.Analysis, preferences media.Preferences, onBattery bool) {
 	ports := a.deps.Ports
 	setup := voiceSetup(a.config.Voice)
-	onBattery := ports.Power != nil && ports.Power.OnBattery()
 	stretches := subtitle.HearingStretches(result.HearingLength())
 	if len(result.Unheard()) == 0 || len(stretches) == 0 || ports.Model == nil || ports.FindDecoder == nil ||
 		setup.Rest(onBattery) != watch.ModelAtWork {
@@ -59,7 +53,7 @@ func (a *API) startListening(ctx context.Context, result analysis.Analysis, pref
 	ctx, cancel := context.WithCancel(ctx)
 	l := &listening{cancel: cancel, state: Listening{Path: result.Path, Active: true, Stretch: 1, Stretches: len(stretches)}}
 	a.listen = l
-	go a.listenTo(ctx, l, result, stretches, setup.FFmpegPath, preferences)
+	go a.listenTo(ctx, l, result, setup.FFmpegPath, preferences)
 }
 
 // stopListening stops hearing a video, which is no longer the one open.
@@ -80,52 +74,38 @@ func (a *API) listeningTo(path string) Listening {
 	return Listening{Path: path}
 }
 
-// listenTo hears the stretches of a video's voice, then lines its unheard
-// files up with it.
-func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, stretches []subtitle.HearingStretch, ffmpegPath string, preferences media.Preferences) {
-	found, cancelFind := context.WithTimeout(ctx, findTimeout)
-	decoder := a.deps.Ports.FindDecoder(found, ffmpegPath)
-	cancelFind()
+// listenTo hears the stretches of a video's voice in the language of the
+// line on top, and the ones between them when the first leave a file
+// undecided, then lines its unheard files up with it.
+func (a *API) listenTo(ctx context.Context, l *listening, result analysis.Analysis, ffmpegPath string, preferences media.Preferences) {
+	decoder := a.decoderFor(ctx, ffmpegPath, "the video")
 	if decoder == nil {
-		a.logger.Info("the video was not heard: no FFmpeg found")
 		a.endListening(l, nil) // the files stay unheard
 		return
 	}
-	base := voiceOf(result, preferences.Primary)
-	heard := make([]speech.Track, 0, len(stretches))
-	for i, s := range stretches {
-		stretch := base
-		stretch.From, stretch.Length = s.From, s.Length
-		track, err := voice.Hear(ctx, decoder, a.deps.Ports.Model, stretch, func(done float64) { a.listened(l, i, done) })
-		if err != nil {
-			if ctx.Err() == nil {
-				a.logger.Warn("hearing the video failed", "error", err)
-			}
-			a.endListening(l, nil)
-			return
-		}
-		heard = append(heard, track)
+	heard, err := analysis.HearVoice(ctx, result, decoder, a.deps.Ports.Model, preferences.Primary, func(stretch int, done float64) {
+		a.listened(l, stretch, done)
+	})
+	var between []speech.Track
+	if more := subtitle.HearingStretchesBetween(result.HearingLength()); err == nil && len(more) > 0 && analysis.Undecided(result, heard) {
+		first := len(heard)
+		a.mu.Lock()
+		l.state.Stretches = first + len(more)
+		a.mu.Unlock()
+		between, err = analysis.HearMoreVoice(ctx, result, decoder, a.deps.Ports.Model, preferences.Primary, func(stretch int, done float64) {
+			a.listened(l, first+stretch, done)
+		})
 	}
-	_, fits := analysis.FitByVoice(result, heard, preferences)
-	a.logger.Info("the video was heard", "files", len(fits))
+	if err != nil {
+		if ctx.Err() == nil {
+			a.logger.Warn("hearing the video failed", "error", err)
+		}
+		a.endListening(l, nil)
+		return
+	}
+	_, fits := analysis.FitByVoice(result, heard, between, preferences)
+	a.logger.Info("the video was heard", "files", len(fits), "stretches", len(heard)+len(between))
 	a.endListening(l, fits)
-}
-
-// voiceOf is the audio track heard: the one speaking the language of the
-// line on top, the film's own (subtitles are timed to it, not to a dub);
-// else the first.
-func voiceOf(result analysis.Analysis, language media.LanguageTag) voice.Stretch {
-	stretch := voice.Stretch{File: result.Path}
-	track, position, found := media.VoiceTrack(result.Info, language)
-	if !found {
-		audio := result.Info.TracksOf(media.TrackAudio)
-		if len(audio) == 0 {
-			return stretch // a video whose tracks are not read: its first audio
-		}
-		track, position = audio[0], 0
-	}
-	stretch.Track, stretch.Channels, stretch.Codec = position, track.Channels, track.Codec
-	return stretch
 }
 
 // listened tells the screen how far hearing went, when it moved by a percent.
@@ -158,21 +138,9 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 	}
 	a.listen = nil
 	path := l.state.Path
-	if a.video == nil || a.video.Path != path {
-		a.mu.Unlock()
-		a.emit(EventListening, Listening{Path: path})
-		return
-	}
-	languages := a.profile().Languages
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
-	mode := a.profile().Study.Mode
-	next := a.video.WithFits(fits, preferences)
-	a.video = &next
-	opened, suggested := a.project, next.Suggested
-	if opened != nil && opened.video == path {
+	a.showFound(path, func(video analysis.Analysis, preferences media.Preferences) analysis.Analysis {
+		return video.WithFits(fits, preferences)
+	}, func(opened *videoProject, next analysis.Analysis) {
 		for number, fit := range fits {
 			if key := opened.keys[number]; key != "" {
 				track := opened.track(key)
@@ -182,11 +150,32 @@ func (a *API) endListening(l *listening, fits map[uint64]subtitle.Alignment) {
 			}
 		}
 		opened.correctInherited(next.Info, fits)
+	})
+	a.emit(EventListening, Listening{Path: path})
+}
+
+// showFound gives the open video what a hearing found, while it is still the
+// one at path: apply makes its analysis anew with the profile's preferences,
+// keep puts in its project what is kept of it, the tracks are suggested again
+// over what the project remembers, and the screens are told the video. It
+// tells whether the video was still open. Called with a.mu held, which it
+// lets go.
+func (a *API) showFound(path string, apply func(analysis.Analysis, media.Preferences) analysis.Analysis, keep func(*videoProject, analysis.Analysis)) bool {
+	if a.video == nil || a.video.Path != path {
+		a.mu.Unlock()
+		return false
+	}
+	mode := a.profile().Study.Mode
+	next := apply(*a.video, preferencesOf(a.profile().Languages))
+	a.video = &next
+	opened, suggested := a.project, next.Suggested
+	if opened != nil && opened.video == path {
+		keep(opened, next)
 		suggested, mode = opened.remembered(next.Info, next.Suggested, mode)
 	} else {
 		opened = nil
 	}
 	a.mu.Unlock()
 	a.emit(EventVideo, a.describeVideo(next, opened, suggested, mode))
-	a.emit(EventListening, Listening{Path: path})
+	return true
 }

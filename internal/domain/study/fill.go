@@ -102,6 +102,80 @@ func PlanFill(units Units, spans []speech.Span) FillPlan {
 	return plan
 }
 
+// PlanWords paints a line along its words as the speech model placed them
+// in the sound (speech.Word, in order): each word said fills over its own
+// time, so a quick speaker is followed word by word and what was said
+// before the line showed is painted as it shows. What has no time of its
+// own (a sound's description, punctuation alone, a number) is painted with
+// the next word, or as the last one ends (Fraction paints the whole line
+// past the plan's end). When the words heard are not as many as the words
+// said, they are the stretches PlanFill spreads the words over. When the
+// model is not sure of them (speech.WordsSure: a shout, a whisper), their
+// letters are not to be trusted but where they are is the line's voice, so
+// the words spread over it (voiceOf), waiting in its pauses.
+func PlanWords(units Units, words []speech.Word) FillPlan {
+	var heard []speech.Word
+	for _, w := range words {
+		if w.Heard {
+			heard = append(heard, w)
+		}
+	}
+	if len(heard) > 0 && !speech.WordsSure(words) {
+		return PlanFill(units, voiceOf(heard))
+	}
+	said := 0
+	for _, unit := range units.Words {
+		if unit.Weight > 0 {
+			said++
+		}
+	}
+	if said != len(heard) {
+		spans := make([]speech.Span, len(heard))
+		for i, w := range heard {
+			spans[i] = w.Span
+		}
+		return PlanFill(units, spans)
+	}
+	plan := FillPlan{visible: visibleChars(units)}
+	done, next, held := 0.0, 0, 0.0
+	var reached time.Duration // the points stay in order even if two words overlap
+	for _, unit := range units.Words {
+		if unit.Weight > 0 {
+			w := heard[next]
+			start := max(w.Start, reached)
+			reached = max(w.End, start)
+			if done > held && len(plan.points) > 0 {
+				// What came between holds until this word, then shows with it.
+				plan.points = append(plan.points, fillPoint{start, held})
+			}
+			held = done + float64(unit.Chars)
+			plan.points = append(plan.points, fillPoint{start, done}, fillPoint{reached, held})
+			next++
+		}
+		done += float64(unit.Chars)
+	}
+	return plan
+}
+
+// wordsPause is a silence between two words placed that is a pause in the
+// speech, past the gaps between words said in one breath.
+const wordsPause = 300 * time.Millisecond
+
+// voiceOf is the voice of words placed in order: their stretch from the
+// first to the last, broken where a pause (wordsPause) parts two of them.
+func voiceOf(heard []speech.Word) []speech.Span {
+	spans := []speech.Span{heard[0].Span}
+	for _, w := range heard[1:] {
+		last := &spans[len(spans)-1]
+		if w.Start-last.End >= wordsPause {
+			spans = append(spans, w.Span)
+			continue
+		}
+		last.End = max(last.End, w.End)
+	}
+	return spans
+}
+
 // lay spreads words over spans by the share of voice heard: a point at
 // each span's edges and at each word's edge inside it.
 func (p *FillPlan) lay(words []Unit, weight float64, spans []speech.Span, before float64) {

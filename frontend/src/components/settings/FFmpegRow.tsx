@@ -1,15 +1,16 @@
-import { Download, FolderOpen, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Download, FolderOpen, X } from "../ui/icons";
+import { useState } from "react";
+import { useInstall } from "../../hooks/useInstall";
 import { t } from "../../i18n";
-import { backend, messageOf, type VoiceSettings } from "../../services/backend";
+import { backend, type VoiceSettings } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { HelpTip } from "../ui/HelpTip";
 import type { SectionProps } from "./section";
 
 interface FFmpegRowProps extends Pick<SectionProps, "run"> {
   /**
-   * voice holds the FFmpeg chosen, the one found, whether it was too slow to answer (a busy computer, not a missing
-   * FFmpeg) and whether one can be installed: the voice's and the stills' alike.
+   * voice holds the FFmpeg chosen, the one found, whether it was too slow to answer (its first opening or a busy
+   * computer, not a missing FFmpeg) and whether one can be installed: the voice's and the stills' alike.
    */
   voice: VoiceSettings;
   /** disabled leaves choosing and installing off while nothing uses FFmpeg. */
@@ -25,31 +26,13 @@ interface FFmpegRowProps extends Pick<SectionProps, "run"> {
  * one found, and installing one with winget.
  */
 export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpegRowProps) {
-  const [installing, setInstalling] = useState(false);
-  const [installError, setInstallError] = useState("");
-
-  useEffect(
-    () =>
-      backend.onInstall((progress) => {
-        if (progress.id !== "ffmpeg") {
-          return;
-        }
-        setInstalling(false);
-        setInstallError(progress.error);
-        if (!progress.error) {
-          void run(async () => undefined, t("ui.settings.ffmpeg.installed"));
-        }
-      }),
-    [run],
-  );
-
-  const install = () => {
-    setInstalling(true);
-    setInstallError("");
-    backend.installFFmpeg().catch((failure: unknown) => {
-      setInstalling(false);
-      setInstallError(messageOf(failure));
-    });
+  // Installed, the settings are read again: they tell the FFmpeg found.
+  const install = useInstall("ffmpeg", () => void run(async () => undefined, t("ui.settings.ffmpeg.installed")));
+  // Choosing waits for the file picked to answer, up to a minute on its first opening: the button says it works.
+  const [choosing, setChoosing] = useState(false);
+  const choose = () => {
+    setChoosing(true);
+    void run(() => backend.chooseFFmpeg(), t("ui.settings.ffmpeg.chosen")).finally(() => setChoosing(false));
   };
 
   return (
@@ -62,11 +45,7 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
         {voice.ffmpegFound ? found(voice.ffmpegFound) : voice.ffmpegSlow ? t("ui.settings.ffmpeg.slow") : missing}
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          icon={FolderOpen}
-          disabled={disabled}
-          onClick={() => void run(() => backend.chooseFFmpeg(), t("ui.settings.ffmpeg.chosen"))}
-        >
+        <Button icon={FolderOpen} loading={choosing} disabled={disabled} onClick={choose}>
           {t("ui.settings.ffmpeg.choose")}
         </Button>
         {voice.ffmpegPath && (
@@ -75,12 +54,12 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
           </Button>
         )}
         {voice.canInstall && (
-          <Button icon={Download} loading={installing} disabled={disabled} onClick={install}>
+          <Button icon={Download} loading={install.installing !== ""} disabled={disabled} onClick={() => install.start("ffmpeg")}>
             {t("ui.settings.ffmpeg.install")}
           </Button>
         )}
       </div>
-      {installError && <p className="text-sm text-error">{installError}</p>}
+      {install.error && <p className="text-sm text-error">{install.error}</p>}
     </div>
   );
 }

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useDebouncedCall } from "../../hooks/useDebouncedCall";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";
 import { Banner, Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { NumberField, Segmented } from "../ui/Inputs";
 import { FFmpegRow } from "./FFmpegRow";
 import type { SectionProps } from "./section";
@@ -19,33 +20,27 @@ const delaySaveAfter = 400;
 export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
   const voice = view.voice;
   const [delay, setDelay] = useState<number | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const following = voice.model && voice.follow;
   const save = (next: Partial<VoiceSettings>) => void run(() => backend.setVoice({ ...voice, ...next }));
+  const saveDelay = useDebouncedCall((ms: number) => {
+    setDelay(null);
+    save({ delayMs: ms });
+  }, delaySaveAfter);
   const changeDelay = (ms: number) => {
     setDelay(ms);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      setDelay(null);
-      save({ delayMs: ms });
-    }, delaySaveAfter);
+    saveDelay(ms);
   };
 
   return (
-    <Card
-      title={t("ui.settings.voice.title")}
-      aside={<HelpTip topic={t("ui.settings.voice.topic")}>{t("ui.settings.voice.help")}</HelpTip>}
-    >
+    <Card title={t("ui.settings.voice.title")} aside={<KeyedTip k="ui.settings.voice" />}>
       <div className="flex flex-col gap-5">
         {voice.weak && <Banner tone="warning">{t("ui.settings.voice.weak")}</Banner>}
         <Toggle
           label={t("ui.settings.voice.model.label")}
           checked={voice.model}
           onChange={(model) => save({ model })}
-          help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.voice.model" />}
         />
         {voice.battery && (
           <Toggle
@@ -53,7 +48,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
             checked={voice.modelOnBattery}
             disabled={!voice.model}
             onChange={(modelOnBattery) => save({ modelOnBattery })}
-            help={<HelpTip topic={t("ui.settings.voice.battery.topic")}>{t("ui.settings.voice.battery.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.voice.battery" />}
           />
         )}
         <Toggle
@@ -61,6 +56,13 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           checked={voice.follow}
           disabled={!voice.model}
           onChange={(follow) => save({ follow })}
+        />
+        <Toggle
+          label={t("ui.settings.voice.sync.label")}
+          checked={voice.sync}
+          disabled={!voice.model}
+          onChange={(sync) => save({ sync })}
+          help={<KeyedTip k="ui.settings.voice.sync" />}
         />
         <Segmented
           label={t("ui.settings.voice.sensitivity.label")}
@@ -71,7 +73,7 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
             { value: "high", label: t("ui.settings.voice.sensitivity.high") },
           ]}
           onChange={(sensitivity) => save({ sensitivity })}
-          help={<HelpTip topic={t("ui.settings.voice.sensitivity.topic")}>{t("ui.settings.voice.sensitivity.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.voice.sensitivity" />}
         />
         <FFmpegRow
           voice={voice}
@@ -90,14 +92,14 @@ export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
           unit="ms"
           disabled={!following}
           onChange={changeDelay}
-          help={<HelpTip topic={t("ui.settings.voice.delay.topic")}>{t("ui.settings.voice.delay.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.voice.delay" />}
         />
         <Toggle
           label={t("ui.settings.voice.busy.label")}
           checked={voice.evenWhenBusy}
           disabled={!following}
           onChange={(evenWhenBusy) => save({ evenWhenBusy })}
-          help={<HelpTip topic={t("ui.settings.voice.busy.topic")}>{t("ui.settings.voice.busy.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.voice.busy" />}
         />
       </div>
     </Card>

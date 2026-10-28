@@ -77,7 +77,7 @@ func (s *Session) MarkPassageEnd() (study.Segment, error) {
 	segment := study.Segment{Start: min(start, end), End: max(start, end)}
 	if snap {
 		if track := s.subtitles.Track(session.LinePrimary); track != nil {
-			segment = study.SnapToLines(segment, track.Timeline, track.Offset)
+			segment = study.SnapToLines(segment, track.Placed())
 		}
 	}
 	duration := s.clock.State().Duration
@@ -154,7 +154,5 @@ func (s *Session) tellMark(event MarkEvent, segment study.Segment) {
 	if s.display == nil || s.markNotice == nil {
 		return
 	}
-	if text := s.markNotice(event, segment); text != "" {
-		_ = s.display.Notify(text) // a lost notice is cosmetic
-	}
+	s.Notify(s.markNotice(event, segment))
 }

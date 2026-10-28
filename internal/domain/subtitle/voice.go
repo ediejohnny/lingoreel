@@ -33,14 +33,17 @@ const (
 	// minVoiceLines is the fewest lines heard to tell anything.
 	minVoiceLines = 20
 	// voiceGroups split the stretches heard in groups that each line the file
-	// up on their own. Measured on five films against every file there, the
-	// file that fits had at least two groups within groupTolerance of the
-	// offset found (often all three), and every other file none: a share of
-	// the lines falling in speech tells little alone, as most of a film is
-	// speech. voiceMatchScore keeps out a file that agrees by chance.
+	// up on their own; the file fits when groupsAgreeing of them find the
+	// offset found, within groupTolerance. A share of the lines falling in
+	// speech tells little alone, as most of a film is speech: files of other
+	// films scored up to 1.00. Measured on nine films, the groups of a file
+	// that fits found offsets up to about 400 ms apart (lines timed by hand,
+	// a cartoon with music under its few lines), those of every other file
+	// seconds to minutes apart. voiceMatchScore keeps out a file that agrees
+	// by chance.
 	voiceGroups     = 3
 	groupsAgreeing  = 2
-	groupTolerance  = 100 * time.Millisecond
+	groupTolerance  = 500 * time.Millisecond
 	voiceMatchScore = 0.6
 	// voiceRivalReach is how far another offset is to count as a rival.
 	voiceRivalReach = time.Second
@@ -69,6 +72,34 @@ func HearingStretches(duration time.Duration) []HearingStretch {
 	return stretches
 }
 
+// HearingStretchesBetween are the stretches heard when the first ones leave
+// a file undecided (VoiceAlignment.Undecided): one halfway between each two
+// of HearingStretches, of the same length; none when there are not two.
+func HearingStretchesBetween(duration time.Duration) []HearingStretch {
+	first := HearingStretches(duration)
+	if len(first) < 2 {
+		return nil
+	}
+	between := make([]HearingStretch, len(first)-1)
+	for i := range between {
+		between[i] = HearingStretch{From: (first[i].From + first[i+1].From) / 2, Length: first[i].Length}
+	}
+	return between
+}
+
+// InterleaveHeard puts the stretches heard between the first ones back in
+// the film's order: first[0], between[0], first[1], and so on.
+func InterleaveHeard(first, between []speech.Track) []speech.Track {
+	all := make([]speech.Track, 0, len(first)+len(between))
+	for i, track := range first {
+		all = append(all, track)
+		if i < len(between) {
+			all = append(all, between[i])
+		}
+	}
+	return all
+}
+
 // VoiceAlignment is how a file lines up with the voice heard, with what the
 // verdict was told by.
 type VoiceAlignment struct {
@@ -79,6 +110,13 @@ type VoiceAlignment struct {
 	Rival float64
 	// Groups are the offsets each group of stretches finds on its own.
 	Groups []time.Duration
+}
+
+// Undecided tells the file may fit though its groups did not agree: enough
+// of its lines fell in speech, and groups of few lines each find chance
+// offsets. More stretches (HearingStretchesBetween) can tell.
+func (v VoiceAlignment) Undecided() bool {
+	return v.Verdict == VerdictNoMatch && v.Score >= voiceMatchScore
 }
 
 // heardVoice is a stretch heard: s = 2p-1 for each frame (voice above zero,
@@ -183,7 +221,7 @@ func (v voiceLines) best(heard []heardVoice, rate float64) (offset, rival time.D
 	}
 	rivalFit := math.Inf(-1)
 	for _, t := range all {
-		if abs(t.offset-offset) > voiceRivalReach && t.fit > rivalFit {
+		if (t.offset-offset).Abs() > voiceRivalReach && t.fit > rivalFit {
 			rival, rivalFit = t.offset, t.fit
 		}
 	}
@@ -245,7 +283,7 @@ func AlignToVoice(heard []speech.Track, lines []speech.Span, videoDuration time.
 	for from := 0; from < len(stretches); from += size {
 		group, _ := v.best(stretches[from:min(from+size, len(stretches))], result.Rate)
 		result.Groups = append(result.Groups, group)
-		if abs(group-result.Offset) <= groupTolerance {
+		if (group - result.Offset).Abs() <= groupTolerance {
 			agree++
 		}
 	}

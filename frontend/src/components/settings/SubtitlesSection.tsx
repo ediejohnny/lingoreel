@@ -4,7 +4,7 @@ import { backend, messageOf, type KaraokeSettings, type StyleSettings } from "..
 import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { MarksCards } from "./MarksCards";
@@ -155,22 +155,20 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
         <Card
           title={t("ui.settings.subtitles.karaoke.title")}
           aside={
-            <div className="flex items-center gap-1">
-              <RestoreButton
-                onRestore={() =>
-                  setKaraoke(
-                    {
-                      fillColor: defaults.karaoke.fillColor,
-                      barColor: defaults.karaoke.barColor,
-                      barThickness: defaults.karaoke.barThickness,
-                      countdownSize: defaults.karaoke.countdownSize,
-                    },
-                    previewView,
-                  )
-                }
-              />
-              <HelpTip topic={t("ui.settings.subtitles.karaoke.topic")}>{t("ui.settings.subtitles.karaoke.help")}</HelpTip>
-            </div>
+            <RestoreButton
+              onRestore={() =>
+                setKaraoke(
+                  {
+                    fillColor: defaults.karaoke.fillColor,
+                    barColor: defaults.karaoke.barColor,
+                    barThickness: defaults.karaoke.barThickness,
+                    countdownSize: defaults.karaoke.countdownSize,
+                  },
+                  previewView,
+                )
+              }
+              help={<KeyedTip k="ui.settings.subtitles.karaoke" />}
+            />
           }
         >
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
@@ -301,15 +299,13 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
       <Card
         title={t("ui.settings.subtitles.margins.title")}
         aside={
-          <div className="flex items-center gap-1">
-            <RestoreButton
-              onRestore={() => {
-                setLayout(options.defaults.layout);
-                setScene("");
-              }}
-            />
-            <HelpTip topic={t("ui.settings.subtitles.margins.topic")}>{t("ui.settings.subtitles.margins.help")}</HelpTip>
-          </div>
+          <RestoreButton
+            onRestore={() => {
+              setLayout(options.defaults.layout);
+              setScene("");
+            }}
+            help={<KeyedTip k="ui.settings.subtitles.margins" />}
+          />
         }
       >
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">

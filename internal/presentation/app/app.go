@@ -15,6 +15,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/application/players"
 	"github.com/ediejohnny/lingoreel/internal/application/session"
+	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
@@ -166,6 +167,9 @@ type Deps struct {
 	Projects  Projects
 	SaveDelay time.Duration
 	Later     func(delay time.Duration, run func()) (stop func() bool)
+	// BusyRest is how long hearing a video waits after the computer was too
+	// busy to start FFmpeg, before looking again; zero is 30 s.
+	BusyRest time.Duration
 	// About is the app's and the system's version, for the diagnostics;
 	// Monitors lists the screens (nil lists none); LogDir holds the logs.
 	About    About
@@ -185,6 +189,12 @@ type Deps struct {
 	// another level later is asked about. Nil reads nothing: the computer is
 	// medium and never asked about.
 	Machine func() capacity.Machine
+	// SpeechPacks are the languages' speech packs kept in the app's folder;
+	// nil keeps none.
+	SpeechPacks SpeechPacks
+	// OpenSpeech opens a language's speech pack, to hear which language an
+	// audio track speaks; nil hears none.
+	OpenSpeech func(language string) (voice.WordModel, error)
 	// AskRetry asks, with Windows' own box, whether to try again a save that
 	// failed as the app closes; nil never asks.
 	AskRetry func(title, text string) bool
@@ -230,8 +240,11 @@ type API struct {
 	project  *videoProject
 	watching *watching
 	// listen is the hearing of the open video's voice, nil when none runs.
-	listen  *listening
-	initial string
+	listen *listening
+	// hearLanguage is the hearing of the open video's untold audio tracks,
+	// nil when none runs.
+	hearLanguage *languageHearing
+	initial      string
 	// resume is where a session the player lost had reached, for
 	// "Assistir de novo".
 	resume *resumePoint
@@ -248,10 +261,8 @@ type API struct {
 	projectWrites, settingsWrites sync.Mutex
 	// welcoming tells the first run's welcome is not answered yet.
 	welcoming bool
-	// machine is the computer as read, once; computerChanged tells the
-	// question of a computer of another level waits for an answer.
-	machine         func() capacity.Machine
-	computerChanged bool
+	// machine is the computer as read, once.
+	machine func() capacity.Machine
 	// settingsNotes tell, in the language of the moment, why a settings file
 	// could not be read and what becomes of it.
 	settingsNotes []func() string
@@ -497,10 +508,15 @@ func (l Lifecycle) ShowEditor() {
 	l.api.emit(EventPanel, PanelRequest{Section: PanelEditor})
 }
 
-func (a *API) emit(event string, data any) {
+// window is the window the API is attached to, nil before Attach.
+func (a *API) window() UI {
 	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	return a.ui
+}
+
+func (a *API) emit(event string, data any) {
+	ui := a.window()
 	if ui != nil {
 		ui.Emit(event, data)
 	}

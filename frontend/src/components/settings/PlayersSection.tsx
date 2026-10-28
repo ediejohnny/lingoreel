@@ -1,9 +1,9 @@
-import { FolderOpen, RefreshCw, RotateCcw } from "lucide-react";
+import { FolderOpen, Refresh, RotateBack } from "../ui/icons";
 import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
 import { change, type SectionProps } from "./section";
 
@@ -23,13 +23,10 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
             ...supported.map((item) => ({ value: item.id, label: item.name })),
           ]}
           onChange={(id) => change(setDraft, "preferredPlayer")(id)}
-          help={<HelpTip topic={t("ui.settings.players.preferred.topic")}>{t("ui.settings.players.preferred.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.players.preferred" />}
         />
       </Card>
-      <Card
-        title={t("ui.settings.players.where.title")}
-        aside={<HelpTip topic={t("ui.settings.players.where.topic")}>{t("ui.settings.players.where.help")}</HelpTip>}
-      >
+      <Card title={t("ui.settings.players.where.title")} aside={<KeyedTip k="ui.settings.players.where" />}>
         <ul className="flex flex-col divide-y divide-line">
           {supported.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -48,7 +45,7 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
               </Button>
               {item.custom && (
                 <Button
-                  icon={RotateCcw}
+                  icon={RotateBack}
                   variant="ghost"
                   onClick={() => void run(() => backend.clearPlayerPath(item.id), t("ui.settings.players.searchAgain"))}
                 >
@@ -67,7 +64,7 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
           ))}
         </ul>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button icon={RefreshCw} onClick={() => void run(() => backend.players(), t("ui.settings.players.detected"))}>
+          <Button icon={Refresh} onClick={() => void run(() => backend.players(), t("ui.settings.players.detected"))}>
             {t("ui.settings.players.detect")}
           </Button>
           {view.general.recommendationsHidden && (

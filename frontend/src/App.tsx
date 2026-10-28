@@ -1,7 +1,6 @@
-import { ArrowLeft, PanelRight, Settings } from "lucide-react";
+import { ArrowLeft, PanelRight, Settings } from "./components/ui/icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
-import { ComputerChangeBanner } from "./components/ComputerChangeBanner";
 import { SidePanel, type PanelTab } from "./components/player/SidePanel";
 import { VideoStage } from "./components/player/VideoStage";
 import { IconButton } from "./components/ui/Button";
@@ -10,6 +9,10 @@ import { PlayingPage } from "./pages/PlayingPage";
 import { SessionPage } from "./pages/SessionPage";
 import { SettingsPage, type SettingsHandle } from "./pages/SettingsPage";
 import { WelcomePage } from "./pages/WelcomePage";
+import { useAppliedTheme } from "./hooks/useAppliedTheme";
+import { useDebouncedCall } from "./hooks/useDebouncedCall";
+import { useInstall } from "./hooks/useInstall";
+import { useVideoKeys } from "./hooks/useVideoKeys";
 import {
   backend,
   messageOf,
@@ -18,14 +21,14 @@ import {
   type PanelState,
   type Playback,
   type Players,
+  type PlayingCommands,
   type Video,
   type WatchRequest,
 } from "./services/backend";
 import { sectionOfPage, type SectionId } from "./settings";
-import { asTheme, useAppliedTheme, type Theme } from "./stores/theme";
+import { asTheme, type Theme } from "./theme";
 import { durationLabel } from "./format";
 import { t, setLanguage, useLanguage } from "./i18n";
-import { useVideoKeys } from "./videoKeys";
 
 type Screen = "home" | "session" | "playing" | "settings" | "welcome";
 
@@ -50,10 +53,8 @@ export function App() {
   const [opened, setOpened] = useState(0);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  // resumable offers "Assistir de novo" after the player was lost.
+  // resumable lets the session start again where it was after the player was lost.
   const [resumable, setResumable] = useState(false);
-  const [installing, setInstalling] = useState("");
-  const [installError, setInstallError] = useState("");
   // resets counts the times the video was forgotten: the session screen
   // starts over with what the video has become.
   const [resets, setResets] = useState(0);
@@ -95,6 +96,7 @@ export function App() {
     }
   }, []);
 
+  // What the app keeps of the person: the language, the look, the speeds and the panel.
   useEffect(() => {
     backend
       .preferences()
@@ -106,8 +108,11 @@ export function App() {
         setPanel(preferences.panel);
       })
       .catch(() => undefined);
-    // On the first run the welcome comes first; the video the app was opened
-    // with waits for it, as one dropped or sent meanwhile does.
+  }, []);
+
+  // On the first run the welcome comes first; the video the app was opened
+  // with waits for it, as one dropped or sent meanwhile does.
+  useEffect(() => {
     Promise.all([backend.welcome().catch(() => null), backend.initialVideo().catch(() => "")])
       .then(([welcome, path]) => {
         if (welcome?.pending) {
@@ -119,13 +124,31 @@ export function App() {
         return open(path);
       })
       .catch(() => undefined);
-    const offDropped = backend.onDropped((path) => {
+    return backend.onDropped((path) => {
       if (welcoming.current) {
         waiting.current = path;
         return;
       }
       void open(path);
     });
+  }, [open]);
+
+  // The video: how far opening it went, and the same video described again
+  // (a subtitle file added from the menu over it, or another language).
+  useEffect(() => {
+    const offOpening = backend.onOpening((opening) => setOpened(opening.percent));
+    const offVideo = backend.onVideo((next) => {
+      setVideo(next);
+      setPlayers(next.players);
+    });
+    return () => {
+      offOpening();
+      offVideo();
+    };
+  }, []);
+
+  // The playback: its state, its end and the fullscreen.
+  useEffect(() => {
     const offPlayback = backend.onPlayback((next) => setState(next.active ? next : null));
     const offEnded = backend.onEnded((ended) => {
       setState(null);
@@ -137,44 +160,36 @@ export function App() {
       setResumable(ended.resume);
     });
     const offFullscreen = backend.onFullscreen(setFullscreen);
-    // A subtitle file added from the menu over the video: the session screen lists it afterwards.
-    // The same video comes again in another language.
-    const offVideo = backend.onVideo((next) => {
-      setVideo(next);
-      setPlayers(next.players);
-    });
-    const offOpening = backend.onOpening((opening) => setOpened(opening.percent));
-    const offPanel = backend.onPanel((request) => {
-      setPanel((current) => (current.open ? current : { ...current, open: true }));
-      if (request.section === "settings") {
-        setSettingsSection(sectionOfPage(request.page));
-        setPanelTab("settings");
-        return;
-      }
-      setPanelTab("playback");
-      requestAnimationFrame(() => document.getElementById("panel-editor")?.scrollIntoView({ block: "start" }));
-    });
-    const offInstall = backend.onInstall(async (progress) => {
-      if (progress.id === "ffmpeg") {
-        return; // the settings' voice card follows its own installation
-      }
-      setInstalling("");
-      setInstallError(progress.error);
-      if (!progress.error) {
-        setPlayers(await backend.players());
-      }
-    });
     return () => {
-      offDropped();
       offPlayback();
       offEnded();
       offFullscreen();
-      offVideo();
-      offOpening();
-      offPanel();
-      offInstall();
     };
-  }, [open]);
+  }, []);
+
+  // The video's menu opens the panel beside it on the editor or on a page of the settings.
+  useEffect(
+    () =>
+      backend.onPanel((request) => {
+        setPanel((current) => (current.open ? current : { ...current, open: true }));
+        if (request.section === "settings") {
+          setSettingsSection(sectionOfPage(request.page));
+          setPanelTab("settings");
+          return;
+        }
+        setPanelTab("playback");
+        requestAnimationFrame(() => document.getElementById("panel-editor")?.scrollIntoView({ block: "start" }));
+      }),
+    [],
+  );
+
+  // A player installed, from here or from the welcome, is one the session screen offers.
+  const install = useInstall("players", () => {
+    backend
+      .players()
+      .then(setPlayers)
+      .catch(() => undefined);
+  });
 
   const chooseTheme = (next: Theme) => {
     setTheme(next);
@@ -183,17 +198,14 @@ export function App() {
     backend.setTheme(next).catch((failure: unknown) => setError(messageOf(failure)));
   };
 
-  const lookTimer = useRef<number | undefined>(undefined);
+  // A slider sends many sizes: the last one is kept. The look still changes
+  // when saving fails; it is only not remembered, and the screen says why.
+  const keepLook = useDebouncedCall((next: InterfaceSettings) => {
+    backend.setInterface(next).catch((failure: unknown) => setError(messageOf(failure)));
+  }, waitBeforeKeeping);
   const chooseLook = (next: InterfaceSettings) => {
     setLook(next);
-    // A slider sends many sizes: the last one is kept. The look still
-    // changes when saving fails; it is only not remembered, and the screen
-    // says why.
-    window.clearTimeout(lookTimer.current);
-    lookTimer.current = window.setTimeout(
-      () => backend.setInterface(next).catch((failure: unknown) => setError(messageOf(failure))),
-      waitBeforeKeeping,
-    );
+    keepLook(next);
   };
 
   const chooseVideo = useCallback(async () => {
@@ -235,22 +247,9 @@ export function App() {
     run().catch((failure) => setError(messageOf(failure)));
   }, []);
 
-  const commands = useMemo(
+  const commands = useMemo<PlayingCommands>(
     () => ({
-      togglePause: backend.togglePause,
-      seekBy: backend.seekBy,
-      seekTo: backend.seekTo,
-      setSpeed: backend.setSpeed,
-      nudge: backend.nudge,
-      resetSync: backend.resetSync,
-      setTranslationVisible: backend.setTranslationVisible,
-      setStudyMode: backend.setStudyMode,
-      runShortcut: backend.runShortcut,
-      reveal: backend.reveal,
-      stop: backend.stop,
-      setFullscreen: backend.setFullscreen,
-      switchSubtitle: backend.switchSubtitle,
-      switchAudio: backend.switchAudio,
+      ...backend,
       // The video, described again with the file, is what the session screen lists after the session.
       addSubtitleFile: async (line: Line) => {
         const added = await backend.addSubtitleFile(line);
@@ -261,15 +260,6 @@ export function App() {
     }),
     [],
   );
-
-  const install = (id: string) => {
-    setInstalling(id);
-    setInstallError("");
-    backend.installPlayer(id).catch((failure) => {
-      setInstalling("");
-      setInstallError(messageOf(failure));
-    });
-  };
 
   // The welcome opened again from the settings goes back to them.
   const openWelcome = () => {
@@ -303,7 +293,13 @@ export function App() {
   // The keys work while a video plays wherever the screen has them, with or
   // without the panel; saved settings may change them.
   const [keysVersion, setKeysVersion] = useState(0);
-  useVideoKeys({ active: screen === "playing" && state !== null, embedded, version: keysVersion, commands, onCommand: command });
+  const keys = useVideoKeys({
+    active: screen === "playing" && state !== null,
+    embedded,
+    version: keysVersion,
+    commands,
+    onCommand: command,
+  });
   const keepPanel = (next: PanelState) => {
     setPanel(next);
     // The panel still changes when saving fails; it is only not remembered.
@@ -389,8 +385,6 @@ export function App() {
       {!(embedded && fullscreen) && (
         <AppHeader theme={theme} onTheme={chooseTheme} leading={back} subtitle={subtitle} actions={openSettings} />
       )}
-      {/* A changed computer is asked about outside the welcome and off a video in the window; it waits for them. */}
-      {screen !== "welcome" && !embedded && <ComputerChangeBanner />}
       {screen === "welcome" ? (
         <WelcomePage onDone={welcomeDone} />
       ) : embedded && video && state ? (
@@ -413,7 +407,7 @@ export function App() {
                   error={error}
                   onDismissError={() => setError("")}
                   onCommand={command}
-                  keysVersion={keysVersion}
+                  keys={keys}
                   commands={commands}
                 />
               }
@@ -452,7 +446,7 @@ export function App() {
           error={error}
           onDismissError={() => setError("")}
           onCommand={command}
-          keysVersion={keysVersion}
+          keys={keys}
           commands={commands}
         />
       ) : screen === "session" && !loading && video && players ? (
@@ -463,8 +457,8 @@ export function App() {
           starting={starting}
           error={error}
           resumable={resumable}
-          installing={installing}
-          installError={installError}
+          installing={install.installing}
+          installError={install.error}
           onWatch={watch}
           onVideo={setVideo}
           onReset={reset}
@@ -472,7 +466,7 @@ export function App() {
             setError("");
             setResumable(false);
           }}
-          onInstall={install}
+          onInstall={install.start}
           onDownload={(id) => command(() => backend.openDownloadPage(id))}
           onDismissRecommendation={dismissRecommendation}
         />

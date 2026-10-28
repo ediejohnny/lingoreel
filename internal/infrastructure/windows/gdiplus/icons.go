@@ -8,16 +8,11 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/contextmenu"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
-	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/win32"
 )
 
-// Icon geometry, as fractions of the icon's side: the stroke of the line
-// icons at 100% is 2 pixels on a 16-pixel icon, as on the bar.
+// The share of the stroke that frames and rings take (thinStroke), and the
+// speaker's waves and cross (waveStroke).
 const (
-	iconStrokeRatio = barStroke / barIcon16
-	iconPadRatio    = 0.08
-	// thinStroke is the share of the stroke that frames and rings take;
-	// waveStroke the speaker's waves and cross.
 	thinStroke = 0.75
 	waveStroke = 0.8
 )
@@ -59,8 +54,9 @@ const (
 	noteStemTop = 0.05
 	noteFlagEnd = 0.08
 	noteFlagY   = 0.22
-	// The frame of "CC": out past each side, its width, its top and height,
-	// its corners; the letters' size, of the menu's text.
+	// The frame of "CC": out past each side (into the bar button's room), its
+	// width, its top and height, its corners; the letters' size, of the
+	// bar's text.
 	ccOverhang = 0.1
 	ccWidth    = 1.2
 	ccTop      = 0.12
@@ -102,42 +98,8 @@ const (
 	cornerArm = 0.35
 )
 
-// DrawIcon paints one of the context menu's icons over a whole bitmap,
-// cleared first, in one color: the system's menu text color, so it shows on
-// a light menu and in high contrast alike. An unknown icon draws nothing.
-func (r *Renderer) DrawIcon(target *win32.DIB, icon contextmenu.Icon, color appearance.Color) error {
-	if target == nil {
-		return nil
-	}
-	target.Clear()
-	c, err := r.canvasOn(target)
-	if err != nil {
-		return err
-	}
-	defer c.close()
-	side := float64(min(target.Width, target.Height))
-	pad := math.Round(side * iconPadRatio)
-	inner := side - 2*pad
-	// An icon drawn wider than its box gets a smaller box, centered, so all
-	// of it lands on the bitmap.
-	size := inner / iconExtent(icon)
-	offset := pad + (inner-size)/2
-	box := layout.Rect{X: offset, Y: offset, W: size, H: size}
-	font := layout.Font{Family: iconFont, Size: barFontSize * box.W / barIcon16}
-	return r.drawIcon(c.graphics, icon, box, color, box.W*iconStrokeRatio, font)
-}
-
-// iconExtent is how much wider than its box an icon draws: the frame of "CC"
-// reaches past both sides (on the bar, into its button's room).
-func iconExtent(icon contextmenu.Icon) float64 {
-	if icon == contextmenu.IconSubtitles {
-		return ccWidth
-	}
-	return 1
-}
-
-// drawIcon draws an icon in a square box, with the stroke of its lines.
-// The bar draws its buttons with it too.
+// drawIcon draws one of the bar's icons in a square box, with the stroke of
+// its lines.
 func (r *Renderer) drawIcon(g uintptr, icon contextmenu.Icon, box layout.Rect, color appearance.Color, stroke float64, font layout.Font) error {
 	side := box.W
 	switch icon {

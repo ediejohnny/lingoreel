@@ -67,14 +67,9 @@ func (p Preset) Apply(style SubtitleStyle) (SubtitleStyle, error) {
 }
 
 // AppFont is the family the app's own screens are drawn with, and the
-// subtitles' default. The user chose it over Arial, so the text
-// over the video reads like the rest of the app. Windows has had it since
-// Windows 7, and the notices already use it.
+// subtitles' default, so the text over the video reads like the rest of the
+// app; Windows has it since Windows 7.
 const AppFont = "Segoe UI"
-
-// PreviousDefaultFont is the family the subtitles used before AppFont; a
-// profile still on it is moved along, one that was changed is left alone.
-const PreviousDefaultFont = "Arial"
 
 // DefaultPrimaryStyle is the look of the studied language (32 px,
 // white, 3 px black outline, 2 px shadow, at 82% of the height).

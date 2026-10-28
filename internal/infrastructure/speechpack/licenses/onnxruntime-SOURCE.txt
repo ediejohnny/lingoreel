@@ -1,0 +1,9 @@
+The ONNX Runtime 1.30.0 that LingoReel publishes (onnxruntime-1.30.0.dll) was built,
+unchanged and with its telemetry left out, from the source at
+https://github.com/microsoft/onnxruntime/tree/v1.30.0
+(how: https://github.com/ediejohnny/lingoreel/blob/main/docs/speech-packs.md).
+
+The source of the components it is built with is available at the versions and
+SHA-1 listed in cmake/deps.txt of that tag, among them Eigen
+(https://gitlab.com/libeigen/eigen), under the Mozilla Public License 2.0; their
+licenses are in onnxruntime-ThirdPartyNotices.txt.

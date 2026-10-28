@@ -2,6 +2,7 @@ package watch
 
 import (
 	"slices"
+	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/session"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
@@ -100,8 +101,8 @@ func (s *Session) nudge(line session.Line, later, repeat bool) (subtitle.Offset,
 }
 
 func (s *Session) synced(line session.Line, track uint64, offset subtitle.Offset) {
-	if notice := *s.notice.Load(); s.display != nil && notice != nil && !s.quiet.Load() {
-		_ = s.display.Notify(notice(line, offset)) // a lost notice is cosmetic
+	if notice := *s.notice.Load(); notice != nil && !s.quiet.Load() {
+		s.Notify(notice(line, offset))
 	}
 	if s.listener != nil {
 		s.listener.Synced(line, track, offset)
@@ -122,7 +123,16 @@ func (s *Session) ResetSync(line session.Line) {
 	s.synced(line, track, offset)
 }
 
-// Offset is a line's current offset.
+// Offset is a line's own offset, the user's.
 func (s *Session) Offset(line session.Line) subtitle.Offset {
 	return s.subtitles.Offset(line)
+}
+
+// VoiceShift is what keeping the study line on the voice adds to its own
+// offset now; zero when nothing.
+func (s *Session) VoiceShift() time.Duration {
+	if track := s.subtitles.Track(session.LinePrimary); track != nil {
+		return track.Voice
+	}
+	return 0
 }

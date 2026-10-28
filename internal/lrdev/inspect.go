@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
@@ -265,7 +264,7 @@ func (p *printer) line(format string, args ...any) {
 }
 
 // heardAnalysis lines the unheard files of a video up with its voice, heard
-// in the stretches the app hears, at its pace.
+// as the app hears it: the same stretches and audio track, at its pace.
 func heardAnalysis(ctx context.Context, result analysis.Analysis, tool string, stdout io.Writer) (analysis.Analysis, error) {
 	if len(result.Unheard()) == 0 {
 		return result, nil
@@ -275,23 +274,29 @@ func heardAnalysis(ctx context.Context, result analysis.Analysis, tool string, s
 		return result, err
 	}
 	preferences := defaultPreferences()
-	stretch := voice.Stretch{File: result.Path}
-	if track, position, found := media.VoiceTrack(result.Info, preferences.Primary); found {
-		stretch.Track, stretch.Channels, stretch.Codec = position, track.Channels, track.Codec
-	}
-	stretches := subtitle.HearingStretches(result.HearingLength())
-	heard := make([]speech.Track, 0, len(stretches))
+	decoder := ffmpeg.Decoder{Path: path}
 	started := time.Now()
-	for i, s := range stretches {
-		fmt.Fprintf(stdout, "Hearing stretch %d of %d (%s)...\n", i+1, len(stretches), formatClock(s.From))
-		stretch.From, stretch.Length = s.From, s.Length
-		track, err := voice.Hear(ctx, ffmpeg.Decoder{Path: path}, silero.Embedded{}, stretch, nil)
-		if err != nil {
+	telling := func(stretches []subtitle.HearingStretch, label string) func(int, float64) {
+		told := -1
+		return func(stretch int, _ float64) {
+			if stretch != told && stretch < len(stretches) {
+				told = stretch
+				fmt.Fprintf(stdout, "Hearing %sstretch %d of %d (%s)...\n", label, stretch+1, len(stretches), formatClock(stretches[stretch].From))
+			}
+		}
+	}
+	heard, err := analysis.HearVoice(ctx, result, decoder, silero.Embedded{}, preferences.Primary,
+		telling(subtitle.HearingStretches(result.HearingLength()), ""))
+	if err != nil {
+		return result, err
+	}
+	var more []speech.Track
+	if between := subtitle.HearingStretchesBetween(result.HearingLength()); len(between) > 0 && analysis.Undecided(result, heard) {
+		if more, err = analysis.HearMoreVoice(ctx, result, decoder, silero.Embedded{}, preferences.Primary, telling(between, "the undecided file's ")); err != nil {
 			return result, err
 		}
-		heard = append(heard, track)
 	}
 	fmt.Fprintf(stdout, "Heard in %s.\n\n", time.Since(started).Round(time.Second))
-	fitted, _ := analysis.FitByVoice(result, heard, preferences)
+	fitted, _ := analysis.FitByVoice(result, heard, more, preferences)
 	return fitted, nil
 }

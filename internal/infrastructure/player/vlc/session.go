@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/playerkit"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 )
 
@@ -23,15 +24,8 @@ import (
 var ErrNotSupported = errors.New("not supported by VLC")
 
 const (
-	pollInterval = 100 * time.Millisecond
-	// While VLC runs but stops answering, the poller tries again after
-	// firstRetry, doubling up to maxRetry; after reconnectLimit without an
-	// answer the session is lost.
-	firstRetry     = 250 * time.Millisecond
-	maxRetry       = 2 * time.Second
-	reconnectLimit = 10 * time.Second
-	quitTimeout    = time.Second
-	exitWait       = 2 * time.Second
+	quitTimeout = time.Second
+	exitWait    = 2 * time.Second
 	// startTolerance absorbs the estimate error of VLC's first position.
 	startTolerance = 500 * time.Millisecond
 	// startSeekGrace is how long an open video may sit at 0 s before Launch
@@ -49,20 +43,14 @@ type Session struct {
 	endpointDir string
 	logger      *slog.Logger
 
-	samples chan playback.Sample
-	exited  chan struct{}
+	poller *playerkit.Poller
+	exited chan struct{}
 	// waitErr is the process exit error, set before exited is closed.
 	waitErr error
-	// lost is set when VLC stops answering while its process still runs;
-	// reconnecting while it is being tried again.
-	lost         atomic.Bool
-	reconnecting atomic.Bool
 	// closing is set by Close, so a VLC ended on purpose is not a crash.
 	closing   atomic.Bool
-	polling   atomic.Bool
 	stop      context.CancelFunc
 	pollCtx   context.Context
-	pollDone  chan struct{}
 	closeOnce sync.Once
 }
 
@@ -70,8 +58,8 @@ func newSession(cmd *exec.Cmd, killer *job.Job, control *client, endpointDir str
 	ctx, stop := context.WithCancel(context.Background())
 	s := &Session{
 		cmd: cmd, job: killer, client: control, endpointDir: endpointDir, logger: logger,
-		samples: make(chan playback.Sample, 1), exited: make(chan struct{}),
-		stop: stop, pollCtx: ctx, pollDone: make(chan struct{}),
+		poller: playerkit.NewPoller("VLC", playerkit.DefaultTiming, logger), exited: make(chan struct{}),
+		stop: stop, pollCtx: ctx,
 	}
 	go func() {
 		s.waitErr = cmd.Wait()
@@ -140,13 +128,13 @@ func (s *Session) ProcessID() int {
 // Samples delivers the latest observation roughly every 100 ms. It is closed
 // when VLC exits or stops answering; Err then tells the two apart.
 func (s *Session) Samples() <-chan playback.Sample {
-	return s.samples
+	return s.poller.Samples()
 }
 
 // Err reports why the samples ended: playback.ErrPlayerLost when VLC stopped
 // answering or crashed, nil when it was closed normally or is still running.
 func (s *Session) Err() error {
-	if s.lost.Load() {
+	if s.poller.Lost() {
 		return playback.ErrPlayerLost
 	}
 	select {
@@ -278,91 +266,35 @@ func positioned(current status, start time.Duration) bool {
 	return microseconds(current.Time) >= start-startTolerance
 }
 
+// startPolling reads VLC's status for the samples until it ends or stops
+// answering for good.
 func (s *Session) startPolling() {
-	s.polling.Store(true)
-	go s.poll()
+	s.poller.Start(s.pollCtx, s.exited, s.read)
 }
 
 // Reconnecting reports VLC running but not answering, while the poller
 // tries again.
 func (s *Session) Reconnecting() bool {
-	return s.reconnecting.Load()
+	return s.poller.Reconnecting()
 }
 
-// poll reads the status on a fixed interval and publishes it as a sample,
-// replacing a sample the consumer has not read yet. When VLC stops
-// answering it tries again with growing waits before giving the session up;
-// a VLC that exited ends the polling at once.
-func (s *Session) poll() {
-	defer close(s.pollDone)
-	defer close(s.samples)
-	defer s.reconnecting.Store(false)
-	timer := time.NewTimer(pollInterval)
-	defer timer.Stop()
-	lastSuccess := time.Now()
-	retry := time.Duration(0) // zero while VLC answers
-
-	for {
-		select {
-		case <-s.pollCtx.Done():
-			return
-		case <-s.exited:
-			return
-		case <-timer.C:
-		}
-		started := time.Now()
-		ctx, cancel := context.WithTimeout(s.pollCtx, requestTimeout)
-		current, err := s.client.call(ctx, nil)
-		cancel()
-		finished := time.Now()
-		if err != nil {
-			if s.pollCtx.Err() != nil {
-				return
-			}
-			if finished.Sub(lastSuccess) > reconnectLimit {
-				s.logger.Warn("VLC stopped answering", "error", err)
-				s.lost.Store(true)
-				return
-			}
-			if retry == 0 {
-				retry = firstRetry
-				s.reconnecting.Store(true)
-				s.logger.Warn("VLC is not answering; reconnecting", "error", err)
-			} else {
-				retry = min(2*retry, maxRetry)
-			}
-			timer.Reset(retry)
-			continue
-		}
-		if retry != 0 {
-			s.logger.Info("VLC answered again", "after", finished.Sub(lastSuccess).Round(time.Millisecond))
-			retry = 0
-			s.reconnecting.Store(false)
-		}
-		lastSuccess = finished
-		s.publish(toSample(current, started.Add(finished.Sub(started)/2)))
-		timer.Reset(pollInterval)
+// read asks VLC where it is, within one request's time.
+func (s *Session) read(ctx context.Context) (playback.Sample, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+	current, err := s.client.call(ctx, nil)
+	if err != nil {
+		return playback.Sample{}, err
 	}
+	return toSample(current), nil
 }
 
-func (s *Session) publish(sample playback.Sample) {
-	select {
-	case <-s.samples:
-	default:
-	}
-	select {
-	case s.samples <- sample:
-	default:
-	}
-}
-
-func toSample(current status, observedAt time.Time) playback.Sample {
+func toSample(current status) playback.Sample {
 	sample := playback.Sample{
-		Position:   microseconds(current.Time),
-		Duration:   microseconds(current.Length),
-		Speed:      playback.Speed(current.Rate),
-		Status:     playback.StatusStopped,
-		ObservedAt: observedAt,
+		Position: microseconds(current.Time),
+		Duration: microseconds(current.Length),
+		Speed:    playback.Speed(current.Rate),
+		Status:   playback.StatusStopped,
 	}
 	switch current.Status {
 	case statusPlaying:
@@ -384,19 +316,21 @@ func (s *Session) Close() error {
 	var err error
 	s.closeOnce.Do(func() {
 		s.closing.Store(true)
+		// The poller stops first: a VLC on its way out stops answering,
+		// which is not a player lost.
+		s.stop()
 		quit, cancel := context.WithTimeout(context.Background(), quitTimeout)
 		// VLC may already be gone; the job object below ends it either way.
 		_, _ = s.client.call(quit, command("quit"))
 		cancel()
-		s.stop()
-		waitClosed(s.exited, exitWait)
+		playerkit.WaitClosed(s.exited, exitWait)
 		if jobErr := s.job.Close(); jobErr != nil {
 			err = errors.Join(err, fmt.Errorf("ending VLC: %w", jobErr))
 		}
-		if !waitClosed(s.exited, exitWait) {
+		if !playerkit.WaitClosed(s.exited, exitWait) {
 			err = errors.Join(err, errors.New("VLC did not exit"))
 		}
-		if s.polling.Load() && !waitClosed(s.pollDone, requestTimeout) {
+		if !s.poller.Wait(requestTimeout) {
 			err = errors.Join(err, errors.New("the VLC status reader did not stop"))
 		}
 		if removeErr := os.RemoveAll(s.endpointDir); removeErr != nil {
@@ -404,16 +338,4 @@ func (s *Session) Close() error {
 		}
 	})
 	return err
-}
-
-// waitClosed waits for a channel to close, at most for limit.
-func waitClosed(done <-chan struct{}, limit time.Duration) bool {
-	timer := time.NewTimer(limit)
-	defer timer.Stop()
-	select {
-	case <-done:
-		return true
-	case <-timer.C:
-		return false
-	}
 }

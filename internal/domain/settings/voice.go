@@ -14,24 +14,27 @@ const MaxVoiceDelay = time.Second
 
 // VoicePreferences are how the app hears the actors' voice on this
 // computer: whether the voice model works here at all and on the battery
-// too, whether the karaoke mode follows the voice, how readily a doubtful
-// sound counts as voice, the FFmpeg the user chose (empty: looked for), the
-// output's delay, and whether to go on when the computer cannot keep up.
+// too, whether the karaoke mode follows the voice, whether the study line is
+// kept on the voice when the film slips, how readily a doubtful sound counts
+// as voice, the FFmpeg the user chose (empty: looked for), the output's
+// delay, and whether to go on when the computer cannot keep up.
 type VoicePreferences struct {
 	Model          bool               `json:"model"`
 	ModelOnBattery bool               `json:"modelOnBattery"`
 	Follow         bool               `json:"follow"`
+	Sync           bool               `json:"sync"`
 	Sensitivity    speech.Sensitivity `json:"sensitivity"`
 	FFmpegPath     string             `json:"ffmpegPath"`
 	Delay          Duration           `json:"delay"`
 	EvenWhenBusy   bool               `json:"evenWhenBusy"`
 }
 
-// DefaultVoice lets the model work, but not on the battery, and follows the
-// voice at the normal sensitivity, with FFmpeg looked for, no delay, and the
-// estimate on a computer that cannot keep up.
+// DefaultVoice lets the model work, but not on the battery, follows the
+// voice and keeps the study line on it at the normal sensitivity, with
+// FFmpeg looked for, no delay, and the estimate on a computer that cannot
+// keep up.
 func DefaultVoice() VoicePreferences {
-	return VoicePreferences{Model: true, Follow: true, Sensitivity: speech.SensitivityNormal}
+	return VoicePreferences{Model: true, Follow: true, Sync: true, Sensitivity: speech.SensitivityNormal}
 }
 
 func (v VoicePreferences) validate() error {

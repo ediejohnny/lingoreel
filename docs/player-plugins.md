@@ -89,8 +89,9 @@ The plugin talks to the player the way the player accepts:
   what tells a hung player from one that answered. This is the way of `internal/infrastructure/player/potplayer`, and
   `win32.SendMessageTimeout` is the helper.
 
-Either way, the plugin **asks again with growing waits** before giving the session up, and reports it through
-`Reconnecting()`.
+Either way, the plugin reads the player through `playerkit.Poller` (`internal/infrastructure/player/playerkit`): it
+gives the plugin's one reading a fixed interval, keeps only the latest sample, **asks again with growing waits** before
+giving the session up, and tells it through `Reconnecting()` and `Lost()`.
 
 ## Rules
 
@@ -100,7 +101,8 @@ Either way, the plugin **asks again with growing waits** before giving the sessi
   - only `127.0.0.1`, a named pipe or window messages, never the network;
   - random port and password, per session;
   - arguments passed separately, never a command line built from text;
-  - the video's path is absolute, so the player never reads it as an option.
+  - the video's path is absolute, so the player never reads it as an option: `playerkit.CheckLaunch` checks the
+    executable and the video and returns that path.
 - **`context`:** every piece of work that waits honors the `context` it receives.
 - **No global state:** the plugin is a plain value, such as `vlc.Plugin{Logger: ...}`.
 

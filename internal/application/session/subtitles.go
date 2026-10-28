@@ -18,10 +18,21 @@ const (
 	LineTranslation
 )
 
-// Track is a subtitle timeline shown with an offset.
+// Track is a subtitle timeline shown with an offset: Offset is the user's
+// own, kept with the video; Voice is what following the voice adds on top of
+// it for this session, never kept. Every time on screen is Shown's.
 type Track struct {
 	Timeline *subtitle.Timeline
 	Offset   subtitle.Offset
+	Voice    time.Duration
+}
+
+// Shown is the offset the line is shown at: the user's own and the voice's.
+func (t Track) Shown() subtitle.Offset { return t.Offset.Shift(t.Voice) }
+
+// Placed is the line's timeline at the offset it is shown at.
+func (t Track) Placed() subtitle.Placed {
+	return subtitle.Placed{Timeline: t.Timeline, Offset: t.Shown()}
 }
 
 // Visible holds the events on screen for both lines.
@@ -82,10 +93,14 @@ type Karaoke struct {
 	Fill bool
 }
 
-// VoiceFill paints a line, given by its text and its time on the playback
-// clock, along its actor's voice at a position; false leaves the line to the
-// estimate from its letters.
-type VoiceFill func(text string, start, end, position time.Duration) (float64, bool)
+// Voice follows a line's actor, the line given by its text and its time on
+// the playback clock: Fill is the share of it said at a position, false
+// leaving the line to the estimate from its letters; Begins is when its voice
+// begins, false when that is not known.
+type Voice interface {
+	Fill(text string, start, end, position time.Duration) (float64, bool)
+	Begins(text string, start, end time.Duration) (time.Duration, bool)
+}
 
 func sameEvents(a, b []subtitle.Event) bool {
 	if len(a) != len(b) {
@@ -109,7 +124,7 @@ type Subtitles struct {
 	mu      sync.RWMutex
 	lines   [2]*Track
 	karaoke Karaoke
-	voice   VoiceFill
+	voice   Voice
 	// ownTiming shows the translation on its own file's time instead of
 	// with the study line it translates.
 	ownTiming bool
@@ -160,7 +175,7 @@ func (s *Subtitles) SetOwnTiming(own bool) {
 
 // SetVoice paints the primary line along the actor's voice, or by the
 // estimate (nil), and signals the change.
-func (s *Subtitles) SetVoice(voice VoiceFill) {
+func (s *Subtitles) SetVoice(voice Voice) {
 	s.mu.Lock()
 	s.voice = voice
 	s.mu.Unlock()
@@ -177,8 +192,8 @@ func (s *Subtitles) Karaoke() Karaoke {
 // At returns the events visible at a playback position. The translation
 // comes and goes with the study line it translates, unless it keeps its own
 // time. With the karaoke mode on, a silence before a line shows that line
-// ahead of time, with its translation, and a line being spoken carries its
-// fill.
+// ahead of time, with its translation, until its voice begins; a line being
+// spoken carries its fill.
 func (s *Subtitles) At(position time.Duration) Visible {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -192,21 +207,40 @@ func (s *Subtitles) At(position time.Duration) Visible {
 		return visible
 	}
 	if len(visible.Primary) == 0 {
-		if cue, upcoming := study.UpcomingCue(primary.Timeline, primary.Offset, position, s.karaoke.Rules); upcoming {
-			visible.Cue = &cue
-			visible.Primary = []subtitle.Event{cue.Event}
-			if s.ownTiming && len(visible.Translation) == 0 {
-				visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
-			}
+		cue, upcoming := study.UpcomingCue(primary.Placed(), position, s.karaoke.Rules)
+		if !upcoming {
+			visible.Translation = s.translationWith(nil, visible.Translation, position)
+			return visible
+		}
+		visible.Primary = []subtitle.Event{cue.Event}
+		if s.ownTiming && len(visible.Translation) == 0 {
+			visible.Translation = activeAt(s.lines[LineTranslation], cue.Start)
 		}
 		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
-		return visible
+		if cue = s.untilVoice(primary, cue); cue.Remaining > 0 {
+			visible.Cue = &cue
+			return visible
+		}
+	} else {
+		visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 	}
-	visible.Translation = s.translationWith(visible.Primary, visible.Translation, position)
 	if s.karaoke.Fill {
 		visible.Fill, visible.Filling = s.fill(primary, visible.Primary, position)
 	}
 	return visible
+}
+
+// untilVoice is a preview counting down to its line's voice when the voice
+// begins before the line's time. Called with s.mu held.
+func (s *Subtitles) untilVoice(primary *Track, cue study.Cue) study.Cue {
+	if s.voice == nil {
+		return cue
+	}
+	end := primary.Shown().PlaybackTime(cue.Event.End)
+	if begins, ok := s.voice.Begins(cue.Event.Text(), cue.Start, end); ok {
+		return cue.Until(begins)
+	}
+	return cue
 }
 
 // fill is the share of the study events shown that is painted, and whether
@@ -221,10 +255,10 @@ func (s *Subtitles) fill(primary *Track, shown []subtitle.Event, position time.D
 		return 0, false // only a sound's description, or music: never painted
 	}
 	// Whatever paints the line, it is all painted before the line goes.
-	start, end := primary.Offset.PlaybackTime(line.Start), primary.Offset.PlaybackTime(line.End)
-	spoken := study.SpokenFraction(line, primary.Offset.TrackTime(position))
+	start, end := primary.Shown().PlaybackTime(line.Start), primary.Shown().PlaybackTime(line.End)
+	spoken := study.SpokenFraction(line, primary.Shown().TrackTime(position))
 	if s.voice != nil {
-		if fill, found := s.voice(line.Text(), start, end, position); found {
+		if fill, found := s.voice.Fill(line.Text(), start, end, position); found {
 			spoken = fill
 		}
 	}
@@ -282,8 +316,8 @@ func (s *Subtitles) translationWith(shown, own []subtitle.Event, position time.D
 		return own
 	}
 	return subtitle.Paired(shown,
-		subtitle.Placed{Timeline: primary.Timeline, Offset: primary.Offset},
-		subtitle.Placed{Timeline: translation.Timeline, Offset: translation.Offset},
+		primary.Placed(),
+		translation.Placed(),
 		position, maxVisiblePerLine)
 }
 
@@ -291,7 +325,7 @@ func activeAt(track *Track, position time.Duration) []subtitle.Event {
 	if track == nil || track.Timeline == nil {
 		return nil
 	}
-	active := track.Timeline.ActiveAt(track.Offset.TrackTime(position))
+	active := track.Timeline.ActiveAt(track.Shown().TrackTime(position))
 	// ActiveAt orders by Start, so the latest events are at the end.
 	return active[max(len(active)-maxVisiblePerLine, 0):]
 }
@@ -307,23 +341,57 @@ func (s *Subtitles) NextChangeAfter(position time.Duration) (time.Duration, bool
 		if track == nil || track.Timeline == nil {
 			continue
 		}
-		change, ok := track.Timeline.NextChangeAfter(track.Offset.TrackTime(position))
+		change, ok := track.Timeline.NextChangeAfter(track.Shown().TrackTime(position))
 		if !ok {
 			continue
 		}
-		if at := track.Offset.PlaybackTime(change); !found || at < next {
+		if at := track.Shown().PlaybackTime(change); !found || at < next {
 			next, found = at, true
 		}
 	}
 	if primary := s.lines[LinePrimary]; s.karaoke.Enabled && primary != nil {
-		if begin, ok := study.NextCueStartAfter(primary.Timeline, primary.Offset, position, s.karaoke.Rules); ok && (!found || begin < next) {
+		if begin, ok := study.NextCueStartAfter(primary.Placed(), position, s.karaoke.Rules); ok && (!found || begin < next) {
 			next, found = begin, true
 		}
 	}
 	return next, found
 }
 
-// Offset returns the offset of a line; zero for a missing or unknown line.
+// Shown returns the offset a line is shown at, the user's and the voice's;
+// zero for a missing or unknown line.
+func (s *Subtitles) Shown(line Line) subtitle.Offset {
+	if !line.Valid() {
+		return 0
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if track := s.lines[line]; track != nil {
+		return track.Shown()
+	}
+	return 0
+}
+
+// SetVoiceShift sets what following the voice adds to a line's own offset
+// and signals the change; it has no effect on a missing or unknown line.
+func (s *Subtitles) SetVoiceShift(line Line, shift time.Duration) {
+	if !line.Valid() {
+		return
+	}
+	s.mu.Lock()
+	track := s.lines[line]
+	if track != nil {
+		updated := *track
+		updated.Voice = shift
+		s.lines[line] = &updated
+	}
+	s.mu.Unlock()
+	if track != nil {
+		s.notify()
+	}
+}
+
+// Offset returns the user's own offset of a line, without the voice's; zero
+// for a missing or unknown line.
 func (s *Subtitles) Offset(line Line) subtitle.Offset {
 	if !line.Valid() {
 		return 0

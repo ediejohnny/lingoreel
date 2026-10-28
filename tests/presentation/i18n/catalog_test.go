@@ -111,6 +111,10 @@ func TestTheCatalogHoldsExactlyTheKeysInUse(t *testing.T) {
 	}
 	inGo := usedKeys(t, "internal", []string{".go"}, regexp.MustCompile(`\b(?:T|Text)\("([a-zA-Z0-9_.]+)"`))
 	inScreens := usedKeys(t, filepath.Join("frontend", "src"), []string{".ts", ".tsx"}, regexp.MustCompile(`\bt\("([a-zA-Z0-9_.]+)"`))
+	// A KeyedTip names a help mark by the key its topic and text share.
+	for key := range usedKeys(t, filepath.Join("frontend", "src"), []string{".tsx"}, regexp.MustCompile(`<KeyedTip k="([a-zA-Z0-9_.]+)"`)) {
+		inScreens[key+".topic"], inScreens[key+".help"] = true, true
+	}
 	for key := range inGo {
 		if _, found := fallback.Entry(key); !found {
 			t.Errorf("the Go side uses %q, which the catalog lacks", key)

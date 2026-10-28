@@ -201,6 +201,8 @@ func doviProfile(record string) int {
 // the colours of a JPEG (BT.601, every level), as Go's decoder reads them.
 // An HDR picture is made small first and tone-mapped after: FFmpeg's own
 // tone mapping inside "scale" costs seconds of every core for each still.
+// The curve is mobius, which leaves the mid tones as they are and bends only
+// the highlights, so a still is as bright as the film looks.
 func StillFilter(look Look) string {
 	var chain []string
 	if look.Interlaced {
@@ -212,7 +214,7 @@ func StillFilter(look Look) string {
 		return strings.Join(append(chain,
 			"scale="+size+":flags=bilinear", "format=yuv444p10le", "setsar=1",
 			"zscale=tin="+look.Transfer+":pin=bt2020:min=bt2020nc:rin=limited:t=linear:npl=100",
-			"format=gbrpf32le", "zscale=p=bt709", "tonemap=hable:desat=0",
+			"format=gbrpf32le", "zscale=p=bt709", "tonemap=mobius:desat=0",
 			"zscale=t=bt709:m=bt470bg:r=full", "format=yuvj444p"), ",")
 	}
 	scale := "scale=" + size + ":flags=bicubic"
@@ -256,6 +258,22 @@ type Stills struct {
 	// before a still (its -probesize); zero leaves FFmpeg's own 5 MB. For
 	// measuring a smaller one.
 	ProbeSize int64
+}
+
+// FindAndOpen opens a film for its stills with the user's own FFmpeg, found
+// anew from the one chosen, in place of Path: one that did not answer in time
+// leaves the stills to be asked for again (thumbnail.ErrBusy), one missing
+// ends them (thumbnail.ErrNoStills).
+func (s Stills) FindAndOpen(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
+	path, err := Find(ctx, chosen)
+	switch {
+	case errors.Is(err, ErrSlow):
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
+	case err != nil:
+		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
+	}
+	s.Path = path
+	return s.Open(ctx, file)
 }
 
 // Open looks at a film once, to know how its stills must be taken.

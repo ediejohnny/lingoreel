@@ -42,6 +42,14 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return voiceCheck(ctx, args[1:], stdout)
 	case "stills":
 		return stills(ctx, args[1:], stdout)
+	case "drift-check":
+		return driftCheck(ctx, args[1:], stdout)
+	case "align-check":
+		return alignCheck(ctx, args[1:], stdout)
+	case "lyrics-check":
+		return lyricsCheck(ctx, args[1:], stdout)
+	case "language-check":
+		return languageCheck(ctx, args[1:], stdout)
 	case "seek-probe":
 		return seekProbe(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
@@ -89,6 +97,22 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --watch [--software]            beside VLC playing the film (decoding on the processor), counting what it loses")
 	fmt.Fprintln(w, "      --affinity <mask>               held to these processors (0xF: the first four), as a smaller computer")
 	fmt.Fprintln(w, "      --probesize <bytes>             what FFmpeg reads to learn the streams before each still (5 MB by default)")
+	fmt.Fprintln(w, "  drift-check <video> [options]   plays a film without the screen and follows its line by the voice (numbers only)")
+	fmt.Fprintln(w, "      --cut <d> --shift <d>           every line from the cut on shown that much off (45m, 800ms)")
+	fmt.Fprintln(w, "      --subtitle, --ffmpeg, --cache   as in voice-check")
+	fmt.Fprintln(w, "  align-check <video> [options]   places each line's words in its sound with a CTC model (wav2vec2, ONNX)")
+	fmt.Fprintln(w, "      --runtime <dll> --model <dir> the onnxruntime.dll, and the folder with the model, vocab.json and meta.json")
+	fmt.Fprintln(w, "      --file <name> --threads <n>     the model's file (model.onnx) and its processors (2)")
+	fmt.Fprintln(w, "      --lines <n> --margin <d>        how many lines (20) and the sound around each (300ms)")
+	fmt.Fprintln(w, "      --text                          prints the words; only for a free film")
+	fmt.Fprintln(w, "  lyrics-check <video> [options]  places a song's lyrics (no times) in the song, all the lines in their order")
+	fmt.Fprintln(w, "      --lyrics <file>                 the lyrics: a text file, one line of the song per line")
+	fmt.Fprintln(w, "      --runtime, --model, --file, --threads, --ffmpeg   as in align-check")
+	fmt.Fprintln(w, "      --language <tag> --out <srt>    the song's audio track by language (en), and a SubRip file to write")
+	fmt.Fprintln(w, "  language-check <video> [options] hears an audio track in each language given, as the app hears an untold one")
+	fmt.Fprintln(w, "      --runtime <dll> --pack en=<model.onnx>  the onnxruntime.dll and each language's model (repeat --pack)")
+	fmt.Fprintln(w, "      --audio <n> --subtitle pt=#4    the audio track (1 is the first) and a language's subtitle (its first readable)")
+	fmt.Fprintln(w, "      --threads <n> --ffmpeg <path>   each model's processors (1, as the app) and the FFmpeg to decode with")
 	fmt.Fprintln(w, "  seek-probe <clip> [options]     measures, lap after lap, a passage's start in VLC: order to picture and to sound")
 	fmt.Fprintln(w, "      --mode <together|apart|prepare> one order (seek and play), a seek then a play, or the picture")
 	fmt.Fprintln(w, "                                      made ready during the gap, then a play")

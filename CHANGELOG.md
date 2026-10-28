@@ -6,6 +6,99 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-28
+
+### Added
+
+- With the voice AI on, the study subtitle is kept on the actors' voice when the film drifts midway (a version with a
+  scene more or less): every 5 s the voice heard around the playhead is read against the lines, and once several
+  readings agree the subtitle moves back in small steps. What the voice moves is never saved over your own adjustment,
+  which the panel keeps showing with "By the voice" under it; a seek takes the correction settled for that part of the
+  film. Your own sync step against the voice's move, or putting the subtitle back to its file's timing, leaves the voice
+  out for the rest of the video. Settings › Study › Actors' voice › "Keep the sync on the voice" turns it off; it starts
+  off at the Basic level.
+- Settings › Study › Voice languages downloads, when asked, the speech model of each language (English, Portuguese,
+  Spanish, French, German and Italian; wav2vec2 and XLSR-53, Apache-2.0, int8 on their MatMul nodes) into the app's
+  folder, one at a time, with how far it went and a cancel; ONNX Runtime 1.30.0, built from its source without
+  telemetry, comes with the first one. Each file comes from the project's releases over HTTPS and is kept only with the
+  size and SHA-256 the app carries; one that arrives otherwise is thrown away. The packs that suit the computer's level
+  are marked (none at the basic level, English at the medium one, all at the high one), and Remove deletes a language.
+  Help › About lists their licenses with the app's own notices: ONNX Runtime's, with its third-party notices, and the
+  models' Apache License 2.0 with who made each one.
+- An audio track whose file does not tell its language is heard as the video opens, in the background, in each of the
+  profile's two languages whose voice language is downloaded: the language's model places eight lines of a subtitle in
+  that language in the track, and the language whose lines it is sure of (the median of the lines, clearly above the
+  other) names the track, "English (by the sound)", and counts in the choice of the audio as a stated language does. The
+  project keeps each language's score, so a track is heard again only in a language downloaded later. The voice AI
+  off, or on the battery, hears nothing; the model runs on one processor, and FFmpeg at the idle priority.
+- `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
+  with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
+- `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
+  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was. The sound taken around a
+  line may hold its neighbours' voices: they never pull the line's first or last word onto them.
+- `docs/speech-packs.md` tells how the downloadable files were made: ONNX Runtime built from its source without
+  telemetry, and each speech model converted to ONNX and quantized from its exact revision, with the SHA-256 the app
+  requires of each, so anyone can make them again and check them.
+- `lrdev lyrics-check <video> --lyrics <file>` places a song's lyrics, a text file with no times, in the whole song:
+  all the lines at once and in their order, the solos and refrains not written left between them, the model hearing
+  the song in pieces of 30 s. It prints where each line went and how sure the model was, never the words, and `--out`
+  writes the lines as a SubRip subtitle.
+- `lrdev voice-check --each` prints every line with the voice found in it and what the karaoke mode's fill follows;
+  `--text` adds its words.
+
+### Changed
+
+- As a game does, the app reads the computer every time it opens and, when its settings come from a computer of
+  another level (a Windows profile that follows the person from PC to PC, a PC with more memory), adjusts to this one
+  by itself, keeping what was changed by hand; it no longer asks.
+- Settings › General › This computer scrolls to its question when "Adjust again to this computer" is pressed, and
+  tells the adjustment inside the card instead of at the top of the page.
+- In the setup assistant, the warning of a basic computer no longer repeats the level the line above it tells.
+- A help note (?) near the bottom of the window opens above its mark when it fits there.
+- An audio track whose file does not tell its language reads "Language not given by the file" in the lists, instead of
+  "English" (only the format's default) or "unknown language".
+- The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
+  they are and only the highlights bend, so a still is as bright as the film looks.
+- In karaoke mode, with the voice AI on and the study language's speech model downloaded, the fill follows the line's
+  words where the actor says them: the model places each word in the sound decoded ahead, before the line shows. A
+  quick speaker, a word said before the line appears, a neighbour's voice, noise or music under the line no longer
+  pull the fill behind or ahead, and the film's last line is placed in the sound up to the film's end. A line whose
+  words the model is not sure of (a shout, a whisper) fills evenly over the words placed, and waits in the pauses
+  between them (a sentence, a silence, then a long "Shhh..." no longer fills slowly across the silence). Every line
+  is filled by the voice found, as before, when the language's model is not downloaded or does not suit the
+  computer's level (English at the medium level, every language at the high one).
+- In karaoke mode, when the actor starts before the line's time, the preview's bar or countdown ends as the first word
+  is said, and from then the line fills along the voice instead of waiting for the subtitle's time.
+- The setup assistant offers a player as the session screen does, with the note that winget installs it.
+- The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
+  beside it keeps editing.
+- The app's icons are its own drawings, under its MIT license, in place of an icon library's.
+- The right-click menu's icons are drawn as the screens' are, all of one size and line, and the study mode has one.
+
+### Fixed
+
+- Subtitle files that fit a video were refused as "not for this video" when its few lines per stretch heard (a
+  cartoon with music under them) let each part of the film find a slightly different timing; parts may now differ by
+  half a second, and a file left undecided is told by hearing five stretches more, between the first ones.
+- Turning the karaoke mode on over a video with no subtitle in the studied language did nothing and said nothing; the
+  video now says so, as it opens too, and the panel tells where to choose or add one.
+- An FFmpeg chosen in the settings or the setup assistant was refused as "the computer is busy" when its first
+  opening, while an antivirus read the large file, took more than a few seconds; the button now shows it is working,
+  waits up to a minute, and keeps an FFmpeg slow to answer, which is checked again where it is used.
+- The speech models' license, in Help › About, ended with a copyright line of another project's author; it now ends
+  with the Apache License's own appendix, and names each model's exact revision and the data it was trained on
+  (LibriSpeech, CC BY 4.0; Common Voice, CC0).
+- A voice language now writes the licenses its authors ask to go with every copy beside what it downloads: the speech
+  models' license beside each model, and ONNX Runtime's license, third-party notices and where its source is (Eigen,
+  inside it, is under the MPL-2.0) beside the DLL. They go away with what they cover.
+- A voice delay changed just before leaving its settings page was not saved.
+- On a computer too busy to start FFmpeg in time (another program taking every processor, an antivirus looking at it
+  the first time after the computer starts), hearing a video's subtitle files or its audio track's language gave up
+  until the video was opened again, and the log said no FFmpeg was found. The hearing now rests 30 s and looks again
+  while the video is open; only a computer with no FFmpeg ends it.
+- Closing a video in VLC could log that VLC stopped answering: the app kept reading VLC's state while VLC was on its
+  way out. The reading now stops before VLC is told to quit, as it already did with PotPlayer.
+
 ## [0.28.0] - 2026-10-27
 
 ### Added
@@ -831,7 +924,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2

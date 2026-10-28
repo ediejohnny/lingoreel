@@ -52,9 +52,9 @@ func PassageSavedNotice(name string) string {
 	return T("notice.passage.saved", "name", name)
 }
 
-// PlanSummary says how a passage is studied: "Pausa no fim", or "Repete sem
-// parar · intervalo de 2 s · velocidade progressiva · escada de legendas ·
-// meta de 5 voltas".
+// PlanSummary says how a passage is studied, its parts joined by dots: a
+// pause at the end, or a loop with its gap, the progressive speed, the
+// subtitle ladder and the goal of laps that apply.
 func PlanSummary(plan study.PracticePlan) string {
 	parts := []string{T("plan.pause")}
 	if plan.Mode == study.EndLoop {

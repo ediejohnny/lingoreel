@@ -8,9 +8,9 @@ export function AddSubtitleFile(arg1:string):Promise<app.Video>;
 
 export function AdjustToComputer():Promise<void>;
 
-export function AnswerComputerChange(arg1:boolean):Promise<void>;
-
 export function ApplyPreset(arg1:app.StyleSettings,arg2:string):Promise<app.StyleSettings>;
+
+export function CancelSpeechPack():Promise<void>;
 
 export function CheckFill(arg1:string,arg2:string):Promise<app.FillCheck>;
 
@@ -30,8 +30,6 @@ export function ClearSelection():Promise<void>;
 
 export function ClearThumbnails():Promise<void>;
 
-export function ComputerChange():Promise<app.ComputerChange>;
-
 export function CreateProfile(arg1:string):Promise<void>;
 
 export function DeletePassage(arg1:string):Promise<void>;
@@ -47,6 +45,8 @@ export function EditLine(arg1:app.EditRequest):Promise<void>;
 export function EndPreview():Promise<void>;
 
 export function ExportSubtitle(arg1:string):Promise<void>;
+
+export function FetchSpeechPack(arg1:string):Promise<void>;
 
 export function FileAssociation():Promise<boolean>;
 
@@ -81,6 +81,8 @@ export function PreviewLook(arg1:app.ProfileSettings):Promise<void>;
 export function PreviewSubtitles(arg1:app.PreviewRequest):Promise<string>;
 
 export function RedoEdit():Promise<void>;
+
+export function RemoveSpeechPack(arg1:string):Promise<void>;
 
 export function RenamePassage(arg1:string,arg2:string):Promise<void>;
 
@@ -136,8 +138,6 @@ export function SetPanel(arg1:app.PanelState):Promise<void>;
 
 export function SetPassageOptions(arg1:app.PassageOptions):Promise<void>;
 
-export function SetPlayerPath(arg1:string,arg2:string):Promise<void>;
-
 export function SetSpeed(arg1:number):Promise<void>;
 
 export function SetStudyMode(arg1:string):Promise<void>;
@@ -161,6 +161,8 @@ export function Shortcuts():Promise<Array<app.ShortcutSetting>>;
 export function ShowRecommendations():Promise<void>;
 
 export function SkipWelcome():Promise<void>;
+
+export function SpeechPacks():Promise<app.SpeechPacksView>;
 
 export function StopPassage():Promise<void>;
 

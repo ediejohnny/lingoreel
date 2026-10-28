@@ -347,7 +347,7 @@ func (p *Practice) tickLines(state playback.Sample) {
 		p.mu.Unlock()
 		return
 	}
-	at := track.Offset.TrackTime(state.Position)
+	at := track.Shown().TrackTime(state.Position)
 	line, found := track.Timeline.LastStartedBy(at)
 	if !found || at < line.End {
 		p.mu.Unlock()
@@ -363,7 +363,7 @@ func (p *Practice) tickLines(state playback.Sample) {
 	}
 	p.repeated[line.ID]++
 	p.mu.Unlock()
-	if target, ok := study.ReplayTarget(track.Timeline, track.Offset, track.Offset.PlaybackTime(line.Start), karaoke.Rules); ok {
+	if target, ok := study.ReplayTarget(track.Placed(), track.Shown().PlaybackTime(line.Start), karaoke.Rules); ok {
 		p.failed(p.seek(target))
 	}
 }
@@ -389,7 +389,7 @@ func (p *Practice) WakeIn(state playback.Sample) time.Duration {
 	}
 	if p.segment == nil && p.repeat > 0 {
 		if track := p.subtitles.Track(LinePrimary); track != nil && track.Timeline != nil {
-			at := track.Offset.TrackTime(state.Position)
+			at := track.Shown().TrackTime(state.Position)
 			if line, found := track.Timeline.LastStartedBy(at); found && at < line.End+lineRepeatDelay {
 				return max(time.Duration(float64(line.End+lineRepeatDelay-at)/speed), time.Millisecond)
 			}
@@ -417,10 +417,10 @@ func (p *Practice) ReplayLine() error {
 	p.mu.Unlock()
 	var target time.Duration
 	if passage != nil {
-		target = study.ReplayTargetIn(track.Timeline, track.Offset, position, rules, *passage)
+		target = study.ReplayTargetIn(track.Placed(), position, rules, *passage)
 	} else {
 		var ok bool
-		if target, ok = study.ReplayTarget(track.Timeline, track.Offset, position, rules); !ok {
+		if target, ok = study.ReplayTarget(track.Placed(), position, rules); !ok {
 			return nil // no line yet: nothing to train again
 		}
 	}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { backend, type FillCheck } from "../../services/backend";
+import { after } from "../../timing";
 import { Button } from "../ui/Button";
 
 /** waitBeforeChecking lets a color picker settle before the colors are checked. */
@@ -28,17 +29,12 @@ export function FillColorNote({ text, fill, enabled, onAdopt }: FillColorNotePro
     if (!enabled) {
       return;
     }
-    let current = true;
-    const timer = window.setTimeout(() => {
+    return after(waitBeforeChecking, (current) => {
       backend
         .checkFill(text, fill)
-        .then((check) => current && setAnswer({ text, fill, check }))
-        .catch(() => current && setAnswer(null));
-    }, waitBeforeChecking);
-    return () => {
-      current = false;
-      window.clearTimeout(timer);
-    };
+        .then((check) => current() && setAnswer({ text, fill, check }))
+        .catch(() => current() && setAnswer(null));
+    });
   }, [text, fill, enabled]);
 
   const check = answer && answer.text === text && answer.fill === fill ? answer.check : null;

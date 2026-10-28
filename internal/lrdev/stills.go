@@ -167,19 +167,13 @@ func stills(ctx context.Context, args []string, stdout io.Writer) error {
 		float64(len(seen))/took.Seconds(), failed)
 	if len(walls) > 0 {
 		out.line("Median:   %d ms, cpu %d ms, %d KB; slowest %d ms, most read %d KB",
-			median(walls).Milliseconds(), median(cpus).Milliseconds(), median(read)>>10,
+			quantileOf(walls, 0.5).Milliseconds(), quantileOf(cpus, 0.5).Milliseconds(), quantileOf(read, 0.5)>>10,
 			slices.Max(walls).Milliseconds(), slices.Max(read)>>10)
 	}
 	if out.err == nil && ctx.Err() != nil {
 		return ctx.Err()
 	}
 	return out.err
-}
-
-func median[T time.Duration | uint64](values []T) T {
-	sorted := slices.Clone(values)
-	slices.Sort(sorted)
-	return sorted[len(sorted)/2]
 }
 
 func capped(run ffmpeg.Run) string {

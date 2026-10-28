@@ -9,9 +9,18 @@ import (
 )
 
 // AudioLabel names an audio track for a list, such as "English · DTS ·
-// Commentary · default".
+// Commentary · default". A track whose file does not tell its language says
+// so: with none, or with only the format's default (English, guessed), the
+// language is not the file's word.
 func AudioLabel(track media.Track) string {
-	parts := []string{Capitalized(LanguageName(track.Language))}
+	language := Capitalized(LanguageName(track.Language))
+	switch {
+	case track.LanguageHeard:
+		language = T("track.audio.heard", "language", language)
+	case track.Language == "" || track.LanguageGuessed:
+		language = T("track.audio.untold")
+	}
+	parts := []string{language}
 	if track.Codec != "" {
 		parts = append(parts, strings.TrimPrefix(track.Codec, "A_"))
 	}

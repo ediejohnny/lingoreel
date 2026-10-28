@@ -8,32 +8,28 @@ import (
 )
 
 // ComputerRecord is the computer the settings were last adjusted to, with
-// its level, and one the person declined to adjust to. A setting the level
-// decides that differs from what the recorded level puts there was chosen
-// by hand.
+// its level. A setting the level decides that differs from what the
+// recorded level puts there was chosen by hand.
 type ComputerRecord struct {
 	Level    capacity.Level    `json:"level"`
 	Identity capacity.Identity `json:"identity"`
-	Declined capacity.Identity `json:"declined"`
 }
 
 // Adjusted tells the settings were adjusted to a computer.
 func (r ComputerRecord) Adjusted() bool { return r.Level != "" }
 
-// Knows tells there is nothing to ask about a computer: it is the one
-// recorded, the one declined, or one nothing was read of.
+// Knows tells a computer needs nothing done: it is the one recorded, or one
+// nothing was read of.
 func (r ComputerRecord) Knows(id capacity.Identity) bool {
-	return !id.Known() || id == r.Identity || id == r.Declined
+	return !id.Known() || id == r.Identity
 }
 
 func (r ComputerRecord) validate() error {
 	if r.Level != "" && !r.Level.Valid() {
 		return fmt.Errorf("%w: computer level %q", ErrInvalidSettings, r.Level)
 	}
-	for _, id := range []capacity.Identity{r.Identity, r.Declined} {
-		if id.Processors < 0 || id.MemoryGiB < 0 || utf8.RuneCountInString(id.Processor) > capacity.MaxProcessorName {
-			return fmt.Errorf("%w: computer %+v", ErrInvalidSettings, id)
-		}
+	if id := r.Identity; id.Processors < 0 || id.MemoryGiB < 0 || utf8.RuneCountInString(id.Processor) > capacity.MaxProcessorName {
+		return fmt.Errorf("%w: computer %+v", ErrInvalidSettings, id)
 	}
 	return nil
 }
@@ -45,6 +41,7 @@ var levelled = []struct {
 	of      func(l capacity.Level) bool
 }{
 	{func(c *Config) *bool { return &c.Voice.Model }, capacity.Level.VoiceAI},
+	{func(c *Config) *bool { return &c.Voice.Sync }, capacity.Level.VoiceAI},
 }
 
 // AdjustTo puts every setting the computer's level decides to the level's
@@ -77,7 +74,3 @@ func (c *Config) AdjustKeepingChoices(m capacity.Machine) {
 func (c *Config) RecordComputer(m capacity.Machine) {
 	c.Computer.Level, c.Computer.Identity = m.Level(), m.Identity()
 }
-
-// DeclineComputer remembers the person declined to adjust to a computer, so
-// it is not asked about again.
-func (c *Config) DeclineComputer(id capacity.Identity) { c.Computer.Declined = id }

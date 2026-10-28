@@ -169,7 +169,11 @@ func (a *API) Watch(request WatchRequest) error {
 		embedded:   a.embeds(installation.ID),
 	}
 	current.names.Store(&names)
-	started, err := watch.Start(ctx, a.deps.Ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
+	ports := a.deps.Ports
+	if a.deps.OpenSpeech != nil {
+		ports.OpenWords = a.openWords
+	}
+	started, err := watch.Start(ctx, ports, watchRequest, sessionListener{api: a, current: current}, names.Notice)
 	if err != nil {
 		a.logger.Warn("the session did not start", "player", request.Player, "error", err)
 		return a.startFailure(err, installation)
@@ -184,6 +188,7 @@ func (a *API) Watch(request WatchRequest) error {
 		"primary", trackOf(video.Info, tracks.Primary), "translation", trackOf(video.Info, tracks.Translation), "mode", mode,
 		"embedded", current.embedded)
 	a.keepChoice(current, tracks, mode)
+	tellNoStudyLine(started)
 	a.setTitle(ptbr.WindowTitle(filepath.Base(video.Path)))
 	go a.report(current)
 	return nil
@@ -339,7 +344,12 @@ func (a *API) describe(current *watching) Playback {
 		markedStart = ptbr.PassageClock(start)
 	}
 	plan, snap := current.session.PassageOptions()
+	voiceShift := ""
+	if shift := current.session.VoiceShift(); shift != 0 {
+		voiceShift = ptbr.Offset(subtitle.NewOffset(shift))
+	}
 	return Playback{
+		PrimaryVoice:   voiceShift,
 		MarkedStart:    markedStart,
 		PassageOptions: PassageOptions{Snap: snap, Plan: planOf(plan)},
 		Active:         true, Embedded: current.embedded, Status: string(state.Status),

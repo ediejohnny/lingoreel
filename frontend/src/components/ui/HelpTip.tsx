@@ -1,6 +1,7 @@
-import { CircleHelp } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { CircleHelp } from "./icons";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { t } from "../../i18n";
+import { fitsAbove } from "../../placement";
 
 interface HelpTipProps {
   /** topic names what the help is about, for screen readers. */
@@ -15,8 +16,22 @@ interface HelpTipProps {
  */
 export function HelpTip({ topic, children }: HelpTipProps) {
   const [open, setOpen] = useState(false);
+  const [above, setAbove] = useState(false);
   const id = useId();
   const root = useRef<HTMLSpanElement>(null);
+  const note = useRef<HTMLSpanElement>(null);
+
+  // The note opens below the (?), or above it when the window ends first and
+  // there is room up there; measured before it paints, so it never jumps.
+  useLayoutEffect(() => {
+    if (!open || !note.current || !root.current) {
+      setAbove(false);
+      return;
+    }
+    const height = note.current.getBoundingClientRect().height;
+    const button = root.current.getBoundingClientRect();
+    setAbove(fitsAbove(button.top, button.bottom, height, window.innerHeight));
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -50,12 +65,18 @@ export function HelpTip({ topic, children }: HelpTipProps) {
       {open && (
         <span
           id={id}
+          ref={note}
           role="note"
-          className="absolute top-8 left-1/2 z-20 w-72 -translate-x-1/2 rounded-card border border-line bg-raised p-3 text-sm leading-relaxed text-fg-secondary shadow-card"
+          className={`absolute ${above ? "bottom-8" : "top-8"} left-1/2 z-20 w-72 -translate-x-1/2 rounded-card border border-line bg-raised p-3 text-sm leading-relaxed text-fg-secondary shadow-card`}
         >
           {children}
         </span>
       )}
     </span>
   );
+}
+
+/** KeyedTip is the HelpTip whose topic and text are the catalog's `<k>.topic` and `<k>.help`. */
+export function KeyedTip({ k }: { k: string }) {
+  return <HelpTip topic={t(`${k}.topic`)}>{t(`${k}.help`)}</HelpTip>;
 }

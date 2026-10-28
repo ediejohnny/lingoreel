@@ -2,6 +2,7 @@ package study_test
 
 import (
 	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -48,6 +49,133 @@ func TestThePlanFollowsTheVoice(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Sintel's old man at 1:58, quick: "You're a" is said before the line shows
+// (at 10 s of the cut), and the whole line in 2.6 s of its 3.45 s. The words
+// as the speech model placed them, in the cut's time.
+var aFoolsWords = []speech.Word{
+	{Span: speech.Span{Start: 9720 * ms, End: 9880 * ms}, Heard: true, Confidence: 0.83},   // You're
+	{Span: speech.Span{Start: 9920 * ms, End: 9940 * ms}, Heard: true, Confidence: 0.99},   // a
+	{Span: speech.Span{Start: 10000 * ms, End: 10180 * ms}, Heard: true, Confidence: 0.97}, // fool
+	{Span: speech.Span{Start: 10240 * ms, End: 10340 * ms}, Heard: true, Confidence: 1},    // for
+	{Span: speech.Span{Start: 10420 * ms, End: 10760 * ms}, Heard: true, Confidence: 0.98}, // traveling
+	{Span: speech.Span{Start: 10800 * ms, End: 11040 * ms}, Heard: true, Confidence: 0.98}, // alone,
+	{Span: speech.Span{Start: 11120 * ms, End: 11220 * ms}, Heard: true, Confidence: 0.95}, // so
+	{Span: speech.Span{Start: 11300 * ms, End: 11700 * ms}, Heard: true, Confidence: 0.99}, // completely
+	{Span: speech.Span{Start: 11780 * ms, End: 12320 * ms}, Heard: true, Confidence: 0.75}, // unprepared.
+}
+
+// The plan by words paints each word over the time it was said: as the line
+// shows, what was already said is painted; at each word's end everything up
+// to it is; and the line is whole when the last word ends, not when the line
+// goes. A number has no time of its own and is painted with the next word;
+// words placed in another count than the words said fall back to the spread.
+func TestThePlanByWordsFollowsAQuickSpeaker(t *testing.T) {
+	t.Parallel()
+	const text = "You're a fool for traveling alone,\nso completely unprepared."
+	plan := study.PlanWords(study.SpeechUnits(text), aFoolsWords)
+	const visible = 52.0
+	checks := []struct {
+		at   time.Duration
+		want float64 // characters painted
+	}{
+		{9 * time.Second, 0},
+		{10 * time.Second, 7}, // shown: "You're a" already said
+		{10180 * ms, 11},      // "fool" said
+		{10760 * ms, 23},      // "traveling" said
+		{10920 * ms, 26},      // halfway through "alone,"
+		{11040 * ms, 29},      // "alone," said: only "so completely unprepared." left
+		{12320 * ms, visible}, // the last word said: all of it
+		{13 * time.Second, visible},
+	}
+	for _, c := range checks {
+		if got := plan.Fraction(c.at) * visible; math.Abs(got-c.want) > 0.01 {
+			t.Errorf("at %v: %.2f characters painted, want %.2f", c.at, got, c.want)
+		}
+	}
+
+	numbered := study.PlanWords(study.SpeechUnits("Gate 9 opens"), []speech.Word{
+		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true, Confidence: 0.9},
+		{Heard: false},
+		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true, Confidence: 0.9},
+	})
+	if got := numbered.Fraction(1400*ms) * 10; math.Abs(got-4) > 0.01 {
+		t.Errorf("between the words: %.2f characters painted, want 4 (\"Gate\", the number waits)", got)
+	}
+	if got := numbered.Fraction(1500*ms) * 10; math.Abs(got-5) > 0.01 {
+		t.Errorf("at the next word: %.2f characters painted, want 5 (the number with it)", got)
+	}
+
+	// What ends the line without a time of its own is painted as the last
+	// word ends: the fill never stops short of the line's end.
+	described := study.PlanWords(study.SpeechUnits("Open gate 9"), []speech.Word{
+		{Span: speech.Span{Start: time.Second, End: 1300 * ms}, Heard: true, Confidence: 0.9},
+		{Span: speech.Span{Start: 1500 * ms, End: 1900 * ms}, Heard: true, Confidence: 0.9},
+	})
+	if got := described.Fraction(1900 * ms); got != 1 {
+		t.Errorf("as the last word ends: %.3f of the line painted, want all of it, the number too", got)
+	}
+
+	// A shout: the model placed the words, sure of none of their letters.
+	// Where they are is the voice, so the words spread over it by their
+	// syllables, from the first word to the last, never word by word.
+	shouted := slices.Clone(aFoolsWords)
+	for i := range shouted {
+		shouted[i].Confidence = 0.2
+	}
+	voice := []speech.Span{{Start: shouted[0].Start, End: shouted[len(shouted)-1].End}}
+	for _, at := range []time.Duration{9 * time.Second, 10180 * ms, 11 * time.Second, 12320 * ms} {
+		got, want := study.PlanWords(study.SpeechUnits(text), shouted).Fraction(at), study.PlanFill(study.SpeechUnits(text), voice).Fraction(at)
+		if got != want {
+			t.Errorf("shouted, at %v: %.3f painted, want the spread over the words' stretch (%.3f)", at, got, want)
+		}
+	}
+
+	spread := study.PlanWords(study.SpeechUnits(text), aFoolsWords[:5])
+	if got, want := spread.Fraction(10760*ms), study.PlanFill(study.SpeechUnits(text), spansOf(aFoolsWords[:5])).Fraction(10760*ms); got != want {
+		t.Errorf("five words placed for nine said: %.3f painted, want the spread over them (%.3f)", got, want)
+	}
+}
+
+// Sintel at 3:27, unsure of every word (median 0.45): "We're almost done."
+// then, after almost a second of silence, a long "Shhh...". The spread of a
+// line the model is not sure of stops in the silences between the words it
+// placed: the first sentence fills over its own words and waits, and the
+// "Shhh..." fills over its own, never the whole line slowly across the pause.
+func TestAShoutWaitsInThePausesBetweenItsWords(t *testing.T) {
+	t.Parallel()
+	words := []speech.Word{
+		{Span: speech.Span{Start: 7800 * ms, End: 8000 * ms}, Heard: true, Confidence: 0.04},  // We're
+		{Span: speech.Span{Start: 8050 * ms, End: 8300 * ms}, Heard: true, Confidence: 0.45},  // almost
+		{Span: speech.Span{Start: 8350 * ms, End: 8510 * ms}, Heard: true, Confidence: 0.48},  // done.
+		{Span: speech.Span{Start: 9430 * ms, End: 10470 * ms}, Heard: true, Confidence: 0.20}, // Shhh...
+	}
+	plan := study.PlanWords(study.SpeechUnits("We're almost done. Shhh..."), words)
+	const visible = 23.0
+	checks := []struct {
+		at   time.Duration
+		want float64 // characters painted
+	}{
+		{7800 * ms, 0},
+		{8510 * ms, 16},       // "We're almost done." all said
+		{9 * time.Second, 16}, // the pause: nothing more
+		{9430 * ms, 16},
+		{10470 * ms, visible},
+	}
+	for _, c := range checks {
+		if got := plan.Fraction(c.at) * visible; math.Abs(got-c.want) > 0.01 {
+			t.Errorf("at %v: %.2f characters painted, want %.2f", c.at, got, c.want)
+		}
+	}
+}
+
+func spansOf(words []speech.Word) []speech.Span {
+	spans := make([]speech.Span, len(words))
+	for i, w := range words {
+		spans[i] = w.Span
+	}
+	return spans
 }
 
 // checkpoint is the characters painted (of 13) when a frame was heard.

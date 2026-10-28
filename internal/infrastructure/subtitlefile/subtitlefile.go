@@ -14,6 +14,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/capped"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 )
 
@@ -278,29 +279,14 @@ func (Files) Load(path string) (subtitle.Format, media.SubtitleContent, error) {
 	return format, media.SubtitleContent{Events: result.Events, Skipped: result.Skipped}, nil
 }
 
-// readLimited reads a regular file of at most the parsers' input limit. The
-// limit is enforced on the bytes read, not only on the size seen before
-// reading, so a file that grows in between cannot exceed it.
+// readLimited reads a regular file of at most the parsers' input limit.
 func readLimited(path string) ([]byte, error) {
-	name := filepath.Base(path)
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", name, err)
+	data, err := capped.ReadFile(path, subtitleformat.MaxInputBytes)
+	switch {
+	case errors.Is(err, capped.ErrNotFile):
+		return nil, fmt.Errorf("%w: %w", ErrUnsupported, err)
+	case errors.Is(err, capped.ErrTooLarge):
+		return nil, fmt.Errorf("%w: %w", ErrTooLarge, err)
 	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("inspecting %s: %w", name, err)
-	}
-	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("%w: %s is not a file", ErrUnsupported, name)
-	}
-	data, err := io.ReadAll(io.LimitReader(file, subtitleformat.MaxInputBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", name, err)
-	}
-	if len(data) > subtitleformat.MaxInputBytes {
-		return nil, fmt.Errorf("%w: %s is larger than %d bytes", ErrTooLarge, name, subtitleformat.MaxInputBytes)
-	}
-	return data, nil
+	return data, err
 }

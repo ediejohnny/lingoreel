@@ -1,23 +1,24 @@
-import { Pencil, Plus, Trash2, Wand2 } from "lucide-react";
+import { Pencil, Plus, Trash, Wand } from "../ui/icons";
 import { useState } from "react";
 import { setLanguage, t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
 import { TextField, Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
 import { ComputerCard } from "./ComputerCard";
 import type { SectionProps } from "./section";
 
-type Editing = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
+/** ProfileEdit is what is being done to the profiles: nothing, naming a new or the active one, or deleting it. */
+type ProfileEdit = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
 
 /**
  * GeneralSection holds the profiles, the app language (with more than one), the welcome, the computer, the window and the
  * sync notice.
  */
 export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
-  const [editing, setEditing] = useState<Editing>({ kind: "none" });
+  const [editing, setEditing] = useState<ProfileEdit>({ kind: "none" });
   const active = view.general.activeProfile;
   const finish = async (action: () => Promise<unknown>, done: string) => {
     await run(action, done);
@@ -26,10 +27,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
 
   return (
     <>
-      <Card
-        title={t("ui.settings.profile.title")}
-        aside={<HelpTip topic={t("ui.settings.profile.topic")}>{t("ui.settings.profile.help")}</HelpTip>}
-      >
+      <Card title={t("ui.settings.profile.title")} aside={<KeyedTip k="ui.settings.profile" />}>
         <div className="flex flex-col gap-4">
           <Select
             label={t("ui.settings.profile.active")}
@@ -47,7 +45,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
               <Button icon={Pencil} disabled={dirty} onClick={() => setEditing({ kind: "rename", name: active })}>
                 {t("ui.settings.profile.rename")}
               </Button>
-              <Button icon={Trash2} disabled={dirty || view.profiles.length < 2} onClick={() => setEditing({ kind: "delete" })}>
+              <Button icon={Trash} disabled={dirty || view.profiles.length < 2} onClick={() => setEditing({ kind: "delete" })}>
                 {t("ui.settings.profile.delete")}
               </Button>
             </div>
@@ -86,7 +84,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
               <p className="text-sm text-fg">{t("ui.settings.profile.confirmDelete", { name: active })}</p>
               <div className="flex gap-2">
                 <Button
-                  icon={Trash2}
+                  icon={Trash}
                   onClick={() => void finish(() => backend.deleteProfile(active), t("ui.settings.profile.deleted", { name: active }))}
                 >
                   {t("ui.settings.profile.delete")}
@@ -114,7 +112,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
                 () => t("ui.settings.language.saved"),
               )
             }
-            help={<HelpTip topic={t("ui.settings.language.topic")}>{t("ui.settings.language.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.language" />}
           />
         </Card>
       )}
@@ -124,7 +122,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
       >
         <div className="flex flex-col gap-2">
           <div>
-            <Button icon={Wand2} disabled={!welcome || dirty} onClick={welcome}>
+            <Button icon={Wand} disabled={!welcome || dirty} onClick={welcome}>
               {t("ui.settings.welcome.open")}
             </Button>
           </div>
@@ -141,7 +139,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
           label={t("ui.settings.window.onTop")}
           checked={view.general.alwaysOnTop}
           onChange={(on) => void run(() => backend.setAlwaysOnTop(on))}
-          help={<HelpTip topic={t("ui.settings.window.topic")}>{t("ui.settings.window.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.window" />}
         />
       </Card>
       <Card title={t("ui.settings.notices.title")}>
@@ -149,7 +147,7 @@ export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
           label={t("ui.settings.notices.sync")}
           checked={view.general.syncNotice}
           onChange={(show) => void run(() => backend.setSyncNotice(show))}
-          help={<HelpTip topic={t("ui.settings.notices.topic")}>{t("ui.settings.notices.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.notices" />}
         />
       </Card>
     </>

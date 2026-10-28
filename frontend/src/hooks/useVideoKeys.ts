@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { isTyping } from "./format";
-import { fullscreenOf, panelCommand, translationCommand } from "./keys";
-import { backend, type ShortcutSetting } from "./services/backend";
+import { isTyping } from "../format";
+import { fullscreenOf, panelCommand, translationCommand } from "../keys";
+import { backend, type PlayingCommands, type ShortcutSetting } from "../services/backend";
 
 interface VideoKeysOptions {
   /** active is a video playing: the keys work only then. */
@@ -10,11 +10,7 @@ interface VideoKeysOptions {
   embedded: boolean;
   /** version changes when the profile's keys may have changed, so they are read again. */
   version: number;
-  commands: {
-    runShortcut: (command: string, repeat: boolean) => Promise<void>;
-    reveal: (pressed: boolean) => Promise<void>;
-    setFullscreen: (on: boolean) => Promise<void>;
-  };
+  commands: Pick<PlayingCommands, "runShortcut" | "reveal" | "setFullscreen">;
   onCommand: (command: () => Promise<void>) => void;
 }
 
@@ -23,9 +19,9 @@ interface VideoKeysOptions {
  * has the keys while a video plays, unless a field has the focus: the panel,
  * the header, or the screen behind the video, which gets the keys back when
  * the window comes back from Alt+Tab. The translation key also hears its
- * release.
+ * release. It returns the keys, which the panel names on its buttons.
  */
-export function useVideoKeys({ active, embedded, version, commands, onCommand }: VideoKeysOptions) {
+export function useVideoKeys({ active, embedded, version, commands, onCommand }: VideoKeysOptions): ShortcutSetting[] {
   const [keys, setKeys] = useState<ShortcutSetting[]>([]);
   useEffect(() => {
     if (!active) {
@@ -92,4 +88,6 @@ export function useVideoKeys({ active, embedded, version, commands, onCommand }:
       release();
     };
   }, [active, keys, commands, onCommand, embedded]);
+
+  return keys;
 }

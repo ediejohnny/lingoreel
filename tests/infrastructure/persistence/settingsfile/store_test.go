@@ -271,7 +271,7 @@ func TestOldProfilesFollowTheAppFont(t *testing.T) {
 			"study": {"mode": "dual", "reveal": "hold", "karaoke": ` + karaokeJSON(t) + `}, "speed": 1,
 			"sync": {"precisionSeekStep": "100ms", "offsetStep": "50ms", "offsetLargeStep": "500ms"}}`
 	}
-	old := `{"version": 2, "profiles": [` + profile("Padrão", appearance.PreviousDefaultFont) + `,` +
+	old := `{"version": 2, "profiles": [` + profile("Padrão", "Arial") + `,` +
 		profile("Escolhida", "Comic Sans MS") + `]}`
 	if err := os.WriteFile(filepath.Join(dir, "profiles.json"), []byte(old), 0o600); err != nil {
 		t.Fatal(err)
@@ -374,10 +374,15 @@ func TestOldProfilesGetTheCleanerSelection(t *testing.T) {
 		}
 		return object
 	}
-	mine := appearance.PreviousSelectionLook()
+	// The selection's frame a version 5 file holds by default.
+	olderSelection := appearance.SelectionLook{
+		Color: appearance.RGB(0xFF, 0xFF, 0xFF).WithAlpha(0xD9), Edge: appearance.RGB(0, 0, 0).WithAlpha(0x8C),
+		Width: 1.5, Gap: 4, Radius: 1.6,
+	}
+	mine := olderSelection
 	mine.Width = 3
 	old, err := json.Marshal(map[string]any{"version": 5, "profiles": []any{
-		version5("Padrão", appearance.PreviousSelectionLook()), version5("Mine", mine),
+		version5("Padrão", olderSelection), version5("Mine", mine),
 	}})
 	if err != nil {
 		t.Fatal(err)

@@ -33,7 +33,7 @@ type Preview struct {
 // time there is no preview.
 func (b Bar) PreviewAt(area layout.Rect, x, aspect, labelW, labelH float64) (Preview, bool) {
 	s := b.Scale
-	if !area.Valid() || !b.Track.Valid() || !(s > 0) || !finite(x) || !finite(labelW) || !finite(labelH) || labelW <= 0 || labelH <= 0 {
+	if !area.Valid() || !b.Track.Valid() || !(s > 0) || !layout.Finite(x) || !layout.Finite(labelW) || !layout.Finite(labelH) || labelW <= 0 || labelH <= 0 {
 		return Preview{}, false
 	}
 	label := layout.Rect{W: labelW, H: labelH, Y: b.Track.Y - previewGap*s - labelH}
@@ -41,7 +41,7 @@ func (b Bar) PreviewAt(area layout.Rect, x, aspect, labelW, labelH float64) (Pre
 		return Preview{}, false
 	}
 	var picture layout.Rect
-	if finite(aspect) && aspect > 0 {
+	if layout.Finite(aspect) && aspect > 0 {
 		width := math.Min(math.Min(previewWidth, previewHeight*aspect)*s, area.W-2*previewMargin*s)
 		picture = layout.Rect{W: width, H: width / aspect}
 		picture.Y = label.Y - labelGap*s - picture.H
@@ -61,5 +61,3 @@ func (b Bar) PreviewAt(area layout.Rect, x, aspect, labelW, labelH float64) (Pre
 	}
 	return Preview{Box: box, Picture: picture, Label: label}, true
 }
-
-func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }

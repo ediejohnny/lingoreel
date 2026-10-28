@@ -14,12 +14,12 @@ export function AdjustToComputer() {
   return window['go']['app']['API']['AdjustToComputer']();
 }
 
-export function AnswerComputerChange(arg1) {
-  return window['go']['app']['API']['AnswerComputerChange'](arg1);
-}
-
 export function ApplyPreset(arg1, arg2) {
   return window['go']['app']['API']['ApplyPreset'](arg1, arg2);
+}
+
+export function CancelSpeechPack() {
+  return window['go']['app']['API']['CancelSpeechPack']();
 }
 
 export function CheckFill(arg1, arg2) {
@@ -58,10 +58,6 @@ export function ClearThumbnails() {
   return window['go']['app']['API']['ClearThumbnails']();
 }
 
-export function ComputerChange() {
-  return window['go']['app']['API']['ComputerChange']();
-}
-
 export function CreateProfile(arg1) {
   return window['go']['app']['API']['CreateProfile'](arg1);
 }
@@ -92,6 +88,10 @@ export function EndPreview() {
 
 export function ExportSubtitle(arg1) {
   return window['go']['app']['API']['ExportSubtitle'](arg1);
+}
+
+export function FetchSpeechPack(arg1) {
+  return window['go']['app']['API']['FetchSpeechPack'](arg1);
 }
 
 export function FileAssociation() {
@@ -160,6 +160,10 @@ export function PreviewSubtitles(arg1) {
 
 export function RedoEdit() {
   return window['go']['app']['API']['RedoEdit']();
+}
+
+export function RemoveSpeechPack(arg1) {
+  return window['go']['app']['API']['RemoveSpeechPack'](arg1);
 }
 
 export function RenamePassage(arg1, arg2) {
@@ -270,10 +274,6 @@ export function SetPassageOptions(arg1) {
   return window['go']['app']['API']['SetPassageOptions'](arg1);
 }
 
-export function SetPlayerPath(arg1, arg2) {
-  return window['go']['app']['API']['SetPlayerPath'](arg1, arg2);
-}
-
 export function SetSpeed(arg1) {
   return window['go']['app']['API']['SetSpeed'](arg1);
 }
@@ -320,6 +320,10 @@ export function ShowRecommendations() {
 
 export function SkipWelcome() {
   return window['go']['app']['API']['SkipWelcome']();
+}
+
+export function SpeechPacks() {
+  return window['go']['app']['API']['SpeechPacks']();
 }
 
 export function StopPassage() {

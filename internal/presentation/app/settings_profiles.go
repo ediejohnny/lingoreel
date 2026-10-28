@@ -168,9 +168,9 @@ func (a *API) playerSettings(config settings.Config) []PlayerSetting {
 	return list
 }
 
-// SetPlayerPath tells where a player's program is, for a player installed
-// where the app does not look.
-func (a *API) SetPlayerPath(id, path string) error {
+// setPlayerPath keeps where a player's program is, for a player installed
+// where the app does not look; only a program the user chose comes here.
+func (a *API) setPlayerPath(id, path string) error {
 	if !player.ID(id).Valid() || !a.deps.Registry.Supported(player.ID(id)) {
 		return ErrUnknownPlayer
 	}
@@ -193,9 +193,7 @@ func (a *API) ChoosePlayerProgram(id string) (string, error) {
 	if !a.deps.Registry.Supported(player.ID(id)) {
 		return "", ErrUnknownPlayer
 	}
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return "", ErrNotReady
 	}
@@ -203,7 +201,7 @@ func (a *API) ChoosePlayerProgram(id string) (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := a.SetPlayerPath(id, path); err != nil {
+	if err := a.setPlayerPath(id, path); err != nil {
 		return "", err
 	}
 	return path, nil

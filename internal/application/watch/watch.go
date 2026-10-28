@@ -200,13 +200,14 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.subtitles = session.NewSubtitles(tracks[session.LinePrimary], tracks[session.LineTranslation])
 	s.controls = session.NewControls(running, s.clock, frameRate(info))
 	s.controls.SetVolumeTouch(request.VolumeTouch)
-	// A level that could not be synced leaves the bar at 100%, as before;
-	// the next volume key sets the player's level anyway.
+	// A level that could not be synced leaves the bar at 100%; the next
+	// volume key sets the player's level anyway.
 	_ = s.controls.SyncVolume()
 	s.sync = session.NewSync(s.subtitles, request.Steps, now)
 	s.subtitles.SetKaraoke(request.Karaoke)
 	s.subtitles.SetOwnTiming(request.TranslationOwnTiming)
-	s.voice = &voicing{model: ports.Model, tap: ports.Tap, find: ports.FindDecoder, file: request.Analysis.Path, pid: running.ProcessID(),
+	s.voice = &voicing{model: ports.Model, tap: ports.Tap, find: ports.FindDecoder, openWords: ports.OpenWords,
+		file: request.Analysis.Path, pid: running.ProcessID(),
 		setup: request.Voice, onBattery: ports.Power != nil && ports.Power.OnBattery()}
 	s.followVoice()
 	s.indicator.Store(cmp.Or(request.Indicator, study.IndicatorBar))
@@ -252,6 +253,9 @@ func Start(ctx context.Context, ports Ports, request Request, listener Listener,
 	s.cancel = cancel
 	if ports.Power != nil {
 		go s.watchPower(runCtx, ports.Power)
+	}
+	if ports.Model != nil {
+		go s.keepOnVoice(runCtx)
 	}
 	runner := session.NewRunner(s.clock, s.subtitles, s.changed, session.NewRealTimer)
 	runner.Follow(s.practice)

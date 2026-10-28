@@ -13,7 +13,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6.svg" alt="Windows 10 and 11">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.0-brightgreen.svg" alt="Version 0.28.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.29.0-brightgreen.svg" alt="Version 0.29.0"></a>
   <img src="https://img.shields.io/badge/languages-English%20%7C%20Portugu%C3%AAs-orange.svg" alt="English and Portuguese">
 </p>
 
@@ -134,12 +134,15 @@ Every shortcut can be changed in Settings › Shortcuts, per profile.
 As a game does, the app sets itself up for the computer on its first opening, at a level read from the hardware alone:
 Basic (2 logical cores or fewer, or under 4 GB of memory), Medium, or High (4 cores or more and 8 GB or more). At the
 Basic level the voice AI starts off, and can be turned on at your own risk. Settings › General › This computer shows
-the level and adjusts to it again; on a computer of another level, the app asks before changing anything.
+the level and adjusts to it again. As a game does, the app reads the computer every time it opens: on one of another
+level it adjusts by itself, keeping what you changed by hand.
 
 ## Privacy
 
 Everything stays on your computer. The app sends nothing over the internet, keeps what it saves in
-`%APPDATA%\LingoReel`, and never writes next to your videos. Its logs leave out the subtitles' text.
+`%APPDATA%\LingoReel`, and never writes next to your videos. Its logs leave out the subtitles' text. The only thing it
+fetches is a voice language you ask for in Settings › Study › Voice languages: a speech model, and ONNX Runtime built
+without its telemetry, from this project's own releases, checked against the size and SHA-256 the app carries.
 
 ## Languages
 
@@ -181,6 +184,12 @@ The app carries third-party code under permissive licenses (MIT, BSD, ISC and Ap
 small libraries, and the [Silero VAD](https://github.com/snakers4/silero-vad) speech model (MIT), computed inside the
 app. Their notices are in the app, in Settings › Help › About. VLC, PotPlayer and FFmpeg are not shipped with it: the
 app uses the copies on your computer.
+
+The voice languages are optional downloads, fetched only when you ask for one:
+[ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT, built from its source without telemetry) and wav2vec2
+speech models (Apache-2.0, by Facebook AI and Jonatas Grosman), each written to the app's folder with its license
+beside it. [docs/speech-packs.md](docs/speech-packs.md) tells how each file was made, so anyone can make it again and
+check it.
 
 The screenshots in `docs/images` show frames of [Sintel](https://durian.blender.org/), © copyright Blender
 Foundation | durian.blender.org, under the [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/)

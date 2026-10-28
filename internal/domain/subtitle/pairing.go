@@ -16,12 +16,13 @@ func (p Placed) span(event Event) (time.Duration, time.Duration) {
 	return p.Offset.PlaybackTime(event.Start), p.Offset.PlaybackTime(event.End)
 }
 
-// overlapping lists the events showing at some playback instant of [from, to).
-func (p Placed) overlapping(from, to time.Duration) []Event {
+// overlapping lists the last limit events showing at some playback instant
+// of [from, to).
+func (p Placed) overlapping(from, to time.Duration, limit int) []Event {
 	if p.Timeline == nil {
 		return nil
 	}
-	return p.Timeline.Overlapping(p.Offset.TrackTime(from), p.Offset.TrackTime(to))
+	return p.Timeline.LatestOverlapping(p.Offset.TrackTime(from), p.Offset.TrackTime(to), max(limit, 0))
 }
 
 // Paired is the translation to show with the study events shown at a playback
@@ -43,14 +44,15 @@ func Paired(shown []Event, primary, translation Placed, position time.Duration, 
 			start, end := primary.span(event)
 			from, to = min(from, start), max(to, end)
 		}
-		for _, event := range latest(translation.overlapping(from, to), limit) {
+		for _, event := range translation.overlapping(from, to, limit) {
 			if says(translation, event, primary, shown) {
 				found = append(found, event)
 			}
 		}
 	}
-	for _, event := range latest(translation.Timeline.ActiveAt(translation.Offset.TrackTime(position)), limit) {
-		if !contains(found, event) && !says(translation, event, primary, latest(primary.overlapping(translation.span(event)), limit)) {
+	for _, event := range translation.Timeline.LatestActiveAt(translation.Offset.TrackTime(position), limit) {
+		from, to := translation.span(event)
+		if !contains(found, event) && !says(translation, event, primary, primary.overlapping(from, to, limit)) {
 			found = append(found, event)
 		}
 	}

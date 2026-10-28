@@ -115,16 +115,7 @@ func writeClips(ctx context.Context, tool string, stretch voice.Stretch, film st
 		cut := stretch
 		cut.From = start - clipBefore
 		cut.Length = min(end+clipAfter, cut.From+clipLongest) - cut.From
-		var sound []float32
-		err := ffmpeg.Decoder{Path: path}.Decode(ctx, cut, func(samples []float32, channels int) {
-			for j := 0; j+channels <= len(samples); j += channels {
-				sum := float32(0)
-				for _, s := range samples[j : j+channels] {
-					sum += s
-				}
-				sound = append(sound, sum/float32(channels))
-			}
-		})
+		sound, err := voice.DecodeMono(ctx, ffmpeg.Decoder{Path: path}, cut)
 		if err != nil {
 			return err
 		}

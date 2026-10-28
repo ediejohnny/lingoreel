@@ -24,9 +24,10 @@ type RGB = [number, number, number];
 
 const white: RGB = [255, 255, 255];
 const black: RGB = [0, 0, 0];
-/** onAccentDark is the dark theme's text on its accent; darkSurface its cards. */
+/** onAccentDark is the dark theme's text on its accent; darkSurface its cards; lightAccent the light theme's accent. */
 const onAccentDark = "#0b1220";
 const darkSurface: RGB = [0x15, 0x1a, 0x21];
+const lightAccent = "#1F66D1";
 
 /** How far the derived colors move from the accent, as the themes' own blues do. */
 const hoverDarker = 0.15;
@@ -57,6 +58,12 @@ export function interfaceVariables(look: InterfaceSettings, shade: Shade): Recor
     variables["--sp-font"] = `"${family}", ${defaultFont}`;
   }
   return variables;
+}
+
+/** newAccent is where an accent of the user's own starts: the one shown on the screen, or the light theme's. */
+export function newAccent(shown: string): string {
+  const color = parseHex(shown);
+  return color ? hex(color).toUpperCase() : lightAccent;
 }
 
 /** parseHex reads "#RRGGBB" (an alpha after it is ignored); anything else is no color. */

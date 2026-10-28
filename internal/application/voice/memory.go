@@ -38,17 +38,11 @@ func (m *Memory) Add(at time.Duration, frames []speech.Frame) {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if n := len(m.runs); n > 0 {
-		last := &m.runs[n-1]
-		end := last.Start + time.Duration(len(last.Frames))*speech.FrameLength
-		if (at - end).Abs() <= joinTolerance {
-			last.Frames = append(last.Frames, frames...)
-			m.kept += len(frames)
-			m.forget()
-			return
-		}
+	if n := len(m.runs); n > 0 && (at-runEnd(m.runs[n-1])).Abs() <= joinTolerance {
+		m.runs[n-1].Frames = append(m.runs[n-1].Frames, frames...)
+	} else {
+		m.runs = append(m.runs, speech.Track{Start: at, Frames: append([]speech.Frame(nil), frames...)})
 	}
-	m.runs = append(m.runs, speech.Track{Start: at, Frames: append([]speech.Frame(nil), frames...)})
 	m.kept += len(frames)
 	m.forget()
 }
@@ -68,23 +62,46 @@ func (m *Memory) forget() {
 	}
 }
 
+// Around returns the frames heard around a moment of the film, up to before
+// it and after it, from the latest run that holds the moment; false when no
+// run holds it.
+func (m *Memory) Around(at, before, after time.Duration) (speech.Track, bool) {
+	return m.cut(func(start, end time.Duration) bool { return start <= at && at < end }, func(start time.Duration) (int, int) {
+		return int((at - before - start) / speech.FrameLength), int((at + after - start) / speech.FrameLength)
+	})
+}
+
 // Track returns the frames heard for a stretch of the film and the
 // speech.LineMargin around it, as far as they were heard; false when no
 // run holds the stretch whole.
 func (m *Memory) Track(from, to time.Duration) (speech.Track, bool) {
+	return m.cut(func(start, end time.Duration) bool { return start <= from && to <= end }, func(start time.Duration) (int, int) {
+		return int((from - speech.LineMargin - start) / speech.FrameLength),
+			int((to + speech.LineMargin - start + speech.FrameLength - 1) / speech.FrameLength)
+	})
+}
+
+// cut copies frames out of the latest run that holds what is asked: span
+// tells the frames wanted from the run's start, kept within the run.
+func (m *Memory) cut(holds func(start, end time.Duration) bool, span func(start time.Duration) (first, last int)) (speech.Track, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := len(m.runs) - 1; i >= 0; i-- { // the latest hearing wins
 		run := m.runs[i]
-		end := run.Start + time.Duration(len(run.Frames))*speech.FrameLength
-		if run.Start <= from && to <= end {
-			first := max(int((from-speech.LineMargin-run.Start)/speech.FrameLength), 0)
-			last := min(int((to+speech.LineMargin-run.Start+speech.FrameLength-1)/speech.FrameLength), len(run.Frames))
-			return speech.Track{
-				Start:  run.Start + time.Duration(first)*speech.FrameLength,
-				Frames: append([]speech.Frame(nil), run.Frames[first:last]...),
-			}, true
+		if !holds(run.Start, runEnd(run)) {
+			continue
 		}
+		first, last := span(run.Start)
+		first, last = max(first, 0), min(last, len(run.Frames))
+		return speech.Track{
+			Start:  run.Start + time.Duration(first)*speech.FrameLength,
+			Frames: append([]speech.Frame(nil), run.Frames[first:last]...),
+		}, true
 	}
 	return speech.Track{}, false
+}
+
+// runEnd is when a run's last frame ends.
+func runEnd(run speech.Track) time.Duration {
+	return run.Start + time.Duration(len(run.Frames))*speech.FrameLength
 }

@@ -58,9 +58,7 @@ func (s *Session) practiced(notice func(session.PracticeEvent, session.PracticeS
 		if s.display == nil || notice == nil {
 			return
 		}
-		if text := notice(event, status); text != "" {
-			_ = s.display.Notify(text) // a lost notice is cosmetic
-		}
+		s.Notify(notice(event, status))
 	}
 }
 
@@ -148,7 +146,7 @@ func (s *Session) ReplayLine() error {
 func (s *Session) StudyPassage(segment study.Segment, plan study.PracticePlan, snap bool) error {
 	if snap {
 		if track := s.subtitles.Track(session.LinePrimary); track != nil {
-			segment = study.SnapToLines(segment, track.Timeline, track.Offset)
+			segment = study.SnapToLines(segment, track.Placed())
 		}
 	}
 	segment = segment.FitTo(s.clock.State().Duration)
@@ -172,11 +170,11 @@ func (s *Session) LinePassage() (study.Segment, error) {
 	if track == nil || track.Timeline == nil {
 		return study.Segment{}, ErrNoLine
 	}
-	line, found := track.Timeline.LastStartedBy(track.Offset.TrackTime(s.clock.Position()))
+	line, found := track.Timeline.LastStartedBy(track.Shown().TrackTime(s.clock.Position()))
 	if !found {
 		return study.Segment{}, ErrNoLine
 	}
-	return study.SegmentForLine(line, track.Timeline, track.Offset), nil
+	return study.SegmentForLine(line, track.Placed()), nil
 }
 
 // StopPassage leaves the passage.

@@ -52,7 +52,7 @@ func TestTheStillArgumentsTakeTheKeyframeOfTheLocalFile(t *testing.T) {
 		{"untagged HD", ffmpeg.Look{UntaggedHD: true}, []string{"in_color_matrix=bt709:in_range=tv"}, nil},
 		{"untagged HD at every level", ffmpeg.Look{UntaggedHD: true, FullRange: true}, []string{"in_color_matrix=bt709"}, []string{"in_range"}},
 		{"interlaced", ffmpeg.Look{Interlaced: true}, []string{"bwdif=mode=send_frame:deint=interlaced,scale="}, nil},
-		{"PQ", ffmpeg.Look{Transfer: ffmpeg.TransferPQ}, []string{"zscale=tin=smpte2084", "tonemap=hable"}, nil},
+		{"PQ", ffmpeg.Look{Transfer: ffmpeg.TransferPQ}, []string{"zscale=tin=smpte2084", "tonemap=mobius:desat=0"}, []string{"hable"}},
 		{"HLG", ffmpeg.Look{Transfer: ffmpeg.TransferHLG}, []string{"zscale=tin=arib-std-b67"}, nil},
 	} {
 		filter := ffmpeg.StillFilter(c.look)
@@ -254,9 +254,12 @@ func TestARealFFmpegToneMapsAnHDRFilm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The mobius curve leaves the mid tones as they are: 100 nits stays as
+	// bright as the film shows it (hable dimmed it to about 160); only the
+	// highlight is bent, and stays brighter.
 	still := decodeStill(t, picture, 384, 216)
-	if mid, high := rgbAt(still, 96, 108)[1], rgbAt(still, 288, 108)[1]; mid < 140 || mid > 185 || high < 235 {
-		t.Fatalf("100 nits at %d, the highlight at %d: want 140–185 and at least 235", mid, high)
+	if mid, high := rgbAt(still, 96, 108)[1], rgbAt(still, 288, 108)[1]; mid < 200 || mid > 235 || high < 245 || high <= mid {
+		t.Fatalf("100 nits at %d, the highlight at %d: want 200–235 and at least 245, above it", mid, high)
 	}
 }
 

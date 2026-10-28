@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"slices"
 	"sort"
@@ -97,17 +98,70 @@ func (d sayingDecoder) Decode(ctx context.Context, stretch voice.Stretch, hear f
 func hearingRig(t *testing.T) (*rig, *atomic.Int32) {
 	t.Helper()
 	var found atomic.Int32
+	r := findingRig(t, func(context.Context, string) (voice.Decoder, error) {
+		found.Add(1)
+		return sayingDecoder{&found}, nil
+	})
+	return r, &found
+}
+
+// findingRig is the app with that video and the voice model, its FFmpeg
+// looked for with find; a computer too busy to start it rests 10 ms.
+func findingRig(t *testing.T, find func(context.Context, string) (voice.Decoder, error)) *rig {
+	t.Helper()
 	r := newRigWith(t, func(deps *app.Deps) {
 		service := analysis.NewService(unsubtitledReader{}, besideFiles{})
 		deps.Service, deps.Ports.Service = service, service
 		deps.Ports.Model = testkit.LoudModel{}
-		deps.Ports.FindDecoder = func(context.Context, string) voice.Decoder {
-			found.Add(1)
-			return sayingDecoder{&found}
-		}
+		deps.Ports.FindDecoder = find
+		deps.BusyRest = 10 * time.Millisecond
 	})
 	r.attach(t)
-	return r, &found
+	return r
+}
+
+// heardTheRightFile waits for the video's hearing to end and tells whether
+// the file that fits its voice went on top.
+func heardTheRightFile(t *testing.T, r *rig) bool {
+	t.Helper()
+	testkit.EventuallyWithin(t, "the hearing over", time.Minute, func() bool {
+		states := r.ui.listenings()
+		return len(states) > 0 && !states[len(states)-1].Active
+	})
+	told, _ := r.ui.last(app.EventVideo)
+	return told.(app.Video).Suggested.Primary == media.ExternalTrackBase
+}
+
+// A computer too busy to start FFmpeg (a game, an antivirus) only delays the
+// hearing: it rests and looks again while the video is open. No FFmpeg at
+// all ends it after one look.
+func TestABusyComputerDelaysTheHearingWithoutEndingIt(t *testing.T) {
+	t.Parallel()
+	var looks atomic.Int32
+	busy := findingRig(t, func(context.Context, string) (voice.Decoder, error) {
+		if looks.Add(1) <= 2 {
+			return nil, voice.ErrDecoderBusy
+		}
+		return sayingDecoder{new(atomic.Int32)}, nil
+	})
+	if _, err := busy.api.OpenVideo(unsubtitledVideo); err != nil {
+		t.Fatal(err)
+	}
+	if !heardTheRightFile(t, busy) || looks.Load() != 3 {
+		t.Fatalf("FFmpeg looked for %d times; want the video heard on the third look, after two busy ones", looks.Load())
+	}
+
+	var missing atomic.Int32
+	none := findingRig(t, func(context.Context, string) (voice.Decoder, error) {
+		missing.Add(1)
+		return nil, errors.New("ffmpeg: not found")
+	})
+	if _, err := none.api.OpenVideo(unsubtitledVideo); err != nil {
+		t.Fatal(err)
+	}
+	if heardTheRightFile(t, none) || missing.Load() != 1 {
+		t.Fatalf("FFmpeg looked for %d times; want one look, and the files left unheard", missing.Load())
+	}
 }
 
 // listenings are the hearing's states the screens were told, in order.

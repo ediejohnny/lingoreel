@@ -2,6 +2,7 @@ package playerwindow_test
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -309,10 +310,10 @@ func TestTheMenusIconsFollowTheTheme(t *testing.T) {
 		m.openAt(t, 10, 10)
 		select {
 		case got := <-painted:
-			if want := fmt.Sprintf("%02x%02x%02x", c.pause[0], c.pause[1], c.pause[2]); got[0] != want {
+			if want := stepped(c.pause[0], c.pause[1], c.pause[2], 0xFF); got[0] != want {
 				t.Errorf("%s: pause painted %s, want %s", c.name, got[0], want)
 			}
-			if want := fmt.Sprintf("%02x%02x%02x", c.text[0], c.text[1], c.text[2]); got[1] != want {
+			if want := stepped(c.text[0], c.text[1], c.text[2], 0xFF); got[1] != want {
 				t.Errorf("%s: fullscreen painted %s, want %s", c.name, got[1], want)
 			}
 		case <-time.After(5 * time.Second):
@@ -328,29 +329,36 @@ type bitmapInfo struct {
 	Bits                            *byte
 }
 
-// inkOf is the color of a picture's opaque pixels as "rrggbb", "mixed" when
-// they differ, "none" without any.
+// inkOf is the color of a picture's most opaque pixel as "rrggbb", taken
+// out of its premultiplied alpha and rounded to the nearest of 16 steps per
+// channel (a thin line's smoothed edge is never fully opaque); "none" when
+// the picture is clear.
 func inkOf(bitmap windows.Handle) string {
 	var info bitmapInfo
 	if n, _, _ := getObject.Call(uintptr(bitmap), unsafe.Sizeof(info), uintptr(unsafe.Pointer(&info))); n == 0 || info.Bits == nil {
 		return "none"
 	}
 	pixels := unsafe.Slice(info.Bits, int(info.WidthBytes)*int(abs32(info.Height)))
-	ink := ""
+	strongest := -1
 	for i := 0; i+3 < len(pixels); i += 4 {
-		if pixels[i+3] != 0xFF {
-			continue
+		if pixels[i+3] != 0 && (strongest < 0 || pixels[i+3] > pixels[strongest+3]) {
+			strongest = i
 		}
-		color := fmt.Sprintf("%02x%02x%02x", pixels[i+2], pixels[i+1], pixels[i])
-		if ink != "" && ink != color {
-			return "mixed"
-		}
-		ink = color
 	}
-	if ink == "" {
+	if strongest < 0 {
 		return "none"
 	}
-	return ink
+	return stepped(pixels[strongest+2], pixels[strongest+1], pixels[strongest], pixels[strongest+3])
+}
+
+// stepped is a premultiplied color as "rrggbb", rounded to the nearest of
+// 16 steps per channel.
+func stepped(r, g, b, a byte) string {
+	step := func(c byte) int {
+		v := float64(c) * 255 / float64(a)
+		return min(255, int(math.Round(v/17))*17)
+	}
+	return fmt.Sprintf("%02x%02x%02x", step(r), step(g), step(b))
 }
 
 func abs32(v int32) int32 {

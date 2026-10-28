@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/capped"
 )
 
 // MaxDocumentBytes bounds the size of a document accepted by Load.
@@ -168,21 +169,14 @@ func SweepTemporaries(path string, now time.Time) {
 	}
 }
 
+// readLimited reads a document of at most MaxDocumentBytes; a larger one is
+// corrupt.
 func readLimited(path string) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", path, err)
+	data, err := capped.ReadFile(path, MaxDocumentBytes)
+	if errors.Is(err, capped.ErrTooLarge) {
+		return nil, fmt.Errorf("%w: %w", ErrCorrupt, err)
 	}
-	defer file.Close()
-
-	data, err := io.ReadAll(io.LimitReader(file, MaxDocumentBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-	if len(data) > MaxDocumentBytes {
-		return nil, fmt.Errorf("%s: %w: larger than %d bytes", path, ErrCorrupt, MaxDocumentBytes)
-	}
-	return data, nil
+	return data, err
 }
 
 // decodeDocument parses a JSON object and its positive integer version.

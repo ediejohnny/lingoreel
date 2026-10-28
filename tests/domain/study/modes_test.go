@@ -98,12 +98,12 @@ func TestPhraseStart(t *testing.T) {
 		{"offset before the first line", ms(10500), subtitle.Offset(time.Second), 0, false},
 	}
 	for _, c := range cases {
-		got, found := study.PhraseStart(timeline, c.offset, c.position)
+		got, found := study.PhraseStart(subtitle.Placed{Timeline: timeline, Offset: c.offset}, c.position)
 		if found != c.found || got != c.want {
 			t.Errorf("%s: PhraseStart(%v) = %v %v, want %v %v", c.name, c.position, got, found, c.want, c.found)
 		}
 	}
-	if _, found := study.PhraseStart(nil, 0, ms(5000)); found {
+	if _, found := study.PhraseStart(subtitle.Placed{}, ms(5000)); found {
 		t.Fatal("a missing timeline has a phrase")
 	}
 }

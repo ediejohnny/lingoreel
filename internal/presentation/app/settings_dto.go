@@ -57,12 +57,28 @@ type ComputerView struct {
 	Adjusted   string `json:"adjusted"`
 }
 
-// ComputerChange is the question asked when the app runs on a computer of
-// another level than the one the settings were adjusted to: Asked tells it
-// waits for an answer.
-type ComputerChange struct {
-	Asked    bool         `json:"asked"`
-	Computer ComputerView `json:"computer"`
+// SpeechPacksView is every language's speech pack, with the computer's level
+// ("basic", "medium" or "high"); Available is false when the app keeps none.
+type SpeechPacksView struct {
+	Available bool             `json:"available"`
+	Level     string           `json:"level"`
+	Packs     []SpeechPackView `json:"packs"`
+}
+
+// SpeechPackView is a language's pack: its name in the interface's language,
+// the bytes fetching it takes now, whether it is ready or being fetched (Done
+// of Total bytes), whether it suits the computer's level, and why its last
+// fetch stopped, empty when it did not.
+type SpeechPackView struct {
+	Language string `json:"language"`
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	Ready    bool   `json:"ready"`
+	Fetching bool   `json:"fetching"`
+	Done     int64  `json:"done"`
+	Total    int64  `json:"total"`
+	Suits    bool   `json:"suits"`
+	Error    string `json:"error"`
 }
 
 // VoiceSettings are how the app hears the actors' voice on this computer.
@@ -73,6 +89,8 @@ type VoiceSettings struct {
 	ModelOnBattery bool `json:"modelOnBattery"`
 	Battery        bool `json:"battery"`
 	Follow         bool `json:"follow"`
+	// Sync keeps the study line on the voice when the film slips.
+	Sync bool `json:"sync"`
 	// Sensitivity is "low", "normal" or "high".
 	Sensitivity string `json:"sensitivity"`
 	// DelayMs is the output's delay, in milliseconds (0 to 1000).

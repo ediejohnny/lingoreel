@@ -8,6 +8,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/layout"
+	"github.com/ediejohnny/lingoreel/internal/domain/vector"
 )
 
 // shape collects figures into one GDI+ path; the first error sticks and
@@ -67,6 +68,32 @@ func (s *shape) arc(r layout.Rect, start, sweep float64) *shape {
 	return s.do(func() error {
 		return call(procAddPathArc, s.path, f32(r.X), f32(r.Y), f32(r.W), f32(r.H), f32(start), f32(sweep))
 	})
+}
+
+// figures adds a drawing's figures, its grid scaled by scale and its origin
+// placed at (x, y).
+func (s *shape) figures(figures []vector.Figure, x, y, scale float64) *shape {
+	at := func(p vector.Point) (uintptr, uintptr) { return f32(x + p.X*scale), f32(y + p.Y*scale) }
+	for _, figure := range figures {
+		s.do(func() error { return call(procStartPathFigure, s.path) })
+		from := figure.Start
+		for _, segment := range figure.Segments {
+			fx, fy := at(from)
+			tx, ty := at(segment.To)
+			if segment.Curve {
+				ax, ay := at(segment.C1)
+				bx, by := at(segment.C2)
+				s.do(func() error { return call(procAddPathBezier, s.path, fx, fy, ax, ay, bx, by, tx, ty) })
+			} else {
+				s.do(func() error { return call(procAddPathLine, s.path, fx, fy, tx, ty) })
+			}
+			from = segment.To
+		}
+		if figure.Closed {
+			s.do(func() error { return call(procClosePathFigure, s.path) })
+		}
+	}
+	return s
 }
 
 // rounded adds a rectangle with round corners of the given radius.

@@ -95,6 +95,20 @@ func (l Level) Valid() bool { return l == LevelBasic || l == LevelMedium || l ==
 // VoiceAI tells whether the level starts with the voice AI on.
 func (l Level) VoiceAI() bool { return l == LevelMedium || l == LevelHigh }
 
+// SuitsSpeechPack tells whether a language's speech pack suits the level:
+// none at the basic one; English's small model at the medium one, since the
+// other languages' large models take over twice its time; every one at the
+// high level.
+func (l Level) SuitsSpeechPack(language string) bool {
+	switch l {
+	case LevelHigh:
+		return true
+	case LevelMedium:
+		return language == "en"
+	}
+	return false
+}
+
 // Identity is a computer as it is told from another: its processor's name,
 // its logical processors and its memory in whole GiB, the nearest one
 // (Windows reports a little under what is installed).

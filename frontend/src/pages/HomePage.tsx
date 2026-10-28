@@ -1,4 +1,4 @@
-import { Clapperboard, FolderOpen } from "lucide-react";
+import { Clapperboard, FolderOpen } from "../components/ui/icons";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { ProgressBar } from "../components/ui/ProgressBar";

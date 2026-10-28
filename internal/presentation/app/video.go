@@ -9,6 +9,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
 	"github.com/ediejohnny/lingoreel/internal/domain/media"
+	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/study"
 	"github.com/ediejohnny/lingoreel/internal/domain/subtitle"
 	"github.com/ediejohnny/lingoreel/internal/presentation/ptbr"
@@ -19,9 +20,7 @@ var errBusy = worded(func() string { return ptbr.T("error.video.busy") })
 
 // ChooseVideo asks for a video file; an empty path means the user cancelled.
 func (a *API) ChooseVideo() (string, error) {
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return "", ErrNotReady
 	}
@@ -54,10 +53,7 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	languages := a.profile().Languages
 	mode := a.profile().Study.Mode
 	a.mu.Unlock()
-	preferences := media.Preferences{
-		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
-		Translation: media.LanguageTag(languages.Translation),
-	}
+	preferences := preferencesOf(languages)
 	told := -1
 	result, err := a.deps.Service.AnalyzeWithProgress(ctx, path, preferences, func(done float64) {
 		if percent := int(done * 100); percent != told {
@@ -77,11 +73,17 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	opened := a.loadProject(path, result.Info)
 	result = a.addRemembered(result, opened)
 	result = withKeptFits(result, opened, preferences)
+	result = withKeptHearings(result, opened, preferences)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
+	// What the hearings ask of the system is read before a.mu.
+	onBattery := a.deps.Ports.Power != nil && a.deps.Ports.Power.OnBattery()
+	ready := a.readyPacks()
 	a.mu.Lock()
 	a.stopListening() // a video opened before
+	a.stopLanguageHearing()
 	a.video, a.project = &result, opened
-	a.startListening(ctx, result, preferences)
+	a.startListening(ctx, result, preferences, onBattery)
+	a.startLanguageHearing(ctx, result, opened, preferences, onBattery, ready)
 	a.mu.Unlock()
 	return a.describeVideo(result, opened, suggested, mode), nil
 }
@@ -112,8 +114,12 @@ func (a *API) describeVideo(result analysis.Analysis, opened *videoProject, sugg
 // them.
 func (a *API) preferences() media.Preferences {
 	a.mu.Lock()
-	languages := a.profile().Languages
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	return preferencesOf(a.profile().Languages)
+}
+
+// preferencesOf is what a profile's languages want of a video's tracks.
+func preferencesOf(languages settings.LanguagePreferences) media.Preferences {
 	return media.Preferences{
 		Audio: media.LanguageTag(languages.Audio), Primary: media.LanguageTag(languages.Primary),
 		Translation: media.LanguageTag(languages.Translation),

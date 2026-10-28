@@ -90,66 +90,41 @@ func TestAComputerOfTheSameLevelIsRecordedQuietly(t *testing.T) {
 	testkit.Eventually(t, "the other computer recorded", func() bool {
 		return storedConfig(moved).Computer.Identity == other.Identity()
 	})
-	for _, r := range []*rig{old, moved} {
-		if _, asked := r.ui.last(app.EventComputerChanged); asked || r.api.ComputerChange().Asked {
-			t.Fatal("a computer of the same level was asked about")
-		}
+	if stored := storedConfig(moved); !stored.Voice.Model || stored.Computer.Level != capacity.LevelMedium {
+		t.Fatalf("a computer of the same level changed a setting: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
 	}
 }
 
-// On a computer of another level the app asks before changing anything.
-// Adjusting moves the level's settings and keeps the ones chosen by hand;
-// declining keeps all of them and remembers the computer.
-func TestAComputerOfAnotherLevelIsAskedAbout(t *testing.T) {
+// As a game does, the app reads the computer on every start and, on one of
+// another level, adjusts by itself, asking nothing: settings taken from a
+// strong computer go down on a school one, and back up at home; what was
+// chosen by hand stays.
+func TestAComputerOfAnotherLevelIsAdjustedTo(t *testing.T) {
 	t.Parallel()
-	for _, adjust := range []bool{true, false} {
-		r := computerRig(t, schoolComputer, adjustedTo(studioComputer), false)
-		testkit.Eventually(t, "the question", func() bool { _, asked := r.ui.last(app.EventComputerChanged); return asked })
-		change := r.api.ComputerChange()
-		if !change.Asked || change.Computer.Level != string(capacity.LevelBasic) || change.Computer.Adjusted != string(capacity.LevelHigh) {
-			t.Fatalf("the question: %+v", change)
-		}
-		if stored := storedConfig(r); !stored.Voice.Model || stored.Computer.Level != capacity.LevelHigh {
-			t.Fatalf("a setting changed before the answer: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
-		}
-		if err := r.api.AnswerComputerChange(adjust); err != nil {
-			t.Fatal(err)
-		}
-		stored := storedConfig(r)
-		switch {
-		case r.api.ComputerChange().Asked:
-			t.Fatalf("adjust %v: the question still waits", adjust)
-		case adjust && (stored.Voice.Model || stored.Computer.Level != capacity.LevelBasic):
-			t.Fatalf("adjusted: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
-		case !adjust && (!stored.Voice.Model || stored.Computer.Level != capacity.LevelHigh ||
-			stored.Computer.Declined != schoolComputer.Identity()):
-			t.Fatalf("declined: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
-		}
-		// Answered, a second answer (a screen left open) changes nothing.
-		if err := r.api.AnswerComputerChange(!adjust); err != nil {
-			t.Fatal(err)
-		}
-		if again := storedConfig(r); again.Voice.Model != stored.Voice.Model || again.Computer != stored.Computer {
-			t.Fatalf("adjust %v: a second answer changed the settings: %+v, was %+v", adjust, again.Computer, stored.Computer)
-		}
+	school := computerRig(t, schoolComputer, adjustedTo(studioComputer), false)
+	testkit.Eventually(t, "the school computer recorded", func() bool {
+		return storedConfig(school).Computer.Identity == schoolComputer.Identity()
+	})
+	stored := storedConfig(school)
+	if stored.Voice.Model || stored.Computer.Level != capacity.LevelBasic {
+		t.Fatalf("on a school computer: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
+	}
+	if got := settingsOf(t, school).General.Computer; got.Adjusted != string(capacity.LevelBasic) {
+		t.Fatalf("the settings show the computer adjusted to %q, want the school computer's level", got.Adjusted)
 	}
 
-	// The settings' button answers the question too.
-	button := computerRig(t, schoolComputer, adjustedTo(studioComputer), false)
-	testkit.Eventually(t, "the question", func() bool { return button.api.ComputerChange().Asked })
-	if err := button.api.AdjustToComputer(); err != nil || button.api.ComputerChange().Asked {
-		t.Fatalf("adjusted by the button (%v): the question still waits", err)
+	home := computerRig(t, studioComputer, stored, false)
+	testkit.Eventually(t, "back home", func() bool { return storedConfig(home).Computer.Identity == studioComputer.Identity() })
+	if back := storedConfig(home); !back.Voice.Model || back.Computer.Level != capacity.LevelHigh {
+		t.Fatalf("back on the strong computer: voice AI %v, record %+v", back.Voice.Model, back.Computer)
 	}
 
 	chosen := adjustedTo(studioComputer)
 	chosen.Voice.Model = false
 	r := computerRig(t, homeComputer, chosen, false)
-	testkit.Eventually(t, "the question", func() bool { return r.api.ComputerChange().Asked })
-	if err := r.api.AnswerComputerChange(true); err != nil {
-		t.Fatal(err)
-	}
-	if stored := storedConfig(r); stored.Voice.Model || stored.Computer.Level != capacity.LevelMedium {
-		t.Fatalf("the voice AI turned off by hand was turned on: %v, record %+v", stored.Voice.Model, stored.Computer)
+	testkit.Eventually(t, "the home computer recorded", func() bool { return storedConfig(r).Computer.Level == capacity.LevelMedium })
+	if storedConfig(r).Voice.Model {
+		t.Fatal("the voice AI turned off by hand was turned on")
 	}
 }
 

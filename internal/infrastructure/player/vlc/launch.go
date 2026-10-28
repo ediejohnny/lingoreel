@@ -24,6 +24,7 @@ import (
 
 	"github.com/ediejohnny/lingoreel/internal/domain/playback"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/playerkit"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/job"
 )
 
@@ -119,15 +120,10 @@ func Launch(ctx context.Context, executable string, request player.LaunchRequest
 // LaunchWith is Launch with options. When another program answers on the
 // control port, VLC is ended and started again on another port.
 func LaunchWith(ctx context.Context, executable string, request player.LaunchRequest, options Options) (*Session, error) {
-	if !filepath.IsAbs(executable) || !isRegularFile(executable) {
-		return nil, fmt.Errorf("VLC executable %q not found", executable)
+	file, err := playerkit.CheckLaunch("VLC", executable, request.File)
+	if err != nil {
+		return nil, err
 	}
-	file, err := filepath.Abs(request.File)
-	if err != nil || !isRegularFile(file) {
-		return nil, fmt.Errorf("video %q not found", request.File)
-	}
-	// An absolute path starts with a drive or a share, never with "-", so
-	// VLC cannot take a file name for one of its options.
 	request.File = file
 	pickPort := options.PickPort
 	if pickPort == nil {
@@ -259,9 +255,4 @@ func randomSecret() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buffer), nil
-}
-
-func isRegularFile(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
 }

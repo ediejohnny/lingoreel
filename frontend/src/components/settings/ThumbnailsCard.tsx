@@ -1,10 +1,10 @@
-import { Trash2 } from "lucide-react";
+import { Trash } from "../ui/icons";
 import { language, t } from "../../i18n";
 import { backend, type ThumbnailSettings } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Banner, Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { Segmented } from "../ui/Inputs";
 import { FFmpegRow } from "./FFmpegRow";
 import type { SectionProps } from "./section";
@@ -24,10 +24,7 @@ export function ThumbnailsCard({ view, run }: Pick<SectionProps, "view" | "run">
   const save = (next: Partial<ThumbnailSettings>) => void run(() => backend.setThumbnails({ ...thumbnails, ...next }));
 
   return (
-    <Card
-      title={t("ui.settings.thumbnails.title")}
-      aside={<HelpTip topic={t("ui.settings.thumbnails.topic")}>{t("ui.settings.thumbnails.help")}</HelpTip>}
-    >
+    <Card title={t("ui.settings.thumbnails.title")} aside={<KeyedTip k="ui.settings.thumbnails" />}>
       <div className="flex flex-col gap-5">
         <Toggle label={t("ui.settings.thumbnails.on.label")} checked={thumbnails.on} onChange={(on) => save({ on })} />
         {thumbnails.battery && (
@@ -36,7 +33,7 @@ export function ThumbnailsCard({ view, run }: Pick<SectionProps, "view" | "run">
             checked={thumbnails.onBattery}
             disabled={!thumbnails.on}
             onChange={(onBattery) => save({ onBattery })}
-            help={<HelpTip topic={t("ui.settings.thumbnails.battery.topic")}>{t("ui.settings.thumbnails.battery.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.thumbnails.battery" />}
           />
         )}
         <Segmented
@@ -48,13 +45,13 @@ export function ThumbnailsCard({ view, run }: Pick<SectionProps, "view" | "run">
           ]}
           disabled={!thumbnails.on}
           onChange={(keep) => save({ onDisk: keep === "disk" })}
-          help={<HelpTip topic={t("ui.settings.thumbnails.keep.topic")}>{t("ui.settings.thumbnails.keep.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.thumbnails.keep" />}
         />
         {thumbnails.on && thumbnails.onDisk && thumbnails.crowded && <Banner tone="warning">{t("ui.settings.thumbnails.crowded")}</Banner>}
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-fg-muted">{t("ui.settings.thumbnails.kept", { size: megabytes(thumbnails.keptBytes) })}</p>
           <Button
-            icon={Trash2}
+            icon={Trash}
             disabled={thumbnails.keptBytes === 0}
             onClick={() => void run(() => backend.clearThumbnails(), t("ui.settings.thumbnails.cleared"))}
           >

@@ -10,8 +10,8 @@ export interface SectionProps {
   setDraft: Dispatch<SetStateAction<ProfileSettings | null>>;
   /** dirty tells the draft has unsaved changes. */
   dirty: boolean;
-  /** run carries out an action that applies at once, then reloads; done is said when it worked. */
-  run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<void>;
+  /** run carries out an action that applies at once, then reloads; done is said when it worked, and it resolves true then. */
+  run: (action: () => Promise<unknown>, done?: string | (() => string)) => Promise<boolean>;
   /** open shows another page of the settings. */
   open?: (section: SectionId) => void;
   /** welcome opens the first run's welcome again; absent while a video plays. */
@@ -21,4 +21,11 @@ export interface SectionProps {
 /** change returns a setter of one part of the draft. */
 export function change<K extends keyof ProfileSettings>(setDraft: SectionProps["setDraft"], key: K) {
   return (value: ProfileSettings[K]) => setDraft((draft) => (draft ? { ...draft, [key]: value } : draft));
+}
+
+/** fieldSetter returns, for one field of value, what sets that field and hands the whole new value to onChange. */
+export function fieldSetter<T extends object>(value: T, onChange: (next: T) => void) {
+  return <K extends keyof T>(key: K) =>
+    (field: T[K]) =>
+      onChange({ ...value, [key]: field });
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,12 +17,18 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/persistence/projectfile"
 )
 
+// currentVersion is how a file written now names its version.
+var currentVersion = fmt.Sprintf(`"version": %d`, project.Version)
+
 func sample() project.Project {
 	p := project.New()
 	p.Tracks["uid:77"] = project.Track{Offset: 150, Edits: map[string]project.Edit{
 		"12": {Original: project.HashOf("Isso está doente!"), Text: new("Que loucura!"), Start: new(project.Millis(61_120))},
 	}}
 	p.Tracks["file:Subs/Movie.pt-BR.srt"] = project.Track{Offset: -500}
+	p.Tracks["uid:5"] = project.Track{Hearing: &project.Hearing{Language: "pt", Scores: []project.HeardScore{
+		{Language: "en", Score: 0.2, Lines: 8}, {Language: "pt", Score: 0.9, Lines: 8},
+	}}}
 	p.Choice = project.Choice{Primary: "uid:77", Translation: "file:Subs/Movie.pt-BR.srt", Mode: "dual"}
 	p.Passages = []project.Passage{
 		{Name: "Discussão na loja", Start: 4_223_000, End: 4_264_000,
@@ -145,7 +152,7 @@ func TestSaveAndLoadAgain(t *testing.T) {
 		t.Fatalf("File = %s, %v", path, err)
 	}
 	data, err := os.ReadFile(path)
-	if err != nil || !strings.Contains(string(data), `"version": 3`) {
+	if err != nil || !strings.Contains(string(data), currentVersion) {
 		t.Fatalf("file in the app's folder: %v\n%s", err, data)
 	}
 	got, err := store.Load(video)
@@ -257,7 +264,7 @@ func TestAProjectBesideTheFilmMovesIn(t *testing.T) {
 	only(t, filepath.Join(dir, "Filmes"), "Movie.mkv")
 	gone(t, older)
 	path, _ := store.File(video)
-	if data, err := os.ReadFile(path); err != nil || !strings.Contains(string(data), `"version": 3`) || !strings.Contains(string(data), `"Rua"`) {
+	if data, err := os.ReadFile(path); err != nil || !strings.Contains(string(data), currentVersion) || !strings.Contains(string(data), `"Rua"`) {
 		t.Fatalf("moved in: %v\n%s", err, data)
 	}
 	// A fresh store (the app opened again) finds it there.
@@ -356,7 +363,10 @@ func TestFilesThatCannotBeTrusted(t *testing.T) {
 		body string
 		want error
 	}{
-		{"newer version", `{"version": 4, "tracks": {}}`, project.ErrNewerVersion},
+		{"newer version", fmt.Sprintf(`{"version": %d, "tracks": {}}`, project.Version+1), project.ErrNewerVersion},
+		{"language heard but not tried", `{"version": 4, "tracks": {"uid:1": {"edits": {}, "hearing": {"scores": [{"language": "en", "score": 0.5, "lines": 8}], "language": "pt"}}}}`, project.ErrInvalid},
+		{"language heard not a language", `{"version": 4, "tracks": {"uid:1": {"edits": {}, "hearing": {"scores": [{"language": "../en", "score": 0.5, "lines": 8}]}}}}`, project.ErrInvalid},
+		{"score heard past 1", `{"version": 4, "tracks": {"uid:1": {"edits": {}, "hearing": {"scores": [{"language": "en", "score": 1.5, "lines": 8}]}}}}`, project.ErrInvalid},
 		{"too many added files", `{"version": 3, "addedFiles": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17"]}`, project.ErrInvalid},
 		{"empty added file", `{"version": 3, "addedFiles": ["  "]}`, project.ErrInvalid},
 		{"empty edit text", `{"version": 1, "tracks": {"uid:1": {"edits": {"1": {"original": "0123456789abcdef", "text": ""}}}}}`, project.ErrInvalid},
@@ -463,7 +473,7 @@ func TestAVersion1FileOpensAndIsKept(t *testing.T) {
 	}
 	path, _ := store.File(video)
 	data, err := os.ReadFile(path)
-	if err != nil || !strings.Contains(string(data), `"version": 3`) || !strings.Contains(string(data), `"Rua"`) {
+	if err != nil || !strings.Contains(string(data), currentVersion) || !strings.Contains(string(data), `"Rua"`) {
 		t.Fatalf("saved again: %v\n%s", err, data)
 	}
 }

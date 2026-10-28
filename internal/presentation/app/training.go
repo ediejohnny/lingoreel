@@ -22,10 +22,14 @@ var (
 )
 
 // SetKaraoke turns the karaoke mode on or off; the choice is kept in the
-// active profile.
+// active profile. Turned on over a video with no study line, the video says
+// so: the mode paints that line and has nothing to show.
 func (a *API) SetKaraoke(enabled bool) error {
 	if err := a.control(func(w *watching) error {
 		w.session.SetKaraoke(enabled)
+		if enabled {
+			tellNoStudyLine(w.session)
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -197,7 +201,18 @@ func (a *API) ResumePassage() error {
 }
 
 func describeKaraoke(s *watch.Session) Karaoke {
-	return Karaoke{Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats(), Voice: voiceMode(s)}
+	return Karaoke{
+		Enabled: s.Karaoke().Enabled, Indicator: string(s.Indicator()), Repeat: s.LineRepeats(), Voice: voiceMode(s),
+		NoStudyLine: !s.HasPrimary(),
+	}
+}
+
+// tellNoStudyLine says on the video that the karaoke mode, on, has no study
+// line to paint.
+func tellNoStudyLine(s *watch.Session) {
+	if s.Karaoke().Enabled && !s.HasPrimary() {
+		s.Notify(ptbr.T("notice.karaoke.noStudyLine"))
+	}
 }
 
 func describePassage(status session.PracticeStatus) Passage {

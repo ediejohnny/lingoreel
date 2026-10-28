@@ -1,4 +1,4 @@
-import { Save, Undo2 } from "lucide-react";
+import { Save, Undo } from "../components/ui/icons";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AppearanceSection } from "../components/settings/AppearanceSection";
 import { AdvancedSection, PlaybackSection } from "../components/settings/OtherSections";
@@ -10,11 +10,13 @@ import { StudySection } from "../components/settings/StudySection";
 import { SubtitleLineSection, SubtitlesSection } from "../components/settings/SubtitlesSection";
 import type { SectionProps } from "../components/settings/section";
 import { Button } from "../components/ui/Button";
+import { Dialog } from "../components/ui/Dialog";
 import { Banner } from "../components/ui/Feedback";
 import { t } from "../i18n";
 import { backend, messageOf, type InterfaceSettings, type ProfileSettings, type SettingsView } from "../services/backend";
 import { lineLanguage, relabeled, sameSettings, settingsSections, type SectionId, type SectionItem } from "../settings";
-import type { Theme } from "../stores/theme";
+import type { Theme } from "../theme";
+import { after } from "../timing";
 
 interface MenuEntryProps {
   item: SectionItem;
@@ -86,7 +88,7 @@ function flatten(items: SectionItem[], depth = 0): { item: SectionItem; depth: n
 
 /**
  * SettingsPage edits the active profile as a draft: the preview and the video
- * being watched show every change, and nothing is kept until "Salvar" is
+ * being watched show every change, and nothing is kept until Save is
  * pressed; leaving the draft puts the saved look back on the video. Choices
  * outside the profile (theme, profiles, players) apply at once.
  */
@@ -123,7 +125,7 @@ export function SettingsPage({
 
   // Reading the settings again keeps a draft of the same saved profile (the
   // language, the window or the notices changed meanwhile), in the language
-  // of the moment; another saved profile starts a new draft.
+  // of the moment; another saved profile, or none read yet, starts a new draft.
   const reload = useCallback(async () => {
     const next = await backend.settings();
     const { draft, view } = latest.current;
@@ -134,22 +136,6 @@ export function SettingsPage({
       sameSettings(relabeled(view.profile, next.profile), next.profile);
     setView(next);
     setDraft(same ? relabeled(draft, next.profile) : next.profile);
-  }, []);
-
-  useEffect(() => {
-    let current = true;
-    backend
-      .settings()
-      .then((next) => {
-        if (current) {
-          setView(next);
-          setDraft(next.profile);
-        }
-      })
-      .catch((failure) => current && setError(messageOf(failure)));
-    return () => {
-      current = false;
-    };
   }, []);
 
   // Another page starts from its top, not where the last one was scrolled to.
@@ -170,8 +156,10 @@ export function SettingsPage({
           // Worded after the action, which may have changed the language.
           setNotice(typeof done === "function" ? done() : done);
         }
+        return true;
       } catch (failure) {
         setError(messageOf(failure));
+        return false;
       }
     },
     [reload, onSaved],
@@ -195,12 +183,11 @@ export function SettingsPage({
       }
       return;
     }
-    const timer = window.setTimeout(() => {
+    return after(previewDelay, () => {
       previewing.current = true;
       // A choice still being typed is refused until it is whole: the video keeps the last good one.
       send(() => backend.previewLook(draft));
-    }, previewDelay);
-    return () => window.clearTimeout(timer);
+    });
   }, [draft, view, send]);
   // Leaving the page with the draft (the video ended, the app closed) puts the saved look back.
   useEffect(
@@ -212,10 +199,11 @@ export function SettingsPage({
     [],
   );
 
-  // Shown again with nothing unsaved, the page reads what may have changed meanwhile.
+  // The page reads the settings when it opens, and again when shown with
+  // nothing unsaved: they may have changed meanwhile.
   useEffect(() => {
     const { draft, view } = latest.current;
-    if (shown && draft !== null && view !== null && sameSettings(draft, view.profile)) {
+    if (draft === null || view === null || (shown && sameSettings(draft, view.profile))) {
       reload().catch((failure) => setError(messageOf(failure)));
     }
   }, [shown, reload]);
@@ -287,10 +275,10 @@ export function SettingsPage({
       className={`flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 bg-surface ${narrow ? "border-b border-line px-3 py-2" : "border-t border-line px-6 py-3"}`}
     >
       <span className="min-w-0 flex-1 text-sm text-fg">
-        <span aria-hidden className="mr-2 inline-block size-2 rounded-full bg-warning align-middle" />
+        <span aria-hidden className="mr-2 inline-block size-2 rounded-control bg-warning align-middle" />
         {t("ui.settings.unsaved")}
       </span>
-      <Button icon={Undo2} variant="ghost" onClick={discard}>
+      <Button icon={Undo} variant="ghost" onClick={discard}>
         {t("ui.settings.discard")}
       </Button>
       <Button icon={Save} variant="primary" loading={saving} onClick={() => void save()}>
@@ -374,39 +362,25 @@ export function SettingsPage({
         {!narrow && saveBar}
       </div>
       {asking && (
-        // Over the settings themselves: beside the video, a box over the whole window would sit under the video.
-        <div
-          className="absolute inset-0 z-20 flex items-start justify-center bg-bg/80 p-4"
-          onKeyDown={(event) => event.key === "Escape" && settle(false)}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="leave-question"
-            className="mt-8 flex w-full max-w-sm flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card"
-          >
-            <p id="leave-question" className="text-sm font-medium text-fg">
-              {t("ui.settings.leave.question")}
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="ghost" onClick={() => settle(false)}>
-                {t("ui.settings.leave.keepEditing")}
-              </Button>
-              <Button
-                icon={Undo2}
-                onClick={() => {
-                  discard();
-                  settle(true);
-                }}
-              >
-                {t("ui.settings.discard")}
-              </Button>
-              <Button icon={Save} variant="primary" autoFocus loading={saving} onClick={() => void save().then(settle)}>
-                {t("ui.common.save")}
-              </Button>
-            </div>
+        <Dialog title={t("ui.settings.leave.question")} alert within onCancel={() => settle(false)}>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" onClick={() => settle(false)}>
+              {t("ui.settings.leave.keepEditing")}
+            </Button>
+            <Button
+              icon={Undo}
+              onClick={() => {
+                discard();
+                settle(true);
+              }}
+            >
+              {t("ui.settings.discard")}
+            </Button>
+            <Button icon={Save} variant="primary" autoFocus loading={saving} onClick={() => void save().then(settle)}>
+              {t("ui.common.save")}
+            </Button>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

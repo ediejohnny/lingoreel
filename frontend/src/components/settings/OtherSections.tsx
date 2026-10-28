@@ -1,4 +1,4 @@
-import { FolderOpen, RotateCcw } from "lucide-react";
+import { FolderOpen, RotateBack } from "../ui/icons";
 import { useState } from "react";
 import { speedLabel } from "../../format";
 import { t } from "../../i18n";
@@ -6,7 +6,7 @@ import { both, keyLabel } from "../../keys";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { NumberField } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { AssociationCard } from "./AssociationCard";
@@ -27,14 +27,14 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
             value={String(draft.speed)}
             options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
             onChange={(speed) => change(setDraft, "speed")(Number(speed))}
-            help={<HelpTip topic={t("ui.settings.playback.speed.topic")}>{t("ui.settings.playback.speed.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.playback.speed" />}
           />
           <Select
             label={t("ui.settings.playback.audio.label")}
             value={draft.languages.audio}
             options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
             onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
-            help={<HelpTip topic={t("ui.settings.playback.audio.topic")}>{t("ui.settings.playback.audio.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.playback.audio" />}
           />
           <NumberField
             label={t("ui.settings.playback.volumeStep")}
@@ -94,7 +94,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
           <div className="flex flex-wrap items-center gap-2 rounded-control border border-error/40 bg-error-soft p-3">
             <span className="flex-1 text-sm text-fg">{t("ui.settings.reset.confirm")}</span>
             <Button
-              icon={RotateCcw}
+              icon={RotateBack}
               onClick={() => {
                 setConfirming(false);
                 void run(() => backend.resetProfile(), t("ui.settings.reset.done"));
@@ -107,7 +107,7 @@ export function AdvancedSection({ view, dirty, run }: SectionProps) {
             </Button>
           </div>
         ) : (
-          <Button icon={RotateCcw} disabled={dirty} onClick={() => setConfirming(true)}>
+          <Button icon={RotateBack} disabled={dirty} onClick={() => setConfirming(true)}>
             {t("ui.settings.reset.button")}
           </Button>
         )}

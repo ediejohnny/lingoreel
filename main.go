@@ -23,17 +23,17 @@ import (
 	sys "golang.org/x/sys/windows"
 
 	"github.com/ediejohnny/lingoreel/internal/application/analysis"
-	"github.com/ediejohnny/lingoreel/internal/application/thumbnail"
+	"github.com/ediejohnny/lingoreel/internal/application/speechpack"
 	"github.com/ediejohnny/lingoreel/internal/application/voice"
 	"github.com/ediejohnny/lingoreel/internal/application/watch"
 	"github.com/ediejohnny/lingoreel/internal/buildinfo"
-	"github.com/ediejohnny/lingoreel/internal/domain/appearance"
 	"github.com/ediejohnny/lingoreel/internal/domain/capacity"
-	"github.com/ediejohnny/lingoreel/internal/domain/layout"
 	"github.com/ediejohnny/lingoreel/internal/domain/player"
 	"github.com/ediejohnny/lingoreel/internal/domain/settings"
 	"github.com/ediejohnny/lingoreel/internal/domain/shortcut"
+	"github.com/ediejohnny/lingoreel/internal/domain/speech"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/diskfault"
+	"github.com/ediejohnny/lingoreel/internal/infrastructure/download"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/ffmpeg"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/logfile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/media/matroska"
@@ -45,6 +45,7 @@ import (
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/install"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/player/plugins"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/silero"
+	packs "github.com/ediejohnny/lingoreel/internal/infrastructure/speechpack"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitlefile"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/subtitleformat"
 	"github.com/ediejohnny/lingoreel/internal/infrastructure/windows/appwindow"
@@ -93,6 +94,10 @@ const logFolder = "logs"
 // thumbnailsFolder holds the films' seek-bar stills, next to the settings.
 const thumbnailsFolder = "thumbnails"
 
+// speechPacks is where the languages' speech packs are published, with the
+// version that first carried them.
+const speechPacks = "https://github.com/ediejohnny/lingoreel/releases/download/v0.29.0/"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "LingoReel:", err)
@@ -137,6 +142,20 @@ func run() error {
 	// window's menus to reach it; lifecycle is set once the API exists.
 	var started atomic.Pointer[context.Context]
 	var lifecycle app.Lifecycle
+	fetchPack := packs.Fetcher(download.Client{})
+	voicePacks := speechpack.New(speechpack.Options{
+		Dir: dir, Disk: packs.Disk{}, Base: speechPacks, Extras: packs.Extras, RuntimeNotices: packs.RuntimeNotices,
+		Fetch: func(ctx context.Context, url string, file speech.File, dest string, progress func(done, total int64)) error {
+			err := fetchPack(ctx, url, file, dest, progress)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				logger.Warn("speech pack file not fetched", "file", file.Name, "error", err)
+			}
+			return err
+		},
+		// Asked for only from the window, once the lifecycle is set.
+		Changed: func() { lifecycle.SpeechPacksChanged() },
+	})
+	defer voicePacks.Close()
 	// The video plays inside the app's own window: one window for all.
 	stage := playerwindow.NewStage(playerwindow.StageOptions{
 		Parent: func() uintptr {
@@ -181,8 +200,8 @@ func run() error {
 			Model:       silero.Embedded{},
 			Power:       power.Status{},
 			Tap:         audiotap.Tap{},
-			FindDecoder: findFFmpeg,
-			OpenStills:  openStills,
+			FindDecoder: ffmpeg.FindDecoder,
+			OpenStills:  ffmpeg.Stills{Indexed: seekable.Indexed}.FindAndOpen,
 			StillsStopped: func(err error) {
 				logger.Info("the seek bar's stills stopped", "reason", err)
 			},
@@ -193,7 +212,7 @@ func run() error {
 			},
 		},
 		AskRetry:      win32.AskRetry,
-		Stage:         stagePort{stage},
+		Stage:         playerwindow.AppStage{Stage: stage},
 		Settings:      files,
 		Installer:     install.Winget{},
 		FFmpeg:        userFFmpeg{},
@@ -212,8 +231,18 @@ func run() error {
 		// The interface speaks Windows' language when none is chosen.
 		SystemLanguage: systemLanguage,
 		// Read before anything is saved: the first run opens the welcome.
-		FirstRun: firstRun,
-		Machine:  func() capacity.Machine { return measureMachine(logger) },
+		FirstRun:    firstRun,
+		Machine:     func() capacity.Machine { return measureMachine(logger) },
+		SpeechPacks: voicePacks,
+		// Hearing an audio track's language is background work: one
+		// processor, so the film keeps the rest.
+		OpenSpeech: func(language string) (voice.WordModel, error) {
+			runtime, model, ok := voicePacks.Paths(language)
+			if !ok {
+				return nil, fmt.Errorf("no speech pack for %q", language)
+			}
+			return packs.Open(runtime, model, 1)
+		},
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{
@@ -299,18 +328,6 @@ func webViewMessages() *windows.Messages {
 		PressOKToInstall: texts.PressOKToInstall, ContactAdmin: texts.ContactAdmin,
 		InvalidFixedWebview2: texts.InvalidFixed, WebView2ProcessCrash: texts.Crashed,
 	}
-}
-
-// stagePort places the video on the stage for the app.
-type stagePort struct{ *playerwindow.Stage }
-
-func (s stagePort) Place(visible bool, insets layout.Insets) {
-	s.SetLayout(playerwindow.StageLayout{Visible: visible, Insets: insets})
-}
-
-func (s stagePort) SetChrome(bar settings.BarPreferences, edit appearance.EditStyle, theme settings.Theme) {
-	shade := map[settings.Theme]playerwindow.Theme{settings.ThemeLight: playerwindow.ThemeLight, settings.ThemeDark: playerwindow.ThemeDark}[theme]
-	s.Stage.SetChrome(playerwindow.Chrome{Bar: bar.Style, HideDelay: bar.HideDelay.Std(), Edit: edit, Theme: shade})
 }
 
 // showWindow brings the app window up, in front of the others when the
@@ -424,7 +441,9 @@ func windowsVersion() string {
 }
 
 // userFFmpeg is the user's own FFmpeg for the settings screen, which tells
-// one that did not answer in time apart from one that is missing.
+// one that did not answer in time apart from one that is missing. It lives
+// here because the screen's port and its ErrFFmpegSlow are the presentation's,
+// which the infrastructure does not reach.
 type userFFmpeg struct{}
 
 func (userFFmpeg) Find(ctx context.Context, chosen string) (string, error) {
@@ -441,28 +460,4 @@ func slowOf(err error) error {
 		return fmt.Errorf("%w: %w", app.ErrFFmpegSlow, err)
 	}
 	return err
-}
-
-// findFFmpeg looks for the user's own FFmpeg, to decode the actors' voice
-// ahead of the video; the app ships none.
-func findFFmpeg(ctx context.Context, chosen string) voice.Decoder {
-	path, err := ffmpeg.Find(ctx, chosen)
-	if err != nil {
-		return nil
-	}
-	return ffmpeg.Decoder{Path: path}
-}
-
-// openStills prepares a film for the seek bar's stills with the user's own
-// FFmpeg; one that did not answer in time leaves the stills to be asked for
-// again, one missing ends them.
-func openStills(ctx context.Context, chosen, file string) (thumbnail.Film, error) {
-	path, err := ffmpeg.Find(ctx, chosen)
-	switch {
-	case errors.Is(err, ffmpeg.ErrSlow):
-		return nil, fmt.Errorf("%w: %w", thumbnail.ErrBusy, err)
-	case err != nil:
-		return nil, fmt.Errorf("%w: %w", thumbnail.ErrNoStills, err)
-	}
-	return ffmpeg.Stills{Path: path, Indexed: seekable.Indexed}.Open(ctx, file)
 }

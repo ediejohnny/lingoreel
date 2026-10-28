@@ -1,4 +1,4 @@
-import { BookOpenCheck, Check, Pencil, Trash2, X } from "lucide-react";
+import { BookOpenCheck, Check, Pencil, Trash, X } from "../ui/icons";
 import { useState } from "react";
 import { t } from "../../i18n";
 import { messageOf, type SavedPassage } from "../../services/backend";
@@ -12,7 +12,8 @@ interface SavedPassagesProps {
   studyDisabled?: string;
   onStudy: (name: string) => void;
   onRename: (from: string, to: string) => Promise<void>;
-  onDelete: (name: string) => Promise<void>;
+  /** onDelete deletes a passage; the confirmation stays until a promise it returns settles. */
+  onDelete: (name: string) => void | Promise<void>;
 }
 
 /**
@@ -101,7 +102,7 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
         ) : confirming ? (
           <>
             <span className="text-fg">{t("ui.passages.delete.confirm")}</span>
-            <Button variant="secondary" onClick={() => void onDelete(passage.name).finally(() => setConfirming(false))}>
+            <Button variant="secondary" onClick={() => void Promise.resolve(onDelete(passage.name)).finally(() => setConfirming(false))}>
               {t("ui.passages.delete.yes")}
             </Button>
             <Button variant="ghost" onClick={() => setConfirming(false)}>
@@ -120,7 +121,7 @@ function PassageRow({ passage, studyLabel, studyDisabled, onStudy, onRename, onD
               {studyLabel}
             </Button>
             <IconButton icon={Pencil} label={t("ui.passages.rename.label", { name: passage.name })} onClick={() => setEditing(true)} />
-            <IconButton icon={Trash2} label={t("ui.passages.delete.label", { name: passage.name })} onClick={() => setConfirming(true)} />
+            <IconButton icon={Trash} label={t("ui.passages.delete.label", { name: passage.name })} onClick={() => setConfirming(true)} />
           </>
         )}
       </div>

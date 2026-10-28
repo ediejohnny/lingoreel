@@ -6,6 +6,7 @@
 package contextmenu
 
 import (
+	"cmp"
 	"math"
 	"slices"
 	"time"
@@ -113,6 +114,7 @@ const (
 	IconFolder
 	IconSettings
 	IconClose
+	IconStudy
 )
 
 // Icons lists every icon, for the systems that draw them ahead.
@@ -120,6 +122,7 @@ func Icons() []Icon {
 	return []Icon{
 		IconPlay, IconPause, IconStop, IconFullscreen, IconExitFullscreen, IconBack, IconForward, IconFrameBack,
 		IconFrameForward, IconSpeaker, IconSubtitles, IconKaraoke, IconPassage, IconFolder, IconSettings, IconClose,
+		IconStudy,
 	}
 }
 
@@ -403,7 +406,7 @@ func studyModeMenu(b controlbar.State) Item {
 		command(shortcut.RepeatLast5, IconNone, b.Capabilities.Seek),
 		command(shortcut.RepeatLast10, IconNone, b.Capabilities.Seek),
 	)
-	return submenu(TitleStudyMode, IconNone, items...)
+	return submenu(TitleStudyMode, IconStudy, items...)
 }
 
 func karaokeMenu(s State) Item {
@@ -469,23 +472,22 @@ func passageMenu(b controlbar.State) Item {
 // checked: a current time that is not one of them joins the list, and a
 // time out of the field's limits is left out.
 func durations(field controlbar.Field, presets []time.Duration, current, low, high time.Duration) []Item {
-	values := slices.Clone(presets)
-	if !slices.Contains(values, current) {
-		values = append(values, current)
-		slices.Sort(values)
-	}
-	var items []Item
-	for _, value := range values {
-		if value < low || value > high {
-			continue
-		}
-		items = append(items, Item{Kind: KindItem, Action: ActionPreset, Field: field, Duration: value, Radio: true, Checked: value == current, Enabled: true})
-	}
-	return items
+	return presetItems(presets, current, low, high, func(value time.Duration) Item {
+		return Item{Kind: KindItem, Action: ActionPreset, Field: field, Duration: value}
+	})
 }
 
 // counts is durations for a field that counts.
 func counts(field controlbar.Field, presets []int, current, low, high int) []Item {
+	return presetItems(presets, current, low, high, func(value int) Item {
+		return Item{Kind: KindItem, Action: ActionPreset, Field: field, Count: value}
+	})
+}
+
+// presetItems lists ready-made values as radio items, the current one
+// checked and joining the list when it is not one of them, the values out of
+// the limits left out; item makes the item of a value.
+func presetItems[T cmp.Ordered](presets []T, current, low, high T, item func(T) Item) []Item {
 	values := slices.Clone(presets)
 	if !slices.Contains(values, current) {
 		values = append(values, current)
@@ -496,7 +498,9 @@ func counts(field controlbar.Field, presets []int, current, low, high int) []Ite
 		if value < low || value > high {
 			continue
 		}
-		items = append(items, Item{Kind: KindItem, Action: ActionPreset, Field: field, Count: value, Radio: true, Checked: value == current, Enabled: true})
+		it := item(value)
+		it.Radio, it.Checked, it.Enabled = true, value == current, true
+		items = append(items, it)
 	}
 	return items
 }

@@ -1,4 +1,4 @@
-import { FolderOpen } from "lucide-react";
+import { FolderOpen } from "../ui/icons";
 import { t } from "../../i18n";
 import { Button } from "../ui/Button";
 import { Select, type Option } from "../ui/Select";

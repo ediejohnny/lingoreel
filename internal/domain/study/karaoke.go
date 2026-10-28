@@ -84,6 +84,19 @@ func (c Cue) Progress() float64 {
 	return math.Min(math.Max(float64(c.Remaining)/float64(c.Lead), 0), 1)
 }
 
+// Until is the cue counting down to the line's voice instead of its time,
+// when the voice begins before it (an actor starting before the line shows):
+// the preview keeps its beginning and ends as the voice begins, and from then
+// on Remaining is not above zero.
+func (c Cue) Until(voice time.Duration) Cue {
+	if early := c.Start - voice; early > 0 {
+		c.Start = voice
+		c.Remaining -= early
+		c.Lead = max(c.Lead-early, 0)
+	}
+	return c
+}
+
 // Countdown is the whole seconds left in real time, rounded up, at a
 // playback speed: at 0.75x a second of video lasts longer.
 func (c Cue) Countdown(speed float64) int {
@@ -113,7 +126,8 @@ func leadFor(timeline *subtitle.Timeline, event subtitle.Event, rules CueRules) 
 // UpcomingCue returns the line to preview at a playback position: the next
 // one, when it comes after a silence of at least MinGap and its preview has
 // begun. The preview never covers the line before it.
-func UpcomingCue(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules) (Cue, bool) {
+func UpcomingCue(track subtitle.Placed, position time.Duration, rules CueRules) (Cue, bool) {
+	timeline, offset := track.Timeline, track.Offset
 	if timeline == nil {
 		return Cue{}, false
 	}
@@ -137,7 +151,8 @@ const cueSearchHorizon = time.Minute
 // NextCueStartAfter returns when the next preview begins after a position,
 // on the playback clock, so a session can wake up for it; false when none
 // begins within the search horizon.
-func NextCueStartAfter(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules) (time.Duration, bool) {
+func NextCueStartAfter(track subtitle.Placed, position time.Duration, rules CueRules) (time.Duration, bool) {
+	timeline, offset := track.Timeline, track.Offset
 	if timeline == nil {
 		return 0, false
 	}
@@ -163,10 +178,11 @@ const replayLeadIn = time.Second
 // ReplayTarget is where a replay goes: the start of the preview of
 // the line being previewed, spoken or last spoken; for a line without a
 // preview, a moment before it. False when no line has come yet.
-func ReplayTarget(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules) (time.Duration, bool) {
-	if cue, upcoming := UpcomingCue(timeline, offset, position, rules); upcoming {
+func ReplayTarget(track subtitle.Placed, position time.Duration, rules CueRules) (time.Duration, bool) {
+	if cue, upcoming := UpcomingCue(track, position, rules); upcoming {
 		return cue.Start - cue.Lead, true
 	}
+	timeline, offset := track.Timeline, track.Offset
 	if timeline == nil {
 		return 0, false
 	}
@@ -185,11 +201,11 @@ func ReplayTarget(timeline *subtitle.Timeline, offset subtitle.Offset, position 
 // trained again is one of the passage (at its end, the last one spoken in
 // it), and the target never goes before the passage's start, which is also
 // where it goes when no line of the passage has come yet.
-func ReplayTargetIn(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration, rules CueRules, passage Segment) time.Duration {
+func ReplayTargetIn(track subtitle.Placed, position time.Duration, rules CueRules, passage Segment) time.Duration {
 	// Just inside the passage: a preview there has started by then, so the
 	// target never lands past the end either.
 	at := min(max(position, passage.Start), passage.End-time.Millisecond)
-	target, ok := ReplayTarget(timeline, offset, at, rules)
+	target, ok := ReplayTarget(track, at, rules)
 	if !ok {
 		return passage.Start
 	}

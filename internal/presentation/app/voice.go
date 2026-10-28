@@ -23,22 +23,24 @@ type FFmpeg interface {
 	WingetID() string
 }
 
-// ffmpegTimeout bounds looking for FFmpeg from the settings screen.
-const ffmpegTimeout = 10 * time.Second
+// ffmpegTimeout bounds looking for FFmpeg from the settings screen;
+// chosenTimeout bounds checking the one the person chose, whose first
+// opening can take seconds while an antivirus reads a large file.
+const (
+	ffmpegTimeout = 10 * time.Second
+	chosenTimeout = time.Minute
+)
 
 // ErrFFmpegSlow is what an FFmpeg reports when it did not answer in time, as
-// on a computer too busy to start it: it may well be there.
+// one opened for the first time or on a busy computer: it may well be there.
 var ErrFFmpegSlow = errors.New("ffmpeg: did not answer in time")
 
-var (
-	errNotFFmpeg  = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
-	errFFmpegSlow = worded(func() string { return ptbr.T("error.ffmpeg.slow") })
-)
+var errNotFFmpeg = worded(func() string { return ptbr.T("error.ffmpeg.notFFmpeg") })
 
 // voiceSetup is how a session follows the voice, from the settings.
 func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 	return watch.VoiceSetup{
-		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Follow: v.Follow, FFmpegPath: v.FFmpegPath,
+		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Follow: v.Follow, Sync: v.Sync, FFmpegPath: v.FFmpegPath,
 		Settings: voice.Settings{Sensitivity: v.Sensitivity, Delay: time.Duration(v.Delay), EvenWhenBusy: v.EvenWhenBusy},
 	}
 }
@@ -49,7 +51,7 @@ func voiceSetup(v settings.VoicePreferences) watch.VoiceSetup {
 func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceSettings {
 	view := VoiceSettings{
 		Model: v.Model, ModelOnBattery: v.ModelOnBattery, Battery: a.deps.Ports.Power != nil && a.deps.Ports.Power.HasBattery(),
-		Follow: v.Follow, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
+		Follow: v.Follow, Sync: v.Sync, Sensitivity: string(v.Sensitivity), DelayMs: int(time.Duration(v.Delay) / time.Millisecond),
 		EvenWhenBusy: v.EvenWhenBusy, FFmpegPath: v.FFmpegPath, Weak: a.machine().Weak(),
 	}
 	if a.deps.FFmpeg == nil {
@@ -72,7 +74,7 @@ func (a *API) voiceView(ctx context.Context, v settings.VoicePreferences) VoiceS
 func (a *API) SetVoice(view VoiceSettings) error {
 	if err := a.changeConfig(func(next *settings.Config) error {
 		next.Voice.Model, next.Voice.ModelOnBattery = view.Model, view.ModelOnBattery
-		next.Voice.Follow, next.Voice.EvenWhenBusy = view.Follow, view.EvenWhenBusy
+		next.Voice.Follow, next.Voice.Sync, next.Voice.EvenWhenBusy = view.Follow, view.Sync, view.EvenWhenBusy
 		next.Voice.Sensitivity = speech.Sensitivity(view.Sensitivity)
 		next.Voice.Delay = settings.Duration(time.Duration(view.DelayMs) * time.Millisecond)
 		return nil
@@ -84,15 +86,15 @@ func (a *API) SetVoice(view VoiceSettings) error {
 }
 
 // ChooseFFmpeg asks where the user's FFmpeg is and keeps it once it runs;
-// it returns the path, or empty when the user cancelled.
+// it returns the path, or empty when the user cancelled. One that has not
+// answered within chosenTimeout is kept too: it is checked again where it is
+// used, and a program that is not an FFmpeg is refused at once.
 func (a *API) ChooseFFmpeg() (string, error) {
 	ctx, err := a.context()
 	if err != nil {
 		return "", err
 	}
-	a.mu.Lock()
-	ui := a.ui
-	a.mu.Unlock()
+	ui := a.window()
 	if ui == nil {
 		return "", ErrNotReady
 	}
@@ -100,15 +102,12 @@ func (a *API) ChooseFFmpeg() (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	checked, cancel := context.WithTimeout(ctx, ffmpegTimeout)
+	checked, cancel := context.WithTimeout(ctx, chosenTimeout)
 	defer cancel()
 	if a.deps.FFmpeg == nil {
 		return "", errNotFFmpeg
 	}
-	switch err := a.deps.FFmpeg.Check(checked, path); {
-	case errors.Is(err, ErrFFmpegSlow):
-		return "", errFFmpegSlow
-	case err != nil:
+	if err := a.deps.FFmpeg.Check(checked, path); err != nil && !errors.Is(err, ErrFFmpegSlow) {
 		return "", errNotFFmpeg
 	}
 	if err := a.keepFFmpeg(path); err != nil {
@@ -144,16 +143,8 @@ func (a *API) InstallFFmpeg() error {
 	if a.deps.FFmpeg == nil || a.deps.Installer == nil || !a.deps.Installer.Available() {
 		return errors.New(ptbr.T("error.install.ffmpegUnavailable"))
 	}
-	go func() {
-		progress := InstallProgress{ID: ffmpegInstallID, Done: true}
-		if err := a.deps.Installer.Install(ctx, a.deps.FFmpeg.WingetID()); err != nil {
-			a.logger.Warn("FFmpeg installation failed", "error", err)
-			progress.Error = ptbr.T("error.install.failed")
-		} else {
-			a.applyVoice() // a video open finds it now
-		}
-		a.emit(EventInstall, progress)
-	}()
+	// A video open finds the FFmpeg installed at once.
+	a.installInBackground(ctx, ffmpegInstallID, a.deps.FFmpeg.WingetID(), a.applyVoice)
 	return nil
 }
 

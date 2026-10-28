@@ -85,7 +85,7 @@ func (c *Clock) Observe(sample playback.Sample) {
 	c.anchor.Duration = sample.Duration
 
 	if !stateChanged && c.anchored {
-		jumped := absolute(sample.Position-c.extrapolate(sample.ObservedAt)) > seekTolerance
+		jumped := (sample.Position - c.extrapolate(sample.ObservedAt)).Abs() > seekTolerance
 		if jumped && sample.ObservedAt.Before(c.graceUntil) {
 			return // a stale answer to the session's own command
 		}
@@ -264,11 +264,4 @@ func usableSpeed(speed playback.Speed) playback.Speed {
 		return speed
 	}
 	return playback.NormalSpeed
-}
-
-func absolute(d time.Duration) time.Duration {
-	if d < 0 {
-		return -d
-	}
-	return d
 }

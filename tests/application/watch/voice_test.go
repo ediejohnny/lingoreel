@@ -2,6 +2,7 @@ package watch_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -98,9 +99,9 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	tap, decoder := &listeningTap{}, &stretchDecoder{}
 	found := make(chan struct{}, 4)
 	r.ports.Tap = tap
-	r.ports.FindDecoder = func(context.Context, string) voice.Decoder {
+	r.ports.FindDecoder = func(context.Context, string) (voice.Decoder, error) {
 		found <- struct{}{}
-		return nil // no FFmpeg yet
+		return nil, errors.New("no FFmpeg yet")
 	}
 	r.request.Karaoke = paintingKaraoke()
 	r.request.Voice = watch.VoiceSetup{Model: true, Follow: true}
@@ -119,9 +120,9 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	testkit.Eventually(t, "hearing the English audio", func() bool { return tap.listening.Load() == 1 })
 
 	var chosen atomic.Value
-	r.ports.FindDecoder = func(_ context.Context, path string) voice.Decoder {
+	r.ports.FindDecoder = func(_ context.Context, path string) (voice.Decoder, error) {
 		chosen.Store(path)
-		return decoder
+		return decoder, nil
 	}
 	r.request.Voice.FFmpegPath = `C:\ffmpeg\bin\ffmpeg.exe`
 	ahead := r.start(t)
@@ -135,6 +136,33 @@ func TestTheVoiceFollowedSpeaksTheLinesLanguage(t *testing.T) {
 	}
 	if mode, following := ahead.VoiceMode(); !following || mode != voice.ModeAhead {
 		t.Fatalf("voice mode %v (following %v), want decoding ahead", mode, following)
+	}
+}
+
+// Keeping the study line on the voice hears the film even with the karaoke
+// mode off, without painting anything; turned off, or with the voice model
+// off, nothing hears it.
+func TestKeepingTheLineOnTheVoiceHearsTheFilm(t *testing.T) {
+	t.Parallel()
+	start := func(setup watch.VoiceSetup) (*watch.Session, *stretchDecoder) {
+		r := newRig(t)
+		r.ports.Model = testkit.LoudModel{}
+		decoder := &stretchDecoder{}
+		r.ports.FindDecoder = func(context.Context, string) (voice.Decoder, error) { return decoder, nil }
+		r.request.Voice = setup
+		return r.start(t), decoder
+	}
+	kept, decoder := start(watch.VoiceSetup{Model: true, Sync: true})
+	testkit.Eventually(t, "hearing the film for its sync", func() bool { return decoder.asked() != nil })
+	if _, painting := kept.VoiceMode(); painting {
+		t.Fatal("the karaoke mode, off, follows the voice")
+	}
+
+	_, resting := start(watch.VoiceSetup{Model: false, Sync: true})
+	_, off := start(watch.VoiceSetup{Model: true, Sync: false})
+	time.Sleep(300 * time.Millisecond) // the one above was heard within milliseconds
+	if resting.asked() != nil || off.asked() != nil {
+		t.Fatal("the film is heard with the voice model, or keeping the line, off")
 	}
 }
 

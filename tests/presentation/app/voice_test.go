@@ -42,8 +42,9 @@ func (busyFFmpeg) Find(context.Context, string) (string, error) { return "", app
 func (busyFFmpeg) Check(context.Context, string) error { return app.ErrFFmpegSlow }
 
 // An FFmpeg that did not answer in time is never told missing: the settings
-// screen says the computer is busy and offers no installation, and one chosen
-// is not called "not an FFmpeg".
+// screen says it is slow and offers no installation, and one the person
+// chose is kept (its first opening can outlast any wait while an antivirus
+// reads it), never called "not an FFmpeg".
 func TestAnFFmpegTooBusyToAnswerIsNotToldMissing(t *testing.T) {
 	t.Parallel()
 	missing := newRigWith(t, func(deps *app.Deps) { deps.FFmpeg = someFFmpeg{} })
@@ -61,8 +62,8 @@ func TestAnFFmpegTooBusyToAnswerIsNotToldMissing(t *testing.T) {
 	}
 	r.ui.program = `D:\Tools\ffmpeg.exe`
 	path, err := r.api.ChooseFFmpeg()
-	if err == nil || path != "" || err.Error() == notFFmpeg.Error() || r.settings.config.Voice.FFmpegPath != "" {
-		t.Fatalf("choosing an FFmpeg too busy to answer = %q, %v; want the busy computer told, nothing kept", path, err)
+	if err != nil || path != r.ui.program || r.settings.config.Voice.FFmpegPath != path {
+		t.Fatalf("choosing an FFmpeg slow to answer = %q, %v, kept %q; want it kept", path, err, r.settings.config.Voice.FFmpegPath)
 	}
 }
 

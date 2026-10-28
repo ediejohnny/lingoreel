@@ -1,4 +1,4 @@
-import { CircleDot, FileDown, Flag, PencilLine, Redo2, RotateCcw, Save, Undo2, X } from "lucide-react";
+import { CircleDot, FileDown, Flag, PencilLine, Redo, RotateBack, Save, Undo, X } from "../ui/icons";
 import { useId, useState } from "react";
 import { editClock } from "../../format";
 import { t } from "../../i18n";
@@ -8,7 +8,7 @@ import type { Editing, Line, Playback } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 
 interface EditorCardProps {
   state: Playback;
@@ -30,7 +30,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
   const pausedOnly = t("ui.editor.pausedOnly");
 
   return (
-    <Card title={t("ui.editor.title")} aside={<HelpTip topic={t("ui.editor.topic")}>{t("ui.editor.help")}</HelpTip>}>
+    <Card title={t("ui.editor.title")} aside={<KeyedTip k="ui.editor" />}>
       <div className="@container flex flex-col gap-4">
         {editing.staleEdits > 0 && (
           <p role="status" className="text-sm text-warning">
@@ -57,7 +57,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
         )}
         <div className="grid grid-cols-2 gap-2 border-t border-line pt-4">
           <Button
-            icon={Undo2}
+            icon={Undo}
             disabled={playing || !editing.canUndo}
             title={playing ? pausedOnly : withKey(t("ui.editor.undo.tip"), label("undo"))}
             onClick={() => onCommand(backend.undoEdit)}
@@ -65,7 +65,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
             {t("ui.editor.undo.label")}
           </Button>
           <Button
-            icon={Redo2}
+            icon={Redo}
             disabled={playing || !editing.canRedo}
             title={playing ? pausedOnly : withKey(t("ui.editor.redo.tip"), label("redo"))}
             onClick={() => onCommand(backend.redoEdit)}
@@ -80,7 +80,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
           <Button icon={FileDown} variant="ghost" onClick={() => exportLine("translation")}>
             {t("ui.editor.export.bottom")}
           </Button>
-          <HelpTip topic={t("ui.editor.export.topic")}>{t("ui.editor.export.help")}</HelpTip>
+          <KeyedTip k="ui.editor.export" />
         </div>
       </div>
     </Card>
@@ -161,7 +161,7 @@ function LineEditor({ editing, position, playing, onCommand }: LineEditorProps) 
           {t("ui.common.cancel")}
         </Button>
         <Button
-          icon={RotateCcw}
+          icon={RotateBack}
           disabled={playing || !editing.edited}
           title={playing ? t("ui.editor.pausedOnly") : t("ui.editor.restore.tip")}
           onClick={() => onCommand(backend.restoreLine)}

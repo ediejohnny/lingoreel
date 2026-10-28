@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 import { backend, messageOf } from "../../services/backend";
 import { Toggle } from "../ui/Field";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 
 /** AssociationCard lets Windows offer the app for videos, when the user wants it. */
 export function AssociationCard() {
@@ -35,7 +35,7 @@ export function AssociationCard() {
         checked={on ?? false}
         disabled={on === null}
         onChange={(next) => void change(next)}
-        help={<HelpTip topic={t("ui.settings.association.topic")}>{t("ui.settings.association.help")}</HelpTip>}
+        help={<KeyedTip k="ui.settings.association" />}
       />
       {status && (
         <p role="status" className="mt-2 text-sm text-fg-secondary">

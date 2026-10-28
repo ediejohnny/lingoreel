@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"time"
 )
@@ -87,26 +88,53 @@ func (t *Timeline) Events() []Event {
 
 // ActiveAt returns the events visible at the given instant, ordered by Start.
 func (t *Timeline) ActiveAt(at time.Duration) []Event {
-	started := t.countStartedBy(at)
-	if started == 0 {
-		return nil
-	}
-	return t.collectActive(1, 0, t.leaves, started, at, nil)
+	return t.collect(t.countStartedBy(at), at, -1)
+}
+
+// LatestActiveAt is ActiveAt kept to the last limit events, which is all it
+// looks at: a file stacking thousands of events costs no more.
+func (t *Timeline) LatestActiveAt(at time.Duration, limit int) []Event {
+	return t.collect(t.countStartedBy(at), at, max(limit, 0))
 }
 
 // Overlapping returns the events showing at some instant of [from, to),
 // ordered by Start; nothing for an empty span.
 func (t *Timeline) Overlapping(from, to time.Duration) []Event {
+	return t.LatestOverlapping(from, to, -1)
+}
+
+// LatestOverlapping is Overlapping kept to the last limit events, which is
+// all it looks at; a negative limit keeps them all.
+func (t *Timeline) LatestOverlapping(from, to time.Duration, limit int) []Event {
 	if to <= from {
 		return nil
 	}
 	started := sort.Search(len(t.events), func(i int) bool {
 		return t.events[i].Start >= to
 	})
-	if started == 0 {
+	return t.collect(started, from, limit)
+}
+
+// collect lists the events among the first started still showing after at,
+// ordered by Start: every one with a negative limit, else the last limit.
+func (t *Timeline) collect(started int, at time.Duration, limit int) []Event {
+	if started == 0 || limit == 0 {
 		return nil
 	}
-	return t.collectActive(1, 0, t.leaves, started, from, nil)
+	var found []Event
+	if limit < 0 {
+		t.visitActive(1, 0, t.leaves, started, at, false, func(i int) bool {
+			found = append(found, t.events[i])
+			return true
+		})
+		return found
+	}
+	t.visitActive(1, 0, t.leaves, started, at, true, func(i int) bool {
+		found = append(found, t.events[i])
+		return len(found) < limit
+	})
+	slices.Reverse(found)
+	return found
 }
 
 // NextChangeAfter returns the earliest instant after at when the set of active
@@ -118,10 +146,13 @@ func (t *Timeline) NextChangeAfter(at time.Duration) (time.Duration, bool) {
 	if started := t.countStartedBy(at); started < len(t.events) {
 		next, found = t.events[started].Start, true
 	}
-	for _, event := range t.ActiveAt(at) {
-		if !found || event.End < next {
-			next, found = event.End, true
-		}
+	if started := t.countStartedBy(at); started > 0 {
+		t.visitActive(1, 0, t.leaves, started, at, false, func(i int) bool {
+			if end := t.events[i].End; !found || end < next {
+				next, found = end, true
+			}
+			return true
+		})
 	}
 	return next, found
 }
@@ -163,16 +194,22 @@ func (t *Timeline) countStartedBy(at time.Duration) int {
 	})
 }
 
-// collectActive walks the segment tree over events[0:started), skipping every
-// node whose latest End is not after the query instant.
-func (t *Timeline) collectActive(node, low, high, started int, at time.Duration, found []Event) []Event {
+// visitActive walks the segment tree over events[0:started), skipping every
+// node whose latest End is not after the query instant, and hands each
+// event left to visit, in Start order or, backwards, from the latest; it
+// stops, telling false, once visit does.
+func (t *Timeline) visitActive(node, low, high, started int, at time.Duration, backwards bool, visit func(int) bool) bool {
 	if low >= started || t.endTree[node] <= at {
-		return found
+		return true
 	}
 	if high-low == 1 {
-		return append(found, t.events[low])
+		return visit(low)
 	}
 	middle := (low + high) / 2
-	found = t.collectActive(2*node, low, middle, started, at, found)
-	return t.collectActive(2*node+1, middle, high, started, at, found)
+	first, second := [3]int{2 * node, low, middle}, [3]int{2*node + 1, middle, high}
+	if backwards {
+		first, second = second, first
+	}
+	return t.visitActive(first[0], first[1], first[2], started, at, backwards, visit) &&
+		t.visitActive(second[0], second[1], second[2], started, at, backwards, visit)
 }

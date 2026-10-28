@@ -130,7 +130,8 @@ func clockPart(part string, last bool) (time.Duration, error) {
 // the start of a line being spoken there, then SnapLeadIn earlier without
 // reaching into the speech before it; the end moves forward to the end of
 // the lines spoken there. Times are on the playback clock.
-func SnapToLines(segment Segment, timeline *subtitle.Timeline, offset subtitle.Offset) Segment {
+func SnapToLines(segment Segment, track subtitle.Placed) Segment {
+	timeline, offset := track.Timeline, track.Offset
 	if timeline == nil {
 		return segment
 	}
@@ -155,22 +156,22 @@ func SnapToLines(segment Segment, timeline *subtitle.Timeline, offset subtitle.O
 }
 
 // SegmentForLine is the passage of one line, fitted like SnapToLines.
-func SegmentForLine(event subtitle.Event, timeline *subtitle.Timeline, offset subtitle.Offset) Segment {
-	return SnapToLines(Segment{Start: offset.PlaybackTime(event.Start), End: offset.PlaybackTime(event.End)}, timeline, offset)
+func SegmentForLine(event subtitle.Event, track subtitle.Placed) Segment {
+	return SnapToLines(Segment{Start: track.Offset.PlaybackTime(event.Start), End: track.Offset.PlaybackTime(event.End)}, track)
 }
 
-// PhraseStart is where "Repetir frase" goes: the start of the line being
-// spoken at a playback position, or of the last one spoken, with the lead-in
-// of SnapToLines. False before the first line.
-func PhraseStart(timeline *subtitle.Timeline, offset subtitle.Offset, position time.Duration) (time.Duration, bool) {
-	if timeline == nil {
+// PhraseStart is where repeating the phrase goes: the start of the line
+// being spoken at a playback position, or of the last one spoken, with the
+// lead-in of SnapToLines. False before the first line.
+func PhraseStart(track subtitle.Placed, position time.Duration) (time.Duration, bool) {
+	if track.Timeline == nil {
 		return 0, false
 	}
-	line, found := timeline.LastStartedBy(offset.TrackTime(position))
+	line, found := track.Timeline.LastStartedBy(track.Offset.TrackTime(position))
 	if !found {
 		return 0, false
 	}
-	return SegmentForLine(line, timeline, offset).Start, true
+	return SegmentForLine(line, track).Start, true
 }
 
 // EndMode is what happens at the end of the passage.

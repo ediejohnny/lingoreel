@@ -1,13 +1,13 @@
 import { t } from "../../i18n";
-import type { KaraokeSettings } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { FillColorNote } from "./FillColorNote";
-import { change, type SectionProps } from "./section";
+import { change, fieldSetter, type SectionProps } from "./section";
 import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
+import { SpeechPacksCard } from "./SpeechPacksCard";
 import { VoiceCard } from "./VoiceCard";
 
 /** StudySection holds the karaoke mode and the translation key. */
@@ -15,10 +15,7 @@ export function StudySection(props: SectionProps) {
   const { view, draft, setDraft } = props;
   const karaoke = draft.karaoke;
   const limits = view.options.limits;
-  const set =
-    <K extends keyof KaraokeSettings>(key: K) =>
-    (value: KaraokeSettings[K]) =>
-      change(setDraft, "karaoke")({ ...karaoke, [key]: value });
+  const set = fieldSetter(karaoke, change(setDraft, "karaoke"));
   const { taken, set: setShortcut, defaultOf } = useShortcutEditing(props);
   const translationKey = draft.shortcuts.find((item) => item.command === "translation");
   const standardKey = defaultOf("translation");
@@ -31,13 +28,10 @@ export function StudySection(props: SectionProps) {
           value={draft.mode}
           options={view.options.modes.map((option) => ({ value: option.value, label: option.label }))}
           onChange={change(setDraft, "mode")}
-          help={<HelpTip topic={t("ui.settings.study.mode.topic")}>{t("ui.settings.study.mode.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.study.mode" />}
         />
       </Card>
-      <Card
-        title={t("ui.settings.study.karaoke.title")}
-        aside={<HelpTip topic={t("ui.settings.study.karaoke.topic")}>{t("ui.settings.study.karaoke.help")}</HelpTip>}
-      >
+      <Card title={t("ui.settings.study.karaoke.title")} aside={<KeyedTip k="ui.settings.study.karaoke" />}>
         <div className="flex flex-col gap-5">
           <Toggle label={t("ui.settings.study.karaoke.enable")} checked={karaoke.enabled} onChange={set("enabled")} />
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
@@ -49,7 +43,7 @@ export function StudySection(props: SectionProps) {
               step={1}
               unit="s"
               onChange={set("minGap")}
-              help={<HelpTip topic={t("ui.settings.study.minGap.topic")}>{t("ui.settings.study.minGap.help")}</HelpTip>}
+              help={<KeyedTip k="ui.settings.study.minGap" />}
             />
             <NumberField
               label={t("ui.settings.study.lead.label")}
@@ -59,7 +53,7 @@ export function StudySection(props: SectionProps) {
               step={0.5}
               unit="s"
               onChange={set("lead")}
-              help={<HelpTip topic={t("ui.settings.study.lead.topic")}>{t("ui.settings.study.lead.help")}</HelpTip>}
+              help={<KeyedTip k="ui.settings.study.lead" />}
             />
             <Segmented
               label={t("ui.settings.study.indicator.label")}
@@ -69,14 +63,14 @@ export function StudySection(props: SectionProps) {
                 { value: "countdown", label: t("ui.settings.study.indicator.countdown") },
               ]}
               onChange={set("indicator")}
-              help={<HelpTip topic={t("ui.settings.study.indicator.topic")}>{t("ui.settings.study.indicator.help")}</HelpTip>}
+              help={<KeyedTip k="ui.settings.study.indicator" />}
             />
             <ColorField label={t("ui.settings.study.previewColor")} value={karaoke.previewColor} onChange={set("previewColor")} />
             <Toggle
               label={t("ui.settings.study.fill.label")}
               checked={karaoke.fill}
               onChange={set("fill")}
-              help={<HelpTip topic={t("ui.settings.study.fill.topic")}>{t("ui.settings.study.fill.help")}</HelpTip>}
+              help={<KeyedTip k="ui.settings.study.fill" />}
             />
             <ColorField
               label={t("ui.settings.study.fillColor")}
@@ -95,16 +89,14 @@ export function StudySection(props: SectionProps) {
               step={1}
               unit="×"
               onChange={set("repeat")}
-              help={<HelpTip topic={t("ui.settings.study.repeat.topic")}>{t("ui.settings.study.repeat.help")}</HelpTip>}
+              help={<KeyedTip k="ui.settings.study.repeat" />}
             />
           </div>
         </div>
       </Card>
       <VoiceCard view={view} run={props.run} />
-      <Card
-        title={t("ui.settings.study.key.title")}
-        aside={<HelpTip topic={t("ui.settings.study.key.topic")}>{t("ui.settings.study.key.help")}</HelpTip>}
-      >
+      <SpeechPacksCard />
+      <Card title={t("ui.settings.study.key.title")} aside={<KeyedTip k="ui.settings.study.key" />}>
         <div className="flex flex-col gap-4">
           {translationKey && (
             <div className="flex items-center justify-between gap-4">

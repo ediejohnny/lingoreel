@@ -1,9 +1,10 @@
 import { t } from "../../i18n";
 import type { SettingsOptions, StyleSettings } from "../../services/backend";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { fieldSetter } from "./section";
 
 interface StyleEditorProps {
   style: StyleSettings;
@@ -14,10 +15,7 @@ interface StyleEditorProps {
 
 /** StyleEditor edits how one subtitle line looks. */
 export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorProps) {
-  const set =
-    <K extends keyof StyleSettings>(key: K) =>
-    (value: StyleSettings[K]) =>
-      onChange({ ...style, [key]: value });
+  const set = fieldSetter(style, onChange);
   const limits = options.limits;
   const fonts = options.fonts.includes(style.fontFamily) ? options.fonts : [style.fontFamily, ...options.fonts];
 
@@ -26,7 +24,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium text-fg">{t("ui.settings.style.preset.label")}</span>
-          <HelpTip topic={t("ui.settings.style.preset.topic")}>{t("ui.settings.style.preset.help")}</HelpTip>
+          <KeyedTip k="ui.settings.style.preset" />
         </div>
         <div className="flex flex-wrap gap-2">
           {options.presets.map((preset) => (
@@ -67,7 +65,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
             { value: "fixed", label: t("ui.settings.style.sizeMode.fixed") },
           ]}
           onChange={(value) => set("responsive")(value === "responsive")}
-          help={<HelpTip topic={t("ui.settings.style.sizeMode.topic")}>{t("ui.settings.style.sizeMode.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.style.sizeMode" />}
         />
         <div className="flex items-end gap-6 pb-2">
           <Toggle label={t("ui.settings.style.bold")} checked={style.bold} onChange={set("bold")} />
@@ -154,7 +152,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           label={t("ui.settings.style.background.label")}
           checked={style.background}
           onChange={set("background")}
-          help={<HelpTip topic={t("ui.settings.style.background.topic")}>{t("ui.settings.style.background.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.style.background" />}
         />
         <span />
         <ColorField
@@ -187,7 +185,7 @@ export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorP
           scale={100}
           unit="%"
           onChange={set("position")}
-          help={<HelpTip topic={t("ui.settings.style.position.topic")}>{t("ui.settings.style.position.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.style.position" />}
         />
         <NumberField
           label={t("ui.settings.style.position.lines")}

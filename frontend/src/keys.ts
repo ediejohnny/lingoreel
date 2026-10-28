@@ -98,7 +98,7 @@ export function withKey(text: string, label: string): string {
   return label === "" ? text : `${text} (${label})`;
 }
 
-/** both joins two commands' keys for a hint: "Shift+, e Shift+.", or the one there is. */
+/** both joins two commands' keys for a hint: "Shift+, and Shift+.", or the one there is. */
 export function both(first: string, second: string): string {
   return first === "" || second === "" ? first + second : t("ui.keys.both", { first, second });
 }
