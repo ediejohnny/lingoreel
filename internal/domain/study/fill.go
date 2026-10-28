@@ -112,7 +112,7 @@ func PlanFill(units Units, spans []speech.Span) FillPlan {
 // said, they are the stretches PlanFill spreads the words over. When the
 // model is not sure of them (speech.WordsSure: a shout, a whisper), their
 // letters are not to be trusted but where they are is the line's voice, so
-// the words spread over it, from the first word heard to the last.
+// the words spread over it (voiceOf), waiting in its pauses.
 func PlanWords(units Units, words []speech.Word) FillPlan {
 	var heard []speech.Word
 	for _, w := range words {
@@ -121,7 +121,7 @@ func PlanWords(units Units, words []speech.Word) FillPlan {
 		}
 	}
 	if len(heard) > 0 && !speech.WordsSure(words) {
-		return PlanFill(units, []speech.Span{{Start: heard[0].Start, End: heard[len(heard)-1].End}})
+		return PlanFill(units, voiceOf(heard))
 	}
 	said := 0
 	for _, unit := range units.Words {
@@ -155,6 +155,25 @@ func PlanWords(units Units, words []speech.Word) FillPlan {
 		done += float64(unit.Chars)
 	}
 	return plan
+}
+
+// wordsPause is a silence between two words placed that is a pause in the
+// speech, past the gaps between words said in one breath.
+const wordsPause = 300 * time.Millisecond
+
+// voiceOf is the voice of words placed in order: their stretch from the
+// first to the last, broken where a pause (wordsPause) parts two of them.
+func voiceOf(heard []speech.Word) []speech.Span {
+	spans := []speech.Span{heard[0].Span}
+	for _, w := range heard[1:] {
+		last := &spans[len(spans)-1]
+		if w.Start-last.End >= wordsPause {
+			spans = append(spans, w.Span)
+			continue
+		}
+		last.End = max(last.End, w.End)
+	}
+	return spans
 }
 
 // lay spreads words over spans by the share of voice heard: a point at

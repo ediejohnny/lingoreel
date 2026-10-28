@@ -58,7 +58,8 @@ All notable changes to this project are listed here. The format follows
   words where the actor says them: the model places each word in the sound decoded ahead, before the line shows. A
   quick speaker, a word said before the line appears, a neighbour's voice, noise or music under the line no longer
   pull the fill behind or ahead, and the film's last line is placed in the sound up to the film's end. A line whose
-  words the model is not sure of (a shout, a whisper) fills evenly from its first word placed to its last. Every line
+  words the model is not sure of (a shout, a whisper) fills evenly over the words placed, and waits in the pauses
+  between them (a sentence, a silence, then a long "Shhh..." no longer fills slowly across the silence). Every line
   is filled by the voice found, as before, when the language's model is not downloaded or does not suit the
   computer's level (English at the medium level, every language at the high one).
 - In karaoke mode, when the actor starts before the line's time, the preview's bar or countdown ends as the first word

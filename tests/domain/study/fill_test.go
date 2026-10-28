@@ -138,6 +138,38 @@ func TestThePlanByWordsFollowsAQuickSpeaker(t *testing.T) {
 	}
 }
 
+// Sintel at 3:27, unsure of every word (median 0.45): "We're almost done."
+// then, after almost a second of silence, a long "Shhh...". The spread of a
+// line the model is not sure of stops in the silences between the words it
+// placed: the first sentence fills over its own words and waits, and the
+// "Shhh..." fills over its own, never the whole line slowly across the pause.
+func TestAShoutWaitsInThePausesBetweenItsWords(t *testing.T) {
+	t.Parallel()
+	words := []speech.Word{
+		{Span: speech.Span{Start: 7800 * ms, End: 8000 * ms}, Heard: true, Confidence: 0.04},  // We're
+		{Span: speech.Span{Start: 8050 * ms, End: 8300 * ms}, Heard: true, Confidence: 0.45},  // almost
+		{Span: speech.Span{Start: 8350 * ms, End: 8510 * ms}, Heard: true, Confidence: 0.48},  // done.
+		{Span: speech.Span{Start: 9430 * ms, End: 10470 * ms}, Heard: true, Confidence: 0.20}, // Shhh...
+	}
+	plan := study.PlanWords(study.SpeechUnits("We're almost done. Shhh..."), words)
+	const visible = 23.0
+	checks := []struct {
+		at   time.Duration
+		want float64 // characters painted
+	}{
+		{7800 * ms, 0},
+		{8510 * ms, 16},       // "We're almost done." all said
+		{9 * time.Second, 16}, // the pause: nothing more
+		{9430 * ms, 16},
+		{10470 * ms, visible},
+	}
+	for _, c := range checks {
+		if got := plan.Fraction(c.at) * visible; math.Abs(got-c.want) > 0.01 {
+			t.Errorf("at %v: %.2f characters painted, want %.2f", c.at, got, c.want)
+		}
+	}
+}
+
 func spansOf(words []speech.Word) []speech.Span {
 	spans := make([]speech.Span, len(words))
 	for i, w := range words {
