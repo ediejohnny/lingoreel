@@ -4,6 +4,7 @@ import { Toggle } from "../ui/Field";
 import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
+import { fieldSetter } from "./section";
 
 interface StyleEditorProps {
   style: StyleSettings;
@@ -14,10 +15,7 @@ interface StyleEditorProps {
 
 /** StyleEditor edits how one subtitle line looks. */
 export function StyleEditor({ style, options, onChange, onPreset }: StyleEditorProps) {
-  const set =
-    <K extends keyof StyleSettings>(key: K) =>
-    (value: StyleSettings[K]) =>
-      onChange({ ...style, [key]: value });
+  const set = fieldSetter(style, onChange);
   const limits = options.limits;
   const fonts = options.fonts.includes(style.fontFamily) ? options.fonts : [style.fontFamily, ...options.fonts];
 

@@ -44,6 +44,15 @@ All notable changes to this project are listed here. The format follows
   "English" (only the format's default) or "unknown language".
 - The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
   they are and only the highlights bend, so a still is as bright as the film looks.
+- The setup assistant offers a player as the session screen does, with the note that winget installs it.
+- The question to leave the settings with choices not saved looks like the app's other questions; Esc or a click
+  beside it keeps editing.
+
+### Fixed
+
+- The question about a computer of another level stayed on the screen after Settings › General › "Adjust again to
+  this computer" answered it.
+- A voice delay changed just before leaving its settings page was not saved.
 
 ## [0.28.0] - 2026-10-27
 

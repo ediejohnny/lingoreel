@@ -10,14 +10,15 @@ import { Select } from "../ui/Select";
 import { ComputerCard } from "./ComputerCard";
 import type { SectionProps } from "./section";
 
-type Editing = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
+/** ProfileEdit is what is being done to the profiles: nothing, naming a new or the active one, or deleting it. */
+type ProfileEdit = { kind: "none" } | { kind: "create" | "rename"; name: string } | { kind: "delete" };
 
 /**
  * GeneralSection holds the profiles, the app language (with more than one), the welcome, the computer, the window and the
  * sync notice.
  */
 export function GeneralSection({ view, dirty, run, welcome }: SectionProps) {
-  const [editing, setEditing] = useState<Editing>({ kind: "none" });
+  const [editing, setEditing] = useState<ProfileEdit>({ kind: "none" });
   const active = view.general.activeProfile;
   const finish = async (action: () => Promise<unknown>, done: string) => {
     await run(action, done);

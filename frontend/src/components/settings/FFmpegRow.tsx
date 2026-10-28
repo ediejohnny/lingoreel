@@ -1,7 +1,7 @@
 import { Download, FolderOpen, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useInstall } from "../../hooks/useInstall";
 import { t } from "../../i18n";
-import { backend, messageOf, type VoiceSettings } from "../../services/backend";
+import { backend, type VoiceSettings } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { HelpTip } from "../ui/HelpTip";
 import type { SectionProps } from "./section";
@@ -25,32 +25,8 @@ interface FFmpegRowProps extends Pick<SectionProps, "run"> {
  * one found, and installing one with winget.
  */
 export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpegRowProps) {
-  const [installing, setInstalling] = useState(false);
-  const [installError, setInstallError] = useState("");
-
-  useEffect(
-    () =>
-      backend.onInstall((progress) => {
-        if (progress.id !== "ffmpeg") {
-          return;
-        }
-        setInstalling(false);
-        setInstallError(progress.error);
-        if (!progress.error) {
-          void run(async () => undefined, t("ui.settings.ffmpeg.installed"));
-        }
-      }),
-    [run],
-  );
-
-  const install = () => {
-    setInstalling(true);
-    setInstallError("");
-    backend.installFFmpeg().catch((failure: unknown) => {
-      setInstalling(false);
-      setInstallError(messageOf(failure));
-    });
-  };
+  // Installed, the settings are read again: they tell the FFmpeg found.
+  const install = useInstall("ffmpeg", () => void run(async () => undefined, t("ui.settings.ffmpeg.installed")));
 
   return (
     <div className="flex flex-col gap-2">
@@ -75,12 +51,12 @@ export function FFmpegRow({ voice, run, disabled, found, missing, help }: FFmpeg
           </Button>
         )}
         {voice.canInstall && (
-          <Button icon={Download} loading={installing} disabled={disabled} onClick={install}>
+          <Button icon={Download} loading={install.installing !== ""} disabled={disabled} onClick={() => install.start("ffmpeg")}>
             {t("ui.settings.ffmpeg.install")}
           </Button>
         )}
       </div>
-      {installError && <p className="text-sm text-error">{installError}</p>}
+      {install.error && <p className="text-sm text-error">{install.error}</p>}
     </div>
   );
 }

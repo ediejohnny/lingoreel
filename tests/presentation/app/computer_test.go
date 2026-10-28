@@ -37,6 +37,14 @@ func storedConfig(r *rig) settings.Config {
 	return r.settings.config
 }
 
+// screenAsks tells whether the last word the screens heard about a changed
+// computer is a question still waiting.
+func screenAsks(r *rig) bool {
+	told, _ := r.ui.last(app.EventComputerChanged)
+	change, _ := told.(app.ComputerChange)
+	return change.Asked
+}
+
 // adjustedTo is a configuration adjusted to a computer.
 func adjustedTo(machine capacity.Machine) settings.Config {
 	config := settings.DefaultConfig()
@@ -119,6 +127,8 @@ func TestAComputerOfAnotherLevelIsAskedAbout(t *testing.T) {
 		switch {
 		case r.api.ComputerChange().Asked:
 			t.Fatalf("adjust %v: the question still waits", adjust)
+		case screenAsks(r):
+			t.Fatalf("adjust %v: the screens were not told the question was answered", adjust)
 		case adjust && (stored.Voice.Model || stored.Computer.Level != capacity.LevelBasic):
 			t.Fatalf("adjusted: voice AI %v, record %+v", stored.Voice.Model, stored.Computer)
 		case !adjust && (!stored.Voice.Model || stored.Computer.Level != capacity.LevelHigh ||
@@ -137,7 +147,7 @@ func TestAComputerOfAnotherLevelIsAskedAbout(t *testing.T) {
 	// The settings' button answers the question too.
 	button := computerRig(t, schoolComputer, adjustedTo(studioComputer), false)
 	testkit.Eventually(t, "the question", func() bool { return button.api.ComputerChange().Asked })
-	if err := button.api.AdjustToComputer(); err != nil || button.api.ComputerChange().Asked {
+	if err := button.api.AdjustToComputer(); err != nil || button.api.ComputerChange().Asked || screenAsks(button) {
 		t.Fatalf("adjusted by the button (%v): the question still waits", err)
 	}
 

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useDebouncedCall } from "../../hooks/useDebouncedCall";
 import { t } from "../../i18n";
 import { backend, type VoiceSettings } from "../../services/backend";
 import { Banner, Card } from "../ui/Feedback";
@@ -19,19 +20,16 @@ const delaySaveAfter = 400;
 export function VoiceCard({ view, run }: Pick<SectionProps, "view" | "run">) {
   const voice = view.voice;
   const [delay, setDelay] = useState<number | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const following = voice.model && voice.follow;
   const save = (next: Partial<VoiceSettings>) => void run(() => backend.setVoice({ ...voice, ...next }));
+  const saveDelay = useDebouncedCall((ms: number) => {
+    setDelay(null);
+    save({ delayMs: ms });
+  }, delaySaveAfter);
   const changeDelay = (ms: number) => {
     setDelay(ms);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      setDelay(null);
-      save({ delayMs: ms });
-    }, delaySaveAfter);
+    saveDelay(ms);
   };
 
   return (

@@ -20,6 +20,10 @@ interface TrainingCardsProps {
   onCommand: (command: () => Promise<void>) => void;
 }
 
+/** sampleStart and sampleEnd are the times the passage's fields show as an example, in seconds. */
+const sampleStart = 4223;
+const sampleEnd = 4264;
+
 const repeatOptions = () =>
   Array.from({ length: 11 }, (_, times) => ({
     value: String(times),
@@ -229,7 +233,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
               studyLabel={t("ui.passage.study")}
               onStudy={(saved) => onCommand(() => backend.studySavedPassage(saved))}
               onRename={(from, to) => backend.renamePassage(from, to)}
-              onDelete={async (saved) => onCommand(() => backend.deletePassage(saved))}
+              onDelete={(saved) => onCommand(() => backend.deletePassage(saved))}
             />
           </div>
         )}
@@ -238,8 +242,20 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
           <summary className="cursor-pointer text-sm font-medium text-fg">{t("ui.passage.more")}</summary>
           <div className="mt-3 flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
-              <TextField label={t("ui.passage.start")} value={start} onChange={setStart} placeholder="1:10:23" action={mark(setStart)} />
-              <TextField label={t("ui.passage.end")} value={end} onChange={setEnd} placeholder="1:11:04" action={mark(setEnd)} />
+              <TextField
+                label={t("ui.passage.start")}
+                value={start}
+                onChange={setStart}
+                placeholder={passageClock(sampleStart)}
+                action={mark(setStart)}
+              />
+              <TextField
+                label={t("ui.passage.end")}
+                value={end}
+                onChange={setEnd}
+                placeholder={passageClock(sampleEnd)}
+                action={mark(setEnd)}
+              />
             </div>
             <div className="flex items-center gap-1">
               <Button onClick={thisLine}>{t("ui.passage.thisLine.label")}</Button>

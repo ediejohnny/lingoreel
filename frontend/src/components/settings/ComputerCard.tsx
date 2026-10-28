@@ -4,6 +4,7 @@ import { adjustedApart, computerFacts, levelName } from "../../computer";
 import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
+import { FactList } from "../ui/FactList";
 import { Card } from "../ui/Feedback";
 import { KeyedTip } from "../ui/HelpTip";
 import type { SectionProps } from "./section";
@@ -30,14 +31,7 @@ export function ComputerCard({ view, dirty, run }: Pick<SectionProps, "view" | "
   return (
     <Card title={t("ui.computer.title")} aside={<KeyedTip k="ui.computer" />}>
       <div className="flex flex-col gap-3">
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-control border border-line bg-surface-sunken p-3 text-xs select-text">
-          {computerFacts(computer).map((fact) => (
-            <div key={fact.label} className="contents">
-              <dt className="text-fg-muted">{fact.label}</dt>
-              <dd className="break-all text-fg">{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <FactList facts={computerFacts(computer)} />
         {adjustedApart(computer) && (
           <p className="text-xs text-fg-muted">{t("ui.computer.adjustedApart", { level: levelName(computer.adjusted) })}</p>
         )}

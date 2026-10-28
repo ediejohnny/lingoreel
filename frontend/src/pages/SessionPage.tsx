@@ -6,7 +6,7 @@ import { InstallCards } from "../components/session/InstallCards";
 import { ListeningQuestion } from "../components/session/ListeningQuestion";
 import { Button } from "../components/ui/Button";
 import { Banner, Card } from "../components/ui/Feedback";
-import { HelpTip } from "../components/ui/HelpTip";
+import { HelpTip, KeyedTip } from "../components/ui/HelpTip";
 import { Segmented } from "../components/ui/Inputs";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { Rich } from "../components/ui/Rich";
@@ -195,10 +195,7 @@ export function SessionPage(props: SessionPageProps) {
         )}
         {video.projectNote && <Banner tone="warning">{video.projectNote}</Banner>}
         {video.languageNote && <Banner tone="info">{video.languageNote}</Banner>}
-        <Card
-          title={t("ui.session.subtitles.title")}
-          aside={<HelpTip topic={t("ui.session.subtitles.topic")}>{t("ui.session.subtitles.help")}</HelpTip>}
-        >
+        <Card title={t("ui.session.subtitles.title")} aside={<KeyedTip k="ui.session.subtitles" />}>
           {addError && (
             <div className="mb-4">
               <Banner tone="error" onClose={() => setAddError("")}>
@@ -242,7 +239,7 @@ export function SessionPage(props: SessionPageProps) {
                 value={mode}
                 options={video.modes.map((option) => ({ value: option.value, label: option.label }))}
                 onChange={setMode}
-                help={<HelpTip topic={t("ui.session.mode.topic")}>{t("ui.session.mode.help")}</HelpTip>}
+                help={<KeyedTip k="ui.session.mode" />}
               />
             </div>
           )}
@@ -331,10 +328,7 @@ export function SessionPage(props: SessionPageProps) {
           )}
         </Card>
 
-        <Card
-          title={t("ui.session.forget.title")}
-          aside={<HelpTip topic={t("ui.session.forget.topic")}>{t("ui.session.forget.help")}</HelpTip>}
-        >
+        <Card title={t("ui.session.forget.title")} aside={<KeyedTip k="ui.session.forget" />}>
           {resetting ? (
             <div className="flex flex-wrap items-center gap-2 text-sm text-fg">
               <span>{t("ui.session.forget.confirm")}</span>

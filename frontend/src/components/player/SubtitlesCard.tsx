@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { t } from "../../i18n";
-import type { Line, Playback } from "../../services/backend";
+import type { Line, Playback, PlayingCommands } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { KeyedTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
@@ -10,11 +10,7 @@ import { SubtitlePicker } from "./SubtitlePicker";
 interface SubtitlesCardProps {
   state: Playback;
   onCommand: (command: () => Promise<void>) => void;
-  commands: {
-    switchSubtitle: (line: Line, track: number) => Promise<void>;
-    switchAudio: (track: number) => Promise<void>;
-    addSubtitleFile: (line: Line) => Promise<void>;
-  };
+  commands: Pick<PlayingCommands, "switchSubtitle" | "switchAudio" | "addSubtitleFile">;
 }
 
 /** SubtitlesCard switches the subtitles and the audio while the video plays, and adds subtitle files. */

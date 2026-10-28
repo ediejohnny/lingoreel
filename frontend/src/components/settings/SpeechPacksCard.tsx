@@ -1,9 +1,10 @@
 import { Download, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { levelName } from "../../computer";
 import { sizeLabel } from "../../format";
+import { useFollowed } from "../../hooks/useFollowed";
 import { t } from "../../i18n";
-import { backend, messageOf, type SpeechPacksView, type SpeechPackView } from "../../services/backend";
+import { backend, messageOf, type SpeechPackView } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Banner, Card } from "../ui/Feedback";
 import { KeyedTip } from "../ui/HelpTip";
@@ -14,21 +15,8 @@ import { ProgressBar } from "../ui/ProgressBar";
  * how far it went, the packs that suit the computer's level marked. Fetching is always the person's choice.
  */
 export function SpeechPacksCard() {
-  const [view, setView] = useState<SpeechPacksView | null>(null);
+  const view = useFollowed(backend.speechPacks, backend.onSpeechPacks);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-    backend
-      .speechPacks()
-      .then((current) => alive && setView(current))
-      .catch(() => undefined);
-    const stop = backend.onSpeechPacks(setView);
-    return () => {
-      alive = false;
-      stop();
-    };
-  }, []);
 
   if (!view?.available) {
     return null;

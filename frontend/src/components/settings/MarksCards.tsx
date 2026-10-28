@@ -1,11 +1,11 @@
 import { t } from "../../i18n";
-import type { MarkSettings, NoticeSettings, SelectionSettings } from "../../services/backend";
+import type { MarkSettings } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { HelpTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { RestoreButton } from "./RestoreButton";
-import { change, type SectionProps } from "./section";
+import { change, fieldSetter, type SectionProps } from "./section";
 
 /**
  * MarksCards edit the marks drawn over the video besides the subtitles: the
@@ -27,15 +27,9 @@ export function MarksCards({
     onShow(shown);
   };
   const notice = marks.notice;
-  const setNotice =
-    <K extends keyof NoticeSettings>(key: K) =>
-    (value: NoticeSettings[K]) =>
-      setMarks({ ...marks, notice: { ...notice, [key]: value } }, "notice");
+  const setNotice = fieldSetter(notice, (next) => setMarks({ ...marks, notice: next }, "notice"));
   const selection = marks.selection;
-  const setSelection =
-    <K extends keyof SelectionSettings>(key: K) =>
-    (value: SelectionSettings[K]) =>
-      setMarks({ ...marks, selection: { ...selection, [key]: value } }, "selection");
+  const setSelection = fieldSetter(selection, (next) => setMarks({ ...marks, selection: next }, "selection"));
   const fonts = options.fonts.includes(notice.fontFamily) ? options.fonts : [notice.fontFamily, ...options.fonts];
 
   return (
@@ -43,12 +37,10 @@ export function MarksCards({
       <Card
         title={t("ui.settings.subtitles.notice.title")}
         aside={
-          <div className="flex items-center gap-1">
-            <RestoreButton
-              onRestore={() => setMarks({ ...marks, notice: defaults.notice, noticeDuration: defaults.noticeDuration }, "notice")}
-            />
-            <HelpTip topic={t("ui.settings.subtitles.notice.title")}>{t("ui.settings.subtitles.notice.help")}</HelpTip>
-          </div>
+          <RestoreButton
+            onRestore={() => setMarks({ ...marks, notice: defaults.notice, noticeDuration: defaults.noticeDuration }, "notice")}
+            help={<HelpTip topic={t("ui.settings.subtitles.notice.title")}>{t("ui.settings.subtitles.notice.help")}</HelpTip>}
+          />
         }
       >
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
@@ -118,10 +110,10 @@ export function MarksCards({
       <Card
         title={t("ui.settings.subtitles.selection.title")}
         aside={
-          <div className="flex items-center gap-1">
-            <RestoreButton onRestore={() => setMarks({ ...marks, selection: defaults.selection }, "selection")} />
-            <HelpTip topic={t("ui.settings.subtitles.selection.title")}>{t("ui.settings.subtitles.selection.help")}</HelpTip>
-          </div>
+          <RestoreButton
+            onRestore={() => setMarks({ ...marks, selection: defaults.selection }, "selection")}
+            help={<HelpTip topic={t("ui.settings.subtitles.selection.title")}>{t("ui.settings.subtitles.selection.help")}</HelpTip>}
+          />
         }
       >
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">

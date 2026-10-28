@@ -22,3 +22,10 @@ export interface SectionProps {
 export function change<K extends keyof ProfileSettings>(setDraft: SectionProps["setDraft"], key: K) {
   return (value: ProfileSettings[K]) => setDraft((draft) => (draft ? { ...draft, [key]: value } : draft));
 }
+
+/** fieldSetter returns, for one field of value, what sets that field and hands the whole new value to onChange. */
+export function fieldSetter<T extends object>(value: T, onChange: (next: T) => void) {
+  return <K extends keyof T>(key: K) =>
+    (field: T[K]) =>
+      onChange({ ...value, [key]: field });
+}

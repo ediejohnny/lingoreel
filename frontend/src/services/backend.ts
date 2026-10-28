@@ -235,3 +235,25 @@ export const backend = {
   /** onSpeechPacks hears a speech pack began or stopped being fetched, went further, or was removed. */
   onSpeechPacks: (listener: (view: SpeechPacksView) => void) => EventsOn(events.speechPacks, listener),
 };
+
+/**
+ * PlayingCommands are what the screens run on the video that plays. Adding a subtitle file is the app's own: it also
+ * lists the file under the video.
+ */
+export type PlayingCommands = Pick<
+  typeof backend,
+  | "togglePause"
+  | "seekBy"
+  | "seekTo"
+  | "setSpeed"
+  | "nudge"
+  | "resetSync"
+  | "setTranslationVisible"
+  | "setStudyMode"
+  | "runShortcut"
+  | "reveal"
+  | "stop"
+  | "setFullscreen"
+  | "switchSubtitle"
+  | "switchAudio"
+> & { addSubtitleFile: (line: Line) => Promise<void> };

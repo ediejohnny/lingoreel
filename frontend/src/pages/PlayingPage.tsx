@@ -1,5 +1,4 @@
 import { Eye, EyeOff, Pause, Play, Rewind, FastForward, Square } from "lucide-react";
-import { useEffect, useState } from "react";
 import { EditorCard } from "../components/player/EditorCard";
 import { SubtitlesCard } from "../components/player/SubtitlesCard";
 import { SyncRow } from "../components/player/SyncRow";
@@ -12,7 +11,7 @@ import { Select } from "../components/ui/Select";
 import { speedLabel } from "../format";
 import { t } from "../i18n";
 import { both, keyLabel, translationCommand, withKey } from "../keys";
-import { backend, type Choice, type Line, type Playback, type ShortcutSetting } from "../services/backend";
+import type { Choice, Playback, PlayingCommands, ShortcutSetting } from "../services/backend";
 
 /** seekStep is the jump of the back and forward buttons, in seconds. */
 const seekStep = 5;
@@ -30,25 +29,9 @@ interface PlayingPageProps {
   error: string;
   onDismissError: () => void;
   onCommand: (command: () => Promise<void>) => void;
-  /** keysVersion changes when the profile's keys may have changed, so their labels are read again. */
-  keysVersion?: number;
-  commands: {
-    togglePause: () => Promise<void>;
-    seekBy: (seconds: number) => Promise<void>;
-    seekTo: (seconds: number) => Promise<void>;
-    setSpeed: (speed: number) => Promise<void>;
-    nudge: (line: Line, later: boolean) => Promise<void>;
-    resetSync: (line: Line) => Promise<void>;
-    setTranslationVisible: (visible: boolean) => Promise<void>;
-    setStudyMode: (mode: string) => Promise<void>;
-    runShortcut: (command: string, repeat: boolean) => Promise<void>;
-    reveal: (pressed: boolean) => Promise<void>;
-    stop: () => Promise<void>;
-    setFullscreen: (on: boolean) => Promise<void>;
-    switchSubtitle: (line: Line, track: number) => Promise<void>;
-    switchAudio: (track: number) => Promise<void>;
-    addSubtitleFile: (line: Line) => Promise<void>;
-  };
+  /** keys are the profile's shortcuts, named on the buttons and in the help; they work from the app, with or without this panel. */
+  keys: ShortcutSetting[];
+  commands: PlayingCommands;
 }
 
 function modeHelp(translationKey: string): string {
@@ -73,26 +56,12 @@ export function PlayingPage({
   error,
   onDismissError,
   onCommand,
-  keysVersion = 0,
+  keys,
   commands,
 }: PlayingPageProps) {
   const playing = state.status === "playing";
   const { capabilities } = state;
-  const [keys, setKeys] = useState<ShortcutSetting[]>([]);
   const label = (command: string) => keyLabel(keys, command);
-
-  // The keys' labels for the buttons and the help; the keys themselves work
-  // from the app (useVideoKeys), with or without this panel.
-  useEffect(() => {
-    let current = true;
-    backend
-      .shortcuts()
-      .then((list) => current && setKeys(list))
-      .catch(() => current && setKeys([]));
-    return () => {
-      current = false;
-    };
-  }, [keysVersion]);
 
   const speedOptions = speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }));
   const currentSpeed = speeds.find((speed) => Math.abs(speed - state.speed) < 1e-6) ?? 1;

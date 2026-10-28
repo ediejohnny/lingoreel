@@ -72,12 +72,23 @@ func (a *API) AnswerComputerChange(adjust bool) error {
 	}); err != nil {
 		return err
 	}
-	a.mu.Lock()
-	a.computerChanged = false
-	a.mu.Unlock()
+	a.settleComputerChange()
 	a.logger.Info("computer change answered", "adjusted", adjust, "level", machine.Level())
 	a.applyVoice()
 	return nil
+}
+
+// settleComputerChange ends the question of a changed computer; the screens
+// are told when one was waiting, so none of them keeps asking it. Called
+// without a.mu.
+func (a *API) settleComputerChange() {
+	a.mu.Lock()
+	asked := a.computerChanged
+	a.computerChanged = false
+	a.mu.Unlock()
+	if asked {
+		a.emit(EventComputerChanged, a.ComputerChange())
+	}
 }
 
 // AdjustToComputer puts every setting the computer's level decides to the
@@ -91,9 +102,7 @@ func (a *API) AdjustToComputer() error {
 	}); err != nil {
 		return err
 	}
-	a.mu.Lock()
-	a.computerChanged = false
-	a.mu.Unlock()
+	a.settleComputerChange()
 	a.logger.Info("adjusted to the computer", "level", machine.Level())
 	a.applyVoice()
 	return nil

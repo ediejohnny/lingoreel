@@ -1,11 +1,10 @@
 import { t } from "../../i18n";
-import type { KaraokeSettings } from "../../services/backend";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
 import { KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { FillColorNote } from "./FillColorNote";
-import { change, type SectionProps } from "./section";
+import { change, fieldSetter, type SectionProps } from "./section";
 import { ShortcutCapture } from "./ShortcutCapture";
 import { useShortcutEditing } from "./ShortcutsSection";
 import { SpeechPacksCard } from "./SpeechPacksCard";
@@ -16,10 +15,7 @@ export function StudySection(props: SectionProps) {
   const { view, draft, setDraft } = props;
   const karaoke = draft.karaoke;
   const limits = view.options.limits;
-  const set =
-    <K extends keyof KaraokeSettings>(key: K) =>
-    (value: KaraokeSettings[K]) =>
-      change(setDraft, "karaoke")({ ...karaoke, [key]: value });
+  const set = fieldSetter(karaoke, change(setDraft, "karaoke"));
   const { taken, set: setShortcut, defaultOf } = useShortcutEditing(props);
   const translationKey = draft.shortcuts.find((item) => item.command === "translation");
   const standardKey = defaultOf("translation");

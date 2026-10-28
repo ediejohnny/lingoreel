@@ -1,20 +1,15 @@
 // Pure helpers of the video inside the app's window: the room the screen's
-// controls leave it, and the width of the panel beside it.
+// controls leave it, and the width of the panel beside it. A VideoLayout is
+// what the Go side needs to place the video: whether it shows, and the room
+// around it, in CSS pixels.
 
-/** VideoLayout is what the Go side needs to place the video: whether it shows, and the room around it, in CSS pixels. */
-export interface VideoLayout {
-  visible: boolean;
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
+import type { VideoLayout } from "./services/backend";
 
 /** hiddenVideo is the layout of a screen that shows no video. */
 export const hiddenVideo: VideoLayout = { visible: false, top: 0, right: 0, bottom: 0, left: 0 };
 
 /** Box is where an element sits in the window, in CSS pixels. */
-export interface Box {
+interface Box {
   left: number;
   top: number;
   right: number;

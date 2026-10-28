@@ -1,35 +1,23 @@
 import { Cpu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { levelName } from "../computer";
+import { useFollowed } from "../hooks/useFollowed";
 import { t } from "../i18n";
-import { backend, messageOf, type ComputerChange } from "../services/backend";
+import { backend, messageOf } from "../services/backend";
 import { Button } from "./ui/Button";
 import { Banner } from "./ui/Feedback";
 
 /**
  * ComputerChangeBanner asks, when the app runs on a computer of another level than the settings were adjusted to,
- * whether to adjust again; nothing changes without the answer, and choices made by hand stay either way.
+ * whether to adjust again; nothing changes without the answer, and choices made by hand stay either way. It goes once
+ * the question is answered, here or by the settings' own button.
  */
 export function ComputerChangeBanner() {
-  const [change, setChange] = useState<ComputerChange | null>(null);
+  const change = useFollowed(backend.computerChange, backend.onComputerChanged);
   const [answering, setAnswering] = useState(false);
   const [error, setError] = useState("");
 
-  // The question may have been asked before this screen showed: it is read
-  // again, and heard when it comes later.
-  useEffect(() => {
-    backend
-      .computerChange()
-      .then((current) => {
-        if (current.asked) {
-          setChange(current);
-        }
-      })
-      .catch(() => undefined);
-    return backend.onComputerChanged((next) => setChange(next.asked ? next : null));
-  }, []);
-
-  if (!change) {
+  if (!change?.asked) {
     return null;
   }
   const answer = (adjust: boolean) => {
@@ -37,7 +25,6 @@ export function ComputerChangeBanner() {
     setError("");
     backend
       .answerComputerChange(adjust)
-      .then(() => setChange(null))
       .catch((failure) => setError(messageOf(failure)))
       .finally(() => setAnswering(false));
   };

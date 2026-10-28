@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { t } from "../../i18n";
 import { backend, messageOf, type Diagnostics } from "../../services/backend";
 import { Button } from "../ui/Button";
+import { FactList } from "../ui/FactList";
 import { Card } from "../ui/Feedback";
 import { KeyedTip } from "../ui/HelpTip";
 
@@ -33,28 +34,21 @@ export function DiagnosticsCard() {
 
   return (
     <Card title={t("ui.settings.diagnostics.title")} aside={<KeyedTip k="ui.settings.diagnostics" />}>
-      {diagnostics && (
-        <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-control border border-line bg-surface-sunken p-3 text-xs select-text">
-          {diagnostics.items.map((item) => (
-            <div key={item.label} className="contents">
-              <dt className="text-fg-muted">{item.label}</dt>
-              <dd className="break-all text-fg">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button icon={ClipboardCopy} disabled={!diagnostics} onClick={() => void copy()}>
-          {t("ui.settings.diagnostics.copy")}
-        </Button>
-        <Button icon={RefreshCw} variant="ghost" onClick={refresh}>
-          {t("ui.settings.diagnostics.refresh")}
-        </Button>
-        {status && (
-          <span role="status" className="text-sm text-fg-secondary">
-            {status}
-          </span>
-        )}
+      <div className="flex flex-col gap-3">
+        {diagnostics && <FactList facts={diagnostics.items} />}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button icon={ClipboardCopy} disabled={!diagnostics} onClick={() => void copy()}>
+            {t("ui.settings.diagnostics.copy")}
+          </Button>
+          <Button icon={RefreshCw} variant="ghost" onClick={refresh}>
+            {t("ui.settings.diagnostics.refresh")}
+          </Button>
+          {status && (
+            <span role="status" className="text-sm text-fg-secondary">
+              {status}
+            </span>
+          )}
+        </div>
       </div>
     </Card>
   );

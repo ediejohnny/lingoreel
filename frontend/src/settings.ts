@@ -41,7 +41,7 @@ export interface SectionItem {
 
 /**
  * settingsSections is the settings menu, grouped by subject:
- * each subtitle line has its own entry under "Legendas", named by where it
+ * each subtitle line has its own entry under the subtitles, named by where it
  * goes and, below, by its language.
  */
 export function settingsSections(languages: Record<SubtitleLine, string>): SectionItem[] {

@@ -37,7 +37,7 @@ interface TextFieldProps {
   onChange: (value: string) => void;
   placeholder?: string;
   help?: ReactNode;
-  /** action goes after the field, such as a "Marcar" button. */
+  /** action goes after the field, such as the button that marks the video's position. */
   action?: ReactNode;
   /** inputMode is "decimal" for times, the default, or "text" for names. */
   inputMode?: "decimal" | "text";

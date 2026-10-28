@@ -1,12 +1,15 @@
-import { ArrowLeft, ArrowRight, Check, Download, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { InstallCards } from "../components/session/InstallCards";
 import { FFmpegRow } from "../components/settings/FFmpegRow";
 import { Button } from "../components/ui/Button";
 import { Banner } from "../components/ui/Feedback";
 import { Toggle } from "../components/ui/Field";
-import { HelpTip } from "../components/ui/HelpTip";
+import { HelpTip, KeyedTip } from "../components/ui/HelpTip";
 import { Select } from "../components/ui/Select";
 import { levelName } from "../computer";
+import { useEscape } from "../hooks/useEscape";
+import { useInstall } from "../hooks/useInstall";
 import { setLanguage, t } from "../i18n";
 import { backend, messageOf, type Players, type VoiceSettings, type WelcomeView } from "../services/backend";
 import { stepAfter, welcomeSteps, type WelcomeStep } from "../welcome";
@@ -44,7 +47,6 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
   const [voiceModel, setVoiceModel] = useState(true);
   const [players, setPlayers] = useState<Players | null>(null);
   const [voice, setVoice] = useState<VoiceSettings | null>(null);
-  const [installing, setInstalling] = useState("");
   const [error, setError] = useState("");
   const [finishing, setFinishing] = useState(false);
 
@@ -93,39 +95,19 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
       current = false;
     };
   }, [step, readTools]);
-  useEffect(
-    () =>
-      backend.onInstall((progress) => {
-        if (progress.id === "ffmpeg") {
-          return; // the FFmpeg row follows its own
-        }
-        setInstalling("");
-        setError(progress.error);
-        refreshTools().catch(() => undefined);
-      }),
-    [refreshTools],
-  );
+  const install = useInstall("players", () => void refreshTools().catch(() => undefined));
 
-  const skip = useCallback(async () => {
+  const skip = async () => {
     try {
       await backend.skipWelcome();
       onDone();
     } catch (failure) {
       setError(messageOf(failure));
     }
-  }, [onDone]);
+  };
 
   // Esc skips, as the button does.
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) {
-        event.preventDefault();
-        void skip();
-      }
-    };
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [skip]);
+  useEscape(() => void skip());
 
   const finish = async () => {
     setFinishing(true);
@@ -285,39 +267,13 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
                     note={t("ui.welcome.tools.found", { names: supported.map((item) => item.name).join(", ") })}
                   />
                 ) : (
-                  <>
-                    <Banner tone="warning">{t("ui.install.none")}</Banner>
-                    {players.recommendations.map((item) => (
-                      <article key={item.id} className="flex flex-col gap-3 rounded-card border border-line bg-raised p-4">
-                        <header className="flex items-center gap-1">
-                          <h3 className="font-semibold text-fg">{item.name}</h3>
-                          <HelpTip topic={t("ui.install.why", { name: item.name })}>{item.benefit}</HelpTip>
-                        </header>
-                        <div className="flex flex-wrap gap-2">
-                          {item.autoInstall && (
-                            <Button
-                              variant="primary"
-                              icon={Download}
-                              loading={installing === item.id}
-                              onClick={() => {
-                                setInstalling(item.id);
-                                setError("");
-                                backend.installPlayer(item.id).catch((failure) => {
-                                  setInstalling("");
-                                  setError(messageOf(failure));
-                                });
-                              }}
-                            >
-                              {installing === item.id ? t("ui.install.installing") : t("ui.install.auto")}
-                            </Button>
-                          )}
-                          <Button icon={ExternalLink} onClick={() => void run(() => backend.openDownloadPage(item.id))}>
-                            {t("ui.install.download")}
-                          </Button>
-                        </div>
-                      </article>
-                    ))}
-                  </>
+                  <InstallCards
+                    recommendations={players.recommendations}
+                    installing={install.installing}
+                    error={install.error}
+                    onInstall={install.start}
+                    onDownload={(id) => void run(() => backend.openDownloadPage(id))}
+                  />
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -325,7 +281,7 @@ export function WelcomePage({ onDone }: WelcomePageProps) {
                   label={t("ui.settings.voice.model.label")}
                   checked={voiceModel}
                   onChange={setVoiceModel}
-                  help={<HelpTip topic={t("ui.settings.voice.model.topic")}>{t("ui.settings.voice.model.help")}</HelpTip>}
+                  help={<KeyedTip k="ui.settings.voice.model" />}
                 />
                 <p className="text-xs text-fg-muted">{t("ui.welcome.tools.level", { level: levelName(view.computer.level) })}</p>
                 {view.weak && <Banner tone="warning">{t("ui.welcome.tools.weak")}</Banner>}
