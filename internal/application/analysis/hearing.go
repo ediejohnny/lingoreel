@@ -77,6 +77,28 @@ func (a Analysis) WithFits(fits map[uint64]subtitle.Alignment, preferences media
 	return result
 }
 
+// WithHeardLanguages returns the analysis with the languages heard in its
+// audio tracks given to those whose file does not tell theirs, and the
+// tracks suggested again; a language the file states is never replaced.
+func (a Analysis) WithHeardLanguages(heard map[uint64]media.LanguageTag, preferences media.Preferences) Analysis {
+	if len(heard) == 0 {
+		return a
+	}
+	result := a
+	result.Info.Tracks = slices.Clone(a.Info.Tracks)
+	for i, track := range result.Info.Tracks {
+		untold := track.Language == "" || track.LanguageGuessed || track.LanguageHeard
+		if language, found := heard[track.Number]; found && track.Type == media.TrackAudio && untold && language != "" {
+			result.Info.Tracks[i].Language = language
+			result.Info.Tracks[i].LanguageGuessed = false
+			result.Info.Tracks[i].LanguageHeard = true
+		}
+	}
+	result.external, result.internal = maps.Clone(a.external), maps.Clone(a.internal)
+	result.Suggested = media.SelectTracks(result.Info, preferences)
+	return result
+}
+
 // spokenLines are the times of a file's lines someone says: not a song nor a
 // sound described.
 func spokenLines(events []subtitle.Event) []speech.Span {

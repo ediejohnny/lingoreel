@@ -46,6 +46,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer) error {
 		return driftCheck(ctx, args[1:], stdout)
 	case "align-check":
 		return alignCheck(ctx, args[1:], stdout)
+	case "language-check":
+		return languageCheck(ctx, args[1:], stdout)
 	case "seek-probe":
 		return seekProbe(ctx, args[1:], stdout)
 	case "help", "-h", "--help":
@@ -101,6 +103,10 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "      --file <name> --threads <n>     the model's file (model.onnx) and its processors (2)")
 	fmt.Fprintln(w, "      --lines <n> --margin <d>        how many lines (20) and the sound around each (300ms)")
 	fmt.Fprintln(w, "      --text                          prints the words; only for a free film")
+	fmt.Fprintln(w, "  language-check <video> [options] hears an audio track in each language given, as the app hears an untold one")
+	fmt.Fprintln(w, "      --runtime <dll> --pack en=<model.onnx>  the onnxruntime.dll and each language's model (repeat --pack)")
+	fmt.Fprintln(w, "      --audio <n> --subtitle pt=#4    the audio track (1 is the first) and a language's subtitle (its first readable)")
+	fmt.Fprintln(w, "      --threads <n> --ffmpeg <path>   each model's processors (1, as the app) and the FFmpeg to decode with")
 	fmt.Fprintln(w, "  seek-probe <clip> [options]     measures, lap after lap, a passage's start in VLC: order to picture and to sound")
 	fmt.Fprintln(w, "      --mode <together|apart|prepare> one order (seek and play), a seek then a play, or the picture")
 	fmt.Fprintln(w, "                                      made ready during the gap, then a play")

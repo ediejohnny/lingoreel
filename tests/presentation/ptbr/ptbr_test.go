@@ -31,10 +31,11 @@ func TestAnAudioTrackWithoutItsLanguageSaysSo(t *testing.T) {
 	t.Parallel()
 	untold := ptbr.T("track.audio.untold")
 	cases := map[string]media.Track{
-		"Inglês · AC3":              {Language: "en", Codec: "A_AC3"},
-		untold + " · AC3":           {Language: "en", LanguageGuessed: true, Codec: "A_AC3"},
-		untold + " · AAC · Dublado": {Codec: "A_AAC", Name: "Dublado"},
-		"Português do Brasil · DTS": {Language: "pt-BR", Codec: "A_DTS"},
+		"Inglês · AC3":               {Language: "en", Codec: "A_AC3"},
+		untold + " · AC3":            {Language: "en", LanguageGuessed: true, Codec: "A_AC3"},
+		untold + " · AAC · Dublado":  {Codec: "A_AAC", Name: "Dublado"},
+		"Português (pelo som) · AAC": {Language: "pt", LanguageHeard: true, Codec: "A_AAC"},
+		"Português do Brasil · DTS":  {Language: "pt-BR", Codec: "A_DTS"},
 	}
 	for want, track := range cases {
 		if got := ptbr.AudioLabel(track); got != want {

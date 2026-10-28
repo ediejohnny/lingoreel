@@ -77,11 +77,14 @@ func (a *API) OpenVideo(path string) (Video, error) {
 	opened := a.loadProject(path, result.Info)
 	result = a.addRemembered(result, opened)
 	result = withKeptFits(result, opened, preferences)
+	result = withKeptHearings(result, opened, preferences)
 	suggested, mode := opened.remembered(result.Info, result.Suggested, mode)
 	a.mu.Lock()
 	a.stopListening() // a video opened before
+	a.stopLanguageHearing()
 	a.video, a.project = &result, opened
 	a.startListening(ctx, result, preferences)
+	a.startLanguageHearing(ctx, result, opened, preferences)
 	a.mu.Unlock()
 	return a.describeVideo(result, opened, suggested, mode), nil
 }

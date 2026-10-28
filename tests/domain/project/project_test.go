@@ -519,3 +519,25 @@ func TestAPassagePlanComesBackTheSame(t *testing.T) {
 		t.Fatalf("a passage without a plan studies with %q, want pause", mode)
 	}
 }
+
+// A copy of a project shares nothing with it: what was heard in a track
+// changes in one and not the other, and a track not heard yet covers no
+// language.
+func TestAHearingIsCopiedWithItsProject(t *testing.T) {
+	t.Parallel()
+	p := project.New()
+	p.Tracks["uid:2"] = project.Track{Hearing: &project.Hearing{Scores: []project.HeardScore{{Language: "en", Score: 0.9, Lines: 8}}, Language: "en"}}
+	c := p.Clone()
+	p.Tracks["uid:2"].Hearing.Scores[0].Language = "pt"
+	p.Tracks["uid:2"].Hearing.Language = "pt"
+	if copied := c.Tracks["uid:2"].Hearing; copied.Language != "en" || copied.Scores[0].Language != "en" {
+		t.Errorf("the copy's hearing changed with the original: %+v", copied)
+	}
+	if !c.Tracks["uid:2"].Hearing.Covers([]string{"en"}) || c.Tracks["uid:2"].Hearing.Covers([]string{"en", "es"}) {
+		t.Error("a hearing covers the languages tried, and only those")
+	}
+	var never *project.Hearing
+	if never.Covers(nil) {
+		t.Error("a track never heard covers no language")
+	}
+}

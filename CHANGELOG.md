@@ -23,6 +23,12 @@ All notable changes to this project are listed here. The format follows
   are marked (none at the basic level, English at the medium one, all at the high one), and Remove deletes a language.
   Help › About lists their licenses with the app's own notices: ONNX Runtime's, with its third-party notices, and the
   models' Apache License 2.0 with who made each one.
+- An audio track whose file does not tell its language is heard as the video opens, in the background, in each of the
+  profile's two languages whose voice language is downloaded: the language's model places eight lines of a subtitle in
+  that language in the track, and the language whose lines it is sure of (the median of the lines, clearly above the
+  other) names the track, "English (by the sound)", and counts in the choice of the audio as a stated language does. The
+  project keeps each language's score, so a track is heard again only in a language downloaded later. The voice AI
+  off, or on the battery, hears nothing; the model runs on one processor, and FFmpeg at the idle priority.
 - `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
   with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to

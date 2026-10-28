@@ -192,6 +192,7 @@ func storeAt(path string) *jsonstore.Store[project.Project] {
 var migrations = map[int]jsonstore.Migration{
 	1: fromVersion1,
 	2: fromVersion2,
+	3: fromVersion3,
 }
 
 // fromVersion1 (version 1 to 2) needs no new value: a passage without a
@@ -203,6 +204,10 @@ func fromVersion1(map[string]any) error { return nil }
 // fromVersion2 (version 2 to 3) needs no new value either: a video without
 // "addedFiles" has none.
 func fromVersion2(map[string]any) error { return nil }
+
+// fromVersion3 (version 3 to 4) needs no new value either: an audio track
+// without "hearing" was not heard yet.
+func fromVersion3(map[string]any) error { return nil }
 
 // Load reads a video's project: the file of its content in the app's folder;
 // else, for a film changed since its path last kept one, the project of what

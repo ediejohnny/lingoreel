@@ -237,6 +237,15 @@ func run() error {
 		FirstRun:    firstRun,
 		Machine:     func() capacity.Machine { return measureMachine(logger) },
 		SpeechPacks: voicePacks,
+		// Hearing an audio track's language is background work: one
+		// processor, so the film keeps the rest.
+		OpenSpeech: func(language string) (app.SpeechModel, error) {
+			runtime, model, ok := voicePacks.Paths(language)
+			if !ok {
+				return nil, fmt.Errorf("no speech pack for %q", language)
+			}
+			return packs.Open(runtime, model, 1)
+		},
 	}
 	if executable, err := os.Executable(); err == nil {
 		deps.Associations = association.Registrar{

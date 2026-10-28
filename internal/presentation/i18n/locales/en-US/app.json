@@ -408,6 +408,7 @@
   "shortcut.problem.reserved": "That combination belongs to Windows itself. Choose another one.",
   "shortcut.problem.tooManyKeys": "Use three keys at most: up to two modifiers (Ctrl, Alt, Shift) and one key.",
   "speed.value": "{value}×",
+  "track.audio.heard": "{language} (by the sound)",
   "track.audio.untold": "Language not given by the file",
   "track.default": "default",
   "track.external": "file",

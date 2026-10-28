@@ -14,7 +14,10 @@ import (
 // language is not the file's word.
 func AudioLabel(track media.Track) string {
 	language := Capitalized(LanguageName(track.Language))
-	if track.Language == "" || track.LanguageGuessed {
+	switch {
+	case track.LanguageHeard:
+		language = T("track.audio.heard", "language", language)
+	case track.Language == "" || track.LanguageGuessed:
 		language = T("track.audio.untold")
 	}
 	parts := []string{language}

@@ -188,6 +188,9 @@ type Deps struct {
 	// SpeechPacks are the languages' speech packs kept in the app's folder;
 	// nil keeps none.
 	SpeechPacks SpeechPacks
+	// OpenSpeech opens a language's speech pack, to hear which language an
+	// audio track speaks; nil hears none.
+	OpenSpeech func(language string) (SpeechModel, error)
 	// AskRetry asks, with Windows' own box, whether to try again a save that
 	// failed as the app closes; nil never asks.
 	AskRetry func(title, text string) bool
@@ -233,8 +236,11 @@ type API struct {
 	project  *videoProject
 	watching *watching
 	// listen is the hearing of the open video's voice, nil when none runs.
-	listen  *listening
-	initial string
+	listen *listening
+	// hearLanguage is the hearing of the open video's untold audio tracks,
+	// nil when none runs.
+	hearLanguage *languageHearing
+	initial      string
 	// resume is where a session the player lost had reached, for
 	// "Assistir de novo".
 	resume *resumePoint

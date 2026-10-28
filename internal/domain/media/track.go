@@ -35,6 +35,9 @@ type Track struct {
 	// LanguageGuessed marks a language nobody stated: the container's
 	// default ("eng" when Matroska omits the element). It is trusted less.
 	LanguageGuessed bool
+	// LanguageHeard marks a language the app heard in the track itself, as
+	// its file did not tell it.
+	LanguageHeard   bool
 	Name            string
 	Default         bool
 	Forced          bool
