@@ -6,8 +6,10 @@ import (
 	"slices"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
+	"golang.org/x/text/unicode/norm"
 )
 
 const alignFrame = 20 * time.Millisecond
@@ -208,6 +210,34 @@ func TestAccentsAndCaseFollowTheAlphabet(t *testing.T) {
 	}
 	if words[0].Span != (speech.Span{Start: at(1), End: at(5)}) || words[0].Confidence < 0.9 {
 		t.Errorf("CAFÉ on an alphabet with é: %+v", words[0])
+	}
+}
+
+// On an alphabet without accents, every Latin letter of Latin-1 and Latin
+// Extended-A is heard as its plain letter exactly when Unicode decomposes it
+// into that letter and its accents (NFD), or its capital is that letter
+// (ı, ſ); a letter of its own (ø, ß, ł) is not in the alphabet.
+func TestAnAccentedLetterIsHeardAsItsPlainLetter(t *testing.T) {
+	t.Parallel()
+	a := english(t)
+	vocabulary := englishVocabulary()
+	for r := rune(0xC0); r <= 0x17F; r++ {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		decomposed := []rune(norm.NFD.String(string(r)))
+		base := unicode.ToUpper(decomposed[0])
+		if len(decomposed) == 1 {
+			base = unicode.ToUpper(r)
+		}
+		accented := (len(decomposed) > 1 || base != r) && base >= 'A' && base <= 'Z'
+		words, err := a.Align(emitted(a, vocabulary, "."+string(base)+"."), alignFrame, []string{string(r)})
+		switch {
+		case accented && (err != nil || words[0].Span != (speech.Span{Start: at(1), End: at(2)})):
+			t.Errorf("%c (%U): %v %+v, want heard as %c", r, r, err, words, base)
+		case !accented && !errors.Is(err, speech.ErrNothingToAlign):
+			t.Errorf("%c (%U): %v, want no letter of the alphabet", r, r, err)
+		}
 	}
 }
 

@@ -85,6 +85,14 @@ func (s *shelf) asked(name string) int {
 	return s.requests[name]
 }
 
+// The licenses the test manager carries: the models' beside each model, the
+// runtime's beside it.
+const (
+	modelsLicense  = "the models' license"
+	runtimeLicense = "the runtime's license"
+	runtimeNotice  = "ort-LICENSE.txt"
+)
+
 func (s *shelf) manager(t *testing.T, dir string, changed func()) *speechpack.Manager {
 	t.Helper()
 	m := speechpack.New(speechpack.Options{
@@ -93,7 +101,10 @@ func (s *shelf) manager(t *testing.T, dir string, changed func()) *speechpack.Ma
 		Base:  s.server.URL + "/release/",
 		Fetch: fetching.Fetcher(download.Client{HTTP: s.server.Client()}),
 		Extras: func(language string) (map[string][]byte, error) {
-			return map[string][]byte{"vocab.json": []byte(`{"a":1}`), "meta.json": []byte(`{"model":"` + language + `"}`)}, nil
+			return map[string][]byte{"vocab.json": []byte(`{"a":1}`), "meta.json": []byte(`{"model":"` + language + `"}`), "LICENSE.txt": []byte(modelsLicense)}, nil
+		},
+		RuntimeNotices: func() (map[string][]byte, error) {
+			return map[string][]byte{runtimeNotice: []byte(runtimeLicense)}, nil
 		},
 		Changed: func() {
 			if changed != nil {
@@ -157,6 +168,13 @@ func TestAPackComesWithTheRuntimeOnceAndIsReadyToUse(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(model), "meta.json")); string(data) != `{"model":"en"}` {
 		t.Errorf("meta.json = %q, want the one the app carries", data)
+	}
+	// What the runtime's and the models' authors ask to go with every copy.
+	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(model), "LICENSE.txt")); string(data) != modelsLicense {
+		t.Errorf("beside the model: license %q, want the models' license", data)
+	}
+	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(runtime), runtimeNotice)); string(data) != runtimeLicense {
+		t.Errorf("beside the runtime: %q, want its license", data)
 	}
 
 	// French no longer counts the runtime, and does not fetch it again.
@@ -357,7 +375,7 @@ func TestOneFetchAtATimeAndACancelledOneLeavesNothing(t *testing.T) {
 	}
 	entries, _ := os.ReadDir(filepath.Join(dir, "speech", "fr"))
 	for _, entry := range entries {
-		if entry.Name() != "vocab.json" && entry.Name() != "meta.json" {
+		if entry.Name() != "vocab.json" && entry.Name() != "meta.json" && entry.Name() != "LICENSE.txt" {
 			t.Errorf("a cancelled fetch left %s", entry.Name())
 		}
 	}
@@ -391,6 +409,9 @@ func TestRemovingTheLastPackTakesTheRuntimeToo(t *testing.T) {
 	}
 	if _, err := os.Stat(runtime); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("the runtime stayed with no pack left: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "speech", runtimeNotice)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the runtime's license stayed without it: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "speech", "fr")); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("French's folder stayed: %v", err)

@@ -3,6 +3,7 @@ package speechpack_test
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/ediejohnny/lingoreel/internal/domain/speech"
@@ -44,8 +45,35 @@ func TestEveryPackCarriesItsAlphabetAndSource(t *testing.T) {
 		if !bytes.Contains([]byte(meta.Model), []byte("/")) || bytes.Contains([]byte(meta.Model), []byte(`\`)) {
 			t.Errorf("%s: meta names %q, want its source on Hugging Face (owner/name@commit)", pack.Language, meta.Model)
 		}
+		// The license beside the model is the Apache License its authors
+		// published it under, naming the very revision it was made from.
+		_, revision, _ := strings.Cut(meta.Model, "@")
+		license := string(extras["LICENSE.txt"])
+		if len(revision) != 40 || !strings.Contains(license, revision) || !strings.Contains(license, "Apache License") {
+			t.Errorf("%s: the license beside the model does not name its revision %q under the Apache License", pack.Language, revision)
+		}
 	}
 	if _, err := speechpack.Extras("xx"); err == nil {
 		t.Error("a language without a pack has extras")
+	}
+}
+
+// ONNX Runtime's license, third-party notices and where their source is go
+// beside its DLL (the MPL-2.0 of Eigen, inside it, asks for the source's
+// whereabouts).
+func TestTheRuntimeCarriesItsLicenseAndNotices(t *testing.T) {
+	t.Parallel()
+	notices, err := speechpack.RuntimeNotices()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(notices["onnxruntime-LICENSE.txt"]), "MIT License") {
+		t.Error("ONNX Runtime's license is not its MIT License")
+	}
+	if !strings.Contains(string(notices["onnxruntime-ThirdPartyNotices.txt"]), "Eigen") {
+		t.Error("ONNX Runtime's third-party notices do not name what it is built with (Eigen)")
+	}
+	if !strings.Contains(string(notices["onnxruntime-SOURCE.txt"]), "github.com/microsoft/onnxruntime/tree/v1.30.0") {
+		t.Error("the runtime's notices do not say where its source is")
 	}
 }

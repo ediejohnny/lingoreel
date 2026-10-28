@@ -1,5 +1,5 @@
 {
- "model": "jonatasgrosman/wav2vec2-large-xlsr-53-italian@dab04a3e",
+ "model": "jonatasgrosman/wav2vec2-large-xlsr-53-italian@dab04a3e00d8326052f3fb22a6ff276b822f6131",
  "sampling_rate": 16000,
  "do_normalize": true,
  "pad_token": "<pad>",

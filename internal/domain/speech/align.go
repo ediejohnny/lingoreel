@@ -6,8 +6,6 @@ import (
 	"slices"
 	"time"
 	"unicode"
-
-	"golang.org/x/text/unicode/norm"
 )
 
 // Aligning a line's words with its sound. A CTC model (wav2vec2) hears the
@@ -97,8 +95,8 @@ func (a Alphabet) letter(r rune) (int, bool) {
 			return id, true
 		}
 	}
-	if base := []rune(norm.NFD.String(string(r))); len(base) > 1 && base[0] != r {
-		return a.letter(base[0])
+	if base, ok := plainLetter(r); ok {
+		return a.letter(base)
 	}
 	return 0, false
 }

@@ -34,6 +34,9 @@ All notable changes to this project are listed here. The format follows
 - `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
   ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was. The sound taken around a
   line may hold its neighbours' voices: they never pull the line's first or last word onto them.
+- `docs/speech-packs.md` tells how the downloadable files were made: ONNX Runtime built from its source without
+  telemetry, and each speech model converted to ONNX and quantized from its exact revision, with the SHA-256 the app
+  requires of each, so anyone can make them again and check them.
 - `lrdev lyrics-check <video> --lyrics <file>` places a song's lyrics, a text file with no times, in the whole song:
   all the lines at once and in their order, the solos and refrains not written left between them, the model hearing
   the song in pieces of 30 s. It prints where each line went and how sure the model was, never the words, and `--out`
@@ -66,6 +69,12 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- The speech models' license, in Help › About, ended with a copyright line of another project's author; it now ends
+  with the Apache License's own appendix, and names each model's exact revision and the data it was trained on
+  (LibriSpeech, CC BY 4.0; Common Voice, CC0).
+- A voice language now writes the licenses its authors ask to go with every copy beside what it downloads: the speech
+  models' license beside each model, and ONNX Runtime's license, third-party notices and where its source is (Eigen,
+  inside it, is under the MPL-2.0) beside the DLL. They go away with what they cover.
 - The question about a computer of another level stayed on the screen after Settings › General › "Adjust again to
   this computer" answered it.
 - A voice delay changed just before leaving its settings page was not saved.

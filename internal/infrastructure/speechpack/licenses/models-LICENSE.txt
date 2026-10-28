@@ -1,14 +1,23 @@
 The speech models LingoReel downloads on request (Settings > Study > Voice languages)
-were converted to ONNX and quantized (int8 on their MatMul nodes) from these
-models, each published under the Apache License 2.0:
+are these models, each published under the Apache License 2.0, converted to ONNX and
+quantized (int8 on their MatMul nodes) by the LingoReel project; their weights are
+otherwise their authors' work, unchanged:
 
-- English: facebook/wav2vec2-base-960h, by Facebook AI (Meta)
+- English: facebook/wav2vec2-base-960h, by Facebook AI (Meta),
+  revision 22aad52d435eb6dbaf354bdad9b0da84ce7d6156
   https://huggingface.co/facebook/wav2vec2-base-960h
+  Trained on LibriSpeech (Panayotov et al.), CC BY 4.0: https://www.openslr.org/12
 - Portuguese, Spanish, French, German and Italian:
   jonatasgrosman/wav2vec2-large-xlsr-53-{portuguese,spanish,french,german,italian},
-  by Jonatas Grosman, fine-tuned from facebook/wav2vec2-large-xlsr-53
+  by Jonatas Grosman, fine-tuned from facebook/wav2vec2-large-xlsr-53 (Facebook AI, Meta),
+  revisions:
+    portuguese 634ac655299bcdc46c83bc01da9bab52d2987e4f
+    spanish    96d7e9b4e4a78af515a3c6d3cee7c0826045d276
+    french     7c79e105a6525d38e1e69f640b974b4a679723cc
+    german     4b8a02957378d0f2da2ef74091156b032c485a89
+    italian    dab04a3e00d8326052f3fb22a6ff276b822f6131
   https://huggingface.co/jonatasgrosman
-
+  Fine-tuned on Common Voice (Mozilla), CC0 1.0: https://commonvoice.mozilla.org
 Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -197,7 +206,7 @@ Apache License
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright [2016-] [Tomo Krajina]
+   Copyright [yyyy] [name of copyright owner]
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

@@ -184,6 +184,12 @@ small libraries, and the [Silero VAD](https://github.com/snakers4/silero-vad) sp
 app. Their notices are in the app, in Settings › Help › About. VLC, PotPlayer and FFmpeg are not shipped with it: the
 app uses the copies on your computer.
 
+The voice languages are optional downloads, fetched only when you ask for one:
+[ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT, built from its source without telemetry) and wav2vec2
+speech models (Apache-2.0, by Facebook AI and Jonatas Grosman), each written to the app's folder with its license
+beside it. [docs/speech-packs.md](docs/speech-packs.md) tells how each file was made, so anyone can make it again and
+check it.
+
 The screenshots in `docs/images` show frames of [Sintel](https://durian.blender.org/), © copyright Blender
 Foundation | durian.blender.org, under the [Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/)
 license, with the app's subtitles, bar and menus drawn over them. Those frames are not covered by the MIT license.

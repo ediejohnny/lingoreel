@@ -55,18 +55,20 @@ type Disk interface {
 
 // Options are what a Manager needs: the app's folder and the disk it is on,
 // where the packs are published (a URL ending in "/"), how a file is
-// fetched, the small files a pack carries inside the app, and who is told of
-// every change. Runtime and Packs are the catalogue, speech.Runtime and
+// fetched, the small files a pack carries inside the app (its license among
+// them) and the runtime's license and notices, by file name, and who is told
+// of every change. Runtime and Packs are the catalogue, speech.Runtime and
 // speech.Packs() when empty.
 type Options struct {
-	Dir     string
-	Disk    Disk
-	Base    string
-	Fetch   Fetcher
-	Extras  func(language string) (map[string][]byte, error)
-	Changed func()
-	Runtime speech.File
-	Packs   []speech.Pack
+	Dir            string
+	Disk           Disk
+	Base           string
+	Fetch          Fetcher
+	Extras         func(language string) (map[string][]byte, error)
+	RuntimeNotices func() (map[string][]byte, error)
+	Changed        func()
+	Runtime        speech.File
+	Packs          []speech.Pack
 }
 
 // State is a language's pack as it stands: ready to use, being fetched (with
@@ -100,6 +102,9 @@ type Manager struct {
 func New(options Options) *Manager {
 	if options.Changed == nil {
 		options.Changed = func() {}
+	}
+	if options.RuntimeNotices == nil {
+		options.RuntimeNotices = func() (map[string][]byte, error) { return nil, nil }
 	}
 	if options.Runtime == (speech.File{}) {
 		options.Runtime = speech.Runtime
@@ -241,6 +246,15 @@ func (m *Manager) Remove(language string) error {
 			return nil
 		}
 	}
+	notices, err := m.options.RuntimeNotices()
+	if err != nil {
+		return err
+	}
+	for name := range notices {
+		if err := m.options.Disk.Remove(filepath.Join(m.options.Dir, folder, name)); err != nil {
+			return err
+		}
+	}
 	return m.options.Disk.Remove(m.runtimePath())
 }
 
@@ -250,8 +264,9 @@ func (m *Manager) Close() {
 	m.running.Wait()
 }
 
-// fetch brings what a pack lacks: the runtime, and its model; its small files,
-// a few KB the app carries, are written each time.
+// fetch brings what a pack lacks: the runtime, and its model; the small
+// files the app carries (the pack's own, and the runtime's license and
+// notices beside it, as their authors ask) are written each time.
 func (m *Manager) fetch(ctx context.Context, pack speech.Pack, needRuntime, needModel bool) error {
 	var before int64
 	progress := func(done, _ int64) {
@@ -266,17 +281,14 @@ func (m *Manager) fetch(ctx context.Context, pack speech.Pack, needRuntime, need
 		}
 		before = m.options.Runtime.Size
 	}
-	extras, err := m.options.Extras(pack.Language)
-	if err != nil {
+	if err := m.write(filepath.Join(m.options.Dir, folder), m.options.RuntimeNotices); err != nil {
 		return err
 	}
-	dir := m.packDir(pack.Language)
 	// The small files go first: the model, the largest and last, makes the
 	// pack ready.
-	for name, data := range extras {
-		if err := m.options.Disk.WriteFile(filepath.Join(dir, name), data); err != nil {
-			return err
-		}
+	dir := m.packDir(pack.Language)
+	if err := m.write(dir, func() (map[string][]byte, error) { return m.options.Extras(pack.Language) }); err != nil {
+		return err
 	}
 	if !needModel {
 		return nil
@@ -298,6 +310,20 @@ func (m *Manager) extrasHere(pack speech.Pack) bool {
 		}
 	}
 	return true
+}
+
+// write writes small files the app carries into a folder, by file name.
+func (m *Manager) write(dir string, files func() (map[string][]byte, error)) error {
+	contents, err := files()
+	if err != nil {
+		return err
+	}
+	for name, data := range contents {
+		if err := m.options.Disk.WriteFile(filepath.Join(dir, name), data); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // present tells a file is here with its exact size; its SHA-256 was checked

@@ -1,6 +1,7 @@
 ﻿# notices.ps1 - Gathers the third-party notices built into the app: the
 # license of Go itself, of every Go module compiled into it, of the Silero
-# voice model it embeds and of the frontend packages bundled into its screens.
+# voice model it embeds, of what a voice language downloads (ONNX Runtime and
+# the speech models) and of the frontend packages bundled into its screens.
 # Permissive licenses (MIT, BSD, ISC, Apache-2.0) ask for their notice to go
 # with every copy of the software, and the app ships as a single file, so the
 # notices go inside it: the About card of its settings' Help page shows them.
@@ -75,6 +76,46 @@ function Get-AppModules {
     return $modules
 }
 
+# Get-LicenseKind names the license a license file's text is, among those
+# LingoReel allows inside the app (docs\LICENSES.md): MIT, BSD, ISC, 0BSD,
+# Apache-2.0 and the Unlicense; nothing ($null) for any other, or for a text
+# that also carries a copyleft or non-commercial license.
+function Get-LicenseKind {
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text)
+    $flat = ($Text -replace '\s+', ' ')
+    foreach ($refused in @('GNU GENERAL PUBLIC LICENSE', 'GNU LESSER GENERAL PUBLIC', 'GNU AFFERO', 'Mozilla Public License',
+            'Creative Commons', 'NonCommercial', 'Server Side Public License', 'Business Source License')) {
+        if ($flat -match [regex]::Escape($refused)) {
+            return $null
+        }
+    }
+    $kinds = [ordered]@{
+        'Apache-2.0' = 'Apache License,? Version 2\.0'
+        'MIT'        = 'Permission is hereby granted, free of charge, to any person obtaining a copy'
+        'BSD'        = 'Redistribution and use in source and binary forms, with or without modification, are permitted'
+        'ISC/0BSD'   = 'Permission to use, copy, modify, and(/or)? distribute this software for any purpose with or without fee'
+        'Unlicense'  = 'This is free and unencumbered software released into the public domain'
+    }
+    foreach ($kind in $kinds.Keys) {
+        if ($flat -match $kinds[$kind]) {
+            return $kind
+        }
+    }
+    return $null
+}
+
+# Assert-AllowedLicense stops when a license file of what goes inside the app
+# is not one LingoReel allows; a NOTICE file only adds to its license.
+function Assert-AllowedLicense {
+    param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$File)
+    if ((Split-Path -Leaf $File) -match '^NOTICE') {
+        return
+    }
+    if (-not (Get-LicenseKind -Text ([IO.File]::ReadAllText($File)))) {
+        throw "The license of $Name ($File) is not one LingoReel allows inside the app (docs\LICENSES.md)."
+    }
+}
+
 # Get-ThirdPartyNotices returns the notices of the app at $Root: each license
 # as its authors wrote it, under the name and version of what it covers, with
 # Unix line ends. Nothing in it depends on where the code lies on this computer.
@@ -104,6 +145,7 @@ function Get-ThirdPartyNotices {
             throw "No license file for $module $version in $folder."
         }
         foreach ($file in $files) {
+            Assert-AllowedLicense -Name $module -File $file.FullName
             $inner = Split-Path -Parent $file.FullName.Substring($folder.Length).TrimStart('\')
             & $add $module $version $file.FullName ($inner -replace '\\', '/')
         }
@@ -119,11 +161,12 @@ function Get-ThirdPartyNotices {
     $licenses = Join-Path $Root "internal\infrastructure\speechpack\licenses"
     & $add "ONNX Runtime (onnxruntime-1.30.0.dll, downloaded with a voice language)" "1.30.0" (Join-Path $licenses "onnxruntime-LICENSE.txt") ""
     & $add "ONNX Runtime third-party notices" "1.30.0" (Join-Path $licenses "onnxruntime-ThirdPartyNotices.txt") ""
+    & $add "ONNX Runtime source" "1.30.0" (Join-Path $licenses "onnxruntime-SOURCE.txt") ""
     & $add "Speech models (downloaded per voice language)" "wav2vec2 and XLSR-53" (Join-Path $licenses "models-LICENSE.txt") ""
 
-    # The frontend packages bundled into the screens: those the lock file does
-    # not mark as development only, and Tailwind, whose CSS is generated into
-    # the bundle.
+    # The frontend packages bundled into the screens: those the lock file marks
+    # neither as development only nor as optional for it (type packages), and
+    # Tailwind, whose CSS is generated into the bundle.
     $frontend = Join-Path $Root "frontend"
     # The lock file names its root package "", which ConvertFrom-Json refuses
     # in Windows PowerShell 5.1; .NET's reader takes it.
@@ -133,7 +176,7 @@ function Get-ThirdPartyNotices {
     $lock = $reader.DeserializeObject([IO.File]::ReadAllText((Join-Path $frontend "package-lock.json")))
     $shipped = New-Object Collections.Generic.SortedSet[string] ([StringComparer]::Ordinal)
     foreach ($entry in $lock["packages"].GetEnumerator()) {
-        if ($entry.Key -like "node_modules/*" -and -not $entry.Value["dev"]) {
+        if ($entry.Key -like "node_modules/*" -and -not $entry.Value["dev"] -and -not $entry.Value["devOptional"]) {
             [void]$shipped.Add($entry.Key.Substring("node_modules/".Length))
         }
     }
@@ -146,6 +189,7 @@ function Get-ThirdPartyNotices {
             throw "No license file for the frontend package $package."
         }
         foreach ($file in $files) {
+            Assert-AllowedLicense -Name $package -File $file.FullName
             & $add $package $manifest.version $file.FullName ""
         }
     }
