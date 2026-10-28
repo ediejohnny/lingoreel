@@ -6,6 +6,8 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-28
+
 ### Added
 
 - With the voice AI on, the study subtitle is kept on the actors' voice when the film drifts midway (a version with a
@@ -922,7 +924,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/ediejohnny/lingoreel/compare/v0.27.1...v0.27.2
