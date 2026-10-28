@@ -11,7 +11,7 @@ import {
 import { themeLabel, type Theme } from "../../stores/theme";
 import { Banner, Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { RestoreButton } from "./RestoreButton";
@@ -123,7 +123,7 @@ function AppCard({ view, theme, onTheme, look, onLook }: Omit<AppearanceSectionP
           value={theme}
           options={themes.map((value) => ({ value, label: themeLabel(value) }))}
           onChange={(value) => onTheme(value as Theme)}
-          help={<HelpTip topic={t("ui.settings.appearance.topic")}>{t("ui.settings.appearance.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.appearance" />}
         />
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @lg:grid-cols-2">
           <div className="flex flex-col gap-3">

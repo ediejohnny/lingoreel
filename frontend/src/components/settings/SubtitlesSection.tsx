@@ -4,7 +4,7 @@ import { backend, messageOf, type KaraokeSettings, type StyleSettings } from "..
 import { lineLanguage, type PreviewView, type SubtitleLine } from "../../settings";
 import { Card } from "../ui/Feedback";
 import { Toggle } from "../ui/Field";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { ColorField, NumberField, Segmented } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { MarksCards } from "./MarksCards";
@@ -169,7 +169,7 @@ export function SubtitleLineSection({ line, view, draft, setDraft }: SectionProp
                   )
                 }
               />
-              <HelpTip topic={t("ui.settings.subtitles.karaoke.topic")}>{t("ui.settings.subtitles.karaoke.help")}</HelpTip>
+              <KeyedTip k="ui.settings.subtitles.karaoke" />
             </div>
           }
         >
@@ -308,7 +308,7 @@ export function SubtitlesSection({ view, draft, setDraft, open }: SectionProps) 
                 setScene("");
               }}
             />
-            <HelpTip topic={t("ui.settings.subtitles.margins.topic")}>{t("ui.settings.subtitles.margins.help")}</HelpTip>
+            <KeyedTip k="ui.settings.subtitles.margins" />
           </div>
         }
       >

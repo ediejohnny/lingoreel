@@ -75,3 +75,8 @@ export function HelpTip({ topic, children }: HelpTipProps) {
     </span>
   );
 }
+
+/** KeyedTip is the HelpTip whose topic and text are the catalog's `<k>.topic` and `<k>.help`. */
+export function KeyedTip({ k }: { k: string }) {
+  return <HelpTip topic={t(`${k}.topic`)}>{t(`${k}.help`)}</HelpTip>;
+}

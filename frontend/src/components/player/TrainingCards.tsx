@@ -8,7 +8,7 @@ import type { Playback } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Toggle, TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { Rich } from "../ui/Rich";
 import { Select } from "../ui/Select";
 import { SavedPassages } from "./SavedPassages";
@@ -64,7 +64,7 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
   const voice = voiceStates[karaoke.voice];
   const replayKey = label("replay-line");
   return (
-    <Card title={t("ui.karaoke.title")} aside={<HelpTip topic={t("ui.karaoke.topic")}>{t("ui.karaoke.help")}</HelpTip>}>
+    <Card title={t("ui.karaoke.title")} aside={<KeyedTip k="ui.karaoke" />}>
       <div className="flex flex-col gap-4">
         <Toggle label={t("ui.karaoke.enable")} checked={karaoke.enabled} onChange={(on) => onCommand(() => backend.setKaraoke(on))} />
         {karaoke.enabled && voice && <p className="text-xs text-fg-muted">{voice()}</p>}
@@ -76,14 +76,14 @@ function KaraokeCard({ state, label, onCommand }: TrainingCardsProps) {
             { value: "countdown", label: t("ui.karaoke.indicator.countdown") },
           ]}
           onChange={(value) => onCommand(() => backend.setKaraokeIndicator(value))}
-          help={<HelpTip topic={t("ui.karaoke.indicator.topic")}>{t("ui.karaoke.indicator.help")}</HelpTip>}
+          help={<KeyedTip k="ui.karaoke.indicator" />}
         />
         <Select
           label={t("ui.karaoke.repeat.label")}
           value={String(karaoke.repeat)}
           options={repeatOptions()}
           onChange={(value) => onCommand(() => backend.setLineRepeats(Number(value)))}
-          help={<HelpTip topic={t("ui.karaoke.repeat.topic")}>{t("ui.karaoke.repeat.help")}</HelpTip>}
+          help={<KeyedTip k="ui.karaoke.repeat" />}
         />
         <div className="flex items-center gap-1">
           <Button
@@ -215,7 +215,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
                     {t("ui.passage.saveAs.button")}
                   </Button>
                 }
-                help={<HelpTip topic={t("ui.passage.saveAs.topic")}>{t("ui.passage.saveAs.help")}</HelpTip>}
+                help={<KeyedTip k="ui.passage.saveAs" />}
               />
             </div>
           </div>
@@ -243,13 +243,13 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
             </div>
             <div className="flex items-center gap-1">
               <Button onClick={thisLine}>{t("ui.passage.thisLine.label")}</Button>
-              <HelpTip topic={t("ui.passage.thisLine.topic")}>{t("ui.passage.thisLine.help")}</HelpTip>
+              <KeyedTip k="ui.passage.thisLine" />
             </div>
             <Toggle
               label={t("ui.passage.snap.label")}
               checked={options.snap}
               onChange={(snap) => change({ snap })}
-              help={<HelpTip topic={t("ui.passage.snap.topic")}>{t("ui.passage.snap.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.snap" />}
             />
             <Select
               label={t("ui.passage.onEnd.label")}
@@ -259,7 +259,7 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
                 { value: "loop", label: t("ui.passage.onEnd.loop") },
               ]}
               onChange={(value) => change({ loop: value === "loop" })}
-              help={<HelpTip topic={t("ui.passage.onEnd.topic")}>{t("ui.passage.onEnd.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.onEnd" />}
             />
             {options.loop && (
               <Select
@@ -273,20 +273,20 @@ function PassageCard({ state, label, onCommand }: TrainingCardsProps) {
               label={t("ui.passage.progressive.label")}
               checked={options.progressive}
               onChange={(progressive) => change({ progressive })}
-              help={<HelpTip topic={t("ui.passage.progressive.topic")}>{t("ui.passage.progressive.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.progressive" />}
             />
             <Toggle
               label={t("ui.passage.ladder.label")}
               checked={options.ladder}
               onChange={(ladder) => change({ ladder })}
-              help={<HelpTip topic={t("ui.passage.ladder.topic")}>{t("ui.passage.ladder.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.ladder" />}
             />
             <Select
               label={t("ui.passage.goal.label")}
               value={String(options.goal)}
               options={goalOptions()}
               onChange={(value) => change({ goal: Number(value) })}
-              help={<HelpTip topic={t("ui.passage.goal.topic")}>{t("ui.passage.goal.help")}</HelpTip>}
+              help={<KeyedTip k="ui.passage.goal" />}
             />
             <Button variant="primary" icon={BookOpenCheck} onClick={study}>
               {t("ui.passage.studyNow")}

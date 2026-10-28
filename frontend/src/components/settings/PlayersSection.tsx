@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
 import { change, type SectionProps } from "./section";
 
@@ -23,13 +23,10 @@ export function PlayersSection({ view, draft, setDraft, run }: SectionProps) {
             ...supported.map((item) => ({ value: item.id, label: item.name })),
           ]}
           onChange={(id) => change(setDraft, "preferredPlayer")(id)}
-          help={<HelpTip topic={t("ui.settings.players.preferred.topic")}>{t("ui.settings.players.preferred.help")}</HelpTip>}
+          help={<KeyedTip k="ui.settings.players.preferred" />}
         />
       </Card>
-      <Card
-        title={t("ui.settings.players.where.title")}
-        aside={<HelpTip topic={t("ui.settings.players.where.topic")}>{t("ui.settings.players.where.help")}</HelpTip>}
-      >
+      <Card title={t("ui.settings.players.where.title")} aside={<KeyedTip k="ui.settings.players.where" />}>
         <ul className="flex flex-col divide-y divide-line">
           {supported.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">

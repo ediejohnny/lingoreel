@@ -2,7 +2,7 @@ import { useState } from "react";
 import { t } from "../../i18n";
 import type { Line, Playback } from "../../services/backend";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { Select } from "../ui/Select";
 import { forLine, noteOf, trackOptions } from "../../tracks";
 import { SubtitlePicker } from "./SubtitlePicker";
@@ -35,10 +35,7 @@ export function SubtitlesCard({ state, onCommand, commands }: SubtitlesCardProps
   const loading = tracks.loading ? t("ui.playing.subtitles.loading") : undefined;
 
   return (
-    <Card
-      title={t("ui.playing.subtitles.title")}
-      aside={<HelpTip topic={t("ui.playing.subtitles.topic")}>{t("ui.playing.subtitles.help")}</HelpTip>}
-    >
+    <Card title={t("ui.playing.subtitles.title")} aside={<KeyedTip k="ui.playing.subtitles" />}>
       <div className="@container">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 [&>*]:min-w-0 @md:grid-cols-2">
           <SubtitlePicker

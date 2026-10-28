@@ -6,7 +6,7 @@ import { both, keyLabel } from "../../keys";
 import { backend } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { HelpTip, KeyedTip } from "../ui/HelpTip";
 import { NumberField } from "../ui/Inputs";
 import { Select } from "../ui/Select";
 import { AssociationCard } from "./AssociationCard";
@@ -27,14 +27,14 @@ export function PlaybackSection({ view, draft, setDraft }: SectionProps) {
             value={String(draft.speed)}
             options={options.speeds.map((speed) => ({ value: String(speed), label: speedLabel(speed) }))}
             onChange={(speed) => change(setDraft, "speed")(Number(speed))}
-            help={<HelpTip topic={t("ui.settings.playback.speed.topic")}>{t("ui.settings.playback.speed.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.playback.speed" />}
           />
           <Select
             label={t("ui.settings.playback.audio.label")}
             value={draft.languages.audio}
             options={options.languages.map((option) => ({ value: option.value, label: option.label }))}
             onChange={(audio) => change(setDraft, "languages")({ ...draft.languages, audio })}
-            help={<HelpTip topic={t("ui.settings.playback.audio.topic")}>{t("ui.settings.playback.audio.help")}</HelpTip>}
+            help={<KeyedTip k="ui.settings.playback.audio" />}
           />
           <NumberField
             label={t("ui.settings.playback.volumeStep")}

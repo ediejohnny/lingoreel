@@ -8,7 +8,7 @@ import type { Editing, Line, Playback } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 
 interface EditorCardProps {
   state: Playback;
@@ -30,7 +30,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
   const pausedOnly = t("ui.editor.pausedOnly");
 
   return (
-    <Card title={t("ui.editor.title")} aside={<HelpTip topic={t("ui.editor.topic")}>{t("ui.editor.help")}</HelpTip>}>
+    <Card title={t("ui.editor.title")} aside={<KeyedTip k="ui.editor" />}>
       <div className="@container flex flex-col gap-4">
         {editing.staleEdits > 0 && (
           <p role="status" className="text-sm text-warning">
@@ -80,7 +80,7 @@ export function EditorCard({ state, label, onCommand }: EditorCardProps) {
           <Button icon={FileDown} variant="ghost" onClick={() => exportLine("translation")}>
             {t("ui.editor.export.bottom")}
           </Button>
-          <HelpTip topic={t("ui.editor.export.topic")}>{t("ui.editor.export.help")}</HelpTip>
+          <KeyedTip k="ui.editor.export" />
         </div>
       </div>
     </Card>

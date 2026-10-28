@@ -6,7 +6,7 @@ import { t } from "../../i18n";
 import { backend, messageOf, type SpeechPacksView, type SpeechPackView } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Banner, Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 import { ProgressBar } from "../ui/ProgressBar";
 
 /**
@@ -40,10 +40,7 @@ export function SpeechPacksCard() {
   };
 
   return (
-    <Card
-      title={t("ui.settings.packs.title")}
-      aside={<HelpTip topic={t("ui.settings.packs.topic")}>{t("ui.settings.packs.help")}</HelpTip>}
-    >
+    <Card title={t("ui.settings.packs.title")} aside={<KeyedTip k="ui.settings.packs" />}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-fg-secondary">{t("ui.settings.packs.intro")}</p>
         {view.level === "basic" && <Banner tone="warning">{t("ui.settings.packs.basic")}</Banner>}

@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { backend, messageOf, type Diagnostics } from "../../services/backend";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Feedback";
-import { HelpTip } from "../ui/HelpTip";
+import { KeyedTip } from "../ui/HelpTip";
 
 /** DiagnosticsCard shows the state of the app for a problem report, to copy. */
 export function DiagnosticsCard() {
@@ -32,10 +32,7 @@ export function DiagnosticsCard() {
   };
 
   return (
-    <Card
-      title={t("ui.settings.diagnostics.title")}
-      aside={<HelpTip topic={t("ui.settings.diagnostics.topic")}>{t("ui.settings.diagnostics.help")}</HelpTip>}
-    >
+    <Card title={t("ui.settings.diagnostics.title")} aside={<KeyedTip k="ui.settings.diagnostics" />}>
       {diagnostics && (
         <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-control border border-line bg-surface-sunken p-3 text-xs select-text">
           {diagnostics.items.map((item) => (
