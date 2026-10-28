@@ -6,6 +6,25 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- With the voice AI on, the study subtitle is kept on the actors' voice when the film drifts midway (a version with a
+  scene more or less): every 5 s the voice heard around the playhead is read against the lines, and once several
+  readings agree the subtitle moves back in small steps. What the voice moves is never saved over your own adjustment,
+  which the panel keeps showing with "By the voice" under it; a seek takes the correction settled for that part of the
+  film. Your own sync step against the voice's move, or putting the subtitle back to its file's timing, leaves the voice
+  out for the rest of the video. Settings › Study › Actors' voice › "Keep the sync on the voice" turns it off; it starts
+  off at the Basic level.
+- `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
+  with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
+- `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
+  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was.
+
+### Changed
+
+- The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
+  they are and only the highlights bend, so a still is as bright as the film looks.
+
 ## [0.28.0] - 2026-10-27
 
 ### Added
@@ -24,24 +43,11 @@ All notable changes to this project are listed here. The format follows
   computer", once confirmed, puts every setting the level decides to the level's own, also the ones chosen by hand. The
   setup assistant tells the computer's level, the question of a changed computer shows at the top of the window
   outside a film, and the documentation has a topic on the levels.
-- With the voice AI on, the study subtitle is kept on the actors' voice when the film drifts midway (a version with a
-  scene more or less): every 5 s the voice heard around the playhead is read against the lines, and once several
-  readings agree the subtitle moves back in small steps. What the voice moves is never saved over your own adjustment,
-  which the panel keeps showing with "By the voice" under it; a seek takes the correction settled for that part of the
-  film. Your own sync step against the voice's move, or putting the subtitle back to its file's timing, leaves the voice
-  out for the rest of the video. Settings › Study › Actors' voice › "Keep the sync on the voice" turns it off; it starts
-  off at the Basic level.
-- `lrdev drift-check <video>` plays a film without the screen and follows its line by the voice around the playhead,
-  with `--cut` and `--shift` making a version that slips from a point on; it prints when and how far the line moved.
-- `lrdev align-check <video>` places each line's words in its sound with a CTC speech model (wav2vec2 exported to
-  ONNX), run through ONNX Runtime's DLL without cgo, and tells how sure and how fast it was.
 
 ### Changed
 
 - How fast the voice model runs is no longer measured to tell a weak computer: a computer is judged by its hardware
   alone, since how busy it is at a moment (a game on another screen, an update) passes and says nothing of it.
-- The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
-  they are and only the highlights bend, so a still is as bright as the film looks.
 
 ## [0.27.3] - 2026-10-27
 
