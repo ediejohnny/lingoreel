@@ -408,6 +408,7 @@
   "shortcut.problem.reserved": "Essa combinação é do próprio Windows. Escolha outra.",
   "shortcut.problem.tooManyKeys": "Use no máximo três teclas: até dois modificadores (Ctrl, Alt, Shift) e uma tecla.",
   "speed.value": "{value}×",
+  "track.audio.untold": "Idioma não informado pelo arquivo",
   "track.default": "padrão",
   "track.external": "arquivo",
   "track.forced": "forçada",

@@ -25,6 +25,24 @@ func TestLanguageName(t *testing.T) {
 	}
 }
 
+// An audio track whose file does not tell its language says so, also when
+// only the format's default (English, guessed) stands for it.
+func TestAnAudioTrackWithoutItsLanguageSaysSo(t *testing.T) {
+	t.Parallel()
+	untold := ptbr.T("track.audio.untold")
+	cases := map[string]media.Track{
+		"Inglês · AC3":              {Language: "en", Codec: "A_AC3"},
+		untold + " · AC3":           {Language: "en", LanguageGuessed: true, Codec: "A_AC3"},
+		untold + " · AAC · Dublado": {Codec: "A_AAC", Name: "Dublado"},
+		"Português do Brasil · DTS": {Language: "pt-BR", Codec: "A_DTS"},
+	}
+	for want, track := range cases {
+		if got := ptbr.AudioLabel(track); got != want {
+			t.Errorf("AudioLabel(%+v) = %q, want %q", track, got, want)
+		}
+	}
+}
+
 func TestOffset(t *testing.T) {
 	t.Parallel()
 	cases := map[time.Duration]string{

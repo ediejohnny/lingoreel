@@ -30,6 +30,8 @@ All notable changes to this project are listed here. The format follows
 
 ### Changed
 
+- An audio track whose file does not tell its language reads "Language not given by the file" in the lists, instead of
+  "English" (only the format's default) or "unknown language".
 - The seek bar's stills of an HDR film are tone-mapped with the mobius curve instead of hable: the mid tones stay as
   they are and only the highlights bend, so a still is as bright as the film looks.
 
