@@ -6,6 +6,8 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-10-28
+
 ### Changed
 
 - In the right-click menu, each key stands on a faint background of its own, and the keys end in one column clear of
@@ -935,7 +937,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3
