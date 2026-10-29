@@ -6,6 +6,19 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-10-28
+
+### Changed
+
+- In the right-click menu, each key stands on a faint background of its own, and the keys end in one column clear of
+  the submenus' arrows, on the dark and the light menu alike; the app draws the menu's rows itself for it. With high
+  contrast on, Windows still draws the whole menu in the system's colors.
+
+### Fixed
+
+- The seek bar's preview could stay under the subtitles when another program was in front, as with the pointer
+  passing over the bar while working in another window.
+
 ## [0.29.0] - 2026-10-28
 
 ### Added
@@ -924,7 +937,8 @@ Subtitle core, text subtitle parsers and settings model.
 - Add PowerShell check and build scripts
 - Move tests into the tests tree and guard the layout
 
-[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/ediejohnny/lingoreel/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/ediejohnny/lingoreel/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/ediejohnny/lingoreel/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/ediejohnny/lingoreel/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/ediejohnny/lingoreel/compare/v0.27.2...v0.27.3

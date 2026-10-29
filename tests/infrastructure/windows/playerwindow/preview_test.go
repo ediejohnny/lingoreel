@@ -91,13 +91,34 @@ func TestTheHoverAsksForTheMomentUnderIt(t *testing.T) {
 	})
 }
 
+// setForeground brings a window to the foreground.
+var setForeground = windows.NewLazySystemDLL("user32.dll").NewProc("SetForegroundWindow")
+
+// anotherInFront puts a window of another thread in the foreground, as the
+// program the user is in while the pointer passes over the bar.
+func anotherInFront(t *testing.T) {
+	t.Helper()
+	other := open(t)
+	front := windows.HWND(other.Handle())
+	// Windows moves the foreground in its own time.
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		setForeground.Call(uintptr(front))
+		if windows.GetForegroundWindow() == front {
+			return
+		}
+	}
+	t.Skip("Windows did not let the test bring a window to the foreground")
+}
+
 // Dragging along the track, the preview stands above the pointer, over the
-// subtitles' window and the video, with the still over the time, and comes
-// back on top when the subtitles' window (made on another thread, shown when
-// it likes) comes over it; with no still to show the time stands alone.
+// subtitles' window and the video, with the still over the time, also while
+// another thread's window is in the foreground, and comes back on top when
+// the subtitles' window (made on another thread, shown when it likes) comes
+// over it; with no still to show the time stands alone.
 func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	testkit.Slow(t)
 	host, remote := openPreviewing(t)
+	anotherInFront(t)
 	remote.show(thumbnail.View{Status: thumbnail.Ready, Sharp: true, Picture: grey(t)})
 	bar, preview := controlBar(host), ownedWindow(host, "LingoReelPreview")
 	if preview == 0 {
@@ -129,7 +150,9 @@ func TestThePreviewFollowsADragAboveTheSubtitles(t *testing.T) {
 	}
 	onTop := func() bool { return zOrder(preview) < zOrder(subtitles) && zOrder(preview) < zOrder(host) }
 	testkit.Eventually(t, "the preview over the subtitles and the video", onTop)
-	if err := win32.SetWindowPos(subtitles, 0, win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE); err != nil {
+	// Right over the preview, which "on top" would not reach from this
+	// thread while another is in the foreground.
+	if err := win32.SetWindowPos(subtitles, win32.WindowAbove(preview), win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE|win32.SWP_NOOWNERZORDER); err != nil {
 		t.Fatal(err)
 	}
 	if onTop() {

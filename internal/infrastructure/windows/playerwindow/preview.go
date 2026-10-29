@@ -152,14 +152,21 @@ func (w *Window) drawPreview(remote watch.Remote, state controlbar.State, bar co
 // programs as the mouse passes.
 func (w *Window) keepPreviewOnTop() {
 	root := win32.RootOwner(w.preview)
+	var highest windows.HWND
 	above := win32.WindowAbove(w.preview)
 	for steps := 0; above != 0 && steps < maxWindowsAbove; steps++ {
 		if win32.RootOwner(above) == root {
-			_ = win32.SetWindowPos(w.preview, 0, win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE|win32.SWP_NOOWNERZORDER)
-			return
+			highest = above
 		}
 		above = win32.WindowAbove(above)
 	}
+	if highest == 0 {
+		return
+	}
+	// Right under the window above the app's highest one: asked for the top
+	// (HWND_TOP) while another thread is in the foreground, Windows puts it
+	// below that thread's windows, which may be under the subtitles'.
+	_ = win32.SetWindowPos(w.preview, win32.WindowAbove(highest), win32.Rect{}, win32.SWP_NOMOVE|win32.SWP_NOSIZE|win32.SWP_NOACTIVATE|win32.SWP_NOOWNERZORDER)
 }
 
 // hidePreview takes the preview off the screen; the next one shows on top

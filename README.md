@@ -13,7 +13,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6.svg" alt="Windows 10 and 11">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.29.0-brightgreen.svg" alt="Version 0.29.0"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.29.1-brightgreen.svg" alt="Version 0.29.1"></a>
   <img src="https://img.shields.io/badge/languages-English%20%7C%20Portugu%C3%AAs-orange.svg" alt="English and Portuguese">
 </p>
 

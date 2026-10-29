@@ -33,15 +33,18 @@ const (
 	miimState   = 0x0001
 	miimID      = 0x0002
 	miimSubmenu = 0x0004
+	miimData    = 0x0020
 	miimString  = 0x0040
 	miimBitmap  = 0x0080
 	miimFType   = 0x0100
 
 	mftSeparator  = 0x0800
 	mftRadioCheck = 0x0200
+	mftOwnerDraw  = 0x0100
 	mfsChecked    = 0x0008
 	mfsDisabled   = 0x0003
 
+	mimBackground = 0x0002
 	mimStyle      = 0x0010
 	mnsCheckOrBmp = 0x04000000
 
@@ -108,6 +111,11 @@ type MenuItem struct {
 	Disabled                  bool
 	SubMenu                   windows.Handle
 	Bitmap                    windows.Handle
+	// OwnerDraw leaves the item's drawing to the window the menu shows for,
+	// through WM_MEASUREITEM and WM_DRAWITEM, which carry Data; the text
+	// stays the item's name for screen readers.
+	OwnerDraw bool
+	Data      uintptr
 }
 
 // CreatePopupMenu makes an empty popup menu that takes check marks or
@@ -126,14 +134,30 @@ func CreatePopupMenu() (windows.Handle, error) {
 	return windows.Handle(menu), nil
 }
 
+// SetMenuBackground paints a menu's background with a brush, which must
+// outlive the menu.
+func SetMenuBackground(menu, brush windows.Handle) error {
+	info := menuInfo{Mask: mimBackground, Background: brush}
+	info.Size = uint32(unsafe.Sizeof(info))
+	if ok, _, err := procSetMenuInfo.Call(uintptr(menu), uintptr(unsafe.Pointer(&info))); ok == 0 {
+		return fmt.Errorf("SetMenuInfo: %w", callErr(err))
+	}
+	return nil
+}
+
 // AppendMenuItem adds an item at the end of a menu.
 func AppendMenuItem(menu windows.Handle, item MenuItem) error {
 	info := menuItemInfo{Mask: miimFType | miimState}
 	info.Size = uint32(unsafe.Sizeof(info))
+	if item.OwnerDraw {
+		info.Type |= mftOwnerDraw
+		info.Mask |= miimData
+		info.ItemData = item.Data
+	}
 	var text []uint16
 	switch {
 	case item.Separator:
-		info.Type = mftSeparator
+		info.Type |= mftSeparator
 	default:
 		var err error
 		if text, err = windows.UTF16FromString(item.Text); err != nil {
@@ -176,7 +200,7 @@ func MenuItemCount(menu windows.Handle) int {
 
 // MenuItemAt reads an item of a menu back, by its position.
 func MenuItemAt(menu windows.Handle, position int) (MenuItem, error) {
-	info := menuItemInfo{Mask: miimFType | miimState | miimID | miimSubmenu | miimString | miimBitmap}
+	info := menuItemInfo{Mask: miimFType | miimState | miimID | miimSubmenu | miimString | miimBitmap | miimData}
 	info.Size = uint32(unsafe.Sizeof(info))
 	if ok, _, err := procGetMenuItemInfoW.Call(uintptr(menu), uintptr(position), 1, uintptr(unsafe.Pointer(&info))); ok == 0 {
 		return MenuItem{}, fmt.Errorf("GetMenuItemInfoW: %w", callErr(err))
@@ -185,6 +209,7 @@ func MenuItemAt(menu windows.Handle, position int) (MenuItem, error) {
 		ID: info.ID, Separator: info.Type&mftSeparator != 0, Radio: info.Type&mftRadioCheck != 0,
 		Checked: info.State&mfsChecked != 0, Disabled: info.State&mfsDisabled != 0,
 		SubMenu: info.SubMenu, Bitmap: info.Bitmap,
+		OwnerDraw: info.Type&mftOwnerDraw != 0, Data: info.ItemData,
 	}
 	if item.Separator {
 		return item, nil
