@@ -203,6 +203,13 @@ type Window struct {
 	menuOpen  bool
 	icons     map[iconKey]windows.Handle
 	iconsLeft bool
+	// rows are the rows of the menu on screen that the window draws, with
+	// their look (rowLook) and the menu's background (rowBrush); rowDIB is
+	// the picture a row is drawn on.
+	rows     []menuRow
+	rowLook  gdiplus.MenuRowLook
+	rowBrush windows.Handle
+	rowDIB   *win32.DIB
 	// preview is the seek preview's window and previewDIB its picture;
 	// hoverX is where the pointer last moved over the bar; aspect the last
 	// still's shape; stills the latest stills decoded, oldest first in
@@ -592,6 +599,8 @@ func (w *Window) teardown() {
 	w.dib = nil
 	w.previewDIB.Close()
 	w.previewDIB = nil
+	w.rowDIB.Close()
+	w.rowDIB = nil
 	if w.renderer != nil {
 		w.renderer.Close()
 		w.renderer = nil

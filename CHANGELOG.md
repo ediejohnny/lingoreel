@@ -6,6 +6,12 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- In the right-click menu, each key stands on a faint background of its own, and the keys end in one column clear of
+  the submenus' arrows, on the dark and the light menu alike; the app draws the menu's rows itself for it. With high
+  contrast on, Windows still draws the whole menu in the system's colors.
+
 ## [0.29.0] - 2026-10-28
 
 ### Added

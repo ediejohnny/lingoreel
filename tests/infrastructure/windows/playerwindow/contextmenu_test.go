@@ -1,8 +1,6 @@
 package playerwindow_test
 
 import (
-	"fmt"
-	"math"
 	"os"
 	"slices"
 	"strings"
@@ -281,6 +279,53 @@ func TestTheMenuShowsTheKeysAsConfigured(t *testing.T) {
 	}
 }
 
+// row is a menu item as the window draws it: drawn by the window or not,
+// the picture Windows would measure it by, its size, and its pixels (BGRA,
+// rows top to bottom).
+type row struct {
+	ownerDraw     bool
+	bitmap        windows.Handle
+	width, height int
+	pixels        []byte
+}
+
+// drawnRow asks the window to measure and draw an item, as Windows does
+// while the menu shows. Runs on the window's thread (inside choose).
+func drawnRow(host windows.HWND, item win32.MenuItem) row {
+	if !item.OwnerDraw {
+		return row{}
+	}
+	size := win32.MeasureItem{CtlType: win32.ODT_MENU, ItemData: item.Data}
+	win32.SendMessage(host, win32.WM_MEASUREITEM, 0, uintptr(unsafe.Pointer(&size)))
+	got := row{ownerDraw: true, bitmap: item.Bitmap, width: int(size.ItemWidth), height: int(size.ItemHeight)}
+	dib, err := win32.NewDIB(got.width, got.height)
+	if err != nil {
+		return got
+	}
+	defer dib.Close()
+	draw := win32.DrawItem{CtlType: win32.ODT_MENU, DC: dib.DC, ItemData: item.Data,
+		Bounds: win32.Rect{Right: int32(got.width), Bottom: int32(got.height)}}
+	win32.SendMessage(host, win32.WM_DRAWITEM, 0, uintptr(unsafe.Pointer(&draw)))
+	got.pixels = slices.Clone(dib.Pixels)
+	return got
+}
+
+// count is how many pixels of a row left of x a test holds for.
+func (r row) count(x int, holds func(red, green, blue byte) bool) int {
+	n := 0
+	for i := 0; i+3 < len(r.pixels); i += 4 {
+		if (i/4)%r.width < x && holds(r.pixels[i+2], r.pixels[i+1], r.pixels[i]) {
+			n++
+		}
+	}
+	return n
+}
+
+// amber holds for pixels of the pause icon's amber, alone or over a menu.
+func amber(red, green, blue byte) bool {
+	return int(red) > int(green)+0x30 && int(green) > int(blue)+0x30
+}
+
 // The menu follows the app's theme, and so do its icons: light on a dark
 // menu, dark on a light one, with pause in amber (the video plays: the item
 // is "Pausar").
@@ -289,118 +334,105 @@ func TestTheMenusIconsFollowTheTheme(t *testing.T) {
 		t.Skip("high contrast is on: the menu takes the system's colors")
 	}
 	cases := []struct {
-		name        string
-		theme       playerwindow.Theme
-		text, pause [3]byte
+		name  string
+		theme playerwindow.Theme
+		ink   func(red, green, blue byte) bool
 	}{
-		{"dark", playerwindow.ThemeDark, [3]byte{0xF2, 0xF2, 0xF2}, [3]byte{0xFB, 0xBF, 0x24}},
-		{"light", playerwindow.ThemeLight, [3]byte{0x00, 0x00, 0x00}, [3]byte{0xD9, 0x77, 0x06}},
+		{"dark", playerwindow.ThemeDark, func(r, g, b byte) bool { return min(r, g, b) >= 0xC0 }},
+		{"light", playerwindow.ThemeLight, func(r, g, b byte) bool { return max(r, g, b) <= 0x50 }},
 	}
 	for _, c := range cases {
 		chrome := playerwindow.DefaultChrome()
 		chrome.Theme = c.theme
 		m := openMenuWindowWith(t, nil, &chrome)
-		painted := make(chan [2]string, 1)
+		rows := make(chan [2]row, 1)
 		m.choose(func(menu windows.Handle, _, _ int32) uint32 {
 			pause, _ := itemAt(menu, ptbr.T("bar.tip.pause"))
 			full, _ := itemAt(menu, ptbr.T("bar.tip.fullscreen"))
-			painted <- [2]string{inkOf(pause.Bitmap), inkOf(full.Bitmap)}
+			rows <- [2]row{drawnRow(m.host, pause), drawnRow(m.host, full)}
 			return 0
 		})
 		m.openAt(t, 10, 10)
+		var got [2]row
 		select {
-		case got := <-painted:
-			if want := stepped(c.pause[0], c.pause[1], c.pause[2], 0xFF); got[0] != want {
-				t.Errorf("%s: pause painted %s, want %s", c.name, got[0], want)
-			}
-			if want := stepped(c.text[0], c.text[1], c.text[2], 0xFF); got[1] != want {
-				t.Errorf("%s: fullscreen painted %s, want %s", c.name, got[1], want)
-			}
+		case got = <-rows:
 		case <-time.After(5 * time.Second):
 			t.Fatalf("%s: the menu did not open", c.name)
 		}
-	}
-}
-
-// bitmapInfo is a BITMAP; a DIB section's has its pixels in Bits.
-type bitmapInfo struct {
-	Type, Width, Height, WidthBytes int32
-	Planes, BitsPixel               uint16
-	Bits                            *byte
-}
-
-// inkOf is the color of a picture's most opaque pixel as "rrggbb", taken
-// out of its premultiplied alpha and rounded to the nearest of 16 steps per
-// channel (a thin line's smoothed edge is never fully opaque); "none" when
-// the picture is clear.
-func inkOf(bitmap windows.Handle) string {
-	var info bitmapInfo
-	if n, _, _ := getObject.Call(uintptr(bitmap), unsafe.Sizeof(info), uintptr(unsafe.Pointer(&info))); n == 0 || info.Bits == nil {
-		return "none"
-	}
-	pixels := unsafe.Slice(info.Bits, int(info.WidthBytes)*int(abs32(info.Height)))
-	strongest := -1
-	for i := 0; i+3 < len(pixels); i += 4 {
-		if pixels[i+3] != 0 && (strongest < 0 || pixels[i+3] > pixels[strongest+3]) {
-			strongest = i
+		// The icon's column, before the text: 28 pixels at 100%.
+		icons := 28 * win32.DpiForWindow(m.host) / 96
+		pause, full := got[0], got[1]
+		if n := pause.count(icons, amber); n < 3 {
+			t.Errorf("%s: %d amber pixels in pause's icon", c.name, n)
+		}
+		if n, other := full.count(icons, c.ink), full.count(icons, amber); n < 3 || other != 0 {
+			t.Errorf("%s: fullscreen's icon has %d pixels of the text's color and %d amber ones", c.name, n, other)
 		}
 	}
-	if strongest < 0 {
-		return "none"
-	}
-	return stepped(pixels[strongest+2], pixels[strongest+1], pixels[strongest], pixels[strongest+3])
 }
 
-// stepped is a premultiplied color as "rrggbb", rounded to the nearest of
-// 16 steps per channel.
-func stepped(r, g, b, a byte) string {
-	step := func(c byte) int {
-		v := float64(c) * 255 / float64(a)
-		return min(255, int(math.Round(v/17))*17)
+// On a dark or a light menu the window draws the rows, through the messages
+// Windows sends it: each row is as wide as its text and its key need, and a
+// key sits on a background of its own, which a row without a key lacks.
+func TestTheWindowDrawsTheMenusRows(t *testing.T) {
+	if win32.HighContrast() {
+		t.Skip("high contrast is on: Windows draws the whole menu")
 	}
-	return fmt.Sprintf("%02x%02x%02x", step(r), step(g), step(b))
-}
-
-func abs32(v int32) int32 {
-	if v < 0 {
-		return -v
-	}
-	return v
-}
-
-// The pictures are as large as the monitor's small icons; the menu goes
-// once closed, and the pictures with the window.
-func TestTheMenuAndItsPicturesAreFreed(t *testing.T) {
-	m := openMenuWindow(t, nil)
-	type seen struct {
-		menu, bitmap windows.Handle
-	}
-	saw := make(chan seen, 1)
+	chrome := playerwindow.DefaultChrome()
+	chrome.Theme = playerwindow.ThemeDark
+	m := openMenuWindowWith(t, nil, &chrome)
+	rows := make(chan [2]row, 1)
 	m.choose(func(menu windows.Handle, _, _ int32) uint32 {
 		pause, _ := itemAt(menu, ptbr.T("bar.tip.pause"))
-		saw <- seen{menu, pause.Bitmap}
+		lines, _ := itemAt(menu, ptbr.T("menu.title.subtitles"))
+		rows <- [2]row{drawnRow(m.host, pause), drawnRow(m.host, lines)}
 		return 0
 	})
 	m.openAt(t, 10, 10)
-	var got seen
+	var got [2]row
 	select {
-	case got = <-saw:
+	case got = <-rows:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the menu did not open")
 	}
-	// The monitor's small icon size, asked of Windows by the test itself.
-	small, _, _ := procGetSystemMetricsForDpi.Call(smCXSmallIcon, uintptr(win32.DpiForWindow(m.host)))
-	size := int(small)
-	if width, height, bits, ok := win32.BitmapBits(got.bitmap); !ok || width != size || height != size || bits != 32 {
-		t.Fatalf("the picture is %dx%d at %d bits (%v), want %dx%d at 32", width, height, bits, ok, size, size)
+	pause, lines := got[0], got[1]
+	if !pause.ownerDraw || !lines.ownerDraw {
+		t.Fatalf("Windows draws the rows (pause %v, subtitles %v)", !pause.ownerDraw, !lines.ownerDraw)
 	}
-	testkit.Eventually(t, "the menu to be destroyed", func() bool { return !win32.IsMenu(got.menu) })
-	if err := m.w.Close(); err != nil {
-		t.Fatal(err)
+	// Windows measures an item with a picture of its own by that picture,
+	// never asking the window, and the menu shrinks to the pictures.
+	if pause.bitmap != 0 || lines.bitmap != 0 {
+		t.Fatal("a row the window draws carries its icon as the item's picture")
 	}
-	if _, _, _, ok := win32.BitmapBits(got.bitmap); ok {
-		t.Fatal("a menu picture outlived the window")
+	// The text, its key and the columns around them: far wider than the
+	// mark Windows leaves an item it is not told the size of.
+	if pause.width < 4*pause.height || lines.width < 3*lines.height {
+		t.Fatalf("rows measured %dx%d and %dx%d: want each as wide as its text and key", pause.width, pause.height, lines.width, lines.height)
 	}
+	// A key's background on the dark menu: the text's color, faint, over
+	// the row's.
+	keyBack := func(r, g, b byte) bool { return r == g && g == b && r >= 0x3F && r <= 0x41 }
+	if with, without := pause.count(pause.width, keyBack), lines.count(lines.width, keyBack); with < pause.height || without != 0 {
+		t.Fatalf("%d pixels of a key's background in the row with a key, %d in the row without", with, without)
+	}
+}
+
+// The menu goes once closed.
+func TestTheMenuIsFreedOnceClosed(t *testing.T) {
+	m := openMenuWindow(t, nil)
+	shown := make(chan windows.Handle, 1)
+	m.choose(func(menu windows.Handle, _, _ int32) uint32 {
+		shown <- menu
+		return 0
+	})
+	m.openAt(t, 10, 10)
+	var menu windows.Handle
+	select {
+	case menu = <-shown:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the menu did not open")
+	}
+	testkit.Eventually(t, "the menu to be destroyed", func() bool { return !win32.IsMenu(menu) })
 }
 
 // A click on a subtitle puts its own items first, and copying sends its
@@ -463,12 +495,6 @@ func TestWithoutTheAppItsItemsAreNotInTheMenu(t *testing.T) {
 }
 
 var procPeekMessage = windows.NewLazySystemDLL("user32.dll").NewProc("PeekMessageW")
-
-// procGetSystemMetricsForDpi and smCXSmallIcon read the width of a small
-// icon at a scaling (SM_CXSMICON).
-var procGetSystemMetricsForDpi = windows.NewLazySystemDLL("user32.dll").NewProc("GetSystemMetricsForDpi")
-
-const smCXSmallIcon = 49
 
 // pumpUntil dispatches the thread's messages, as a menu's own loop does,
 // until done is closed or the time runs out.

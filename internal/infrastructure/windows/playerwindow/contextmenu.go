@@ -96,9 +96,14 @@ func (w *Window) openContextMenu(at win32.Point) {
 		win32.SetCursor(win32.ArrowCursor())
 	}
 	items := contextmenu.Build(w.menuState(remote, w.lineUnder(remote, at, client)))
-	menu, chosen, err := w.buildMenu(items, w.menuShade())
+	shade := w.menuShade()
+	if drawsRows(shade) {
+		w.beginRows(shade)
+	}
+	menu, chosen, err := w.buildMenu(items, shade)
 	if err != nil {
 		win32.DestroyMenu(menu)
+		w.endRows()
 		w.logger.Warn("the context menu could not be built", "error", err)
 		return
 	}
@@ -107,6 +112,7 @@ func (w *Window) openContextMenu(at win32.Point) {
 	id := w.track(menu, at)
 	w.menuOpen = false
 	win32.DestroyMenu(menu)
+	w.endRows()
 	if w.host == 0 {
 		// The window went while the menu showed: nothing chosen counts.
 		if w.iconsLeft {
@@ -209,7 +215,7 @@ func iconColor(icon contextmenu.Icon, enabled bool, shade menuShade) appearance.
 // shade, numbering the items that can be chosen from 1; chosen lists them in
 // that order.
 func (w *Window) buildMenu(items []contextmenu.Item, shade menuShade) (windows.Handle, []contextmenu.Item, error) {
-	menu, err := win32.CreatePopupMenu()
+	menu, err := w.newMenu()
 	if err != nil {
 		return 0, nil, err
 	}
@@ -224,17 +230,22 @@ func (w *Window) fill(menu windows.Handle, items []contextmenu.Item, chosen *[]c
 	keys := w.shortcuts()
 	for _, item := range items {
 		native := win32.MenuItem{Separator: item.Kind == contextmenu.KindSeparator}
+		var text contextmenu.Text
 		if !native.Separator {
 			if words := w.options.Labels.Menu; words != nil {
-				text := words(item, keys)
+				text = words(item, keys)
 				native.Text = menuText(text)
 			}
 			native.Radio, native.Checked, native.Disabled = item.Radio, item.Checked, !item.Enabled
 			native.Bitmap = w.icon(item.Icon, item.Enabled, shade)
 		}
+		if drawsRows(shade) {
+			native.OwnerDraw, native.Data = true, w.addRow(rowOf(item, text, native.Bitmap))
+			native.Bitmap = 0
+		}
 		switch item.Kind {
 		case contextmenu.KindSubmenu:
-			sub, err := win32.CreatePopupMenu()
+			sub, err := w.newMenu()
 			if err != nil {
 				return err
 			}

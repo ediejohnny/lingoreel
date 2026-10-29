@@ -95,6 +95,14 @@ func dispatchHost(hwnd windows.HWND, message uint32, wparam, lparam uintptr) uin
 		// window, on another thread this window never waits for.
 		w.openContextMenu(win32.PointOf(lparam))
 		return 0
+	case win32.WM_MEASUREITEM:
+		if w.measureRow(lparam) {
+			return 1
+		}
+	case win32.WM_DRAWITEM:
+		if w.drawRow(lparam) {
+			return 1
+		}
 	case win32.WM_LBUTTONDBLCLK:
 		// On a line of the paused video, the box that corrects it; anywhere
 		// else, the fullscreen.

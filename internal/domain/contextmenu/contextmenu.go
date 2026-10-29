@@ -1,8 +1,9 @@
 // Package contextmenu is the menu the right button opens over the video, as
-// plain data: what it holds for a state of the session, never how a system
-// draws it, so each system's own menu (the Windows popup menu today) is built
-// from the same model. The texts are not here either: the presentation words
-// every item, with the key the profile gives its command.
+// plain data: what it holds for a state of the session, so each system's own
+// menu (the Windows popup menu today) is built from the same model, and where
+// a row's parts go when the app draws the rows itself. The texts are not
+// here: the presentation words every item, with the key the profile gives its
+// command.
 package contextmenu
 
 import (
